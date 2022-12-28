@@ -1,11 +1,11 @@
-#include <iostream>
-#include "../engine/Window.h"
+#include "gl/Window.h"
 
 int main() {
-    std::cout << "Henlo" <<  std::endl;
-    auto window = Vixen::Editor::Window("Vixen Editor", 1080, 720);
+    auto window = Vixen::Engine::Gl::Window("Vixen Editor", 1080, 720);
+    window.center();
     window.setVisible(true);
 
-    while (!window.shouldClose())
-        Vixen::Editor::Window::update();
+    while (!window.shouldClose()) {
+        window.update();
+    }
 }

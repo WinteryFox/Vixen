@@ -1,24 +1,26 @@
 #pragma once
 
-#define GLFW_INCLUDE_NONE
-
 #include <string>
 #include <spdlog/spdlog.h>
 #include <GLFW/glfw3.h>
+#include <iostream>
 
-namespace Vixen::Editor {
+namespace Vixen::Engine {
     class Window {
+    protected:
         GLFWwindow *window;
 
-    public:
-        Window(const std::string &title, uint32_t width, uint32_t height);
+        Window(const std::string &title, const uint32_t &width, const uint32_t &height);
 
         ~Window();
 
+    public:
         [[nodiscard]] bool shouldClose() const;
 
-        static void update();
+        void update();
 
         void setVisible(bool visible);
+
+        void center();
     };
 }
