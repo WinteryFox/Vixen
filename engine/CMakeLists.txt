@@ -47,6 +47,6 @@ endif ()
 
 if (ENABLE_OPENGL)
     find_package(OpenGL REQUIRED)
-    pkg_check_modules(GLEW REQUIRED IMPORTED_TARGET GLEW)
+    pkg_check_modules(GLEW REQUIRED IMPORTED_TARGET glew)
     target_link_libraries(engine OpenGL::GL PkgConfig::GLEW)
 endif ()
