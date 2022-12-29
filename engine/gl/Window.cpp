@@ -1,8 +1,9 @@
 #include "Window.h"
 
 namespace Vixen::Engine::Gl {
-    Window::Window(const std::string &title, const uint32_t &width, const uint32_t &height) :
-            Vixen::Engine::Window(title, width, height) {
+    Window::Window(const std::string &title, const uint32_t &width, const uint32_t &height, bool transparentFrameBuffer) :
+            Vixen::Engine::Window(title, width, height, transparentFrameBuffer) {
+        spdlog::trace("Creating new OpenGL window");
         glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 3);
         glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 3);
         glfwWindowHint(GLFW_CLIENT_API, GLFW_OPENGL_API);
@@ -39,5 +40,14 @@ namespace Vixen::Engine::Gl {
 #endif
 
         glfwDefaultWindowHints();
+    }
+
+    void Window::clear() {
+        glClearColor(clearColor.r, clearColor.g, clearColor.b, clearColor.a);
+        glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+    }
+
+    void Window::swap() {
+        glfwSwapBuffers(window);
     }
 }

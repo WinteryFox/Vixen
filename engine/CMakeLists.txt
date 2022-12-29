@@ -22,16 +22,16 @@ if (ENABLE_OPENGL)
     message(STATUS "OpenGL support is enabled")
     add_definitions(-DGL_ENABLED=1)
 
-    set(GL_HEADERS gl/Window.h)
-    set(GL_SOURCES gl/Window.cpp)
+    set(GL_HEADERS gl/Window.h gl/ShaderModule.h gl/ShaderProgram.h)
+    set(GL_SOURCES gl/Window.cpp gl/ShaderModule.cpp gl/ShaderProgram.cpp)
 else ()
     message(STATUS "OpenGL support is disabled")
 endif ()
 
-set(HEADERS Window.hpp)
-set(SOURCES Window.cpp)
+set(HEADERS Window.hpp ShaderModule.h ShaderProgram.h Monitor.h)
+set(SOURCES Window.cpp ShaderModule.cpp)
 
-add_library(engine ${SOURCES} ${VK_SOURCES} ${GL_SOURCES})
+add_library(engine SHARED ${SOURCES} ${VK_SOURCES} ${GL_SOURCES})
 target_link_libraries(
         engine
         PkgConfig::GLM

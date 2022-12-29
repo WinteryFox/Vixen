@@ -7,7 +7,11 @@
 
 namespace Vixen::Engine::Gl {
     struct Window : Vixen::Engine::Window {
-        Window(const std::string &title, const uint32_t &width, const uint32_t &height);
+        Window(const std::string &title, const uint32_t &width, const uint32_t &height, bool transparentFrameBuffer);
+
+        void clear();
+
+        void swap();
     };
 }
 
@@ -30,7 +34,7 @@ static void APIENTRY glDebugOutput(GLenum source,
     {
         case GL_DEBUG_SOURCE_API:             std::cout << "Source: API"; break;
         case GL_DEBUG_SOURCE_WINDOW_SYSTEM:   std::cout << "Source: Window System"; break;
-        case GL_DEBUG_SOURCE_SHADER_COMPILER: std::cout << "Source: Shader Compiler"; break;
+        case GL_DEBUG_SOURCE_SHADER_COMPILER: std::cout << "Source: ShaderModule Compiler"; break;
         case GL_DEBUG_SOURCE_THIRD_PARTY:     std::cout << "Source: Third Party"; break;
         case GL_DEBUG_SOURCE_APPLICATION:     std::cout << "Source: Application"; break;
         case GL_DEBUG_SOURCE_OTHER:           std::cout << "Source: Other"; break;
