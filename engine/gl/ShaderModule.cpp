@@ -49,8 +49,8 @@ namespace Vixen::Engine::Gl {
         glShaderBinary(1, &module, GL_SHADER_BINARY_FORMAT_SPIR_V, glslBinary.data(), glslBinary.size() * sizeof(uint32_t));
         glSpecializeShader(module, entry.c_str(), 0, nullptr, nullptr);
 
-        GLuint status;
-        glGetShaderiv(GL_COMPILE_STATUS, &status);
+        GLint status;
+        glGetShaderiv(module, GL_COMPILE_STATUS, &status);
         if (!status) {
             GLint size;
             glGetShaderiv(module, GL_INFO_LOG_LENGTH, &size);
