@@ -1,6 +1,7 @@
 #pragma once
 
-#include <spirv_cross/spirv_glsl.hpp>
+#include <spirv_cpp.hpp>
+#include <spirv_glsl.hpp>
 #include <spdlog/spdlog.h>
 #include <GL/glew.h>
 #include <string>
