@@ -16,6 +16,7 @@ namespace Vixen::Engine::Gl {
         options.SetTargetEnvironment(shaderc_target_env_opengl, shaderc_env_version_opengl_4_5);
 #ifdef DEBUG
         options.SetGenerateDebugInfo();
+        options.SetOptimizationLevel(shaderc_optimization_level_zero);
 #else
         options.SetOptimizationLevel(shaderc_optimization_level_performance);
 #endif
@@ -47,6 +48,17 @@ namespace Vixen::Engine::Gl {
         }
         glShaderBinary(1, &module, GL_SHADER_BINARY_FORMAT_SPIR_V, glslBinary.data(), glslBinary.size() * sizeof(uint32_t));
         glSpecializeShader(module, entry.c_str(), 0, nullptr, nullptr);
+
+        GLuint status;
+        glGetShaderiv(GL_COMPILE_STATUS, &status);
+        if (!status) {
+            GLint size;
+            glGetShaderiv(module, GL_INFO_LOG_LENGTH, &size);
+            char log[size];
+            glGetShaderInfoLog(module, 0, nullptr, log);
+            spdlog::error("Failed to specialize GL shader module.\n{}", std::string(log));
+            throw std::runtime_error("Failed to specialize GL shader module.");
+        }
     }
 
     ShaderModule::~ShaderModule() {
