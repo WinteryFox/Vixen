@@ -18,7 +18,6 @@ find_package(PkgConfig REQUIRED)
 
 option(COMPILE_EDITOR "Enable or disable the compilation of the editor" ON)
 
-add_definitions(-DGLFW_INCLUDE_NONE)
 if (CMAKE_BUILD_TYPE MATCHES "Debug")
     add_definitions(-DDEBUG)
 endif ()

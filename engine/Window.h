@@ -17,6 +17,10 @@ namespace Vixen::Engine {
         };
 
     protected:
+        uint32_t width, height;
+
+        GLFWmonitor *monitor;
+
         GLFWwindow *window;
 
         std::unordered_map<GLFWmonitor *, Monitor> monitors;
@@ -30,13 +34,13 @@ namespace Vixen::Engine {
     public:
         [[nodiscard]] bool shouldClose() const;
 
-        void update();
+        static void update();
 
         void setVisible(bool visible);
 
         void center();
 
-        void setWindowedMode(Mode mode, int width, int height, int x, int y, int refreshRate);
+        void setWindowedMode(Mode mode);
 
         std::unique_ptr<Monitor> getMonitor();
 

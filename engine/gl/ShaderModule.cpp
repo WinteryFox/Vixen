@@ -1,7 +1,7 @@
 #include "ShaderModule.h"
 
 namespace Vixen::Engine::Gl {
-    ShaderModule::ShaderModule(Stage stage, const std::string &source) : Vixen::Engine::ShaderModule(stage), module(0) {
+    ShaderModule::ShaderModule(Stage stage, const std::string &source, const std::string &entry) : Vixen::Engine::ShaderModule(stage, source, entry), module(0) {
         switch (stage) {
             case Stage::VERTEX:
                 module = glCreateShader(GL_VERTEX_SHADER);
@@ -13,16 +13,16 @@ namespace Vixen::Engine::Gl {
                 spdlog::error("Unsupported shader stage");
                 throw std::runtime_error("Unsupported shader stage");
         }
-        auto src = source.c_str();
-        glShaderSource(module, 1, &src, nullptr);
-        glCompileShader(module);
+        glShaderBinary(1, &module, GL_SHADER_BINARY_FORMAT_SPIR_V, binary.data(), binary.size());
+        glSpecializeShader(module, entry.c_str(), 0, nullptr, nullptr);
 
-        int success;
-        char log[512];
-        glGetShaderiv(module, GL_COMPILE_STATUS, &success);
-        if (!success) {
+        GLint status;
+        glGetShaderiv(module, GL_COMPILE_STATUS, &status);
+        if (GL_FALSE == status) {
+            char log[512];
             glGetShaderInfoLog(module, 512, nullptr, log);
-            spdlog::error("Failed to compile shader: {}", log);
+            spdlog::error("Failed to compile shader module. {}", log);
+            throw std::runtime_error("Failed to compile shader module");
         }
     }
 

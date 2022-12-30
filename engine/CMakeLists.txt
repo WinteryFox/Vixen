@@ -4,49 +4,28 @@ pkg_check_modules(GLM REQUIRED IMPORTED_TARGET glm)
 pkg_check_modules(GLFW REQUIRED IMPORTED_TARGET glfw3)
 pkg_check_modules(ASSIMP REQUIRED IMPORTED_TARGET assimp)
 pkg_check_modules(SPDLOG REQUIRED IMPORTED_TARGET spdlog)
+pkg_check_modules(SHADERC REQUIRED IMPORTED_TARGET shaderc)
 
 option(ENABLE_VULKAN "Enable or disable Vulkan support" ON)
 option(ENABLE_OPENGL "Enable or disable OpenGL support" ON)
 
-if (ENABLE_VULKAN)
-    message(STATUS "Vulkan support is enabled")
-    add_definitions(-DVK_ENABLED=1)
-
-    set(VK_HEADERS vk/Window.h)
-    set(VK_SOURCES vk/Window.cpp)
-else ()
-    message(STATUS "Vulkan support is disabled")
-endif ()
-
-if (ENABLE_OPENGL)
-    message(STATUS "OpenGL support is enabled")
-    add_definitions(-DGL_ENABLED=1)
-
-    set(GL_HEADERS gl/Window.h gl/ShaderModule.h gl/ShaderProgram.h)
-    set(GL_SOURCES gl/Window.cpp gl/ShaderModule.cpp gl/ShaderProgram.cpp)
-else ()
-    message(STATUS "OpenGL support is disabled")
-endif ()
-
 set(HEADERS Window.hpp ShaderModule.h ShaderProgram.h Monitor.h)
 set(SOURCES Window.cpp ShaderModule.cpp)
 
-add_library(engine SHARED ${SOURCES} ${VK_SOURCES} ${GL_SOURCES})
-target_link_libraries(
-        engine
+link_libraries(
         PkgConfig::GLM
         PkgConfig::GLFW
         PkgConfig::ASSIMP
         PkgConfig::SPDLOG
+        PkgConfig::SHADERC
 )
+add_library(engine SHARED ${SOURCES})
+add_definitions(-DGLFW_INCLUDE_NONE)
 
 if (ENABLE_VULKAN)
-    find_package(Vulkan REQUIRED)
-    target_link_libraries(engine Vulkan::Vulkan)
+    add_subdirectory(vk)
 endif ()
 
 if (ENABLE_OPENGL)
-    find_package(OpenGL REQUIRED)
-    pkg_check_modules(GLEW REQUIRED IMPORTED_TARGET glew)
-    target_link_libraries(engine OpenGL::GL PkgConfig::GLEW)
+    add_subdirectory(gl)
 endif ()

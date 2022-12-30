@@ -9,7 +9,7 @@ namespace Vixen::Engine::Gl {
     struct ShaderModule : Vixen::Engine::ShaderModule {
         unsigned int module;
 
-        ShaderModule(Stage stage, const std::string &source);
+        ShaderModule(Stage stage, const std::string &source, const std::string &entry = "main");
 
         ShaderModule(const ShaderModule &) = delete;
 

@@ -4,8 +4,8 @@ namespace Vixen::Engine::Gl {
     Window::Window(const std::string &title, const uint32_t &width, const uint32_t &height, bool transparentFrameBuffer) :
             Vixen::Engine::Window(title, width, height, transparentFrameBuffer) {
         spdlog::trace("Creating new OpenGL window");
-        glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 3);
-        glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 3);
+        glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 4);
+        glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 6);
         glfwWindowHint(GLFW_CLIENT_API, GLFW_OPENGL_API);
         glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);
         glfwWindowHint(GLFW_OPENGL_FORWARD_COMPAT, GLFW_TRUE);
