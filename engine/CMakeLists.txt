@@ -9,7 +9,7 @@ pkg_check_modules(SHADERC REQUIRED IMPORTED_TARGET shaderc)
 option(ENABLE_VULKAN "Enable or disable Vulkan support" ON)
 option(ENABLE_OPENGL "Enable or disable OpenGL support" ON)
 
-set(HEADERS Window.hpp ShaderModule.h ShaderProgram.h Monitor.h)
+set(HEADERS Window.h ShaderModule.h ShaderProgram.h Monitor.h Buffer.h)
 set(SOURCES Window.cpp ShaderModule.cpp)
 
 link_libraries(
@@ -19,7 +19,7 @@ link_libraries(
         PkgConfig::SPDLOG
         PkgConfig::SHADERC
 )
-add_library(engine SHARED ${SOURCES})
+add_library(engine SHARED ${SOURCES} ${HEADERS})
 add_definitions(-DGLFW_INCLUDE_NONE)
 
 if (ENABLE_VULKAN)
