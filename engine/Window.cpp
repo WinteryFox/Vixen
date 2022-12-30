@@ -99,10 +99,12 @@ namespace Vixen::Engine {
             auto m = glfwGetVideoMode(monitor);
             w = m->width;
             h = m->height;
-            refreshRate = m->refreshRate;
+            refreshRate = mode == Mode::FULLSCREEN ? m->refreshRate : 0;
+            glfwSetWindowAttrib(window, GLFW_DECORATED, false);
         } else {
             glfwGetWindowPos(window, &x, &y);
             glfwGetWindowSize(window, &w, &h);
+            glfwSetWindowAttrib(window, GLFW_DECORATED, true);
         }
         glfwSetWindowMonitor(window, nullptr, x, y, w, h, refreshRate);
     }

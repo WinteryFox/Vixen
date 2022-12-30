@@ -17,12 +17,13 @@ int main() {
             0.0f, 0.5f, 0.0f
     };
 
-    auto window = Vixen::Engine::Gl::Window("Vixen Editor", 1080, 720, true);
+    auto window = Vixen::Engine::Gl::Window("Vixen Editor", 720, 480, true);
     window.center();
-    window.setWindowedMode(Vixen::Engine::Window::Mode::FULLSCREEN);
+    //window.setWindowedMode(Vixen::Engine::Window::Mode::FULLSCREEN);
     window.setClearColor(0.13f, 0.23f, 0.33f, 1.0f);
-    window.clear();
     window.setVisible(true);
+    window.clear();
+    window.swap();
 
     std::ifstream vertexStream("../../editor/shaders/triangle.vert");
     std::string vertexSource((std::istreambuf_iterator<char>(vertexStream)), std::istreambuf_iterator<char>());
@@ -57,7 +58,7 @@ int main() {
         glBindVertexArray(vao);
         glDrawArrays(GL_TRIANGLES, 0, 3);
 
-        window.update();
+        Vixen::Engine::Gl::Window::update();
         window.swap();
     }
     exit(EXIT_SUCCESS);
