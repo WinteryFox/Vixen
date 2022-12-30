@@ -39,6 +39,6 @@ namespace Vixen::Engine {
             throw std::runtime_error("Failed to compile shader");
         }
         spirvBinary = std::vector<uint32_t>{compilerResult.begin(), compilerResult.end()};
-        spdlog::trace("Compiled shader to SPIR-V spirvBinary with {} warnings", compilerResult.GetNumWarnings());
+        spdlog::trace("Compiled shader to SPIR-V binary with {} warnings", compilerResult.GetNumWarnings());
     }
 }
