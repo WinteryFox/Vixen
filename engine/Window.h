@@ -11,9 +11,9 @@ namespace Vixen::Engine {
     class Window {
     public:
         enum class Mode {
+            FULLSCREEN,
+            BORDERLESS_FULLSCREEN,
             WINDOWED,
-            WINDOWED_FULLSCREEN,
-            FULLSCREEN
         };
 
     protected:

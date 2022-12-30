@@ -19,11 +19,8 @@ int main() {
 
     auto window = Vixen::Engine::Gl::Window("Vixen Editor", 720, 480, true);
     window.center();
-    //window.setWindowedMode(Vixen::Engine::Window::Mode::FULLSCREEN);
     window.setClearColor(0.13f, 0.23f, 0.33f, 1.0f);
     window.setVisible(true);
-    window.clear();
-    window.swap();
 
     std::ifstream vertexStream("../../editor/shaders/triangle.vert");
     std::string vertexSource((std::istreambuf_iterator<char>(vertexStream)), std::istreambuf_iterator<char>());

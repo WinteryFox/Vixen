@@ -92,21 +92,35 @@ namespace Vixen::Engine {
     }
 
     void Window::setWindowedMode(Mode mode) {
-        int w, h;
-        int x, y;
-        int refreshRate;
-        if (mode == Mode::FULLSCREEN || mode == Mode::WINDOWED_FULLSCREEN) {
-            auto m = glfwGetVideoMode(monitor);
-            w = m->width;
-            h = m->height;
-            refreshRate = mode == Mode::FULLSCREEN ? m->refreshRate : 0;
+        int w, h = 0;
+        int x, y = 0;
+        int refreshRate = 0;
+        GLFWmonitor* m = nullptr;
+
+        if (mode == Mode::FULLSCREEN) {
+            auto videoMode = glfwGetVideoMode(monitor);
+            m = monitor;
+            refreshRate = videoMode->refreshRate;
+            w = videoMode->width;
+            h = videoMode->height;
+
             glfwSetWindowAttrib(window, GLFW_DECORATED, false);
+            glfwSetWindowAttrib(window, GLFW_FLOATING, true);
+        } else if (mode == Mode::BORDERLESS_FULLSCREEN) {
+            auto videoMode = glfwGetVideoMode(monitor);
+            w = videoMode->width;
+            h = videoMode->height;
+
+            glfwSetWindowAttrib(window, GLFW_DECORATED, false);
+            glfwSetWindowAttrib(window, GLFW_FLOATING, true);
         } else {
             glfwGetWindowPos(window, &x, &y);
             glfwGetWindowSize(window, &w, &h);
             glfwSetWindowAttrib(window, GLFW_DECORATED, true);
+            glfwSetWindowAttrib(window, GLFW_FLOATING, false);
         }
-        glfwSetWindowMonitor(window, nullptr, x, y, w, h, refreshRate);
+
+        glfwSetWindowMonitor(window, m, x, y, w, h, refreshRate);
     }
 
     void Window::setClearColor(float r, float g, float b, float a) {
