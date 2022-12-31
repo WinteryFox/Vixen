@@ -18,9 +18,7 @@ namespace Vixen::Engine {
 
         std::string entry;
 
-        std::vector<uint32_t> spirvBinary{};
-
-        std::vector<uint32_t> glslBinary{};
+        std::vector<uint32_t> binary{};
 
         ShaderModule(Stage stage, const std::string &source, std::string entry);
     };

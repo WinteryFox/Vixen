@@ -2,6 +2,7 @@
 #include "gl/Window.h"
 #include "gl/ShaderModule.h"
 #include "gl/ShaderProgram.h"
+#include "gl/Buffer.h"
 #include <windows.h>
 #include <unistd.h>
 
@@ -11,7 +12,7 @@ int main() {
     system(("chcp " + std::to_string(CP_UTF8)).c_str());
     spdlog::set_level(spdlog::level::trace);
 
-    float vertices[] = {
+    std::vector<float> vertices = {
             -0.5f, -0.5f, 0.0f,
             0.5f, -0.5f, 0.0f,
             0.0f, 0.5f, 0.0f
@@ -34,19 +35,16 @@ int main() {
     Gl::ShaderProgram program({vertexModule, fragmentModule});
 
     unsigned int vao;
-    glGenVertexArrays(1, &vao);
-    unsigned int vbo;
-    glGenBuffers(1, &vbo);
+    glCreateVertexArrays(1, &vao);
 
-    glBindVertexArray(vao);
-    glBindBuffer(GL_ARRAY_BUFFER, vbo);
-    glBufferData(GL_ARRAY_BUFFER, sizeof(vertices), vertices, GL_STATIC_DRAW);
+    auto vbo = Vixen::Engine::Gl::Buffer<float>(vertices.size(), BufferUsage::VERTEX, AllocationUsage::GPU_ONLY);
+    vbo.write(vertices, 0);
 
-    glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 3 * sizeof(float), nullptr);
-    glEnableVertexAttribArray(0);
-
-    glBindBuffer(GL_ARRAY_BUFFER, 0);
-    glBindVertexArray(0);
+    //glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 3 * sizeof(float), nullptr);
+    glVertexArrayVertexBuffer(vao, 0, vbo.buffer, 0, 3 * sizeof(float));
+    glVertexArrayAttribFormat(vao, 0, 3, GL_FLOAT, GL_FALSE, 0);
+    glEnableVertexArrayAttrib(vao, 0);
+    glVertexArrayAttribBinding(vao, 0, 0);
 
     while (!window.shouldClose()) {
         window.clear();

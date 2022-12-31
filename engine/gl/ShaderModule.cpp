@@ -2,7 +2,7 @@
 
 namespace Vixen::Engine::Gl {
     ShaderModule::ShaderModule(Stage stage, const std::string &source, const std::string &entry) : Engine::ShaderModule(stage, source, entry), module(0) {
-        spirv_cross::CompilerGLSL glslCompiler(spirvBinary);
+        spirv_cross::CompilerGLSL glslCompiler(binary);
         spirv_cross::CompilerGLSL::Options glslOptions;
 
         glslOptions.version = 450;
@@ -31,8 +31,7 @@ namespace Vixen::Engine::Gl {
             spdlog::error("Failed to compile GL shader from crossed source with {} warnings. {}", result.GetNumWarnings(), result.GetErrorMessage());
             throw std::runtime_error("Failed to compile GL shader from crossed source");
         }
-        glslBinary = std::vector<uint32_t>(result.begin(), result.end());
-
+        binary = std::vector<uint32_t>(result.begin(), result.end());
         // TODO: spirv_cross::ShaderResources resources = glslCompiler.get_shader_resources();
 
         switch (stage) {
@@ -46,7 +45,7 @@ namespace Vixen::Engine::Gl {
                 spdlog::error("Unsupported shader stage");
                 throw std::runtime_error("Unsupported shader stage");
         }
-        glShaderBinary(1, &module, GL_SHADER_BINARY_FORMAT_SPIR_V, glslBinary.data(), glslBinary.size() * sizeof(uint32_t));
+        glShaderBinary(1, &module, GL_SHADER_BINARY_FORMAT_SPIR_V, binary.data(), binary.size() * sizeof(uint32_t));
         glSpecializeShader(module, entry.c_str(), 0, nullptr, nullptr);
 
         GLint status;
