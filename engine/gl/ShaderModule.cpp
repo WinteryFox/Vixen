@@ -47,6 +47,17 @@ namespace Vixen::Engine::Gl {
         glShaderBinary(1, &module, GL_SHADER_BINARY_FORMAT_SPIR_V, binary.data(), binary.size() * sizeof(uint32_t));
         glSpecializeShader(module, entry.c_str(), 0, nullptr, nullptr);*/
 
+        switch (stage) {
+            case Stage::VERTEX:
+                module = glCreateShader(GL_VERTEX_SHADER);
+                break;
+            case Stage::FRAGMENT:
+                module = glCreateShader(GL_FRAGMENT_SHADER);
+                break;
+            default:
+                spdlog::error("Unsupported shader stage");
+                throw std::runtime_error("Unsupported shader stage");
+        }
         auto src = crossed.c_str();
         glShaderSource(module, 1, &src, nullptr);
         glCompileShader(module);
