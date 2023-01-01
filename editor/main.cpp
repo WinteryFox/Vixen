@@ -3,6 +3,7 @@
 #include "gl/ShaderModule.h"
 #include "gl/ShaderProgram.h"
 #include "gl/Buffer.h"
+#include "gl/VertexArrayObject.h"
 #include <windows.h>
 #include <unistd.h>
 
@@ -34,23 +35,29 @@ int main() {
 
     Gl::ShaderProgram program({vertexModule, fragmentModule});
 
-    unsigned int vao;
-    glCreateVertexArrays(1, &vao);
+    auto vbo = std::make_shared<Vixen::Engine::Gl::Buffer>(
+            vertices.size() * sizeof(float),
+            BufferUsage::VERTEX,
+            AllocationUsage::GPU_ONLY
+    );
+    vbo->write<float>(vertices, 0);
 
-    auto vbo = Vixen::Engine::Gl::Buffer<float>(vertices.size(), BufferUsage::VERTEX, AllocationUsage::GPU_ONLY);
-    vbo.write(vertices, 0);
-
-    //glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 3 * sizeof(float), nullptr);
-    glVertexArrayVertexBuffer(vao, 0, vbo.buffer, 0, 3 * sizeof(float));
-    glVertexArrayAttribFormat(vao, 0, 3, GL_FLOAT, GL_FALSE, 0);
-    glEnableVertexArrayAttrib(vao, 0);
-    glVertexArrayAttribBinding(vao, 0, 0);
+    auto vao = Vixen::Engine::Gl::VertexArrayObject(
+            {
+                    Vixen::Engine::Gl::VertexBinding(
+                            vbo,
+                            {
+                                    Vixen::Engine::Gl::VertexBinding::Location(0, 3, GL_FLOAT, 0, 3 * sizeof(float))
+                            }
+                    )
+            }
+    );
 
     while (!window.shouldClose()) {
         window.clear();
 
         program.bind();
-        glBindVertexArray(vao);
+        vao.bind();
         glDrawArrays(GL_TRIANGLES, 0, 3);
 
         Vixen::Engine::Gl::Window::update();

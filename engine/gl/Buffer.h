@@ -5,13 +5,12 @@
 #include "../Buffer.h"
 
 namespace Vixen::Engine::Gl {
-    template<typename T>
-    class Buffer : public Engine::Buffer<T> {
+    class Buffer : public Engine::Buffer {
     public:
         GLuint buffer{};
 
         Buffer(const size_t &size, BufferUsage bufferUsage, AllocationUsage allocationUsage)
-                : Engine::Buffer<T>(size, bufferUsage, allocationUsage) {
+                : Engine::Buffer(size, bufferUsage, allocationUsage) {
             glCreateBuffers(1, &buffer);
 
             GLenum u; // TODO: It's likely this will need tweaks later on
@@ -49,11 +48,11 @@ namespace Vixen::Engine::Gl {
                 }
             }
 
-            glNamedBufferData(buffer, size * sizeof(T), nullptr, u);
+            glNamedBufferData(buffer, static_cast<GLsizeiptr>(size), nullptr, u);
         }
 
-        T *map() override {
-            return (T *) glMapNamedBuffer(buffer, GL_READ_WRITE);
+        void *map() override {
+            return (void *) glMapNamedBuffer(buffer, GL_READ_WRITE);
         }
 
         void unmap() override {

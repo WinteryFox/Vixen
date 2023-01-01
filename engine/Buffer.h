@@ -31,7 +31,6 @@ namespace Vixen::Engine {
         return static_cast<std::uint32_t>(a) & static_cast<std::uint32_t>(b);
     }
 
-    template<typename T>
     class Buffer {
     public:
         const std::size_t size;
@@ -43,7 +42,7 @@ namespace Vixen::Engine {
     protected:
         /**
          * Create a new buffer. Where the allocation is made is determined by the allocation usage.
-         * @param size The size of this buffer measured in T.
+         * @param size The size of this buffer measured in bytes.
          * @param bufferUsage Specifies how the buffer will be used and what data it will hold.
          * @param allocationUsage Specifies how this buffer's allocated memory will be used.
          */
@@ -59,7 +58,7 @@ namespace Vixen::Engine {
          * Map this buffer's data into CPU memory in read/write mode.
          * @return Returns a pointer to the mapped data.
          */
-        virtual T *map() = 0;
+        virtual void *map() = 0;
 
         /**
          * Unmap this buffer's data from CPU memory and write it back to the buffer.
@@ -73,8 +72,9 @@ namespace Vixen::Engine {
          * @param offset The offset from the buffer to write to measured in <T>.
          * @return Returns this object.
          */
-        virtual Buffer &write(const T *data, std::size_t dataSize, std::size_t offset) {
-            T *mapped = map();
+        template<typename T>
+        Buffer &write(const T *data, std::size_t dataSize, std::size_t offset) {
+            T *mapped = (T *) map();
             std::memcpy(mapped + offset, data, dataSize * sizeof(T));
             unmap();
             return *this;
@@ -86,8 +86,9 @@ namespace Vixen::Engine {
          * @param offset The offset from the buffer to write to measured in <T>.
          * @return Returns this object.
          */
-        virtual Buffer &write(const std::vector<T> &data, std::size_t offset) {
-            return write(data.data(), data.size(), offset);
+        template<typename T>
+        Buffer &write(const std::vector<T> &data, std::size_t offset) {
+            return write<T>(data.data(), data.size(), offset);
         }
     };
 }
