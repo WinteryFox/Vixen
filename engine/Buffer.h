@@ -87,7 +87,7 @@ namespace Vixen::Engine {
          */
         template<typename T>
         Buffer &write(const std::vector<T> &data, std::size_t offset) {
-            return write(data.data(), data.size(), offset);
+            return write(data.data(), data.size() * sizeof(T), offset);
         }
     };
 }
