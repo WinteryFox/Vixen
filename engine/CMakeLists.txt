@@ -9,7 +9,6 @@ pkg_check_modules(SHADERC REQUIRED IMPORTED_TARGET shaderc)
 option(ENABLE_VULKAN "Enable or disable Vulkan support" ON)
 option(ENABLE_OPENGL "Enable or disable OpenGL support" ON)
 
-set(CMAKE_POSITION_INDEPENDENT_CODE ON)
 set(HEADERS Window.h ShaderModule.h ShaderProgram.h Monitor.h Buffer.h Mesh.h)
 set(SOURCES Window.cpp ShaderModule.cpp)
 
