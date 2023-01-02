@@ -156,3 +156,6 @@ _deps
 *_REMOTE_*.txt
 
 # End of https://www.toptal.com/developers/gitignore/api/clion+all,cmake,c++,git
+
+.cmake/
+bin/
