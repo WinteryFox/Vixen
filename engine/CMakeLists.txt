@@ -19,7 +19,7 @@ link_libraries(
         PkgConfig::SPDLOG
         PkgConfig::SHADERC
 )
-add_library(engine SHARED ${SOURCES} ${HEADERS})
+add_library(engine STATIC ${SOURCES} ${HEADERS})
 add_definitions(-DGLFW_INCLUDE_NONE)
 
 if (ENABLE_VULKAN)

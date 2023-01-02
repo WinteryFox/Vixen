@@ -10,5 +10,5 @@ pkg_check_modules(GLEW REQUIRED IMPORTED_TARGET glew)
 set(GL_HEADERS Window.h ShaderModule.h ShaderProgram.h)
 set(GL_SOURCES Window.cpp ShaderModule.cpp ShaderProgram.cpp Buffer.cpp Buffer.h VertexArrayObject.cpp VertexArrayObject.h)
 
-add_library(Gl SHARED ${GL_SOURCES} ${GL_HEADERS})
+add_library(Gl STATIC ${GL_SOURCES} ${GL_HEADERS})
 target_link_libraries(Gl engine OpenGL::GL PkgConfig::GLEW spirv-cross-core spirv-cross-glsl spirv-cross-reflect spirv-cross-cpp)
