@@ -8,14 +8,16 @@
 namespace Vixen::Engine::Gl {
     struct VertexBinding {
         struct Location {
-            Location(GLuint index, GLint size, GLenum type, GLintptr offset, GLsizei stride)
-                    : index(index), size(size), type(type), offset(offset), stride(stride) {}
+            Location(GLuint index, GLint size, GLenum type, GLboolean normalized, GLintptr offset, GLsizei stride)
+                    : index(index), size(size), type(type), normalized(normalized), offset(offset), stride(stride) {}
 
             GLuint index;
 
             GLint size;
 
             GLenum type;
+
+            GLboolean normalized;
 
             GLintptr offset;
 
@@ -36,7 +38,9 @@ namespace Vixen::Engine::Gl {
         std::unordered_map<GLuint, VertexBinding> bindings;
 
     public:
-        explicit VertexArrayObject(const std::vector<VertexBinding> &bindings);
+        std::size_t indexOffset;
+
+        VertexArrayObject(const std::vector<VertexBinding> &bindings, std::size_t indexOffset);
 
         VertexArrayObject(const VertexArrayObject &) = delete;
 

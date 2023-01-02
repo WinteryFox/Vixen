@@ -68,14 +68,13 @@ namespace Vixen::Engine {
         /**
          * Writes data to this buffer with a specified size and offset.
          * @param data Pointer to the data to write to this buffer.
-         * @param dataSize The size of the data measured in <T>.
-         * @param offset The offset from the buffer to write to measured in <T>.
+         * @param dataSize The size of the data measured in bytes.
+         * @param offset The offset from the buffer to write to measured in bytes.
          * @return Returns this object.
          */
-        template<typename T>
-        Buffer &write(const T *data, std::size_t dataSize, std::size_t offset) {
-            T *mapped = (T *) map();
-            std::memcpy(mapped + offset, data, dataSize * sizeof(T));
+        Buffer &write(const void *data, std::size_t dataSize, std::size_t offset) {
+            char *mapped = (char *) map();
+            std::memcpy(mapped + offset, data, dataSize);
             unmap();
             return *this;
         }
@@ -83,12 +82,12 @@ namespace Vixen::Engine {
         /**
          * Writes a vector of data to this buffer with a specified offset.
          * @param data The vector of data to write to this buffer.
-         * @param offset The offset from the buffer to write to measured in <T>.
+         * @param offset The offset from the buffer to write to measured in bytes.
          * @return Returns this object.
          */
         template<typename T>
         Buffer &write(const std::vector<T> &data, std::size_t offset) {
-            return write<T>(data.data(), data.size(), offset);
+            return write(data.data(), data.size(), offset);
         }
     };
 }
