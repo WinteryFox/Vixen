@@ -36,15 +36,15 @@ namespace Vixen::Engine {
 
         static void update();
 
-        void setVisible(bool visible);
+        void setVisible(bool visible) const;
 
-        void center();
+        void center() const;
 
-        void setWindowedMode(Mode mode);
+        void setWindowedMode(Mode mode) const;
 
-        std::unique_ptr<Monitor> getMonitor();
+        std::unique_ptr<Monitor> getMonitor() const;
 
-        std::unordered_map<GLFWmonitor *, Monitor> getMonitors();
+        std::unordered_map<GLFWmonitor *, Monitor> getMonitors() const;
 
         void setClearColor(float r, float g, float b, float a);
     };

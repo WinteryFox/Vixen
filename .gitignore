@@ -1,7 +1,4 @@
-# Created by https://www.toptal.com/developers/gitignore/api/clion+all,cmake,c++,git
-# Edit at https://www.toptal.com/developers/gitignore?templates=clion+all,cmake,c++,git
-
-### C++ ###
+### C++ template
 # Prerequisites
 *.d
 
@@ -35,7 +32,63 @@
 *.out
 *.app
 
-### CLion+all ###
+### Qt template
+# C++ objects and libs
+*.slo
+*.lo
+*.o
+*.a
+*.la
+*.lai
+*.so
+*.so.*
+*.dll
+*.dylib
+
+# Qt-es
+object_script.*.Release
+object_script.*.Debug
+*_plugin_import.cpp
+/.qmake.cache
+/.qmake.stash
+*.pro.user
+*.pro.user.*
+*.qbs.user
+*.qbs.user.*
+*.moc
+moc_*.cpp
+moc_*.h
+qrc_*.cpp
+ui_*.h
+*.qmlc
+*.jsc
+Makefile*
+*build-*
+*.qm
+*.prl
+
+# Qt unit tests
+target_wrapper.*
+
+# QtCreator
+*.autosave
+
+# QtCreator Qml
+*.qmlproject.user
+*.qmlproject.user.*
+
+# QtCreator CMake
+CMakeLists.txt.user*
+
+# QtCreator 4.8< compilation database
+compile_commands.json
+
+# QtCreator local machine specific files for imported projects
+*creator.user*
+
+*_qmlcache.qrc
+
+### JetBrains template
 # Covers JetBrains IDEs: IntelliJ, RubyMine, PhpStorm, AppCode, PyCharm, CLion, Android Studio, WebStorm and Rider
 # Reference: https://intellij-support.jetbrains.com/hc/en-us/articles/206544839
 
@@ -70,7 +123,7 @@
 # since they will be recreated, and may cause churn.  Uncomment if using
 # auto-import.
 # .idea/artifacts
-# .idea/glslCompiler.xml
+# .idea/compiler.xml
 # .idea/jarRepositories.xml
 # .idea/modules.xml
 # .idea/*.iml
@@ -114,16 +167,7 @@ fabric.properties
 # Android studio 3.1+ serialized cache file
 .idea/caches/build_file_checksums.ser
 
-### CLion+all Patch ###
-# Ignore everything but code style settings and run configurations
-# that are supposed to be shared within teams.
-
-.idea/*
-
-!.idea/codeStyles
-!.idea/runConfigurations
-
-### CMake ###
+### CMake template
 CMakeLists.txt.user
 CMakeCache.txt
 CMakeFiles
@@ -136,26 +180,3 @@ compile_commands.json
 CTestTestfile.cmake
 _deps
 
-### CMake Patch ###
-# External projects
-*-prefix/
-
-### Git ###
-# Created by git for backups. To disable backups in Git:
-# $ git config --global mergetool.keepBackup false
-*.orig
-
-# Created by git when using merge tools for conflicts
-*.BACKUP.*
-*.BASE.*
-*.LOCAL.*
-*.REMOTE.*
-*_BACKUP_*.txt
-*_BASE_*.txt
-*_LOCAL_*.txt
-*_REMOTE_*.txt
-
-# End of https://www.toptal.com/developers/gitignore/api/clion+all,cmake,c++,git
-
-.cmake/
-bin/

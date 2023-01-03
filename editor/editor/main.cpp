@@ -1,4 +1,5 @@
 #include <QApplication>
+#include <QMainWindow>
 #include "ui_mainwindow.h"  // CMake will automatically compile mainwindow.ui -> ui_mainwindow.h if it's included.
 
 int main(int argc, char ** argv) {

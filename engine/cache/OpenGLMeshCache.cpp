@@ -38,6 +38,7 @@ namespace Vixen::Engine::Cache {
 
                 vertices.emplace_back(vertex.x, vertex.y, vertex.z);
 
+                // TODO: Vertex sets
                 if (mesh->HasTextureCoords(0)) {
                     const auto &uv = mesh->mTextureCoords[0][vertexIndex];
 

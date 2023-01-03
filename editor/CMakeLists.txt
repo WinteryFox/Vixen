@@ -1,20 +1,16 @@
 project("Vixen Editor")
 
-set(CMAKE_CXX_STANDARD_REQUIRED ON)  # Qt requires that this is enforced to at least C++ 17
-set(AUTOUIC ON)  # Automatically compiles Qt UI files
+if (ENABLE_EDITOR)
+    find_package(Qt6 REQUIRED COMPONENTS Core Widgets)
+    qt_standard_project_setup()
 
-find_package(Qt6 REQUIRED COMPONENTS Core Widgets)
-qt_standard_project_setup()
+    add_executable(editor editor/main.cpp editor/mainwindow.ui editor/widgets/GlViewport.cpp editor/widgets/GlViewport.h)
+    target_link_libraries(editor engine)
+    target_include_directories(editor PUBLIC ../engine)
+    target_link_libraries(editor Qt6::Core Qt6::Widgets)
 
-add_executable(qttest qt/main.cpp qt/mainwindow.ui)
-target_link_libraries(qttest engine)
-target_include_directories(qttest PUBLIC ../engine)
-target_link_libraries(qttest Qt6::Core Qt6::Widgets)
-
-set_target_properties(qttest PROPERTIES
-        WIN32_EXECUTABLE ON
-        MACOSX_BUNDLE ON
-)
+    set_target_properties(editor PROPERTIES WIN32_EXECUTABLE ON MACOSX_BUNDLE ON AUTOUIC ON)
+endif ()
 
 if (ENABLE_VULKAN)
     add_executable(vktest vk/main.cpp)

@@ -51,14 +51,14 @@ namespace Vixen::Engine {
         glfwPollEvents();
     }
 
-    void Window::setVisible(bool visible) {
+    void Window::setVisible(bool visible) const {
         if (visible)
             glfwShowWindow(window);
         else
             glfwHideWindow(window);
     }
 
-    void Window::center() {
+    void Window::center() const {
         uint32_t w, h;
         glfwGetWindowSize(window, reinterpret_cast<int *>(&w), reinterpret_cast<int *>(&h));
 
@@ -68,7 +68,7 @@ namespace Vixen::Engine {
         glfwSetWindowPos(window, x + mode->width / 2 - w / 2, y + mode->height / 2 - h / 2);
     }
 
-    std::unique_ptr<Monitor> Window::getMonitor() {
+    std::unique_ptr<Monitor> Window::getMonitor() const {
         if (monitor == nullptr)
             return nullptr;
 
@@ -87,11 +87,11 @@ namespace Vixen::Engine {
         });
     }
 
-    std::unordered_map<GLFWmonitor*, Monitor> Window::getMonitors() {
+    std::unordered_map<GLFWmonitor*, Monitor> Window::getMonitors() const {
         return monitors;
     }
 
-    void Window::setWindowedMode(Mode mode) {
+    void Window::setWindowedMode(Mode mode) const {
         int w, h = 0;
         int x, y = 0;
         int refreshRate = 0;

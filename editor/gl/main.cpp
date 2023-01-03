@@ -31,7 +31,7 @@ int main() {
             1, 2, 3    // second triangle
     };
 
-    auto window = Window("Vixen Editor", 720, 480, true);
+    auto window = Window("Vixen OpenGL Test", 720, 480, true);
     window.center();
     window.setClearColor(0.13f, 0.23f, 0.33f, 1.0f);
     window.setVisible(true);

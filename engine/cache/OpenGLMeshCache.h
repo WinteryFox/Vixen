@@ -1,3 +1,5 @@
+#pragma once
+
 #include "MeshCache.h"
 #include "../gl/Buffer.h"
 
