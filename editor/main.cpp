@@ -1,4 +1,3 @@
-#include <gl/glew.h>
 #include <spdlog/spdlog.h>
 #include <QGuiApplication>
 #include <QQmlApplicationEngine>
