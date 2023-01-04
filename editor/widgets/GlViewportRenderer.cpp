@@ -78,9 +78,11 @@ namespace Vixen::Editor {
         window->beginExternalCommands();
 
         glViewport(0, 0, viewportSize.width(), viewportSize.height());
+        glDisable(GL_BLEND);
 
         program->bind();
         vao->bind();
+
         glDrawElements(GL_TRIANGLES, static_cast<GLsizei>(indices.size()), GL_UNSIGNED_INT, (void *) vao->indexOffset);
 
         glBindVertexArray(0);
