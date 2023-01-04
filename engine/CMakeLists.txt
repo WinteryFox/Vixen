@@ -9,8 +9,8 @@ pkg_check_modules(SHADERC REQUIRED IMPORTED_TARGET shaderc)
 option(ENABLE_VULKAN "Enable or disable Vulkan support" ON)
 option(ENABLE_OPENGL "Enable or disable OpenGL support" ON)
 
-set(HEADERS Window.h ShaderModule.h ShaderProgram.h Monitor.h Buffer.h Mesh.h cache/BufferCache.h cache/MeshCache.h cache/OpenGLMeshCache.h)
-set(SOURCES Window.cpp ShaderModule.cpp cache/BufferCache.cpp cache/MeshCache.cpp cache/OpenGLMeshCache.cpp)
+set(HEADERS Window.h ShaderModule.h ShaderProgram.h Monitor.h Buffer.h Mesh.h cache/BufferCache.h cache/MeshCache.h)
+set(SOURCES Window.cpp ShaderModule.cpp cache/BufferCache.cpp cache/MeshCache.cpp)
 
 link_libraries(
         PkgConfig::GLM

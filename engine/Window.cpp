@@ -1,8 +1,8 @@
 #include "Window.h"
 
 namespace Vixen::Engine {
-    Window::Window(const std::string &title, const uint32_t &width, const uint32_t &height, bool transparentFrameBuffer)
-            : window(nullptr), width(width), height(height) {
+    Window::Window(bool transparentFrameBuffer)
+            : window(nullptr) {
         glfwSetErrorCallback([](int code, const char *message) {
             spdlog::error("[GLFW] {} ({})", message, code);
         });

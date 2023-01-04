@@ -9,8 +9,9 @@
 #include "../Window.h"
 
 namespace Vixen::Engine::Gl {
-    struct Window : Vixen::Engine::Window {
-        Window(const std::string &title, const uint32_t &width, const uint32_t &height, bool transparentFrameBuffer);
+    class Window : public Vixen::Engine::Window {
+    public:
+        Window(const std::string &title, const int &width, const int &height, bool transparentFrameBuffer);
 
         void clear();
 

@@ -2,7 +2,7 @@
 
 namespace Vixen::Engine::Vk {
     Window::Window(const std::string &title, const uint32_t &width, const uint32_t &height, bool transparentFrameBuffer)
-            : Vixen::Engine::Window(title, width, height, transparentFrameBuffer) {
+            : Vixen::Engine::Window(transparentFrameBuffer) {
         spdlog::trace("Creating new Vulkan window");
         glfwWindowHint(GLFW_CLIENT_API, GLFW_NO_API);
 #ifdef DEBUG

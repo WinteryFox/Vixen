@@ -1,17 +1,28 @@
 #pragma once
 
-#include <QOpenGLWidget>
+#include <spdlog/spdlog.h>
+#include <QQuickItem>
+#include "GlViewportRenderer.h"
 
 namespace Vixen::Editor {
-    class GlViewport : public QOpenGLWidget {
+    class GlViewport : public QQuickItem {
+    Q_OBJECT
+
+        void releaseResources() override;
+
     public:
-        explicit GlViewport(QWidget *parent);
+        explicit GlViewport(QQuickItem *parent = nullptr);
 
-    protected:
-        void initializeGL() override;
+    public slots:
 
-        void resizeGL(int w, int h) override;
+        void sync();
 
-        void paintGL() override;
+        void cleanup();
+
+    private slots:
+        void handleWindowChanged(QQuickWindow *window) const;
+
+    private:
+        std::unique_ptr<GlViewportRenderer> renderer;
     };
 }

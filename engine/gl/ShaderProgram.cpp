@@ -24,4 +24,8 @@ namespace Vixen::Engine::Gl {
     void ShaderProgram::bind() const {
         glUseProgram(program);
     }
+
+    void ShaderProgram::unbind() const {
+        glUseProgram(0);
+    }
 }

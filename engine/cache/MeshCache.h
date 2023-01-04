@@ -3,8 +3,8 @@
 #include <assimp/scene.h>
 #include <assimp/Importer.hpp>
 #include <assimp/postprocess.h>
-#include "BufferCache.h"
 #include <string>
+#include "BufferCache.h"
 
 namespace Vixen::Engine::Cache {
     template<class T = Buffer>

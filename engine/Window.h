@@ -17,8 +17,6 @@ namespace Vixen::Engine {
         };
 
     protected:
-        uint32_t width, height;
-
         GLFWmonitor *monitor;
 
         GLFWwindow *window;
@@ -27,7 +25,7 @@ namespace Vixen::Engine {
 
         glm::vec4 clearColor{0.0f, 0.0f, 0.0f, 1.0f};
 
-        Window(const std::string &title, const uint32_t &width, const uint32_t &height, bool transparentFrameBuffer);
+        Window(bool transparentFrameBuffer);
 
         ~Window();
 

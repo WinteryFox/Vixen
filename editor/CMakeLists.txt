@@ -1,38 +1,34 @@
 project("Vixen Editor")
 
 if (ENABLE_EDITOR)
-    find_package(Qt6 REQUIRED COMPONENTS Core Qml Widgets)
+    find_package(Qt6 REQUIRED COMPONENTS Core Qml Widgets Quick)
     qt_standard_project_setup()
 
-    add_executable(editor main.cpp mainwindow.ui widgets/GlViewport.cpp widgets/GlViewport.h)
+    add_executable(editor main.cpp widgets/GlViewport.cpp widgets/GlViewport.h widgets/GlViewportRenderer.cpp widgets/GlViewportRenderer.h)
     target_include_directories(editor PUBLIC ../engine)
-    target_link_libraries(editor PRIVATE engine Qt6::Core Qt6::Qml Qt6::Widgets)
-    qt_add_qml_module(editor URI resources VERSION 1.0 QML_FILES main.qml)
+    target_link_libraries(editor PRIVATE engine Qt6::Core Qt6::Qml Qt6::Quick Qt6::Widgets)
+
+    qt_add_qml_module(editor URI editor VERSION 1.0 QML_FILES main.qml Viewport.qml)
 
     if (ENABLE_OPENGL)
-        find_package(Qt6 REQUIRED COMPONENTS OpenGLWidgets)
-        target_link_libraries(editor PRIVATE Qt6::OpenGLWidgets)
+        target_link_libraries(editor PRIVATE Gl)
     endif ()
 
-    # TODO
-    #[[if (ENABLE_VULKAN)
-        find_package(Qt6 REQUIRED COMPONENTS VulkanWidgets)
-        target_link_libraries(editor Qt6::VulkanWidgets)
-    endif ()]]
+    if (ENABLE_VULKAN)
+        target_link_libraries(editor PRIVATE Vk)
+    endif ()
 
     set_target_properties(editor PROPERTIES WIN32_EXECUTABLE ON MACOSX_BUNDLE ON AUTOUIC ON)
 endif ()
 
 if (ENABLE_VULKAN)
     add_executable(vktest test/vk/main.cpp)
-    target_link_libraries(vktest engine)
+    target_link_libraries(vktest PUBLIC engine Vk)
     target_include_directories(vktest PUBLIC ../engine)
-    target_link_libraries(vktest test/vk)
 endif ()
 
 if (ENABLE_OPENGL)
     add_executable(gltest test/gl/main.cpp)
-    target_link_libraries(gltest engine)
+    target_link_libraries(gltest PUBLIC engine Gl)
     target_include_directories(gltest PUBLIC ../engine)
-    target_link_libraries(gltest test/gl)
 endif ()

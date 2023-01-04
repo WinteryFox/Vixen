@@ -18,5 +18,7 @@ namespace Vixen::Engine::Gl {
         ~ShaderProgram();
 
         void bind() const;
+
+        void unbind() const;
     };
 }

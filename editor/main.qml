@@ -4,12 +4,14 @@ import QtQuick.Controls 2.3
 import QtQuick.Layouts 1.3
 import QtQuick.Window 2.3
 
-Window {
+ApplicationWindow {
     id: window
     visible: true
-    flags: Qt.Window | Qt.FramelessWindowHint
-    width: 1080
-    height: 720
+//!    flags: Qt.Window | Qt.FramelessWindowHint
+    width: 1150
+    height: 800
+    minimumWidth: 1050
+    minimumHeight: 500
     title: "Vixen Editor"
 
     function toggleMaximized() {
@@ -20,60 +22,7 @@ Window {
         }
     }
 
-    DragHandler {
-        id: resizeHandler
-        grabPermissions: TapHandler.TakeOverForbidden
-        target: null
-        onActiveChanged: if (active) {
-            const p = resizeHandler.centroid.position;
-            let e = 0;
-            if (p.x / width < 0.10) { e |= Qt.LeftEdge }
-            if (p.x / width > 0.90) { e |= Qt.RightEdge }
-            if (p.y / height < 0.10) { e |= Qt.TopEdge }
-            if (p.y / height > 0.90) { e |= Qt.BottomEdge }
-            window.startSystemResize(e);
-        }
-    }
+    Viewport {
 
-    Page {
-        anchors.fill: parent
-        header: ToolBar {
-            contentHeight: toolButton.implicitHeight
-            Item {
-                anchors.fill: parent
-                TapHandler {
-                    onTapped: if (tapCount === 2) toggleMaximized()
-                    gesturePolicy: TapHandler.DragThreshold
-                }
-                DragHandler {
-                    grabPermissions: TapHandler.CanTakeOverFromAnything
-                    onActiveChanged: if (active) { window.startSystemMove(); }
-                }
-
-                RowLayout {
-                    anchors.right: parent.right
-                    ToolButton {
-                        text: "➖"
-                        onClicked: window.showMinimized()
-                    }
-                    ToolButton {
-                        text: window.visibility == Window.Maximized ? "🗗" : "🗖"
-                        onClicked: window.toggleMaximized()
-                    }
-                    ToolButton {
-                        text: "🗙"
-                        onClicked: window.close()
-                    }
-                }
-            }
-        }
-
-
-        Drawer {
-            id: drawer
-            width: window.width * 0.66
-            height: window.height
-            interactive: window.visibility !== Window.Windowed || position > 0
-        }
     }
 }

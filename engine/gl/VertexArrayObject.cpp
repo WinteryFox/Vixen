@@ -29,4 +29,8 @@ namespace Vixen::Engine::Gl {
     void VertexArrayObject::bind() const {
         glBindVertexArray(vao);
     }
+
+    void VertexArrayObject::unbind() const {
+        glBindVertexArray(0);
+    }
 }

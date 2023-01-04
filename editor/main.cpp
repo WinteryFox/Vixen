@@ -1,27 +1,33 @@
-#include <QApplication>
-#include <QMainWindow>
-#include <QUrl>
+#include <gl/glew.h>
+#include <spdlog/spdlog.h>
+#include <QGuiApplication>
 #include <QQmlApplicationEngine>
-#include "ui_mainwindow.h"
+#include <QQuickView>
 #include "widgets/GlViewport.h"
 
 using namespace Vixen::Editor;
 
 int main(int argc, char **argv) {
+    spdlog::set_level(spdlog::level::trace);
+
     QGuiApplication app{argc, argv};
+    QQuickWindow::setGraphicsApi(QSGRendererInterface::OpenGL);
+    QCoreApplication::setApplicationName("Vixen Editor");
+    QCoreApplication::setOrganizationName("Vixen");
+
+    qmlRegisterType<GlViewport>("Vixen", 1, 0, "GlViewport");
+
     QQmlApplicationEngine engine;
-    engine.load(u"qrc:/resources/main.qml"_qs);
+    engine.load(u"qrc:/editor/main.qml"_qs);
 
-    /*QMainWindow mainWindow;
-    Vixen::Editor::Ui::MainWindow window;
-    mainWindow.setWindowFlag(Qt::FramelessWindowHint);
-    window.setupUi(&mainWindow);
+    return QGuiApplication::exec();
 
-    auto viewport = GlViewport(nullptr);
-    mainWindow.setCentralWidget(&viewport);
+    /*QGuiApplication app{argc, argv};
+    QWindow window = QWindow();
+    window.setTitle(QString::fromStdString("Vixen Engine"));
+    window.resize(1150, 800);
+    window.setMinimumSize(QSize(1050, 500));
+    window.setVisible(true);
 
-    mainWindow.show();
-    mainWindow.setWindowState(Qt::WindowMinimized);*/
-
-    return app.exec(); // NOLINT(readability-static-accessed-through-instance)
+    return app.exec();*/
 }

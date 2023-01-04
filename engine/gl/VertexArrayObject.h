@@ -49,5 +49,7 @@ namespace Vixen::Engine::Gl {
         ~VertexArrayObject();
 
         void bind() const;
+
+        void unbind() const;
     };
 }
