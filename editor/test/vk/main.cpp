@@ -8,7 +8,6 @@
 #include <string>
 #include "vk/Window.h"
 #include "vk/Instance.h"
-#include "vk/Surface.h"
 
 using namespace Vixen::Engine::Vk;
 
@@ -23,7 +22,7 @@ int main() {
     window.setVisible(true);
 
     auto instance = std::make_shared<Instance>("Vixen Vk Test", glm::vec3(1, 0, 0), window.requiredExtensions);
-    auto surface = Surface(instance, window);
+    //auto surface = Surface(instance, window);
 
     while (!window.shouldClose()) {
         Vixen::Engine::Vk::Window::update();

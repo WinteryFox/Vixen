@@ -5,7 +5,7 @@
 #include <fmt/color.h>
 #include "Macro.h"
 #include "GraphicsCard.h"
-#include "Surface.h"
+#include "Window.h"
 
 namespace Vixen::Engine::Vk {
     class Instance {
