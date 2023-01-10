@@ -1,3 +1,4 @@
+#include <spirv_cross/spirv_cross.hpp>
 #include "ShaderModule.h"
 
 namespace Vixen::Engine {
@@ -39,6 +40,10 @@ namespace Vixen::Engine {
             throw std::runtime_error("Failed to compile shader");
         }
         binary = std::vector<uint32_t>{compilerResult.begin(), compilerResult.end()};
-        spdlog::trace("Compiled shader to SPIR-V binary with {} warnings. {}", compilerResult.GetNumWarnings(), spdlog::to_hex(binary.begin(), binary.end()));
+        spdlog::trace("Compiled shader to SPIR-V binary with {} warnings. {}", compilerResult.GetNumWarnings(),
+                      spdlog::to_hex(binary.begin(), binary.end()));
+
+        spirv_cross::Compiler cross{binary};
+        resources = cross.get_shader_resources();
     }
 }

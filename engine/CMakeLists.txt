@@ -1,5 +1,10 @@
 project("Vixen Engine")
 
+find_package(spirv_cross_core CONFIG REQUIRED)
+find_package(spirv_cross_glsl CONFIG REQUIRED)
+find_package(spirv_cross_reflect CONFIG REQUIRED)
+find_package(spirv_cross_cpp CONFIG REQUIRED)
+
 pkg_check_modules(GLM REQUIRED IMPORTED_TARGET glm)
 pkg_check_modules(GLFW REQUIRED IMPORTED_TARGET glfw3)
 pkg_check_modules(ASSIMP REQUIRED IMPORTED_TARGET assimp)
@@ -18,6 +23,10 @@ link_libraries(
         PkgConfig::ASSIMP
         PkgConfig::SPDLOG
         PkgConfig::SHADERC
+        spirv-cross-core
+        spirv-cross-glsl
+        spirv-cross-reflect
+        spirv-cross-cpp
 )
 add_library(engine STATIC ${SOURCES} ${HEADERS})
 add_definitions(-DGLFW_INCLUDE_NONE)

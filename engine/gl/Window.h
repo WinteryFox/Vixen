@@ -21,7 +21,7 @@ namespace Vixen::Engine::Gl {
 
 #ifdef DEBUG
 
-static void APIENTRY glDebugOutput(
+static void APIENTRY glDebugCallback(
         GLenum source,
         GLenum type,
         GLuint id,

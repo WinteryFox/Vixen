@@ -4,6 +4,8 @@ import QtQuick.Controls 2.3
 import QtQuick.Layouts 1.3
 import QtQuick.Window 2.3
 
+import Vixen 1.0
+
 ApplicationWindow {
     id: window
     visible: true
@@ -24,5 +26,21 @@ ApplicationWindow {
 
     Viewport {
 
+    }
+
+    Dock {
+        id: properties
+        title: "Properties"
+        width: 200
+        anchors {
+            top: parent.top
+            bottom: parent.bottom
+            left: parent.left
+        }
+
+        content: Text {
+            anchors.centerIn: parent
+            text: "Henlo"
+        }
     }
 }

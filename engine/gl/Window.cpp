@@ -31,10 +31,10 @@ namespace Vixen::Engine::Gl {
 
 #ifdef DEBUG
         if (GLEW_ARB_debug_output) {
-            spdlog::info("Enabling OpenGL debug extension");
+            spdlog::debug("Enabling OpenGL debug extension");
             glEnable(GL_DEBUG_OUTPUT);
             glEnable(GL_DEBUG_OUTPUT_SYNCHRONOUS);
-            glDebugMessageCallback(glDebugOutput, nullptr);
+            glDebugMessageCallback(glDebugCallback, nullptr);
             glDebugMessageControl(GL_DEBUG_SOURCE_API, GL_DEBUG_TYPE_ERROR, GL_DONT_CARE, 0, nullptr, GL_TRUE);
         }
 #endif

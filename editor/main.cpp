@@ -17,7 +17,7 @@ int main(int argc, char **argv) {
     qmlRegisterType<GlViewport>("Vixen", 1, 0, "GlViewport");
 
     QQmlApplicationEngine engine;
-    engine.load(u"qrc:/editor/main.qml"_qs);
+    engine.load(u"qrc:/editor/ui/main.qml"_qs);
 
     return QGuiApplication::exec();
 
