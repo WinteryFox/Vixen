@@ -1,10 +1,57 @@
-#include <spirv_cross/spirv_cross.hpp>
 #include "ShaderModule.h"
 
 namespace Vixen::Engine {
     ShaderModule::ShaderModule(ShaderModule::Stage stage, const std::string &source, std::string entry)
             : stage(stage), entry(std::move(entry)) {
-        shaderc::Compiler compiler;
+        EShLanguage s = EShLanguage::EShLangCount;
+        switch (stage) {
+            case Stage::VERTEX:
+                s = EShLanguage::EShLangVertex;
+                break;
+            case Stage::FRAGMENT:
+                s = EShLanguage::EShLangFragment;
+                break;
+            default:
+                spdlog::error("Unsupported stage for shader module");
+                throw std::runtime_error("Unsupported stage for shader module");
+        }
+
+        glslang::InitializeProcess();
+        glslang::TShader shader{s};
+        shader.setStrings(reinterpret_cast<const char *const *>(source.c_str()), 1);
+        shader.setEnvInput(glslang::EShSourceGlsl, s, glslang::EShClientVulkan, 450);
+        shader.setEnvClient(glslang::EShClientVulkan, glslang::EShTargetVulkan_1_3);
+        shader.setEnvTarget(glslang::EShTargetSpv, glslang::EShTargetSpv_1_6);
+
+        shader.setSourceEntryPoint(this->entry.c_str());
+
+        EShMessages messages = EShMsgDefault;
+        std::string preprocessed;
+        glslang::TShader::ForbidIncluder includer;
+        TBuiltInResource resources = GetDefaultResources();
+        if (!shader.parse(&resources, 450, true, messages, includer)) {
+        //if (!shader.preprocess(nullptr, 450, ENoProfile, false, false, messages, &preprocessed, includer)) {
+            spdlog::error("Failed to pre-process shader");
+            throw std::runtime_error("Failed to pre-process shader");
+        }
+
+        /*glslang::TIntermediate intermediate{};
+        glslang::SpvOptions options;
+#ifdef DEBUG
+        options.generateDebugInfo = true;
+        options.disableOptimizer = true;
+        options.optimizeSize = false;
+#else
+        options.disableOptimizer = false;
+        options.disableOptimizer = false;
+        options.optimizeSize = true;
+#endif
+        options.validate = true;
+        glslang::GlslangToSpv(intermediate, binary, &options);*/
+
+        glslang::FinalizeProcess();
+
+        /*shaderc::Compiler compiler;
         shaderc::CompileOptions options;
 
         options.SetTargetSpirv(shaderc_spirv_version_1_6);
@@ -44,6 +91,6 @@ namespace Vixen::Engine {
                       spdlog::to_hex(binary.begin(), binary.end()));
 
         spirv_cross::Compiler cross{binary};
-        resources = cross.get_shader_resources();
+        resources = cross.get_shader_resources();*/
     }
 }

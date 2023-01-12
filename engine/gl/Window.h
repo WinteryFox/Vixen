@@ -48,7 +48,41 @@ static void APIENTRY glDebugCallback(
             src = "Application";
             break;
         default:
-            src = "Other";
+            src = "Unknown";
+            break;
+    }
+
+    std::string typ;
+    switch (type) {
+        case GL_DEBUG_TYPE_ERROR:
+            typ = "ERROR";
+            break;
+        case GL_DEBUG_TYPE_DEPRECATED_BEHAVIOR:
+            typ = "DEPRECATED BEHAVIOUR";
+            break;
+        case GL_DEBUG_TYPE_UNDEFINED_BEHAVIOR:
+            typ = "UNDEFINED BEHAVIOUR";
+            break;
+        case GL_DEBUG_TYPE_PORTABILITY:
+            typ = "PORTABILITY";
+            break;
+        case GL_DEBUG_TYPE_PERFORMANCE:
+            typ = "PERFORMANCE";
+            break;
+        case GL_DEBUG_TYPE_MARKER:
+            typ = "MARKER";
+            break;
+        case GL_DEBUG_TYPE_PUSH_GROUP:
+            typ = "PUSH GROUP";
+            break;
+        case GL_DEBUG_TYPE_POP_GROUP:
+            typ = "POP GROUP";
+            break;
+        case GL_DEBUG_TYPE_OTHER:
+            typ = "OTHER";
+            break;
+        default:
+            typ = "UNKNOWN";
             break;
     }
 
@@ -67,8 +101,10 @@ static void APIENTRY glDebugCallback(
     }
     spdlog::log(
             level,
-            "[{}] {}",
+            "[{} {}] ({}) {}",
             fmt::format(fmt::fg(fmt::terminal_color::magenta), "GL " + src),
+            severity,
+            id,
             message
     );
 }
