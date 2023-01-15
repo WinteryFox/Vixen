@@ -72,7 +72,7 @@ namespace Vixen::Engine {
          * @param offset The offset from the buffer to write to measured in bytes.
          * @return Returns this object.
          */
-        Buffer &write(const void *data, std::size_t dataSize, std::size_t offset) {
+        virtual Buffer &write(const void *data, std::size_t dataSize, std::size_t offset) {
             char *mapped = (char *) map();
             std::memcpy(mapped + offset, data, dataSize);
             unmap();

@@ -21,8 +21,8 @@ int main() {
     window.center();
     window.setVisible(true);
 
-    auto instance = std::make_shared<Instance>("Vixen Vk Test", glm::vec3(1, 0, 0), window.requiredExtensions);
-    //auto surface = Surface(instance, window);
+    auto instance = Instance("Vixen Vk Test", glm::vec3(1, 0, 0), window.requiredExtensions);
+    auto surface = instance.surfaceForWindow(window);
 
     while (!window.shouldClose()) {
         Vixen::Engine::Vk::VkWindow::update();

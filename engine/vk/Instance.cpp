@@ -5,7 +5,8 @@
 namespace Vixen::Engine::Vk {
     Instance::Instance(const std::string &appName, glm::vec3 appVersion,
                        const std::vector<const char *> &requiredExtensions)
-            : instance(VK_NULL_HANDLE), device(VK_NULL_HANDLE) {
+            : instance(VK_NULL_HANDLE), device(VK_NULL_HANDLE), graphicsQueue(VK_NULL_HANDLE),
+              presentQueue(VK_NULL_HANDLE) {
         VkApplicationInfo appInfo{};
         appInfo.sType = VK_STRUCTURE_TYPE_APPLICATION_INFO;
         appInfo.pApplicationName = appName.c_str();
@@ -59,15 +60,17 @@ namespace Vixen::Engine::Vk {
 
         gpu = findOptimalGraphicsCard();
 
-        // TODO: Device and queue creation
-        /*std::vector<QueueFamily> queueFamilies;
-        queueFamilies.push_back(gpu.getQueueFamilyWithFlags(VK_QUEUE_GRAPHICS_BIT)[0]); // TODO
-        queueFamilies.push_back(gpu.getSurfaceSupportedQueues(surface)[0]); // TODO
+        /*const auto graphicsQueueFamily = gpu.getQueueFamilyWithFlags(VK_QUEUE_GRAPHICS_BIT)[0];
+        const auto presentQueueFamily = gpu.getSurfaceSupportedQueues(surface)[0];
+        std::vector<QueueFamily> queueFamilies;
+        // TODO: Detect and select best graphics and present queues
+        queueFamilies.push_back(graphicsQueueFamily);
+        queueFamilies.push_back(presentQueueFamily);
         std::vector<VkDeviceQueueCreateInfo> queueInfos{2};
-        for (const auto &index: queueFamilyIndices) {
+        for (const auto &family : queueFamilies) {
             VkDeviceQueueCreateInfo queueInfo{};
             queueInfo.sType = VK_STRUCTURE_TYPE_DEVICE_QUEUE_CREATE_INFO;
-            queueInfo.queueFamilyIndex = index;
+            queueInfo.queueFamilyIndex = family.index;
             queueInfo.queueCount = 1;
             float queuePriority = 1.0f;
             queueInfo.pQueuePriorities = &queuePriority;
@@ -81,7 +84,10 @@ namespace Vixen::Engine::Vk {
         deviceInfo.pQueueCreateInfos = queueInfos.data();
         deviceInfo.pEnabledFeatures = &deviceFeatures;
 
-        VK_CHECK(vkCreateDevice(gpu, &deviceInfo, nullptr, &device), "Failed to create Vulkan device")*/
+        VK_CHECK(vkCreateDevice(gpu.device, &deviceInfo, nullptr, &device), "Failed to create Vulkan device")
+
+        vkGetDeviceQueue(device, graphicsQueueFamily.index, 0, &presentQueue);
+        vkGetDeviceQueue(device, presentQueueFamily.index, 0, &presentQueue);*/
     }
 
     Instance::Instance(VkPhysicalDevice gpu, const std::string &appName, glm::vec3 appVersion,
@@ -97,7 +103,9 @@ namespace Vixen::Engine::Vk {
     }
 
     Instance::~Instance() {
-        vkDestroySurfaceKHR(instance, surface, nullptr);
+        for (auto surface: surfaces)
+            vkDestroySurfaceKHR(instance, surface, nullptr);
+
         vkDestroyDevice(device, nullptr);
 #ifdef DEBUG
         auto func = getInstanceProcAddress<PFN_vkDestroyDebugUtilsMessengerEXT>(instance,
@@ -251,7 +259,9 @@ namespace Vixen::Engine::Vk {
         return queue;
     }
 
-    VkSurfaceKHR Instance::surfaceForWindow(const VkWindow &window) const {
-        return window.createSurface(instance);
+    VkSurfaceKHR Instance::surfaceForWindow(VkWindow &window) {
+        auto surface = window.createSurface(instance);
+        surfaces.push_back(surface);
+        return surface;
     }
 }

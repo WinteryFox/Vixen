@@ -9,19 +9,17 @@
 
 namespace Vixen::Engine::Vk {
     class Instance {
-        friend class Surface;
-
         GraphicsCard gpu;
 
         VkInstance instance;
 
         VkDevice device;
 
-        VkSurfaceKHR surface;
-
         VkQueue graphicsQueue;
 
         VkQueue presentQueue;
+
+        std::vector<VkSurfaceKHR> surfaces;
 
 #ifdef DEBUG
         VkDebugUtilsMessengerEXT debugMessenger = VK_NULL_HANDLE;
@@ -81,6 +79,6 @@ namespace Vixen::Engine::Vk {
 
         [[nodiscard]] VkQueue getQueueHandle(uint32_t queueFamilyIndex, uint32_t queueIndex = 0) const;
 
-        [[nodiscard]] VkSurfaceKHR surfaceForWindow(const VkWindow &window) const;
+        [[nodiscard]] VkSurfaceKHR surfaceForWindow(VkWindow &window);
     };
 }

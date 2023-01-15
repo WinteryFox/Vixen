@@ -7,6 +7,7 @@
 namespace Vixen::Engine {
     class GlBuffer : public Buffer {
     public:
+        using Buffer::write;
         GLuint buffer{};
 
         GlBuffer(const size_t &size, BufferUsage bufferUsage, AllocationUsage allocationUsage)
@@ -49,6 +50,11 @@ namespace Vixen::Engine {
             }
 
             glNamedBufferData(buffer, static_cast<GLsizeiptr>(size), nullptr, u);
+        }
+
+        Buffer &write(const void *data, std::size_t dataSize, std::size_t offset) override {
+            glNamedBufferSubData(buffer, static_cast<GLsizeiptr>(offset), static_cast<GLsizeiptr>(dataSize), data);
+            return *this;
         }
 
         void *map() override {

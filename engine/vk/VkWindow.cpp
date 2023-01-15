@@ -1,13 +1,13 @@
 #include "VkWindow.h"
 
 namespace Vixen::Engine::Vk {
-    VkWindow::VkWindow(const std::string &title, const uint32_t &width, const uint32_t &height, bool transparentFrameBuffer)
+    VkWindow::VkWindow(const std::string &title, const uint32_t &width, const uint32_t &height,
+                       bool transparentFrameBuffer)
             : Vixen::Engine::Window(transparentFrameBuffer) {
         spdlog::trace("Creating new Vulkan window");
         glfwWindowHint(GLFW_CLIENT_API, GLFW_NO_API);
 #ifdef DEBUG
-
-            glfwWindowHint(GLFW_OPENGL_DEBUG_CONTEXT, GLFW_TRUE);
+        glfwWindowHint(GLFW_OPENGL_DEBUG_CONTEXT, GLFW_TRUE);
 #endif
 
         window = glfwCreateWindow(static_cast<int>(width), static_cast<int>(height), title.c_str(), nullptr, nullptr);
@@ -27,7 +27,7 @@ namespace Vixen::Engine::Vk {
 
         uint32_t count;
         // TODO: Do I need to delete this char**? No clue lol
-        const char** extensions = glfwGetRequiredInstanceExtensions(&count);
+        const char **extensions = glfwGetRequiredInstanceExtensions(&count);
         requiredExtensions.resize(count);
         for (uint32_t i = 0; i < count; i++)
             requiredExtensions[i] = extensions[i];
@@ -39,9 +39,9 @@ namespace Vixen::Engine::Vk {
         glfwDefaultWindowHints();
     }
 
-    VkSurfaceKHR VkWindow::createSurface(VkInstance instance) const {
+    VkSurfaceKHR VkWindow::createSurface(VkInstance instance) {
         VkSurfaceKHR surface = VK_NULL_HANDLE;
-        glfwCreateWindowSurface(instance, window, nullptr, &surface);
+        VK_CHECK(glfwCreateWindowSurface(instance, window, nullptr, &surface), "Failed to create Vulkan Window surface")
         return surface;
     }
 }
