@@ -5,11 +5,11 @@
 #include "../Buffer.h"
 
 namespace Vixen::Engine::Gl {
-    class Buffer : public Engine::Buffer {
+    class GlBuffer : public Engine::Buffer {
     public:
         GLuint buffer{};
 
-        Buffer(const size_t &size, BufferUsage bufferUsage, AllocationUsage allocationUsage)
+        GlBuffer(const size_t &size, BufferUsage bufferUsage, AllocationUsage allocationUsage)
                 : Engine::Buffer(size, bufferUsage, allocationUsage) {
             glCreateBuffers(1, &buffer);
 

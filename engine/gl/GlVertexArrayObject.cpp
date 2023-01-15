@@ -1,8 +1,8 @@
-#include "VertexArrayObject.h"
+#include "GlVertexArrayObject.h"
 
 namespace Vixen::Engine::Gl {
 
-    VertexArrayObject::VertexArrayObject(const std::vector<VertexBinding> &bindings, size_t indexOffset)
+    GlVertexArrayObject::GlVertexArrayObject(const std::vector<VertexBinding> &bindings, size_t indexOffset)
             : bindings(), indexOffset(indexOffset) {
         glCreateVertexArrays(1, &vao);
 
@@ -22,15 +22,15 @@ namespace Vixen::Engine::Gl {
         }
     }
 
-    VertexArrayObject::~VertexArrayObject() {
+    GlVertexArrayObject::~GlVertexArrayObject() {
         glDeleteVertexArrays(1, &vao);
     }
 
-    void VertexArrayObject::bind() const {
+    void GlVertexArrayObject::bind() const {
         glBindVertexArray(vao);
     }
 
-    void VertexArrayObject::unbind() const {
+    void GlVertexArrayObject::unbind() const {
         glBindVertexArray(0);
     }
 }

@@ -251,7 +251,7 @@ namespace Vixen::Engine::Vk {
         return queue;
     }
 
-    VkSurfaceKHR Instance::surfaceForWindow(const Window &window) const {
+    VkSurfaceKHR Instance::surfaceForWindow(const VkWindow &window) const {
         return window.createSurface(instance);
     }
 }

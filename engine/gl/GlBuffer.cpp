@@ -1,4 +1,4 @@
-#include "Buffer.h"
+#include "GlBuffer.h"
 
 namespace Vixen::Engine::Gl {
 

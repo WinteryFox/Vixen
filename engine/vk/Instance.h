@@ -5,7 +5,7 @@
 #include <fmt/color.h>
 #include "Macro.h"
 #include "GraphicsCard.h"
-#include "Window.h"
+#include "VkWindow.h"
 
 namespace Vixen::Engine::Vk {
     class Instance {
@@ -81,6 +81,6 @@ namespace Vixen::Engine::Vk {
 
         [[nodiscard]] VkQueue getQueueHandle(uint32_t queueFamilyIndex, uint32_t queueIndex = 0) const;
 
-        [[nodiscard]] VkSurfaceKHR surfaceForWindow(const Window &window) const;
+        [[nodiscard]] VkSurfaceKHR surfaceForWindow(const VkWindow &window) const;
     };
 }

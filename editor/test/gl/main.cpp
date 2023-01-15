@@ -1,9 +1,9 @@
 #include <fstream>
-#include "gl/Window.h"
-#include "gl/ShaderModule.h"
-#include "gl/ShaderProgram.h"
-#include "gl/Buffer.h"
-#include "gl/VertexArrayObject.h"
+#include "gl/GlWindow.h"
+#include "gl/GlShaderModule.h"
+#include "gl/GlShaderProgram.h"
+#include "gl/GlBuffer.h"
+#include "gl/GlVertexArrayObject.h"
 #include <unistd.h>
 
 #ifdef _WIN32
@@ -12,6 +12,7 @@
 
 #endif
 
+using namespace Vixen::Engine;
 using namespace Vixen::Engine::Gl;
 
 int main() {
@@ -31,23 +32,23 @@ int main() {
             1, 2, 3    // second triangle
     };
 
-    auto window = Window("Vixen OpenGL Test", 720, 480, true);
+    auto window = GlWindow("Vixen OpenGL Test", 720, 480, true);
     window.center();
     window.setClearColor(0.13f, 0.23f, 0.33f, 1.0f);
     window.setVisible(true);
 
     std::ifstream vertexStream("../../editor/shaders/triangle.vert");
     std::string vertexSource((std::istreambuf_iterator<char>(vertexStream)), std::istreambuf_iterator<char>());
-    auto vertexModule = std::make_shared<ShaderModule>(Vixen::Engine::ShaderModule::Stage::VERTEX, vertexSource);
+    auto vertexModule = std::make_shared<GlShaderModule>(Vixen::Engine::ShaderModule::Stage::VERTEX, vertexSource);
 
     std::ifstream fragmentStream("../../editor/shaders/triangle.frag");
     std::string fragmentSource((std::istreambuf_iterator<char>(fragmentStream)), std::istreambuf_iterator<char>());
-    auto fragmentModule = std::make_shared<ShaderModule>(Vixen::Engine::ShaderModule::Stage::FRAGMENT,
-                                                         fragmentSource);
+    auto fragmentModule = std::make_shared<GlShaderModule>(Vixen::Engine::ShaderModule::Stage::FRAGMENT,
+                                                           fragmentSource);
 
-    ShaderProgram program({vertexModule, fragmentModule});
+    GlShaderProgram program({vertexModule, fragmentModule});
 
-    auto vbo = std::make_shared<Buffer>(
+    auto vbo = std::make_shared<GlBuffer>(
             vertices.size() * sizeof(glm::vec3) + indices.size() * sizeof(std::uint32_t),
             Vixen::Engine::BufferUsage::VERTEX | Vixen::Engine::BufferUsage::INDEX,
             Vixen::Engine::AllocationUsage::GPU_ONLY
@@ -55,7 +56,7 @@ int main() {
     vbo->write(vertices, 0);
     vbo->write(indices, vertices.size() * sizeof(glm::vec3));
 
-    auto vao = VertexArrayObject(
+    auto vao = GlVertexArrayObject(
             {
                     VertexBinding(
                             vbo,
@@ -74,7 +75,7 @@ int main() {
         vao.bind();
         glDrawElements(GL_TRIANGLES, static_cast<GLsizei>(indices.size()), GL_UNSIGNED_INT, (void*) vao.indexOffset);
 
-        Window::update();
+        GlWindow::update();
         window.swap();
     }
     return EXIT_SUCCESS;

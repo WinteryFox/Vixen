@@ -1,10 +1,10 @@
 #pragma once
 
-#include "gl/ShaderModule.h"
-#include "gl/ShaderProgram.h"
-#include "gl/Buffer.h"
-#include "gl/VertexArrayObject.h"
-#include "gl/Window.h"
+#include "gl/GlShaderModule.h"
+#include "gl/GlShaderProgram.h"
+#include "gl/GlBuffer.h"
+#include "gl/GlVertexArrayObject.h"
+#include "gl/GlWindow.h"
 
 #include <QObject>
 #include <QQuickWindow>
@@ -34,11 +34,11 @@ namespace Vixen::Editor {
 
         QQuickWindow *window = nullptr;
 
-        std::shared_ptr<ShaderProgram> program;
+        std::shared_ptr<GlShaderProgram> program;
 
-        std::shared_ptr<Buffer> vbo;
+        std::shared_ptr<GlBuffer> vbo;
 
-        std::shared_ptr<VertexArrayObject> vao;
+        std::shared_ptr<GlVertexArrayObject> vao;
 
     public:
         void setViewportSize(const QSize &size);

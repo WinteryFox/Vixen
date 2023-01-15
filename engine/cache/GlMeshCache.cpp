@@ -1,17 +1,17 @@
 #include <glm/vec3.hpp>
 #include <glm/vec2.hpp>
 #include <glm/vec4.hpp>
-#include "OpenGLMeshCache.h"
+#include "GlMeshCache.h"
 
 namespace Vixen::Engine::Cache {
-    OpenGLMeshCache::OpenGLMeshCache() : MeshCache(
+    GlMeshCache::GlMeshCache() : MeshCache(
             static_cast<aiPostProcessSteps>(aiProcess_CalcTangentSpace | aiProcess_Triangulate |
                                             aiProcess_JoinIdenticalVertices | aiProcess_SortByPType)
     ) {}
 
     // TODO: We can't just return this, needs to be our shared_ptr
-    Gl::Buffer
-    OpenGLMeshCache::load(const std::string &path, AllocationUsage allocationUsage, BufferUsage bufferUsage) {
+    Gl::GlBuffer
+    GlMeshCache::load(const std::string &path, AllocationUsage allocationUsage, BufferUsage bufferUsage) {
         const aiScene *scene = loadFile(path);
 
         if (!scene) {

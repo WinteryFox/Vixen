@@ -20,16 +20,17 @@ namespace Vixen::Engine {
         glslang::TShader shader{s};
         auto src = source.c_str();
         shader.setStrings(&src, 1);
-        shader.setEnvInput(glslang::EShSourceGlsl, s, glslang::EShClientVulkan, 100);
+        shader.setEnvInput(glslang::EShSourceGlsl, s, glslang::EShClientVulkan, 130);
         shader.setEnvClient(glslang::EShClientVulkan, glslang::EShTargetVulkan_1_3);
         shader.setEnvTarget(glslang::EShTargetSpv, glslang::EShTargetSpv_1_6);
-        shader.setEnvInputVulkanRulesRelaxed();
+#ifdef DEBUG
+        shader.setDebugInfo(true);
+#endif
 
         shader.setEntryPoint(this->entry.c_str());
         shader.setSourceEntryPoint(this->entry.c_str());
 
         EShMessages messages = EShMsgDefault;
-        std::string preprocessed;
         glslang::TShader::ForbidIncluder includer;
         auto resources = GetDefaultResources();
         if (!shader.parse(resources, 100, true, messages, includer)) {

@@ -3,7 +3,7 @@
 #include <GL/glew.h>
 #include <unordered_map>
 #include <vector>
-#include "Buffer.h"
+#include "GlBuffer.h"
 
 namespace Vixen::Engine::Gl {
     struct VertexBinding {
@@ -24,15 +24,15 @@ namespace Vixen::Engine::Gl {
             GLsizei stride;
         };
 
-        VertexBinding(const std::shared_ptr<Buffer> &buffer, const std::vector<Location> &locations)
+        VertexBinding(const std::shared_ptr<GlBuffer> &buffer, const std::vector<Location> &locations)
                 : buffer(buffer), locations(locations) {}
 
-        std::shared_ptr<Buffer> buffer;
+        std::shared_ptr<GlBuffer> buffer;
 
         std::vector<Location> locations;
     };
 
-    class VertexArrayObject {
+    class GlVertexArrayObject {
         GLuint vao{};
 
         std::unordered_map<GLuint, VertexBinding> bindings;
@@ -40,13 +40,13 @@ namespace Vixen::Engine::Gl {
     public:
         std::size_t indexOffset;
 
-        VertexArrayObject(const std::vector<VertexBinding> &bindings, std::size_t indexOffset);
+        GlVertexArrayObject(const std::vector<VertexBinding> &bindings, std::size_t indexOffset);
 
-        VertexArrayObject(const VertexArrayObject &) = delete;
+        GlVertexArrayObject(const GlVertexArrayObject &) = delete;
 
-        VertexArrayObject &operator=(const VertexArrayObject &) = delete;
+        GlVertexArrayObject &operator=(const GlVertexArrayObject &) = delete;
 
-        ~VertexArrayObject();
+        ~GlVertexArrayObject();
 
         void bind() const;
 

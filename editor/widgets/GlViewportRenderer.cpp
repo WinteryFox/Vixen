@@ -36,21 +36,21 @@ namespace Vixen::Editor {
         if (!program) {
             std::ifstream vertexStream("../../editor/shaders/triangle.vert");
             std::string vertexSource((std::istreambuf_iterator<char>(vertexStream)), std::istreambuf_iterator<char>());
-            auto vertexModule = std::make_shared<ShaderModule>(Vixen::Engine::ShaderModule::Stage::VERTEX,
-                                                               vertexSource);
+            auto vertexModule = std::make_shared<GlShaderModule>(Vixen::Engine::ShaderModule::Stage::VERTEX,
+                                                                 vertexSource);
 
             std::ifstream fragmentStream("../../editor/shaders/triangle.frag");
             std::string fragmentSource((std::istreambuf_iterator<char>(fragmentStream)),
                                        std::istreambuf_iterator<char>());
-            auto fragmentModule = std::make_shared<ShaderModule>(Vixen::Engine::ShaderModule::Stage::FRAGMENT,
-                                                                 fragmentSource);
+            auto fragmentModule = std::make_shared<GlShaderModule>(Vixen::Engine::ShaderModule::Stage::FRAGMENT,
+                                                                   fragmentSource);
 
-            program = std::make_shared<ShaderProgram>(
-                    std::vector<std::shared_ptr<ShaderModule>>{vertexModule, fragmentModule});
+            program = std::make_shared<GlShaderProgram>(
+                    std::vector<std::shared_ptr<GlShaderModule>>{vertexModule, fragmentModule});
         }
 
         if (!vbo) {
-            vbo = std::make_shared<Buffer>(
+            vbo = std::make_shared<GlBuffer>(
                     vertices.size() * sizeof(glm::vec3) + indices.size() * sizeof(std::uint32_t),
                     Vixen::Engine::BufferUsage::VERTEX | Vixen::Engine::BufferUsage::INDEX,
                     Vixen::Engine::AllocationUsage::GPU_ONLY
@@ -60,7 +60,7 @@ namespace Vixen::Editor {
         }
 
         if (!vao) {
-            vao = std::make_shared<VertexArrayObject>(
+            vao = std::make_shared<GlVertexArrayObject>(
                     std::vector<VertexBinding>{
                             VertexBinding(
                                     vbo,

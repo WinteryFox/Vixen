@@ -1,7 +1,7 @@
-#include "Window.h"
+#include "VkWindow.h"
 
 namespace Vixen::Engine::Vk {
-    Window::Window(const std::string &title, const uint32_t &width, const uint32_t &height, bool transparentFrameBuffer)
+    VkWindow::VkWindow(const std::string &title, const uint32_t &width, const uint32_t &height, bool transparentFrameBuffer)
             : Vixen::Engine::Window(transparentFrameBuffer) {
         spdlog::trace("Creating new Vulkan window");
         glfwWindowHint(GLFW_CLIENT_API, GLFW_NO_API);
@@ -39,7 +39,7 @@ namespace Vixen::Engine::Vk {
         glfwDefaultWindowHints();
     }
 
-    VkSurfaceKHR Window::createSurface(VkInstance instance) const {
+    VkSurfaceKHR VkWindow::createSurface(VkInstance instance) const {
         VkSurfaceKHR surface = VK_NULL_HANDLE;
         glfwCreateWindowSurface(instance, window, nullptr, &surface);
         return surface;

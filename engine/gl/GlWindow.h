@@ -9,9 +9,9 @@
 #include "../Window.h"
 
 namespace Vixen::Engine::Gl {
-    class Window : public Vixen::Engine::Window {
+    class GlWindow : public Vixen::Engine::Window {
     public:
-        Window(const std::string &title, const int &width, const int &height, bool transparentFrameBuffer);
+        GlWindow(const std::string &title, const int &width, const int &height, bool transparentFrameBuffer);
 
         void clear();
 
@@ -36,7 +36,7 @@ static void APIENTRY glDebugCallback(
             src = "API";
             break;
         case GL_DEBUG_SOURCE_WINDOW_SYSTEM:
-            src = "Window";
+            src = "GlWindow";
             break;
         case GL_DEBUG_SOURCE_SHADER_COMPILER:
             src = "Shader";
