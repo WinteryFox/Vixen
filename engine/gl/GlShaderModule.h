@@ -6,9 +6,13 @@
 #include "../ShaderModule.h"
 
 namespace Vixen::Engine {
-    struct GlShaderModule : ShaderModule {
+    class GlShaderModule : public ShaderModule {
+        friend class GlShaderProgram;
+
+    protected:
         unsigned int module;
 
+    public:
         GlShaderModule(Stage stage, const std::string &source, const std::string &entry = "main");
 
         GlShaderModule(const GlShaderModule &) = delete;

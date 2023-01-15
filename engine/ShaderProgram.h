@@ -6,9 +6,10 @@
 
 namespace Vixen::Engine {
     template<class T = ShaderModule>
-    struct ShaderProgram {
+    class ShaderProgram {
         std::vector<std::shared_ptr<T>> modules;
 
+    public:
         explicit ShaderProgram(const std::vector<std::shared_ptr<T>> &modules) : modules(modules) {}
     };
 }

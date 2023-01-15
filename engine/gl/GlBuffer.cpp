@@ -1,5 +1,5 @@
 #include "GlBuffer.h"
 
-namespace Vixen::Engine::Gl {
+namespace Vixen::Engine {
 
 }

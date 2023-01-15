@@ -13,7 +13,6 @@
 #endif
 
 using namespace Vixen::Engine;
-using namespace Vixen::Engine::Gl;
 
 int main() {
 #ifdef _WIN32

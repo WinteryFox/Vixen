@@ -1,8 +1,12 @@
 #include "GlShaderModule.h"
 
 namespace Vixen::Engine {
-    GlShaderModule::GlShaderModule(Stage stage, const std::string &source, const std::string &entry) : Engine::ShaderModule(stage, source, entry), module(0) {
-        spirv_cross::CompilerGLSL compiler(binary);
+    GlShaderModule::GlShaderModule(Stage stage, const std::string &source, const std::string &entry)
+                : Engine::ShaderModule(stage, source, entry), module(0) {
+        // TODO: Not sure if compiling from the SPIR-V is the best route to go, so (possibly temporarily) just grab
+        // TODO: the raw source and compile it. This might cause issues later for Vulkan specific features, but we might
+        // TODO: just not support those in the end. This is something we should decide on later.
+        /*spirv_cross::CompilerGLSL compiler(binary);
         spirv_cross::CompilerGLSL::Options options {
             .version = 450,
             .es = false,
@@ -34,7 +38,7 @@ namespace Vixen::Engine {
 
         compiler.set_common_options(options);
         auto crossed = compiler.compile();
-        spdlog::trace("Cross-compiled GLSL shader\n{}", crossed);
+        spdlog::trace("Cross-compiled GLSL shader\n{}", crossed);*/
 
         switch (stage) {
             case Stage::VERTEX:
@@ -47,7 +51,7 @@ namespace Vixen::Engine {
                 spdlog::error("Unsupported shader stage");
                 throw std::runtime_error("Unsupported shader stage");
         }
-        auto src = crossed.c_str();
+        auto src = source.c_str();
         glShaderSource(module, 1, &src, nullptr);
         glCompileShader(module);
 

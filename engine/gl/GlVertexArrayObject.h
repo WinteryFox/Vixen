@@ -5,7 +5,7 @@
 #include <vector>
 #include "GlBuffer.h"
 
-namespace Vixen::Engine::Gl {
+namespace Vixen::Engine {
     struct VertexBinding {
         struct Location {
             Location(GLuint index, GLint size, GLenum type, GLboolean normalized, GLintptr offset, GLsizei stride)

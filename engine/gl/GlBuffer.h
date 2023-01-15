@@ -4,8 +4,8 @@
 #include <spdlog/spdlog.h>
 #include "../Buffer.h"
 
-namespace Vixen::Engine::Gl {
-    class GlBuffer : public Engine::Buffer {
+namespace Vixen::Engine {
+    class GlBuffer : public Buffer {
     public:
         GLuint buffer{};
 

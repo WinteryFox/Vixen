@@ -4,7 +4,7 @@
 #include "../ShaderProgram.h"
 #include "GlShaderModule.h"
 
-namespace Vixen::Engine::Gl {
+namespace Vixen::Engine {
     class GlShaderProgram : ShaderProgram<GlShaderModule> {
         unsigned int program;
 

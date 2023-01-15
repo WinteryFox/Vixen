@@ -10,7 +10,7 @@ namespace Vixen::Engine::Cache {
     ) {}
 
     // TODO: We can't just return this, needs to be our shared_ptr
-    Gl::GlBuffer
+    GlBuffer
     GlMeshCache::load(const std::string &path, AllocationUsage allocationUsage, BufferUsage bufferUsage) {
         const aiScene *scene = loadFile(path);
 

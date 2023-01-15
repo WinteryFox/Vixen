@@ -4,11 +4,11 @@
 #include "../gl/GlBuffer.h"
 
 namespace Vixen::Engine::Cache {
-    class GlMeshCache : MeshCache<Gl::GlBuffer> {
+    class GlMeshCache : MeshCache<GlBuffer> {
     public:
         explicit GlMeshCache();
 
     protected:
-        Gl::GlBuffer load(const std::string &path, AllocationUsage allocationUsage, BufferUsage bufferUsage) override;
+        GlBuffer load(const std::string &path, AllocationUsage allocationUsage, BufferUsage bufferUsage) override;
     };
 }

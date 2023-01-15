@@ -1,6 +1,6 @@
 #include "GlShaderProgram.h"
 
-namespace Vixen::Engine::Gl {
+namespace Vixen::Engine {
     GlShaderProgram::GlShaderProgram(const std::vector<std::shared_ptr<GlShaderModule>> &modules)
             : Engine::ShaderProgram<GlShaderModule>(modules) {
         program = glCreateProgram();

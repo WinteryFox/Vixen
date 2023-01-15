@@ -1,6 +1,6 @@
 #include "GlWindow.h"
 
-namespace Vixen::Engine::Gl {
+namespace Vixen::Engine {
     GlWindow::GlWindow(const std::string &title, const int &width, const int &height, bool transparentFrameBuffer) :
             Vixen::Engine::Window(transparentFrameBuffer) {
         spdlog::trace("Creating new OpenGL window");

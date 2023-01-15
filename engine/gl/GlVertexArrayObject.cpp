@@ -1,7 +1,6 @@
 #include "GlVertexArrayObject.h"
 
-namespace Vixen::Engine::Gl {
-
+namespace Vixen::Engine {
     GlVertexArrayObject::GlVertexArrayObject(const std::vector<VertexBinding> &bindings, size_t indexOffset)
             : bindings(), indexOffset(indexOffset) {
         glCreateVertexArrays(1, &vao);

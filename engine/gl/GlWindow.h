@@ -8,8 +8,8 @@
 #include <fmt/color.h>
 #include "../Window.h"
 
-namespace Vixen::Engine::Gl {
-    class GlWindow : public Vixen::Engine::Window {
+namespace Vixen::Engine {
+    class GlWindow : public Window {
     public:
         GlWindow(const std::string &title, const int &width, const int &height, bool transparentFrameBuffer);
 
@@ -101,9 +101,8 @@ static void APIENTRY glDebugCallback(
     }
     spdlog::log(
             level,
-            "[{} {}] ({}) {}",
-            fmt::format(fmt::fg(fmt::terminal_color::magenta), "GL " + src),
-            severity,
+            "[{}] ({}) {}",
+            fmt::format(fmt::fg(fmt::terminal_color::magenta), "GL " + src + " " + typ),
             id,
             message
     );
