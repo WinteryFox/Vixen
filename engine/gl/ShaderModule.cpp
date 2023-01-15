@@ -6,6 +6,7 @@ namespace Vixen::Engine::Gl {
         spirv_cross::CompilerGLSL::Options glslOptions;
 
         glslOptions.version = 450;
+        //glslOptions.vulkan_semantics = true;
         glslCompiler.set_common_options(glslOptions);
         auto crossed = glslCompiler.compile();
         spdlog::trace("Cross-compiled GLSL shader\n{}", crossed);
@@ -31,9 +32,9 @@ namespace Vixen::Engine::Gl {
             GLint size;
             glGetShaderiv(module, GL_INFO_LOG_LENGTH, &size);
             char log[size];
-            glGetShaderInfoLog(module, 0, nullptr, log);
-            spdlog::error("Failed to specialize GL shader module.\n{}", std::string(log));
-            throw std::runtime_error("Failed to specialize GL shader module.");
+            glGetShaderInfoLog(module, size, nullptr, log);
+            spdlog::error("Failed to compile GL shader module: {}", std::string(log));
+            throw std::runtime_error("Failed to compile GL shader module.");
         }
     }
 

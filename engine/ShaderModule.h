@@ -8,6 +8,12 @@
 #include <string>
 #include <utility>
 
+#ifdef DEBUG
+
+#include <glslang/SPIRV/disassemble.h>
+
+#endif
+
 namespace Vixen::Engine {
     class ShaderModule {
     public:

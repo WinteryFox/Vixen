@@ -9,11 +9,14 @@ namespace Vixen::Engine::Gl {
         glLinkProgram(program);
 
         int success;
-        char log[512];
         glGetProgramiv(program, GL_LINK_STATUS, &success);
         if (!success) {
-            glGetProgramInfoLog(program, 512, nullptr, log);
-            spdlog::error("Failed to link shader program: {}", log);
+            GLint size;
+            glGetProgramiv(program, GL_INFO_LOG_LENGTH, &size);
+            char log[size];
+            glGetProgramInfoLog(program, size, nullptr, log);
+            spdlog::error("Failed to link GL shader program: {}", std::string(log));
+            throw std::runtime_error("Failed to link GL shader program");
         }
     }
 

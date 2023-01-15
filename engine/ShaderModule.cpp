@@ -3,7 +3,7 @@
 namespace Vixen::Engine {
     ShaderModule::ShaderModule(ShaderModule::Stage stage, const std::string &source, std::string entry)
             : stage(stage), entry(std::move(entry)) {
-        EShLanguage s = EShLanguage::EShLangCount;
+        EShLanguage s;
         switch (stage) {
             case Stage::VERTEX:
                 s = EShLanguage::EShLangVertex;
@@ -18,79 +18,52 @@ namespace Vixen::Engine {
 
         glslang::InitializeProcess();
         glslang::TShader shader{s};
-        shader.setStrings(reinterpret_cast<const char *const *>(source.c_str()), 1);
-        shader.setEnvInput(glslang::EShSourceGlsl, s, glslang::EShClientVulkan, 450);
+        auto src = source.c_str();
+        shader.setStrings(&src, 1);
+        shader.setEnvInput(glslang::EShSourceGlsl, s, glslang::EShClientVulkan, 100);
         shader.setEnvClient(glslang::EShClientVulkan, glslang::EShTargetVulkan_1_3);
         shader.setEnvTarget(glslang::EShTargetSpv, glslang::EShTargetSpv_1_6);
+        shader.setEnvInputVulkanRulesRelaxed();
 
+        shader.setEntryPoint(this->entry.c_str());
         shader.setSourceEntryPoint(this->entry.c_str());
 
         EShMessages messages = EShMsgDefault;
         std::string preprocessed;
         glslang::TShader::ForbidIncluder includer;
-        TBuiltInResource resources = GetDefaultResources();
-        if (!shader.parse(&resources, 450, true, messages, includer)) {
-        //if (!shader.preprocess(nullptr, 450, ENoProfile, false, false, messages, &preprocessed, includer)) {
-            spdlog::error("Failed to pre-process shader");
+        auto resources = GetDefaultResources();
+        if (!shader.parse(resources, 100, true, messages, includer)) {
+            auto log = shader.getInfoLog();
+            spdlog::error("Failed to pre-process shader; {}", log);
             throw std::runtime_error("Failed to pre-process shader");
         }
 
-        /*glslang::TIntermediate intermediate{};
+        auto intermediate = shader.getIntermediate();
         glslang::SpvOptions options;
 #ifdef DEBUG
         options.generateDebugInfo = true;
         options.disableOptimizer = true;
         options.optimizeSize = false;
+        options.stripDebugInfo = false;
 #else
         options.disableOptimizer = false;
         options.disableOptimizer = false;
         options.optimizeSize = true;
+        options.stripDebugInfo = true;
 #endif
         options.validate = true;
-        glslang::GlslangToSpv(intermediate, binary, &options);*/
+        spv::SpvBuildLogger logger;
+        glslang::GlslangToSpv(*intermediate, binary, &logger, &options);
 
-        glslang::FinalizeProcess();
-
-        /*shaderc::Compiler compiler;
-        shaderc::CompileOptions options;
-
-        options.SetTargetSpirv(shaderc_spirv_version_1_6);
-        options.SetTargetEnvironment(shaderc_target_env_vulkan, shaderc_env_version_vulkan_1_3);
 #ifdef DEBUG
-        options.SetGenerateDebugInfo();
-#else
-        options.SetOptimizationLevel(shaderc_optimization_level_performance);
+        std::stringstream stream;
+        spv::Disassemble(stream, binary);
+        spdlog::debug("Disassembled SPIR-V:\n{}", stream.str());
 #endif
 
-        auto preprocessResult = compiler.PreprocessGlsl(
-                source,
-                static_cast<shaderc_shader_kind>(stage),
-                "",
-                options
-        );
-        if (preprocessResult.GetCompilationStatus() != shaderc_compilation_status_success) {
-            spdlog::error("Failed to preprocess shader: {}", preprocessResult.GetErrorMessage());
-            throw std::runtime_error("Failed to preprocess shader");
-        }
-        std::string preprocessed{preprocessResult.begin(), preprocessResult.end()};
-        spdlog::trace("Preprocessed shader with {} warnings\n{}", preprocessResult.GetNumWarnings(), preprocessed);
-
-        auto compilerResult = compiler.CompileGlslToSpv(
-                preprocessed,
-                static_cast<shaderc_shader_kind>(stage),
-                "",
-                this->entry.c_str(),
-                options
-        );
-        if (compilerResult.GetCompilationStatus() != shaderc_compilation_status_success) {
-            spdlog::error("Failed to compile shader: {}", compilerResult.GetErrorMessage());
-            throw std::runtime_error("Failed to compile shader");
-        }
-        binary = std::vector<uint32_t>{compilerResult.begin(), compilerResult.end()};
-        spdlog::trace("Compiled shader to SPIR-V binary with {} warnings. {}", compilerResult.GetNumWarnings(),
-                      spdlog::to_hex(binary.begin(), binary.end()));
-
-        spirv_cross::Compiler cross{binary};
-        resources = cross.get_shader_resources();*/
+        glslang::FinalizeProcess();
+        if (!logger.getAllMessages().empty())
+            spdlog::debug("{}", logger.getAllMessages());
+        spdlog::trace("Compiled shader to SPIR-V binary {}", spdlog::to_hex(binary.begin(), binary.end()));
     }
 }
