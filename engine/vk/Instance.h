@@ -7,17 +7,11 @@
 #include "GraphicsCard.h"
 #include "VkWindow.h"
 
-namespace Vixen::Engine::Vk {
+namespace Vixen::Engine {
     class Instance {
-        GraphicsCard gpu;
+        friend class Device;
 
         VkInstance instance;
-
-        VkDevice device;
-
-        VkQueue graphicsQueue;
-
-        VkQueue presentQueue;
 
         std::vector<VkSurfaceKHR> surfaces;
 
@@ -41,26 +35,6 @@ namespace Vixen::Engine::Vk {
          */
         Instance(const std::string &appName, glm::vec3 appVersion, const std::vector<const char *> &requiredExtensions);
 
-        /**
-         * Create a new Vulkan instance using a specific GPU.
-         * @param gpu The GPU to use for this instance.
-         * @param appName The name of the application running.
-         * @param appVersion The version of the application running.
-         * @param requiredExtensions The non-optional extensions this app uses.
-         */
-        Instance(VkPhysicalDevice gpu, const std::string &appName, glm::vec3 appVersion,
-                 const std::vector<const char *> &requiredExtensions);
-
-        /**
-         * Create a new Vulkan instance using a specific GPU.
-         * @param gpu The GPU to use for this instance.
-         * @param appName The name of the application running.
-         * @param appVersion The version of the application running.
-         * @param requiredExtensions The non-optional extensions this app uses.
-         */
-        Instance(GraphicsCard gpu, const std::string &appName, glm::vec3 appVersion,
-                 const std::vector<const char *> &requiredExtensions);
-
         ~Instance();
 
         [[nodiscard]] std::vector<GraphicsCard> getGraphicsCards() const;
@@ -76,8 +50,6 @@ namespace Vixen::Engine::Vk {
         static std::vector<VkLayerProperties> getSupportedLayers();
 
         static bool isLayerSupported(const std::string &layer);
-
-        [[nodiscard]] VkQueue getQueueHandle(uint32_t queueFamilyIndex, uint32_t queueIndex = 0) const;
 
         [[nodiscard]] VkSurfaceKHR surfaceForWindow(VkWindow &window);
     };

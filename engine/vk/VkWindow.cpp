@@ -1,6 +1,6 @@
 #include "VkWindow.h"
 
-namespace Vixen::Engine::Vk {
+namespace Vixen::Engine {
     VkWindow::VkWindow(const std::string &title, const uint32_t &width, const uint32_t &height,
                        bool transparentFrameBuffer)
             : Vixen::Engine::Window(transparentFrameBuffer) {
@@ -31,10 +31,6 @@ namespace Vixen::Engine::Vk {
         requiredExtensions.resize(count);
         for (uint32_t i = 0; i < count; i++)
             requiredExtensions[i] = extensions[i];
-
-#ifdef __APPLE__
-        requiredExtensions.emplace_back(VK_KHR_PORTABILITY_ENUMERATION_EXTENSION_NAME);
-#endif
 
         glfwDefaultWindowHints();
     }

@@ -4,8 +4,8 @@
 #include "../Window.h"
 #include "Macro.h"
 
-namespace Vixen::Engine::Vk {
-    class VkWindow : public Vixen::Engine::Window {
+namespace Vixen::Engine {
+    class VkWindow : public Window {
     public:
         std::vector<const char *> requiredExtensions;
 

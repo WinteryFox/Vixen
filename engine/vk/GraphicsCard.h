@@ -4,7 +4,7 @@
 #include <map>
 #include <vulkan/vulkan.hpp>
 
-namespace Vixen::Engine::Vk {
+namespace Vixen::Engine {
     struct QueueFamily {
         uint32_t index;
 

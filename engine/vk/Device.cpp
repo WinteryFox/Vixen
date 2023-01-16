@@ -1,0 +1,46 @@
+#include "Device.h"
+
+namespace Vixen::Engine {
+    Device::Device(GraphicsCard gpu, VkSurfaceKHR surface) : device(VK_NULL_HANDLE), gpu(gpu), surface(surface) {
+        const auto graphicsQueueFamily = gpu.getQueueFamilyWithFlags(VK_QUEUE_GRAPHICS_BIT)[0];
+        const auto presentQueueFamily = gpu.getSurfaceSupportedQueues(surface)[0];
+        std::set<uint32_t> queueFamilies = {graphicsQueueFamily.index, presentQueueFamily.index};
+        // TODO: Detect and select best graphics and present queues
+        std::vector<VkDeviceQueueCreateInfo> queueInfos;
+        for (const auto &family: queueFamilies) {
+            VkDeviceQueueCreateInfo queueInfo{};
+            queueInfo.sType = VK_STRUCTURE_TYPE_DEVICE_QUEUE_CREATE_INFO;
+            queueInfo.queueFamilyIndex = family;
+            queueInfo.queueCount = 1;
+            float queuePriority = 1.0f;
+            queueInfo.pQueuePriorities = &queuePriority;
+            queueInfos.push_back(queueInfo);
+        }
+
+        VkPhysicalDeviceFeatures deviceFeatures{};
+
+        VkDeviceCreateInfo deviceInfo{};
+        deviceInfo.sType = VK_STRUCTURE_TYPE_DEVICE_CREATE_INFO;
+        deviceInfo.queueCreateInfoCount = queueInfos.size();
+        deviceInfo.pQueueCreateInfos = queueInfos.data();
+        deviceInfo.pEnabledFeatures = &deviceFeatures;
+
+        VK_CHECK(vkCreateDevice(gpu.device, &deviceInfo, nullptr, &device), "Failed to create Vulkan device")
+
+        graphicsQueue = getQueueHandle(graphicsQueueFamily.index, 0);
+        presentQueue = getQueueHandle(presentQueueFamily.index, 0);
+    }
+
+    Device::~Device() {
+        vkDestroyDevice(device, nullptr);
+    }
+
+    VkQueue Device::getQueueHandle(uint32_t queueFamilyIndex, uint32_t queueIndex) const {
+        VkQueue queue = VK_NULL_HANDLE;
+        vkGetDeviceQueue(device, queueFamilyIndex, queueIndex, &queue);
+        if (queue == VK_NULL_HANDLE)
+            spdlog::error("Failed to get queue handle for queue family {} and index {}", queueFamilyIndex, queueIndex);
+
+        return queue;
+    }
+}
