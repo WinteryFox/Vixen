@@ -19,7 +19,7 @@ namespace Vixen::Engine {
         VkQueue presentQueue;
 
     public:
-        Device(GraphicsCard gpu, VkSurfaceKHR surface);
+        Device(const std::vector<const char *> &extensions, GraphicsCard gpu, VkSurfaceKHR surface);
 
         ~Device();
 

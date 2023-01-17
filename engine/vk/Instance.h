@@ -2,10 +2,10 @@
 
 #include <vulkan/vulkan.hpp>
 #include <glm/glm.hpp>
-#include <fmt/color.h>
 #include "Macro.h"
 #include "GraphicsCard.h"
 #include "VkWindow.h"
+#include "../Util.h"
 
 namespace Vixen::Engine {
     class Instance {
@@ -18,13 +18,6 @@ namespace Vixen::Engine {
 #ifdef DEBUG
         VkDebugUtilsMessengerEXT debugMessenger = VK_NULL_HANDLE;
 #endif
-
-        static VKAPI_ATTR VkBool32 VKAPI_CALL vkDebugCallback(
-                VkDebugUtilsMessageSeverityFlagBitsEXT messageSeverity,
-                VkDebugUtilsMessageTypeFlagsEXT messageType,
-                const VkDebugUtilsMessengerCallbackDataEXT *pCallbackData,
-                [[maybe_unused]] void *pUserData
-        );
 
     public:
         /**
@@ -41,7 +34,7 @@ namespace Vixen::Engine {
 
         [[nodiscard]] static GraphicsCard getGraphicsCardProperties(VkPhysicalDevice gpu);
 
-        [[nodiscard]] GraphicsCard findOptimalGraphicsCard() const;
+        [[nodiscard]] GraphicsCard findOptimalGraphicsCard(const std::vector<const char *> &extensions) const;
 
         static std::vector<VkExtensionProperties> getSupportedExtensions();
 

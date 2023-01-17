@@ -37,7 +37,10 @@ namespace Vixen::Engine {
 
     VkSurfaceKHR VkWindow::createSurface(VkInstance instance) {
         VkSurfaceKHR surface = VK_NULL_HANDLE;
-        VK_CHECK(glfwCreateWindowSurface(instance, window, nullptr, &surface), "Failed to create Vulkan Window surface")
+        checkVulkanResult(
+                glfwCreateWindowSurface(instance, window, nullptr, &surface),
+                "Failed to create Vulkan Window surface"
+        );
         return surface;
     }
 }

@@ -1,7 +1,5 @@
 #include "Instance.h"
 
-#include <utility>
-
 namespace Vixen::Engine {
     Instance::Instance(const std::string &appName, glm::vec3 appVersion,
                        const std::vector<const char *> &requiredExtensions)
@@ -9,13 +7,14 @@ namespace Vixen::Engine {
         VkApplicationInfo appInfo{};
         appInfo.sType = VK_STRUCTURE_TYPE_APPLICATION_INFO;
         appInfo.pApplicationName = appName.c_str();
-        appInfo.applicationVersion = VK_MAKE_VERSION(appVersion.x, appVersion.y, appVersion.z);
+        appInfo.applicationVersion = VK_MAKE_API_VERSION(0, appVersion.x, appVersion.y, appVersion.z);
         appInfo.pEngineName = "Vixen";
-        appInfo.engineVersion = VK_MAKE_VERSION(1, 0, 0);
+        appInfo.engineVersion = VK_MAKE_API_VERSION(0, 1, 0, 0);
         appInfo.apiVersion = VK_API_VERSION_1_3;
 
         std::vector<const char *> extensions(requiredExtensions);
-        extensions.push_back(VK_KHR_PORTABILITY_ENUMERATION_EXTENSION_NAME);
+        extensions.emplace_back(VK_KHR_PORTABILITY_ENUMERATION_EXTENSION_NAME);
+
         std::vector<const char *> layers{};
 #ifdef DEBUG
         if (isLayerSupported("VK_LAYER_KHRONOS_validation")) {
@@ -36,7 +35,17 @@ namespace Vixen::Engine {
         instanceInfo.ppEnabledLayerNames = layers.data();
         instanceInfo.flags |= VK_INSTANCE_CREATE_ENUMERATE_PORTABILITY_BIT_KHR;
 
-        VK_CHECK(vkCreateInstance(&instanceInfo, nullptr, &instance), "Failed to create Vk instance")
+        spdlog::info(
+                "Creating new Vulkan instance for app \"{} ({})\" with extensions [{}] and layers [{}]",
+                appName,
+                getVersionString(appVersion),
+                fmt::join(extensions, ", "),
+                fmt::join(layers, ", ")
+        );
+        checkVulkanResult(
+                vkCreateInstance(&instanceInfo, nullptr, &instance),
+                "Failed to create Vulkan instance"
+        );
 
 #ifdef DEBUG
         VkDebugUtilsMessengerCreateInfoEXT debugInfo{};
@@ -48,7 +57,8 @@ namespace Vixen::Engine {
                 VK_DEBUG_UTILS_MESSAGE_SEVERITY_ERROR_BIT_EXT;
         debugInfo.messageType = VK_DEBUG_UTILS_MESSAGE_TYPE_GENERAL_BIT_EXT |
                                 VK_DEBUG_UTILS_MESSAGE_TYPE_VALIDATION_BIT_EXT |
-                                VK_DEBUG_UTILS_MESSAGE_TYPE_PERFORMANCE_BIT_EXT;
+                                VK_DEBUG_UTILS_MESSAGE_TYPE_PERFORMANCE_BIT_EXT |
+                                VK_DEBUG_UTILS_MESSAGE_TYPE_DEVICE_ADDRESS_BINDING_BIT_EXT;
         debugInfo.pfnUserCallback = vkDebugCallback;
 
         auto func = getInstanceProcAddress<PFN_vkCreateDebugUtilsMessengerEXT>(instance,
@@ -77,43 +87,38 @@ namespace Vixen::Engine {
         std::vector<VkPhysicalDevice> devices{deviceCount};
         vkEnumeratePhysicalDevices(instance, &deviceCount, devices.data());
 
-        std::vector<GraphicsCard> gpus{deviceCount};
-        for (uint32_t i = 0; i < gpus.size(); i++) {
-            gpus[i] = getGraphicsCardProperties(devices[i]);
-        }
+        std::vector<GraphicsCard> gpus{};
+        gpus.reserve(deviceCount);
+        for (const auto& gpu : devices)
+            gpus.emplace_back(gpu);
 
         return gpus;
     }
 
-    GraphicsCard Instance::getGraphicsCardProperties(VkPhysicalDevice physicalDevice) {
-        GraphicsCard card;
-
-        card.device = physicalDevice;
-        vkGetPhysicalDeviceProperties(physicalDevice, &card.properties);
-        vkGetPhysicalDeviceFeatures(physicalDevice, &card.features);
-
-        uint32_t queueFamilyCount;
-        vkGetPhysicalDeviceQueueFamilyProperties(physicalDevice, &queueFamilyCount, nullptr);
-        std::vector<VkQueueFamilyProperties> queueFamilies(queueFamilyCount);
-        vkGetPhysicalDeviceQueueFamilyProperties(physicalDevice, &queueFamilyCount, queueFamilies.data());
-
-        card.queueFamilies.resize(queueFamilyCount);
-        for (uint32_t x = 0; x < queueFamilyCount; x++) {
-            card.queueFamilies[x] = QueueFamily{
-                    .index = x,
-                    .properties = queueFamilies[x]
-            };
-        }
-        return card;
-    }
-
-    GraphicsCard Instance::findOptimalGraphicsCard() const {
+    GraphicsCard Instance::findOptimalGraphicsCard(const std::vector<const char *> &extensions) const {
         const auto &gpus = getGraphicsCards();
         if (gpus.empty())
             throw std::runtime_error("No graphics cards found");
 
+        spdlog::trace("Attempting to find optimal GPU");
+        bool foundSuitableGpu = false;
+        GraphicsCard optimalCard = gpus[0];
+        for (const auto &gpu: gpus) {
+            bool s = gpu.isExtensionSupported(extensions[0]);
+
+            if (!gpu.supportsExtensions(extensions)) {
+                spdlog::trace("Disqualified \"{}\" for missing extensions", gpu.properties.deviceName);
+                continue;
+            }
+            optimalCard = gpu;
+            foundSuitableGpu = true;
+        }
+        if (!foundSuitableGpu)
+            error("Failed to find suitable graphics card");
+        spdlog::trace("Optimal graphics card is \"{}\"", optimalCard.properties.deviceName);
+
         // TODO: Implement
-        return gpus[0];
+        return optimalCard;
     }
 
     std::vector<VkExtensionProperties> Instance::getSupportedExtensions() {
@@ -122,11 +127,13 @@ namespace Vixen::Engine {
 
         std::vector<VkExtensionProperties> extensions(count);
         vkEnumerateInstanceExtensionProperties(nullptr, &count, extensions.data());
+
         return extensions;
     }
 
     bool Instance::isExtensionSupported(const std::string &extension) {
         const auto extensions = getSupportedExtensions();
+
         return std::find_if(
                 extensions.begin(),
                 extensions.end(),
@@ -140,11 +147,13 @@ namespace Vixen::Engine {
 
         std::vector<VkLayerProperties> layers(count);
         vkEnumerateInstanceLayerProperties(&count, layers.data());
+
         return layers;
     }
 
     bool Instance::isLayerSupported(const std::string &layer) {
         const auto layers = getSupportedLayers();
+
         return std::find_if(
                 layers.begin(),
                 layers.end(),
@@ -152,62 +161,10 @@ namespace Vixen::Engine {
         ) != std::end(layers);
     }
 
-#pragma clang diagnostic push
-#pragma ide diagnostic ignored "ConstantFunctionResult"
-
-    VkBool32 VKAPI_CALL Instance::vkDebugCallback(VkDebugUtilsMessageSeverityFlagBitsEXT messageSeverity,
-                                                  VkDebugUtilsMessageTypeFlagsEXT messageType,
-                                                  const VkDebugUtilsMessengerCallbackDataEXT *pCallbackData,
-                                                  [[maybe_unused]] void *pUserData) {
-        spdlog::level::level_enum level;
-        switch (messageSeverity) {
-            case VK_DEBUG_UTILS_MESSAGE_SEVERITY_VERBOSE_BIT_EXT:
-                level = spdlog::level::trace;
-                break;
-            case VK_DEBUG_UTILS_MESSAGE_SEVERITY_INFO_BIT_EXT:
-                level = spdlog::level::info;
-                break;
-            case VK_DEBUG_UTILS_MESSAGE_SEVERITY_WARNING_BIT_EXT:
-                level = spdlog::level::warn;
-                break;
-            case VK_DEBUG_UTILS_MESSAGE_SEVERITY_ERROR_BIT_EXT:
-                level = spdlog::level::err;
-                break;
-            default:
-                spdlog::warn("Unknown level flag in vkDebugCallback");
-                return VK_FALSE;
-        }
-
-        std::string source;
-        switch (messageType) {
-            case VK_DEBUG_UTILS_MESSAGE_TYPE_PERFORMANCE_BIT_EXT:
-                source = "Performance";
-                break;
-            case VK_DEBUG_UTILS_MESSAGE_TYPE_VALIDATION_BIT_EXT:
-                source = "Validation";
-                break;
-            case VK_DEBUG_UTILS_MESSAGE_TYPE_GENERAL_BIT_EXT:
-                source = "General";
-                break;
-            default:
-                spdlog::warn("Unknown type flag in vkDebugCallback");
-                return VK_FALSE;
-        }
-
-        spdlog::log(
-                level,
-                "[{}] {}",
-                fmt::format(fmt::fg(fmt::terminal_color::magenta), source),
-                pCallbackData->pMessage
-        );
-        return VK_FALSE;
-    }
-
-#pragma clang diagnostic pop
-
     VkSurfaceKHR Instance::surfaceForWindow(VkWindow &window) {
         auto surface = window.createSurface(instance);
         surfaces.push_back(surface);
+
         return surface;
     }
 }

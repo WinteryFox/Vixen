@@ -1,7 +1,8 @@
 #include "Device.h"
 
 namespace Vixen::Engine {
-    Device::Device(GraphicsCard gpu, VkSurfaceKHR surface) : device(VK_NULL_HANDLE), gpu(gpu), surface(surface) {
+    Device::Device(const std::vector<const char *> &extensions, GraphicsCard gpu, VkSurfaceKHR surface) : device(
+            VK_NULL_HANDLE), gpu(gpu), surface(surface) {
         const auto graphicsQueueFamily = gpu.getQueueFamilyWithFlags(VK_QUEUE_GRAPHICS_BIT)[0];
         const auto presentQueueFamily = gpu.getSurfaceSupportedQueues(surface)[0];
         std::set<uint32_t> queueFamilies = {graphicsQueueFamily.index, presentQueueFamily.index};
@@ -24,8 +25,15 @@ namespace Vixen::Engine {
         deviceInfo.queueCreateInfoCount = queueInfos.size();
         deviceInfo.pQueueCreateInfos = queueInfos.data();
         deviceInfo.pEnabledFeatures = &deviceFeatures;
+        deviceInfo.enabledExtensionCount = extensions.size();
+        deviceInfo.ppEnabledExtensionNames = extensions.data();
 
-        VK_CHECK(vkCreateDevice(gpu.device, &deviceInfo, nullptr, &device), "Failed to create Vulkan device")
+        spdlog::info("Creating new Vulkan device using \"{} ({})\"", gpu.properties.deviceName,
+                     getVersionString(gpu.properties.driverVersion));
+        checkVulkanResult(
+                vkCreateDevice(gpu.device, &deviceInfo, nullptr, &device),
+                "Failed to create Vulkan device"
+        );
 
         graphicsQueue = getQueueHandle(graphicsQueueFamily.index, 0);
         presentQueue = getQueueHandle(presentQueueFamily.index, 0);
@@ -39,7 +47,7 @@ namespace Vixen::Engine {
         VkQueue queue = VK_NULL_HANDLE;
         vkGetDeviceQueue(device, queueFamilyIndex, queueIndex, &queue);
         if (queue == VK_NULL_HANDLE)
-            spdlog::error("Failed to get queue handle for queue family {} and index {}", queueFamilyIndex, queueIndex);
+            error("Failed to get queue handle for queue family {} and index {}", queueFamilyIndex, queueIndex);
 
         return queue;
     }

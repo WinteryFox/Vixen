@@ -18,12 +18,21 @@ int main() {
 #endif
     spdlog::set_level(spdlog::level::trace);
 
-    auto window = VkWindow("Vixen Vulkan Test", 720, 480, false);
+    auto title = "Vixen Vulkan Test";
+    auto window = VkWindow(title, 720, 480, false);
     window.center();
     window.setVisible(true);
 
-    auto instance = Instance("Vixen Vk Test", glm::vec3(1, 0, 0), window.requiredExtensions);
-    auto device = Device(instance.findOptimalGraphicsCard(), instance.surfaceForWindow(window));
+    auto instance = Instance(title, glm::vec3(1, 0, 0), window.requiredExtensions);
+
+    std::vector<const char *> deviceExtensions = {
+            VK_KHR_SWAPCHAIN_EXTENSION_NAME
+    };
+    auto device = Device(
+            deviceExtensions,
+            instance.findOptimalGraphicsCard(deviceExtensions),
+            instance.surfaceForWindow(window)
+    );
 
     while (!window.shouldClose()) {
         VkWindow::update();

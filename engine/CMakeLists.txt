@@ -14,7 +14,7 @@ pkg_check_modules(SPDLOG REQUIRED IMPORTED_TARGET spdlog)
 option(ENABLE_VULKAN "Enable or disable Vulkan support" ON)
 option(ENABLE_OPENGL "Enable or disable OpenGL support" ON)
 
-set(HEADERS Window.h ShaderModule.h ShaderProgram.h Monitor.h Buffer.h Mesh.h cache/BufferCache.h cache/MeshCache.h)
+set(HEADERS Window.h ShaderModule.h ShaderProgram.h Monitor.h Buffer.h Mesh.h cache/BufferCache.h cache/MeshCache.h Util.h)
 set(SOURCES Window.cpp ShaderModule.cpp cache/BufferCache.cpp cache/MeshCache.cpp)
 
 link_libraries(
