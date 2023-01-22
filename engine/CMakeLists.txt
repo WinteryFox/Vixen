@@ -14,8 +14,8 @@ pkg_check_modules(SPDLOG REQUIRED IMPORTED_TARGET spdlog)
 option(ENABLE_VULKAN "Enable or disable Vulkan support" ON)
 option(ENABLE_OPENGL "Enable or disable OpenGL support" ON)
 
-set(HEADERS Window.h ShaderModule.h ShaderProgram.h Monitor.h Buffer.h Mesh.h cache/BufferCache.h cache/MeshCache.h Util.h)
-set(SOURCES Window.cpp ShaderModule.cpp cache/BufferCache.cpp cache/MeshCache.cpp)
+set(HEADERS Window.h ShaderModule.h ShaderProgram.h Monitor.h buffer/Buffer.h Mesh.h Util.h Renderer.h buffer/WritableBuffer.h buffer/ReadableBuffer.h buffer/ReadableWritableBuffer.h)
+set(SOURCES Window.cpp ShaderModule.cpp buffer/Buffer.cpp buffer/ReadableBuffer.cpp buffer/WritableBuffer.cpp buffer/ReadableWritableBuffer.cpp)
 
 link_libraries(
         PkgConfig::GLM
@@ -38,7 +38,7 @@ link_libraries(
         spirv-cross-reflect
         spirv-cross-cpp
 )
-add_library(engine STATIC ${SOURCES} ${HEADERS})
+add_library(engine SHARED ${SOURCES} ${HEADERS})
 add_definitions(-DGLFW_INCLUDE_NONE)
 
 if (ENABLE_VULKAN)

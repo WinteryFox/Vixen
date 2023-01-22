@@ -3,7 +3,7 @@
 #include <GL/glew.h>
 #include <unordered_map>
 #include <vector>
-#include "GlBuffer.h"
+#include "../buffer/gl/GlBuffer.h"
 
 namespace Vixen::Engine {
     struct VertexBinding {

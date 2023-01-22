@@ -20,7 +20,6 @@ namespace Vixen::Engine {
         if (isLayerSupported("VK_LAYER_KHRONOS_validation")) {
             layers.emplace_back("VK_LAYER_KHRONOS_validation");
             extensions.emplace_back(VK_EXT_DEBUG_UTILS_EXTENSION_NAME);
-            spdlog::debug("Enabling Vulkan validation layers");
         } else {
             spdlog::warn("Debug mode is enabled but Vulkan validation layers are not available, did you install them?");
         }
@@ -63,8 +62,10 @@ namespace Vixen::Engine {
 
         auto func = getInstanceProcAddress<PFN_vkCreateDebugUtilsMessengerEXT>(instance,
                                                                                "vkCreateDebugUtilsMessengerEXT");
-        if (func != nullptr)
+        if (func != nullptr) {
+            spdlog::debug("Creating Vulkan debug messenger");
             func(instance, &debugInfo, nullptr, &debugMessenger);
+        }
 #endif
     }
 
@@ -104,8 +105,6 @@ namespace Vixen::Engine {
         bool foundSuitableGpu = false;
         GraphicsCard optimalCard = gpus[0];
         for (const auto &gpu: gpus) {
-            bool s = gpu.isExtensionSupported(extensions[0]);
-
             if (!gpu.supportsExtensions(extensions)) {
                 spdlog::trace("Disqualified \"{}\" for missing extensions", gpu.properties.deviceName);
                 continue;
