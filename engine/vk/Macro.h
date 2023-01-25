@@ -7,6 +7,7 @@
 
 #ifdef DEBUG
 
+#include <vulkan/vk_enum_string_helper.h>
 #include <spdlog/sinks/stdout_color_sinks.h>
 #include <fmt/color.h>
 
@@ -16,22 +17,13 @@ namespace Vixen::Engine {
     template<typename T = std::runtime_error>
     static inline void checkVulkanResult(VkResult result, const std::string &message) {
         if (result != VK_SUCCESS) {
-#ifdef A
+#ifdef DEBUG
             error<T>("{} ({})", message, string_VkResult(result));
 #else
             error<T>("{} ({})", message, result);
 #endif
         }
     }
-
-    /*template<typename T>
-    static inline T getInstanceProcAddress(VkInstance instance, const std::string &function) {
-        auto func = (T) vkGetInstanceProcAddr(instance, function.c_str());
-        if (func == nullptr)
-            spdlog::warn("Failed to load function {}", function);
-
-        return func;
-    }*/
 
     static inline std::string getVersionString(glm::vec3 version) {
         return fmt::format("{}.{}.{}", version.x, version.y, version.z);
@@ -79,7 +71,7 @@ namespace Vixen::Engine {
                 source = "General";
                 break;
             default:
-#ifdef A
+#ifdef DEBUG
                 source = string_VkDebugUtilsMessageTypeFlagsEXT(messageType);
 #else
                 source = "UNKNOWN";
