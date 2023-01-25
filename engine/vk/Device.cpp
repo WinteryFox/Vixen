@@ -1,8 +1,8 @@
 #include "Device.h"
 
 namespace Vixen::Engine {
-    Device::Device(const std::vector<const char *> &extensions, GraphicsCard gpu, VkSurfaceKHR surface) : device(
-            VK_NULL_HANDLE), gpu(gpu), surface(surface) {
+    Device::Device(const std::vector<const char *> &extensions, GraphicsCard gpu, VkSurfaceKHR surface)
+            : device(VK_NULL_HANDLE), gpu(gpu), surface(surface) {
         const auto graphicsQueueFamily = gpu.getQueueFamilyWithFlags(VK_QUEUE_GRAPHICS_BIT)[0];
         const auto presentQueueFamily = gpu.getSurfaceSupportedQueues(surface)[0];
         std::set<uint32_t> queueFamilies = {graphicsQueueFamily.index, presentQueueFamily.index};
@@ -34,6 +34,7 @@ namespace Vixen::Engine {
                 vkCreateDevice(gpu.device, &deviceInfo, nullptr, &device),
                 "Failed to create Vulkan device"
         );
+        volkLoadDevice(device);
 
         graphicsQueue = getQueueHandle(graphicsQueueFamily.index, 0);
         presentQueue = getQueueHandle(presentQueueFamily.index, 0);

@@ -25,7 +25,7 @@ namespace Vixen::Engine {
 
         glm::vec4 clearColor{0.0f, 0.0f, 0.0f, 1.0f};
 
-        Window(bool transparentFrameBuffer);
+        explicit Window(bool transparentFrameBuffer);
 
         ~Window();
 

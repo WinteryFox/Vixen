@@ -2,7 +2,7 @@
 
 #include <optional>
 #include <map>
-#include <vulkan/vulkan.hpp>
+#include <algorithm>
 
 namespace Vixen::Engine {
     struct QueueFamily {

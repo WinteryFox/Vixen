@@ -1,6 +1,5 @@
 #pragma once
 
-#include <vulkan/vulkan.hpp>
 #include <glm/glm.hpp>
 #include "Macro.h"
 #include "GraphicsCard.h"

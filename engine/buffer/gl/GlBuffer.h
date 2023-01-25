@@ -25,6 +25,6 @@ namespace Vixen::Engine {
 
         ~GlBuffer();
 
-        [[nodiscard]] void *map(std::size_t offset, std::size_t length, GLbitfield mappingFlags) const;
+        [[nodiscard]] void *map(std::size_t offset, std::size_t length) const;
     };
 }

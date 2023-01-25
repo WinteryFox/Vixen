@@ -4,6 +4,8 @@ namespace Vixen::Engine {
     Instance::Instance(const std::string &appName, glm::vec3 appVersion,
                        const std::vector<const char *> &requiredExtensions)
             : instance(VK_NULL_HANDLE) {
+        volkInitialize();
+
         VkApplicationInfo appInfo{};
         appInfo.sType = VK_STRUCTURE_TYPE_APPLICATION_INFO;
         appInfo.pApplicationName = appName.c_str();
@@ -45,6 +47,7 @@ namespace Vixen::Engine {
                 vkCreateInstance(&instanceInfo, nullptr, &instance),
                 "Failed to create Vulkan instance"
         );
+        volkLoadInstance(instance);
 
 #ifdef DEBUG
         VkDebugUtilsMessengerCreateInfoEXT debugInfo{};
@@ -60,12 +63,7 @@ namespace Vixen::Engine {
                                 VK_DEBUG_UTILS_MESSAGE_TYPE_DEVICE_ADDRESS_BINDING_BIT_EXT;
         debugInfo.pfnUserCallback = vkDebugCallback;
 
-        auto func = getInstanceProcAddress<PFN_vkCreateDebugUtilsMessengerEXT>(instance,
-                                                                               "vkCreateDebugUtilsMessengerEXT");
-        if (func != nullptr) {
-            spdlog::debug("Creating Vulkan debug messenger");
-            func(instance, &debugInfo, nullptr, &debugMessenger);
-        }
+        vkCreateDebugUtilsMessengerEXT(instance, &debugInfo, nullptr, &debugMessenger);
 #endif
     }
 
@@ -74,10 +72,7 @@ namespace Vixen::Engine {
             vkDestroySurfaceKHR(instance, surface, nullptr);
 
 #ifdef DEBUG
-        auto func = getInstanceProcAddress<PFN_vkDestroyDebugUtilsMessengerEXT>(instance,
-                                                                                "vkDestroyDebugUtilsMessengerEXT");
-        if (func)
-            func(instance, debugMessenger, nullptr);
+        vkDestroyDebugUtilsMessengerEXT(instance, debugMessenger, nullptr);
 #endif
         vkDestroyInstance(instance, nullptr);
     }
@@ -90,7 +85,7 @@ namespace Vixen::Engine {
 
         std::vector<GraphicsCard> gpus{};
         gpus.reserve(deviceCount);
-        for (const auto& gpu : devices)
+        for (const auto &gpu: devices)
             gpus.emplace_back(gpu);
 
         return gpus;

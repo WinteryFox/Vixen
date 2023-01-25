@@ -6,9 +6,6 @@ namespace Vixen::Engine {
             : Vixen::Engine::Window(transparentFrameBuffer) {
         spdlog::trace("Creating new Vulkan window");
         glfwWindowHint(GLFW_CLIENT_API, GLFW_NO_API);
-#ifdef DEBUG
-        glfwWindowHint(GLFW_OPENGL_DEBUG_CONTEXT, GLFW_TRUE);
-#endif
 
         window = glfwCreateWindow(static_cast<int>(width), static_cast<int>(height), title.c_str(), nullptr, nullptr);
         if (!window) {

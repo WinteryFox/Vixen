@@ -30,13 +30,14 @@ namespace Vixen::Engine {
                 nullptr,
                 flags
         );
-        dataPointer = map(0, size, flags);
+        spdlog::trace("Created new GL buffer {} ({}B) and flags {}", buffer, size, flags);
+        dataPointer = map(0, size);
     }
 
     GlBuffer::GlBuffer(GLuint buffer, GLbitfield flags, const size_t &size, BufferUsage bufferUsage,
                        AllocationUsage allocationUsage)
             : Buffer(size, bufferUsage, allocationUsage), buffer(buffer), flags(flags) {
-        dataPointer = map(0, size, flags);
+        dataPointer = map(0, size);
     }
 
     GlBuffer::~GlBuffer() {
@@ -44,13 +45,16 @@ namespace Vixen::Engine {
         glDeleteBuffers(1, &buffer);
     }
 
-    void *GlBuffer::map(std::size_t offset, std::size_t length, GLbitfield mappingFlags) const {
+    void *GlBuffer::map(std::size_t offset, std::size_t length) const {
         if (offset > size)
             error("Offset is greater than the total buffer size");
         if (offset + length > size)
             error("The offset plus length is greater than the total buffer size");
 
-        return glMapNamedBufferRange(buffer, static_cast<GLsizeiptr>(offset), static_cast<GLsizeiptr>(length),
-                                     mappingFlags);
+        void *d = glMapNamedBufferRange(buffer, static_cast<GLsizeiptr>(offset), static_cast<GLsizeiptr>(length),
+                                        flags);
+        spdlog::trace("Mapped GL buffer {} into {} at offset {}B and length {}B using flags {}", buffer, d, offset,
+                      length, flags);
+        return d;
     }
 }
