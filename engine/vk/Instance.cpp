@@ -155,8 +155,8 @@ namespace Vixen::Engine {
         ) != std::end(layers);
     }
 
-    VkSurfaceKHR Instance::surfaceForWindow(VkWindow &window) {
-        auto surface = window.createSurface(instance);
+    VkSurfaceKHR Instance::surfaceForWindow(const VkWindow *const window) {
+        auto surface = window->createSurface(instance);
         surfaces.push_back(surface);
 
         return surface;

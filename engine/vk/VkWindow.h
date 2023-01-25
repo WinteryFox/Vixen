@@ -11,6 +11,6 @@ namespace Vixen::Engine {
 
         VkWindow(const std::string &title, const uint32_t &width, const uint32_t &height, bool transparentFrameBuffer);
 
-        VkSurfaceKHR createSurface(VkInstance instance);
+        VkSurfaceKHR createSurface(VkInstance instance) const;
     };
 }

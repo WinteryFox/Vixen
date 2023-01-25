@@ -2,11 +2,6 @@
 
 #include <memory>
 #include <set>
-
-#define VOLK_IMPLEMENTATION
-
-#include <Volk/volk.h>
-#include <vma/vk_mem_alloc.h>
 #include "Instance.h"
 
 namespace Vixen::Engine {

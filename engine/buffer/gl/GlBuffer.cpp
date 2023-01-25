@@ -1,10 +1,12 @@
 #include "GlBuffer.h"
 
 namespace Vixen::Engine {
+    // TODO: Synchronization
     GlBuffer::GlBuffer(GLbitfield flags, const size_t &size, BufferUsage bufferUsage, AllocationUsage allocationUsage)
-            : Buffer(size, bufferUsage, allocationUsage), buffer(), flags(flags) {
-        flags |= GL_MAP_COHERENT_BIT |
-                 GL_MAP_PERSISTENT_BIT;
+            : Buffer(size, bufferUsage, allocationUsage), buffer() {
+        this->flags = flags;
+        this->flags |= GL_MAP_COHERENT_BIT |
+                       GL_MAP_PERSISTENT_BIT;
 
         glCreateBuffers(1, &buffer);
         switch (allocationUsage) {
@@ -28,9 +30,9 @@ namespace Vixen::Engine {
                 buffer,
                 static_cast<GLsizeiptr>(size),
                 nullptr,
-                flags
+                this->flags
         );
-        spdlog::trace("Created new GL buffer {} ({}B) and flags {}", buffer, size, flags);
+        spdlog::trace("Created new GL buffer {} ({}B) and flags {}", buffer, size, this->flags);
         dataPointer = map(0, size);
     }
 
@@ -53,6 +55,9 @@ namespace Vixen::Engine {
 
         void *d = glMapNamedBufferRange(buffer, static_cast<GLsizeiptr>(offset), static_cast<GLsizeiptr>(length),
                                         flags);
+        if (d == nullptr)
+            error("Failed to map GL buffer {}", buffer);
+
         spdlog::trace("Mapped GL buffer {} into {} at offset {}B and length {}B using flags {}", buffer, d, offset,
                       length, flags);
         return d;

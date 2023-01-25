@@ -32,7 +32,7 @@ namespace Vixen::Engine {
         glfwDefaultWindowHints();
     }
 
-    VkSurfaceKHR VkWindow::createSurface(VkInstance instance) {
+    VkSurfaceKHR VkWindow::createSurface(VkInstance instance) const {
         VkSurfaceKHR surface = VK_NULL_HANDLE;
         checkVulkanResult(
                 glfwCreateWindowSurface(instance, window, nullptr, &surface),

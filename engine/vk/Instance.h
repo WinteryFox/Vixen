@@ -31,8 +31,6 @@ namespace Vixen::Engine {
 
         [[nodiscard]] std::vector<GraphicsCard> getGraphicsCards() const;
 
-        [[nodiscard]] static GraphicsCard getGraphicsCardProperties(VkPhysicalDevice gpu);
-
         [[nodiscard]] GraphicsCard findOptimalGraphicsCard(const std::vector<const char *> &extensions) const;
 
         static std::vector<VkExtensionProperties> getSupportedExtensions();
@@ -43,6 +41,6 @@ namespace Vixen::Engine {
 
         static bool isLayerSupported(const std::string &layer);
 
-        [[nodiscard]] VkSurfaceKHR surfaceForWindow(VkWindow &window);
+        [[nodiscard]] VkSurfaceKHR surfaceForWindow(const VkWindow *window);
     };
 }
