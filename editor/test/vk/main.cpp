@@ -18,7 +18,7 @@ int main() {
 
     auto instance = VkVixen("Vixen Vulkan Test");
 
-    while (!instance.window->shouldClose()) {
+    while (!instance.window.shouldClose()) {
         VkWindow::update();
     }
     return EXIT_SUCCESS;

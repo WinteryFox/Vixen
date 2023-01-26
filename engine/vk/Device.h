@@ -6,6 +6,8 @@
 
 namespace Vixen::Engine {
     class Device {
+        friend class VkVixen;
+
         GraphicsCard gpu;
 
         VkDevice device;

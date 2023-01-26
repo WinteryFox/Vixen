@@ -9,6 +9,7 @@
 namespace Vixen::Engine {
     class Instance {
         friend class Device;
+        friend class VkVixen;
 
         VkInstance instance;
 
@@ -41,6 +42,6 @@ namespace Vixen::Engine {
 
         static bool isLayerSupported(const std::string &layer);
 
-        [[nodiscard]] VkSurfaceKHR surfaceForWindow(const VkWindow *window);
+        [[nodiscard]] VkSurfaceKHR surfaceForWindow(const VkWindow &window);
     };
 }

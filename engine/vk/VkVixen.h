@@ -10,12 +10,24 @@
 namespace Vixen::Engine {
     class VkVixen : public Vixen {
     public:
-        std::unique_ptr<VkWindow> window;
+        const std::vector<const char *> deviceExtensions = {
+                VK_KHR_SWAPCHAIN_EXTENSION_NAME
+        };
 
-        std::unique_ptr<Instance> instance;
+        VkWindow window;
 
-        std::unique_ptr<Device> device;
+        Instance instance;
+
+        Device device;
+
+        VmaAllocator allocator;
 
         explicit VkVixen(const std::string &appTitle);
+
+        VkVixen(const VkVixen &) = delete;
+
+        VkVixen &operator=(const VkVixen &) = delete;
+
+        ~VkVixen();
     };
 }
