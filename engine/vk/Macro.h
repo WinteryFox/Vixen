@@ -1,6 +1,5 @@
 #pragma once
 
-#include <Volk/volk.h>
 #include <spdlog/spdlog.h>
 #include <glm/glm.hpp>
 #include "../Util.h"

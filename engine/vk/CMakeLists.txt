@@ -7,4 +7,3 @@ set(VK_SOURCES VkWindow.cpp Instance.cpp Device.cpp Device.h ../buffer/vk/VkBuff
 
 add_library(Vk SHARED ${VK_SOURCES} ${VK_HEADERS})
 target_link_libraries(Vk PUBLIC engine Vulkan::Vulkan)
-target_compile_definitions(Vk PRIVATE VMA_IMPLEMENTATION)

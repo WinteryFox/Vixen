@@ -39,7 +39,6 @@ link_libraries(
         spirv-cross-cpp
 )
 add_library(engine SHARED ${SOURCES} ${HEADERS})
-add_definitions(-DGLFW_INCLUDE_NONE)
 
 if (ENABLE_VULKAN)
     add_subdirectory(vk)
