@@ -17,3 +17,9 @@ FetchContent_MakeAvailable(VMA volk)
 
 add_library(VkVixen SHARED VkVixen.cpp VkWindow.cpp Instance.cpp Device.cpp Device.h ../buffer/vk/VkBuffer.cpp Allocator.cpp)
 target_link_libraries(VkVixen PUBLIC Vixen volk VulkanMemoryAllocator)
+
+if (ENABLE_TESTS)
+    add_executable(vktest test/main.cpp)
+    target_link_libraries(vktest PUBLIC Vixen VkVixen)
+    target_include_directories(vktest PUBLIC ../engine)
+endif ()

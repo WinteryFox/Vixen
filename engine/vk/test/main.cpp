@@ -6,7 +6,7 @@
 
 #include <cstdlib>
 #include <string>
-#include "vk/VkVixen.h"
+#include "../VkVixen.h"
 
 using namespace Vixen::Engine;
 

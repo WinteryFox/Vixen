@@ -8,3 +8,9 @@ set(GL_SOURCES GlWindow.cpp GlShaderModule.cpp GlShaderProgram.cpp GlVertexArray
 
 add_library(GlVixen SHARED ${GL_SOURCES} ${GL_HEADERS})
 target_link_libraries(GlVixen PUBLIC Vixen OpenGL::GL PkgConfig::GLEW)
+
+if (ENABLE_TESTS)
+    add_executable(gltest test/main.cpp)
+    target_link_libraries(gltest PUBLIC Vixen GlVixen)
+    target_include_directories(gltest PUBLIC ../engine)
+endif ()

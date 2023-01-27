@@ -18,6 +18,9 @@ set(SKIP_INSTALL_ALL ON)
 
 find_package(PkgConfig REQUIRED)
 
+option(ENABLE_VULKAN "Enable or disable Vulkan support" ON)
+option(ENABLE_OPENGL "Enable or disable OpenGL support" ON)
+option(ENABLE_TESTS "Enable or disable building of the tests" ON)
 option(ENABLE_EDITOR "Enable or disable the compilation of the editor" ON)
 
 if (CMAKE_BUILD_TYPE MATCHES "Debug")

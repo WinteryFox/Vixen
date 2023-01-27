@@ -1,10 +1,10 @@
 #include <fstream>
-#include "gl/GlWindow.h"
-#include "gl/GlShaderModule.h"
-#include "gl/GlShaderProgram.h"
-#include "buffer/gl/GlBuffer.h"
-#include "buffer/gl/WritableGlBuffer.h"
-#include "gl/GlVertexArrayObject.h"
+#include "../GlWindow.h"
+#include "../GlShaderModule.h"
+#include "../GlShaderProgram.h"
+#include "../../buffer/gl/GlBuffer.h"
+#include "../../buffer/gl/WritableGlBuffer.h"
+#include "../GlVertexArrayObject.h"
 #include <unistd.h>
 
 #ifdef _WIN32
