@@ -6,6 +6,7 @@
 #include "VkWindow.h"
 #include "Instance.h"
 #include "Device.h"
+#include "Allocator.h"
 
 namespace Vixen::Engine {
     class VkVixen : public Vixen {
@@ -20,14 +21,12 @@ namespace Vixen::Engine {
 
         Device device;
 
-        VmaAllocator allocator;
+        std::shared_ptr<Allocator> allocator;
 
-        explicit VkVixen(const std::string &appTitle);
+        VkVixen(const std::string &appTitle, glm::vec3 appVersion);
 
         VkVixen(const VkVixen &) = delete;
 
         VkVixen &operator=(const VkVixen &) = delete;
-
-        ~VkVixen();
     };
 }

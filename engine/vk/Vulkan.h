@@ -1,12 +1,13 @@
 #pragma once
 
+#include <Volk/volk.h>
 #include <spdlog/spdlog.h>
 #include <glm/glm.hpp>
+#include <vulkan/vk_enum_string_helper.h>
 #include "../Util.h"
 
 #ifdef DEBUG
 
-#include <vulkan/vk_enum_string_helper.h>
 #include <spdlog/sinks/stdout_color_sinks.h>
 #include <fmt/color.h>
 
@@ -16,11 +17,7 @@ namespace Vixen::Engine {
     template<typename T = std::runtime_error>
     static inline void checkVulkanResult(VkResult result, const std::string &message) {
         if (result != VK_SUCCESS) {
-#ifdef DEBUG
             error<T>("{} ({})", message, string_VkResult(result));
-#else
-            error<T>("{} ({})", message, result);
-#endif
         }
     }
 
@@ -70,11 +67,8 @@ namespace Vixen::Engine {
                 source = "General";
                 break;
             default:
-#ifdef DEBUG
                 source = string_VkDebugUtilsMessageTypeFlagsEXT(messageType);
-#else
-                source = "UNKNOWN";
-#endif
+                break;
         }
 
         auto vkDebugLogger = spdlog::get("Vulkan");

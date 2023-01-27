@@ -38,7 +38,7 @@ link_libraries(
         spirv-cross-reflect
         spirv-cross-cpp
 )
-add_library(engine SHARED ${SOURCES} ${HEADERS})
+add_library(Vixen SHARED ${SOURCES} ${HEADERS})
 
 if (ENABLE_VULKAN)
     add_subdirectory(vk)

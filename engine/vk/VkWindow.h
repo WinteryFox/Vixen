@@ -2,7 +2,7 @@
 
 #include <Volk/volk.h>
 #include "../Window.h"
-#include "Macro.h"
+#include "Vulkan.h"
 
 namespace Vixen::Engine {
     class VkWindow : public Window {

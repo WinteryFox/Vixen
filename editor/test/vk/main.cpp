@@ -16,9 +16,9 @@ int main() {
 #endif
     spdlog::set_level(spdlog::level::trace);
 
-    auto instance = VkVixen("Vixen Vulkan Test");
+    auto vixen = VkVixen("Vixen Vulkan Test", {1, 0, 0});
 
-    while (!instance.window.shouldClose()) {
+    while (!vixen.window.shouldClose()) {
         VkWindow::update();
     }
     return EXIT_SUCCESS;

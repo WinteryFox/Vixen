@@ -1,8 +1,10 @@
 #include "VkBuffer.h"
 
 namespace Vixen::Engine {
-    VkBuffer::VkBuffer(const size_t &size, BufferUsage bufferUsage, AllocationUsage allocationUsage)
-            : Buffer(size, bufferUsage, allocationUsage), allocation(VK_NULL_HANDLE), buffer(VK_NULL_HANDLE) {
+    VkBuffer::VkBuffer(const std::shared_ptr<Allocator>& allocator, const size_t &size, BufferUsage bufferUsage,
+                       AllocationUsage allocationUsage)
+            : Buffer(size, bufferUsage, allocationUsage), allocation(VK_NULL_HANDLE), buffer(VK_NULL_HANDLE),
+              allocator(allocator) {
         VkBufferUsageFlags bufferUsageFlags;
         if (bufferUsage & BufferUsage::VERTEX)
             bufferUsageFlags |= VK_BUFFER_USAGE_VERTEX_BUFFER_BIT;
@@ -41,12 +43,13 @@ namespace Vixen::Engine {
         allocationCreateInfo.usage = memoryUsage;
 
         checkVulkanResult(
-                vmaCreateBuffer(allocator, &bufferCreateInfo, &allocationCreateInfo, &buffer, &allocation, nullptr),
+                vmaCreateBuffer(allocator->allocator, &bufferCreateInfo, &allocationCreateInfo, &buffer, &allocation,
+                                nullptr),
                 "Failed to create Vk buffer"
         );
     }
 
     VkBuffer::~VkBuffer() {
-        vmaDestroyBuffer(allocator, buffer, allocation);
+        vmaDestroyBuffer(allocator->allocator, buffer, allocation);
     }
 }
