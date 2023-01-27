@@ -11,11 +11,11 @@ if (ENABLE_EDITOR)
     qt_add_qml_module(editor URI editor VERSION 1.0 QML_FILES ui/main.qml ui/Viewport.qml ui/Dock.qml)
 
     if (ENABLE_OPENGL)
-        target_link_libraries(editor PRIVATE Gl)
+        target_link_libraries(editor PRIVATE GlVixen)
     endif ()
 
     if (ENABLE_VULKAN)
-        target_link_libraries(editor PRIVATE Vk)
+        target_link_libraries(editor PRIVATE VkVixen)
     endif ()
 
     set_target_properties(editor PROPERTIES WIN32_EXECUTABLE ON MACOSX_BUNDLE ON AUTOUIC ON)

@@ -50,7 +50,7 @@ namespace Vixen::Editor {
         }
 
         if (!vbo) {
-            vbo = std::make_shared<GlBuffer>(
+            vbo = std::make_shared<WritableGlBuffer>(
                     vertices.size() * sizeof(glm::vec3) + indices.size() * sizeof(std::uint32_t),
                     Vixen::Engine::BufferUsage::VERTEX | Vixen::Engine::BufferUsage::INDEX,
                     Vixen::Engine::AllocationUsage::GPU_ONLY

@@ -2,7 +2,7 @@
 
 #include "gl/GlShaderModule.h"
 #include "gl/GlShaderProgram.h"
-#include "gl/GlBuffer.h"
+#include "buffer/gl/WritableGlBuffer.h"
 #include "gl/GlVertexArrayObject.h"
 #include "gl/GlWindow.h"
 
@@ -12,7 +12,7 @@
 #include <glm/glm.hpp>
 #include <fstream>
 
-using namespace Vixen::Engine::Gl;
+using namespace Vixen::Engine;
 
 namespace Vixen::Editor {
     class GlViewportRenderer : public QObject {
@@ -36,7 +36,7 @@ namespace Vixen::Editor {
 
         std::shared_ptr<GlShaderProgram> program;
 
-        std::shared_ptr<GlBuffer> vbo;
+        std::shared_ptr<WritableGlBuffer> vbo;
 
         std::shared_ptr<GlVertexArrayObject> vao;
 
