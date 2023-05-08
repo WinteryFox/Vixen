@@ -6,6 +6,10 @@
 
 namespace Vixen::Engine {
     class VkWindow : public Window {
+        VkSwapchainKHR swapchain;
+
+        std::vector<VkImage> images;
+
     public:
         std::vector<const char *> requiredExtensions;
 

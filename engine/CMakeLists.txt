@@ -11,8 +11,8 @@ pkg_check_modules(GLFW REQUIRED IMPORTED_TARGET glfw3)
 pkg_check_modules(ASSIMP REQUIRED IMPORTED_TARGET assimp)
 pkg_check_modules(SPDLOG REQUIRED IMPORTED_TARGET spdlog)
 
-set(HEADERS Window.h ShaderModule.h ShaderProgram.h Monitor.h buffer/Buffer.h Mesh.h Util.h Renderer.h buffer/WritableBuffer.h buffer/ReadableBuffer.h buffer/ReadableWritableBuffer.h Vixen.h)
-set(SOURCES Window.cpp ShaderModule.cpp buffer/Buffer.cpp buffer/ReadableBuffer.cpp buffer/WritableBuffer.cpp buffer/ReadableWritableBuffer.cpp)
+set(HEADERS Window.h ShaderModule.h ShaderProgram.h Monitor.h buffer/Buffer.h Mesh.h Util.h Renderer.h buffer/WritableBuffer.h buffer/ReadableBuffer.h buffer/ReadableWritableBuffer.h Vixen.h Framebuffer.h RenderPass.h Material.h Entity.h)
+set(SOURCES Window.cpp ShaderModule.cpp buffer/Buffer.cpp buffer/ReadableBuffer.cpp buffer/WritableBuffer.cpp buffer/ReadableWritableBuffer.cpp Blending.h)
 
 link_libraries(
         PkgConfig::GLM

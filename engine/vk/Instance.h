@@ -9,6 +9,7 @@
 namespace Vixen::Engine {
     class Instance {
         friend class Device;
+
         friend class VkVixen;
 
         VkInstance instance;
@@ -32,7 +33,8 @@ namespace Vixen::Engine {
 
         [[nodiscard]] std::vector<GraphicsCard> getGraphicsCards() const;
 
-        [[nodiscard]] GraphicsCard findOptimalGraphicsCard(const std::vector<const char *> &extensions) const;
+        [[nodiscard]] GraphicsCard
+        findOptimalGraphicsCard(VkSurfaceKHR surface, const std::vector<const char *> &extensions) const;
 
         static std::vector<VkExtensionProperties> getSupportedExtensions();
 

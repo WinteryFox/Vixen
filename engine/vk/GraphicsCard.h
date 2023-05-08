@@ -77,6 +77,31 @@ namespace Vixen::Engine {
             return families;
         }
 
+        VkSurfaceCapabilitiesKHR getSurfaceCapabilities(VkSurfaceKHR surface) const {
+            VkSurfaceCapabilitiesKHR capabilities;
+            vkGetPhysicalDeviceSurfaceCapabilitiesKHR(device, surface, &capabilities);
+
+            return capabilities;
+        }
+
+        std::vector<VkSurfaceFormatKHR> getSurfaceFormats(VkSurfaceKHR surface) const {
+            uint32_t count;
+            vkGetPhysicalDeviceSurfaceFormatsKHR(device, surface, &count, nullptr);
+            std::vector<VkSurfaceFormatKHR> formats{count};
+            vkGetPhysicalDeviceSurfaceFormatsKHR(device, surface, &count, formats.data());
+
+            return formats;
+        }
+
+        std::vector<VkPresentModeKHR> getPresentModes(VkSurfaceKHR surface) const {
+            uint32_t count;
+            vkGetPhysicalDeviceSurfacePresentModesKHR(device, surface, &count, nullptr);
+            std::vector<VkPresentModeKHR> modes{count};
+            vkGetPhysicalDeviceSurfacePresentModesKHR(device, surface, &count, modes.data());
+
+            return modes;
+        }
+
         static std::vector<VkExtensionProperties> getSupportedExtensions(VkPhysicalDevice device) {
             uint32_t count;
             vkEnumerateDeviceExtensionProperties(device, nullptr, &count, nullptr);

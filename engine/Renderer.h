@@ -1,5 +1,8 @@
 #pragma once
 
+#include <vector>
+#include "RenderPass.h"
+
 namespace Vixen::Engine {
     class Renderer {
         // sort or bucket visible objects
@@ -16,6 +19,6 @@ namespace Vixen::Engine {
         //            -- batches can be written to in a parallel fashion, then kick with 1 API call
 
     public:
-        virtual void render() = 0;
+        virtual void submit() = 0;
     };
 }

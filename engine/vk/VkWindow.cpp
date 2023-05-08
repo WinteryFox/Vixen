@@ -30,6 +30,11 @@ namespace Vixen::Engine {
             requiredExtensions[i] = extensions[i];
 
         glfwDefaultWindowHints();
+
+        VkSwapchainCreateInfoKHR swapchainInfo{
+            
+        };
+        vkCreateSwapchainKHR();
     }
 
     VkSurfaceKHR VkWindow::createSurface(VkInstance instance) const {

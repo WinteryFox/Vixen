@@ -19,6 +19,8 @@ namespace Vixen::Engine {
 
         Instance instance;
 
+        VkSurfaceKHR surface;
+
         Device device;
 
         std::shared_ptr<Allocator> allocator;

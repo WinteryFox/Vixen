@@ -91,7 +91,8 @@ namespace Vixen::Engine {
         return gpus;
     }
 
-    GraphicsCard Instance::findOptimalGraphicsCard(const std::vector<const char *> &extensions) const {
+    GraphicsCard
+    Instance::findOptimalGraphicsCard(VkSurfaceKHR surface, const std::vector<const char *> &extensions) const {
         const auto &gpus = getGraphicsCards();
         if (gpus.empty())
             throw std::runtime_error("No graphics cards found");
@@ -101,12 +102,24 @@ namespace Vixen::Engine {
         GraphicsCard optimalCard = gpus[0];
         for (const auto &gpu: gpus) {
             if (!gpu.supportsExtensions(extensions)) {
-                spdlog::trace("Disqualified \"{}\" for missing extensions", gpu.properties.deviceName);
+                spdlog::debug("Disqualified gpu \"{}\" for missing extensions", gpu.properties.deviceName);
                 continue;
             }
+
+            if (gpu.getPresentModes(surface).empty()) {
+                spdlog::debug("Disqualified gpu \"{}\" for lack of present mode support", gpu.properties.deviceName);
+                continue;
+            }
+
+            if (gpu.getSurfaceFormats(surface).empty()) {
+                spdlog::debug("Disqualified gpu \"{}\" for lack of surface format support", gpu.properties.deviceName);
+                continue;
+            }
+
             optimalCard = gpu;
             foundSuitableGpu = true;
         }
+
         if (!foundSuitableGpu)
             error("Failed to find suitable graphics card");
         spdlog::trace("Optimal graphics card is \"{}\"", optimalCard.properties.deviceName);
@@ -155,6 +168,11 @@ namespace Vixen::Engine {
         ) != std::end(layers);
     }
 
+    /**
+     * Creates a new surface for the given window. Surfaces are owned by this instance, and will be deleted alongside.
+     * @param window The window to create the surface for.
+     * @return Returns a new surface for this window.
+     */
     VkSurfaceKHR Instance::surfaceForWindow(const VkWindow &window) {
         auto surface = window.createSurface(instance);
         surfaces.push_back(surface);
