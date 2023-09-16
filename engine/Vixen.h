@@ -15,7 +15,7 @@ namespace Vixen::Engine {
 
         const glm::vec3 appVersion;
 
-        Vixen(std::string appTitle, glm::vec3 appVersion, std::shared_ptr<Renderer> renderer)
-                : appTitle(std::move(appTitle)), appVersion(appVersion), renderer(std::move(renderer)) {}
+        Vixen(std::string appTitle, glm::vec3 appVersion)
+                : appTitle(std::move(appTitle)), appVersion(appVersion) {}
     };
 }

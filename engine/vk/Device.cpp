@@ -3,8 +3,8 @@
 namespace Vixen::Engine {
     Device::Device(const std::vector<const char *> &extensions, GraphicsCard gpu, VkSurfaceKHR surface)
             : device(VK_NULL_HANDLE), gpu(gpu), surface(surface) {
-        const auto graphicsQueueFamily = gpu.getQueueFamilyWithFlags(VK_QUEUE_GRAPHICS_BIT)[0];
-        const auto presentQueueFamily = gpu.getSurfaceSupportedQueues(surface)[0];
+        graphicsQueueFamily = gpu.getQueueFamilyWithFlags(VK_QUEUE_GRAPHICS_BIT)[0];
+        presentQueueFamily = gpu.getSurfaceSupportedQueues(surface)[0];
         std::set<uint32_t> queueFamilies = {graphicsQueueFamily.index, presentQueueFamily.index};
         // TODO: Detect and select best graphics and present queues
         std::vector<VkDeviceQueueCreateInfo> queueInfos;
@@ -51,5 +51,33 @@ namespace Vixen::Engine {
             error("Failed to get queue handle for queue family {} and index {}", queueFamilyIndex, queueIndex);
 
         return queue;
+    }
+
+    const VkDevice Device::getDevice() const {
+        return device;
+    }
+
+    const GraphicsCard &Device::getGpu() const {
+        return gpu;
+    }
+
+    const VkSurfaceKHR Device::getSurface() const {
+        return surface;
+    }
+
+    const VkQueue_T *Device::getGraphicsQueue() const {
+        return graphicsQueue;
+    }
+
+    const VkQueue_T *Device::getPresentQueue() const {
+        return presentQueue;
+    }
+
+    const QueueFamily &Device::getGraphicsQueueFamily() const {
+        return graphicsQueueFamily;
+    }
+
+    const QueueFamily &Device::getPresentQueueFamily() const {
+        return presentQueueFamily;
     }
 }

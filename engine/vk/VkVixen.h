@@ -1,12 +1,13 @@
 #pragma once
 
-#include <volk.h>
+#define VMA_IMPLEMENTATION
 #include <vk_mem_alloc.h>
 #include "../Vixen.h"
 #include "VkWindow.h"
 #include "Instance.h"
 #include "Device.h"
 #include "Allocator.h"
+#include "VkSwapchain.h"
 
 namespace Vixen::Engine {
     class VkVixen : public Vixen {
@@ -21,7 +22,9 @@ namespace Vixen::Engine {
 
         VkSurfaceKHR surface;
 
-        Device device;
+        std::shared_ptr<Device> device;
+
+        VkSwapchain swapchain;
 
         std::shared_ptr<Allocator> allocator;
 

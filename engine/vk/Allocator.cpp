@@ -4,6 +4,8 @@ namespace Vixen::Engine {
     Allocator::Allocator(VkPhysicalDevice gpu, VkDevice device, VkInstance instance)
             : allocator(VK_NULL_HANDLE) {
         VmaVulkanFunctions vulkanFunctions{
+                .vkGetInstanceProcAddr = vkGetInstanceProcAddr,
+                .vkGetDeviceProcAddr = vkGetDeviceProcAddr,
                 .vkGetPhysicalDeviceProperties = vkGetPhysicalDeviceProperties,
                 .vkGetPhysicalDeviceMemoryProperties = vkGetPhysicalDeviceMemoryProperties,
                 .vkAllocateMemory = vkAllocateMemory,

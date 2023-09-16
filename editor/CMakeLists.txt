@@ -2,6 +2,7 @@ project("Vixen Editor")
 
 find_package(Qt6 REQUIRED COMPONENTS Core Qml Widgets Quick)
 qt_standard_project_setup()
+qt_policy(SET QTP0001 NEW)
 
 add_executable(editor main.cpp widgets/GlViewport.cpp widgets/GlViewport.h widgets/GlViewportRenderer.cpp widgets/GlViewportRenderer.h)
 target_include_directories(editor PUBLIC ../engine)
