@@ -17,6 +17,7 @@ int main() {
     spdlog::set_level(spdlog::level::trace);
 
     auto vixen = VkVixen("Vixen Vulkan Test", {1, 0, 0});
+    auto vertex = VkShaderModule(vixen.device, ShaderModule::Stage::VERTEX, "", "main");
 
     while (!vixen.window.shouldClose()) {
         VkWindow::update();

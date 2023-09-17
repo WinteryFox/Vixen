@@ -8,6 +8,8 @@
 #include "Device.h"
 #include "Allocator.h"
 #include "VkSwapchain.h"
+#include "VkShaderModule.h"
+#include "VkShaderProgram.h"
 
 namespace Vixen::Engine {
     class VkVixen : public Vixen {

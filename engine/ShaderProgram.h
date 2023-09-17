@@ -10,5 +10,9 @@ namespace Vixen::Engine {
 
     public:
         explicit ShaderProgram(const std::vector<std::shared_ptr<ShaderModule>> &modules) : modules(modules) {}
+
+        const std::vector<std::shared_ptr<ShaderModule>> &getModules() const {
+            return modules;
+        }
     };
 }
