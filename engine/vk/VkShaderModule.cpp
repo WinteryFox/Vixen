@@ -1,6 +1,6 @@
 #include "VkShaderModule.h"
 
-namespace Vixen::Engine {
+namespace Vixen::Vk {
     VkShaderModule::VkShaderModule(const std::shared_ptr<Device> &device, Stage stage,
                                    const std::vector<uint32_t> &binary, const std::string &entrypoint)
             : ShaderModule(stage, entrypoint), device(device), stage(stage) {

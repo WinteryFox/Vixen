@@ -1,6 +1,6 @@
 #pragma once
 
-namespace Vixen::Engine {
+namespace Vixen {
     struct Monitor {
         std::string name;
         int width;

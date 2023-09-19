@@ -1,8 +1,8 @@
 #include "GlWindow.h"
 
-namespace Vixen::Engine {
+namespace Vixen::Vk {
     GlWindow::GlWindow(const std::string &title, const int &width, const int &height, bool transparentFrameBuffer) :
-            Vixen::Engine::Window(transparentFrameBuffer) {
+            Vixen::Vk::Window(transparentFrameBuffer) {
         spdlog::trace("Creating new OpenGL window");
         glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 4);
         glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 5);

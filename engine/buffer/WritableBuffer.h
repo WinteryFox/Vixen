@@ -2,7 +2,7 @@
 
 #include "Buffer.h"
 
-namespace Vixen::Engine {
+namespace Vixen::Vk {
     class WritableBuffer : public Buffer {
     public:
         WritableBuffer(const size_t &size, BufferUsage bufferUsage, AllocationUsage allocationUsage);

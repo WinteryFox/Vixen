@@ -4,7 +4,7 @@
 #include <map>
 #include <algorithm>
 
-namespace Vixen::Engine {
+namespace Vixen::Vk {
     struct QueueFamily {
         uint32_t index = -1;
 

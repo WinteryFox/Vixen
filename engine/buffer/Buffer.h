@@ -5,7 +5,7 @@
 #include <cstdint>
 #include <cstring>
 
-namespace Vixen::Engine {
+namespace Vixen::Vk {
     enum class AllocationUsage {
         GPU_ONLY,
         CPU_ONLY,

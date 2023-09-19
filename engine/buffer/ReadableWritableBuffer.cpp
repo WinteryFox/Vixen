@@ -1,6 +1,6 @@
 #include "ReadableWritableBuffer.h"
 
-namespace Vixen::Engine {
+namespace Vixen::Vk {
     ReadableWritableBuffer::ReadableWritableBuffer(const size_t &size, BufferUsage bufferUsage,
                                                    AllocationUsage allocationUsage)
             : ReadableBuffer(size, bufferUsage, allocationUsage),

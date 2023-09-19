@@ -5,7 +5,7 @@
 #include "../Buffer.h"
 #include "../../Util.h"
 
-namespace Vixen::Engine {
+namespace Vixen::Vk {
     class GlBuffer : public Buffer {
         friend class WritableGlBuffer;
 

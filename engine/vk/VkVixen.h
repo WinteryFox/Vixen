@@ -8,11 +8,11 @@
 #include "Instance.h"
 #include "Device.h"
 #include "Allocator.h"
-#include "VkSwapchain.h"
+#include "Swapchain.h"
 #include "VkShaderModule.h"
 #include "VkShaderProgram.h"
 
-namespace Vixen::Engine {
+namespace Vixen::Vk {
     class VkVixen : public Vixen {
     public:
         const std::vector<const char *> deviceExtensions = {
@@ -27,7 +27,7 @@ namespace Vixen::Engine {
 
         std::shared_ptr<Device> device;
 
-        VkSwapchain swapchain;
+        Swapchain swapchain;
 
         std::shared_ptr<Allocator> allocator;
 

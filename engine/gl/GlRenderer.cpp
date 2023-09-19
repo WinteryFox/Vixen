@@ -1,6 +1,6 @@
 #include "GlRenderer.h"
 
-namespace Vixen::Engine {
+namespace Vixen::Vk {
     GlRenderer::GlRenderer() {
 
     }

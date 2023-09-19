@@ -1,6 +1,6 @@
 #include "Device.h"
 
-namespace Vixen::Engine {
+namespace Vixen::Vk {
     Device::Device(const std::vector<const char *> &extensions, GraphicsCard gpu, VkSurfaceKHR surface)
             : device(VK_NULL_HANDLE), gpu(gpu), surface(surface) {
         graphicsQueueFamily = gpu.getQueueFamilyWithFlags(VK_QUEUE_GRAPHICS_BIT)[0];

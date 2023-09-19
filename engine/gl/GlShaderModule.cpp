@@ -1,8 +1,8 @@
 #include "GlShaderModule.h"
 
-namespace Vixen::Engine {
+namespace Vixen::Vk {
     GlShaderModule::GlShaderModule(Stage stage, const std::string &source, const std::string &entry)
-                : Engine::ShaderModule(stage, source, entry), module(0) {
+                : Vk::ShaderModule(stage, source, entry), module(0) {
         // TODO: Not sure if compiling from the SPIR-V is the best route to go, so (possibly temporarily) just grab
         // TODO: the raw source and compile it. This might cause issues later for Vulkan specific features, but we might
         // TODO: just not support those in the end. This is something we should decide on later.

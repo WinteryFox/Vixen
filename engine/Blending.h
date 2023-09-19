@@ -1,6 +1,6 @@
 #pragma once
 
-namespace Vixen::Engine {
+namespace Vixen {
     struct Blending {
         enum class Operation {
             ADD,

@@ -3,7 +3,7 @@
 #include "../Buffer.h"
 #include "Vulkan.h"
 
-namespace Vixen::Engine {
+namespace Vixen::Vk {
     class VkBuffer : virtual Buffer {
     protected:
         std::shared_ptr<Allocator> allocator;

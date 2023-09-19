@@ -7,7 +7,7 @@
 #include <glm/glm.hpp>
 #include "Monitor.h"
 
-namespace Vixen::Engine {
+namespace Vixen {
     class Window {
     public:
         enum class Mode {

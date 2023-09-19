@@ -6,7 +6,7 @@
 #include "VkWindow.h"
 #include "../Util.h"
 
-namespace Vixen::Engine {
+namespace Vixen::Vk {
     class Instance {
         friend class Device;
 

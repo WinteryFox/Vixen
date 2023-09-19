@@ -4,7 +4,7 @@
 #include <set>
 #include "Instance.h"
 
-namespace Vixen::Engine {
+namespace Vixen::Vk {
     class Device {
         GraphicsCard gpu;
 

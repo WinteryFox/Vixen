@@ -12,7 +12,7 @@
 #include <glm/glm.hpp>
 #include <fstream>
 
-using namespace Vixen::Engine;
+using namespace Vixen::Vk;
 
 namespace Vixen::Editor {
     class GlViewportRenderer : public QObject {

@@ -1,6 +1,6 @@
 #include "VkBuffer.h"
 
-namespace Vixen::Engine {
+namespace Vixen::Vk {
     VkBuffer::VkBuffer(const std::shared_ptr<Allocator>& allocator, const size_t &size, BufferUsage bufferUsage,
                        AllocationUsage allocationUsage)
             : Buffer(size, bufferUsage, allocationUsage), allocation(VK_NULL_HANDLE), buffer(VK_NULL_HANDLE),

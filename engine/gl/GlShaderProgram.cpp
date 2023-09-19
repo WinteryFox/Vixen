@@ -1,8 +1,8 @@
 #include "GlShaderProgram.h"
 
-namespace Vixen::Engine {
+namespace Vixen::Vk {
     GlShaderProgram::GlShaderProgram(const std::vector<std::shared_ptr<GlShaderModule>> &modules)
-            : Engine::ShaderProgram<GlShaderModule>(modules) {
+            : Vk::ShaderProgram<GlShaderModule>(modules) {
         program = glCreateProgram();
         for (const auto &m: modules)
             glAttachShader(program, m->module);

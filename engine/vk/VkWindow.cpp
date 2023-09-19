@@ -1,9 +1,12 @@
 #include "VkWindow.h"
 
-namespace Vixen::Engine {
-    VkWindow::VkWindow(const std::string &title, const uint32_t &width, const uint32_t &height,
-                       bool transparentFrameBuffer)
-            : Vixen::Engine::Window(transparentFrameBuffer) {
+namespace Vixen::Vk {
+    VkWindow::VkWindow(
+            const std::string &title,
+            const uint32_t &width,
+            const uint32_t &height,
+            bool transparentFrameBuffer
+    ) : Vixen::Window(transparentFrameBuffer) {
         spdlog::trace("Creating new Vulkan window");
         glfwWindowHint(GLFW_CLIENT_API, GLFW_NO_API);
 
@@ -36,7 +39,7 @@ namespace Vixen::Engine {
         VkSurfaceKHR surface = VK_NULL_HANDLE;
         checkVulkanResult(
                 glfwCreateWindowSurface(instance, window, nullptr, &surface),
-                "Failed to create Vulkan Window surface"
+                "Failed to create Vulkan BaseWindow surface"
         );
         return surface;
     }

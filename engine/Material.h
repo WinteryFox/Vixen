@@ -3,7 +3,7 @@
 #include <memory>
 #include "ShaderProgram.h"
 
-namespace Vixen::Engine {
+namespace Vixen {
     class Material {
     public:
         std::shared_ptr<ShaderProgram> shader;

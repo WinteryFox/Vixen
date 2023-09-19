@@ -2,7 +2,7 @@
 #include "GlWindow.h"
 #include "GlRenderer.h"
 
-namespace Vixen::Engine {
+namespace Vixen::Vk {
     class GlVixen : public Vixen {
         GlWindow window;
 

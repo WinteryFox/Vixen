@@ -2,7 +2,7 @@
 
 #include <cstdio>
 
-namespace Vixen::Engine {
+namespace Vixen {
     struct Mesh {
         std::size_t vertexCount;
         std::size_t indexCount;

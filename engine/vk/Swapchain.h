@@ -3,8 +3,8 @@
 #include <memory>
 #include "Device.h"
 
-namespace Vixen::Engine {
-    class VkSwapchain {
+namespace Vixen::Vk {
+    class Swapchain {
     public:
         enum class FramesInFlight {
             SINGLE_BUFFER = 0,
@@ -12,9 +12,9 @@ namespace Vixen::Engine {
             TRIPLE_BUFFER = 2
         };
 
-        VkSwapchain(const std::shared_ptr<Device> &device, FramesInFlight framesInFlight);
+        Swapchain(const std::shared_ptr<Device> &device, FramesInFlight framesInFlight);
 
-        ~VkSwapchain();
+        ~Swapchain();
 
     private:
         uint32_t imageCount;

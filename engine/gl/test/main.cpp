@@ -13,7 +13,7 @@
 
 #endif
 
-using namespace Vixen::Engine;
+using namespace Vixen::Vk;
 
 int main() {
 #ifdef _WIN32
@@ -39,19 +39,19 @@ int main() {
 
     std::ifstream vertexStream("../../editor/shaders/triangle.vert");
     std::string vertexSource((std::istreambuf_iterator<char>(vertexStream)), std::istreambuf_iterator<char>());
-    auto vertexModule = std::make_shared<GlShaderModule>(Vixen::Engine::ShaderModule::Stage::VERTEX, vertexSource);
+    auto vertexModule = std::make_shared<GlShaderModule>(Vixen::Vk::ShaderModule::Stage::VERTEX, vertexSource);
 
     std::ifstream fragmentStream("../../editor/shaders/triangle.frag");
     std::string fragmentSource((std::istreambuf_iterator<char>(fragmentStream)), std::istreambuf_iterator<char>());
-    auto fragmentModule = std::make_shared<GlShaderModule>(Vixen::Engine::ShaderModule::Stage::FRAGMENT,
+    auto fragmentModule = std::make_shared<GlShaderModule>(Vixen::Vk::ShaderModule::Stage::FRAGMENT,
                                                            fragmentSource);
 
     GlShaderProgram program({vertexModule, fragmentModule});
 
     auto vbo = std::make_shared<WritableGlBuffer>(
             vertices.size() * sizeof(glm::vec3) + indices.size() * sizeof(std::uint32_t),
-            Vixen::Engine::BufferUsage::VERTEX | Vixen::Engine::BufferUsage::INDEX,
-            Vixen::Engine::AllocationUsage::GPU_ONLY
+            Vixen::Vk::BufferUsage::VERTEX | Vixen::Vk::BufferUsage::INDEX,
+            Vixen::Vk::AllocationUsage::GPU_ONLY
     );
     vbo->write(vertices, 0);
     vbo->write(indices, vertices.size() * sizeof(glm::vec3));

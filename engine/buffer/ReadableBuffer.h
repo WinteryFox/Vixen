@@ -3,7 +3,7 @@
 #include "Buffer.h"
 #include "WritableBuffer.h"
 
-namespace Vixen::Engine {
+namespace Vixen::Vk {
     class ReadableBuffer : public virtual Buffer {
     public:
         ReadableBuffer(const size_t &size, BufferUsage bufferUsage, AllocationUsage allocationUsage);

@@ -3,7 +3,7 @@
 #include <vector>
 #include "RenderPass.h"
 
-namespace Vixen::Engine {
+namespace Vixen {
     class Renderer {
         // sort or bucket visible objects
         // foreach (render target)      -- framebuffer

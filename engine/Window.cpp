@@ -2,7 +2,7 @@
 
 #include "Window.h"
 
-namespace Vixen::Engine {
+namespace Vixen {
     Window::Window(bool transparentFrameBuffer)
             : window(nullptr) {
         glfwSetErrorCallback([](int code, const char *message) {

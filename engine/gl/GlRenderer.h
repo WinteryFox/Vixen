@@ -2,7 +2,7 @@
 #include <cstdint>
 #include "../Renderer.h"
 
-namespace Vixen::Engine {
+namespace Vixen::Vk {
     class GlRenderer : public Renderer {
         struct DrawElementsIndirectCommand {
             std::uint32_t count;

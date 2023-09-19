@@ -2,7 +2,7 @@
 
 #include <glm/vec3.hpp>
 
-namespace Vixen::Engine {
+namespace Vixen {
     struct Context {
         glm::vec3 clearColor;
 

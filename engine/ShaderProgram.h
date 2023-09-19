@@ -4,7 +4,7 @@
 #include <memory>
 #include "ShaderModule.h"
 
-namespace Vixen::Engine {
+namespace Vixen {
     template<class T, class = std::enable_if<std::is_base_of<ShaderModule, T>::value>>
     class ShaderProgram {
     protected:

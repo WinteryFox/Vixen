@@ -1,6 +1,6 @@
 #include "GlBuffer.h"
 
-namespace Vixen::Engine {
+namespace Vixen::Vk {
     // TODO: Synchronization
     GlBuffer::GlBuffer(GLbitfield flags, const size_t &size, BufferUsage bufferUsage, AllocationUsage allocationUsage)
             : Buffer(size, bufferUsage, allocationUsage), buffer() {

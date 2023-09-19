@@ -1,6 +1,6 @@
 #include "Instance.h"
 
-namespace Vixen::Engine {
+namespace Vixen::Vk {
     Instance::Instance(const std::string &appName, glm::vec3 appVersion,
                        const std::vector<const char *> &requiredExtensions)
             : instance(VK_NULL_HANDLE) {

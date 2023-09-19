@@ -1,6 +1,6 @@
 #include "WritableGlBuffer.h"
 
-namespace Vixen::Engine {
+namespace Vixen::Vk {
     WritableGlBuffer::WritableGlBuffer(const size_t &size, BufferUsage bufferUsage, AllocationUsage allocationUsage)
             : GlBuffer(GL_MAP_WRITE_BIT, size, bufferUsage, allocationUsage),
               WritableBuffer(size, bufferUsage, allocationUsage) {}

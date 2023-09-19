@@ -4,7 +4,7 @@
 #include "../Window.h"
 #include "Vulkan.h"
 
-namespace Vixen::Engine {
+namespace Vixen::Vk {
     class VkWindow : public Window {
         std::vector<VkImage> images;
 

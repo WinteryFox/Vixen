@@ -2,13 +2,12 @@
 
 #include "Device.h"
 #include "VkShaderProgram.h"
+#include "Swapchain.h"
 
-namespace Vixen::Engine {
+namespace Vixen::Vk {
     class Pipeline {
     public:
         struct Config {
-            Config() = default;
-
             VkViewport viewport{};
             VkRect2D scissor{};
             VkPipelineInputAssemblyStateCreateInfo inputAssemblyInfo{};
@@ -31,7 +30,7 @@ namespace Vixen::Engine {
         VkPipeline pipeline = VK_NULL_HANDLE;
 
     public:
-        Pipeline(const std::shared_ptr<Device> &device, const VkShaderProgram &program, const Config &config);
+        Pipeline(const std::shared_ptr<Device> &device, const Swapchain &swapchain, const VkShaderProgram &program, const Config &config);
 
         Pipeline(const Pipeline &) = delete;
 
@@ -40,26 +39,20 @@ namespace Vixen::Engine {
         ~Pipeline();
 
         class Builder {
-            uint32_t width = 720;
-
-            uint32_t height = 480;
-
-            Config config{};
+            Config config{
+                    .viewport{
+                            .x = 0,
+                            .y = 0,
+                            .minDepth = 0.0f,
+                            .maxDepth = 1.0f
+                    },
+                    .scissor{
+                            .offset{0, 0},
+                    }
+            };
 
         public:
             Builder() {
-                config.viewport = {
-                        .x = 0,
-                        .y = 0,
-                        .width = static_cast<float>(width),
-                        .height = static_cast<float>(height),
-                        .minDepth = 0.0f,
-                        .maxDepth = 1.0f
-                };
-                config.scissor = {
-                        .offset{0, 0},
-                        .extent{width, height}
-                };
                 config.inputAssemblyInfo = {
                         .sType = VK_STRUCTURE_TYPE_PIPELINE_INPUT_ASSEMBLY_STATE_CREATE_INFO,
                         .topology = VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST,
@@ -112,23 +105,49 @@ namespace Vixen::Engine {
                 };
             }
 
-            Builder &setTopology(VkPrimitiveTopology topology) {
-                config.inputAssemblyInfo.topology = topology;
+            Builder &setWidth(uint32_t w) {
+                config.viewport.width = static_cast<float>(w);
+                config.scissor.extent.width = w;
                 return *this;
             }
 
-            Builder &setPrimitiveRestartEnable(bool enable) {
-                config.inputAssemblyInfo.primitiveRestartEnable = enable ? VK_TRUE : VK_FALSE;
+            Builder &setHeight(uint32_t h) {
+                config.viewport.width = static_cast<float>(h);
+                config.scissor.extent.width = h;
                 return *this;
             }
 
-            // TODO: Write out rest of builder
+            Builder &setInputAssembly(VkPipelineInputAssemblyStateCreateInfo info) {
+                config.inputAssemblyInfo = info;
+                return *this;
+            }
+
+            Builder &setRasterization(VkPipelineRasterizationStateCreateInfo info) {
+                config.rasterizationInfo = info;
+                return *this;
+            }
+
+            Builder &setMultisample(VkPipelineMultisampleStateCreateInfo info) {
+                config.multisampleInfo = info;
+                return *this;
+            }
+
+            Builder &setColorBlend(VkPipelineColorBlendAttachmentState info) {
+                config.colorBlendAttachment = info;
+                return *this;
+            }
+
+            Builder &setColorBlend(VkPipelineDepthStencilStateCreateInfo info) {
+                config.depthStencilInfo = info;
+                return *this;
+            }
 
             std::unique_ptr<Pipeline> build(
                     const std::shared_ptr<Device> &d,
+                    const Swapchain &s,
                     const VkShaderProgram &p
             ) {
-                return std::move(std::make_unique<Pipeline>(d, p, config));
+                return std::move(std::make_unique<Pipeline>(d, s, p, config));
             }
         };
     };

@@ -14,7 +14,7 @@
 
 #endif
 
-namespace Vixen::Engine {
+namespace Vixen::Vk {
     template<typename T = std::runtime_error>
     static inline void checkVulkanResult(VkResult result, const std::string &message) {
         if (result != VK_SUCCESS) {

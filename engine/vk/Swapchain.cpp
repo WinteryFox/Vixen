@@ -1,7 +1,7 @@
-#include "VkSwapchain.h"
+#include "Swapchain.h"
 
-namespace Vixen::Engine {
-    VkSwapchain::VkSwapchain(const std::shared_ptr<Device> &device, FramesInFlight framesInFlight)
+namespace Vixen::Vk {
+    Swapchain::Swapchain(const std::shared_ptr<Device> &device, FramesInFlight framesInFlight)
             : device(device), imageCount(static_cast<uint32_t>(framesInFlight) + 1) {
         const auto surface = device->getSurface();
         const auto capabilities = device->getGpu().getSurfaceCapabilities(device->getSurface());
@@ -75,13 +75,13 @@ namespace Vixen::Engine {
         }
     }
 
-    VkSwapchain::~VkSwapchain() {
+    Swapchain::~Swapchain() {
         vkDestroySwapchainKHR(device->getDevice(), swapchain, nullptr);
         for (auto &imageView: imageViews)
             vkDestroyImageView(device->getDevice(), imageView, nullptr);
     }
 
-    VkSurfaceFormatKHR VkSwapchain::determineSurfaceFormat(const std::vector<VkSurfaceFormatKHR> &available) {
+    VkSurfaceFormatKHR Swapchain::determineSurfaceFormat(const std::vector<VkSurfaceFormatKHR> &available) {
         for (const auto &format: available) {
             if (format.format == VK_FORMAT_B8G8R8A8_SRGB &&
                 format.colorSpace == VK_COLOR_SPACE_SRGB_NONLINEAR_KHR)
@@ -91,7 +91,7 @@ namespace Vixen::Engine {
         return available[0];
     }
 
-    VkPresentModeKHR VkSwapchain::determinePresentMode(const std::vector<VkPresentModeKHR> &available) {
+    VkPresentModeKHR Swapchain::determinePresentMode(const std::vector<VkPresentModeKHR> &available) {
         for (const auto &mode: available) {
             if (mode == VK_PRESENT_MODE_MAILBOX_KHR) {
                 return mode;

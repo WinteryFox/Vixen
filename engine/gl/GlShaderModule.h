@@ -5,7 +5,7 @@
 #include <GL/glew.h>
 #include "../ShaderModule.h"
 
-namespace Vixen::Engine {
+namespace Vixen::Vk {
     class GlShaderModule : public ShaderModule {
         friend class GlShaderProgram;
 

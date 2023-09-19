@@ -5,7 +5,7 @@
 #include "Renderer.h"
 #include "Window.h"
 
-namespace Vixen::Engine {
+namespace Vixen {
     class Vixen {
     protected:
         std::shared_ptr<Renderer> renderer;

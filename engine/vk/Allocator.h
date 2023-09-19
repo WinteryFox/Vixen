@@ -1,7 +1,7 @@
 #include <volk.h>
 #include <vk_mem_alloc.h>
 
-namespace Vixen::Engine {
+namespace Vixen::Vk {
     class Allocator {
         friend class VkBuffer;
 

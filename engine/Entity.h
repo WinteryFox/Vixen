@@ -1,6 +1,6 @@
 #pragma once
 
-namespace Vixen::Engine {
+namespace Vixen {
     class Entity {
 
     };

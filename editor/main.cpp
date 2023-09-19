@@ -23,7 +23,7 @@ int main(int argc, char **argv) {
 
     /*QGuiApplication app{argc, argv};
     QWindow window = QWindow();
-    window.setTitle(QString::fromStdString("Vixen Engine"));
+    window.setTitle(QString::fromStdString("Vixen Vk"));
     window.resize(1150, 800);
     window.setMinimumSize(QSize(1050, 500));
     window.setVisible(true);

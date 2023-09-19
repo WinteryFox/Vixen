@@ -1,5 +1,5 @@
 #pragma once
 
-namespace Vixen::Engine {
+namespace Vixen {
 
 }

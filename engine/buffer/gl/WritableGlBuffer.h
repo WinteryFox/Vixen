@@ -3,7 +3,7 @@
 #include "../WritableBuffer.h"
 #include "GlBuffer.h"
 
-namespace Vixen::Engine {
+namespace Vixen::Vk {
     class WritableGlBuffer : public virtual GlBuffer, public virtual WritableBuffer {
     public:
         using WritableBuffer::write;

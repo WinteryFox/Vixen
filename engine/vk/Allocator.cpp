@@ -1,6 +1,6 @@
 #include "Allocator.h"
 
-namespace Vixen::Engine {
+namespace Vixen::Vk {
     Allocator::Allocator(VkPhysicalDevice gpu, VkDevice device, VkInstance instance)
             : allocator(VK_NULL_HANDLE) {
         VmaVulkanFunctions vulkanFunctions{

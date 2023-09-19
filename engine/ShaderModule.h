@@ -3,7 +3,7 @@
 #include <string>
 #include <utility>
 
-namespace Vixen::Engine {
+namespace Vixen {
     class ShaderModule {
     public:
         enum class Stage {

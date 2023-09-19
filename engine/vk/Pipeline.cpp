@@ -1,8 +1,12 @@
 #include "Pipeline.h"
 
-namespace Vixen::Engine {
-    Pipeline::Pipeline(const std::shared_ptr<Device> &device, const VkShaderProgram &program, const Config &config)
-            : device(device), program(program), config(config) {
+namespace Vixen::Vk {
+    Pipeline::Pipeline(
+            const std::shared_ptr<Device> &device,
+            const Swapchain &swapchain,
+            const VkShaderProgram &program,
+            const Config &config
+    ) : device(device), program(program), config(config) {
         const auto &modules = program.getModules();
 
         std::vector<VkPipelineShaderStageCreateInfo> stages;

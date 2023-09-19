@@ -15,23 +15,25 @@ int main() {
 #endif
     spdlog::set_level(spdlog::level::trace);
 
-    auto vixen = Vixen::Engine::VkVixen("Vixen Vulkan Test", {1, 0, 0});
+    auto vixen = Vixen::Vk::VkVixen("Vixen Vulkan Test", {1, 0, 0});
 
-    auto vertex = Vixen::Engine::VkShaderModule::Builder()
+    auto vertex = Vixen::Vk::VkShaderModule::Builder()
             .compileFromFile("../../editor/shaders/triangle.vert")
-            .setStage(Vixen::Engine::ShaderModule::Stage::VERTEX)
+            .setStage(Vixen::ShaderModule::Stage::VERTEX)
             .build(vixen.device);
-    auto fragment = Vixen::Engine::VkShaderModule::Builder()
+    auto fragment = Vixen::Vk::VkShaderModule::Builder()
             .compileFromFile("../../editor/shaders/triangle.frag")
-            .setStage(Vixen::Engine::ShaderModule::Stage::FRAGMENT)
+            .setStage(Vixen::ShaderModule::Stage::FRAGMENT)
             .build(vixen.device);
-    auto program = Vixen::Engine::VkShaderProgram({vertex, fragment});
+    auto program = Vixen::Vk::VkShaderProgram({vertex, fragment});
 
-    auto pipeline = Vixen::Engine::Pipeline::Builder()
-            .build(vixen.device, program);
+    auto pipeline = Vixen::Vk::Pipeline::Builder()
+            .setWidth(720)
+            .setHeight(480)
+            .build(vixen.device, vixen.swapchain, program);
 
     while (!vixen.window.shouldClose()) {
-        Vixen::Engine::VkWindow::update();
+        Vixen::Vk::VkWindow::update();
     }
     return EXIT_SUCCESS;
 }

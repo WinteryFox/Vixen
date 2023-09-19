@@ -2,7 +2,7 @@
 
 #include "Blending.h"
 
-namespace Vixen::Engine {
+namespace Vixen {
     struct RenderPass {
         Blending blending;
     };

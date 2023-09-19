@@ -16,7 +16,7 @@
 #include "Vulkan.h"
 #include "Device.h"
 
-namespace Vixen::Engine {
+namespace Vixen::Vk {
     class VkShaderModule : public ShaderModule {
         ::VkShaderModule module = VK_NULL_HANDLE;
 

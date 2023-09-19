@@ -11,7 +11,7 @@
 #include "../ShaderProgram.h"
 #include "VkShaderModule.h"
 
-namespace Vixen::Engine {
+namespace Vixen::Vk {
     class VkShaderProgram : public ShaderProgram<VkShaderModule> {
     public:
         explicit VkShaderProgram(const std::vector<std::shared_ptr<VkShaderModule>> &modules);

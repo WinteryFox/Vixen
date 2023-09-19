@@ -9,7 +9,7 @@ import Vixen 1.0
 ApplicationWindow {
     id: window
     visible: true
-//!    flags: Qt.Window | Qt.FramelessWindowHint
+//!    flags: Qt.BaseWindow | Qt.FramelessWindowHint
     width: 1150
     height: 800
     minimumWidth: 1050

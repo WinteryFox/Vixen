@@ -6,7 +6,7 @@
 #include <spdlog/spdlog.h>
 #include <spdlog/sinks/stdout_color_sinks.h>
 #include <fmt/color.h>
-#include "../Window.h"
+#include "../BaseWindow.h"
 
 #ifdef DEBUG
 
@@ -14,7 +14,7 @@
 
 #endif
 
-namespace Vixen::Engine {
+namespace Vixen::Vk {
 #ifdef DEBUG
     static void APIENTRY glDebugCallback(
             GLenum source,
@@ -109,7 +109,7 @@ namespace Vixen::Engine {
 
 #endif
 
-    class GlWindow : public Window {
+    class GlWindow : public BaseWindow {
     public:
         GlWindow(const std::string &title, const int &width, const int &height, bool transparentFrameBuffer);
 
