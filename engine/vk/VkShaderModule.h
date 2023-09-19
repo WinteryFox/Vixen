@@ -226,6 +226,11 @@ namespace Vixen::Engine {
                 spdlog::debug("Disassembled SPIR-V:\n{}", stream.str());
 #endif
 
+                if (!program.buildReflection()) {
+                    spdlog::error("Failed to process shader reflection; {}", shader.getInfoLog());
+                    throw std::runtime_error("Failed to link shader program");
+                }
+
                 if (!logger.getAllMessages().empty())
                     spdlog::warn("Error messages were generated during shader module compilation;\n{}",
                                  logger.getAllMessages());
