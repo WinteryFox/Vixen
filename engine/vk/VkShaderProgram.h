@@ -9,10 +9,11 @@
 #include <glslang/Public/ResourceLimits.h>
 #include <spdlog/fmt/bin_to_hex.h>
 #include "../ShaderProgram.h"
+#include "VkShaderModule.h"
 
 namespace Vixen::Engine {
-    class VkShaderProgram : public ShaderProgram {
+    class VkShaderProgram : public ShaderProgram<VkShaderModule> {
     public:
-        explicit VkShaderProgram(const std::vector<std::shared_ptr<ShaderModule>> &modules);
+        explicit VkShaderProgram(const std::vector<std::shared_ptr<VkShaderModule>> &modules);
     };
 }

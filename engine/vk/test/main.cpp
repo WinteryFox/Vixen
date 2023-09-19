@@ -7,6 +7,7 @@
 #include <cstdlib>
 #include <string>
 #include "../VkVixen.h"
+#include "Pipeline.h"
 
 int main() {
 #ifdef _WIN32
@@ -15,6 +16,7 @@ int main() {
     spdlog::set_level(spdlog::level::trace);
 
     auto vixen = Vixen::Engine::VkVixen("Vixen Vulkan Test", {1, 0, 0});
+
     auto vertex = Vixen::Engine::VkShaderModule::Builder()
             .compileFromFile("../../editor/shaders/triangle.vert")
             .setStage(Vixen::Engine::ShaderModule::Stage::VERTEX)
@@ -23,6 +25,10 @@ int main() {
             .compileFromFile("../../editor/shaders/triangle.frag")
             .setStage(Vixen::Engine::ShaderModule::Stage::FRAGMENT)
             .build(vixen.device);
+    auto program = Vixen::Engine::VkShaderProgram({vertex, fragment});
+
+    auto pipeline = Vixen::Engine::Pipeline::Builder()
+            .build(vixen.device, program);
 
     while (!vixen.window.shouldClose()) {
         Vixen::Engine::VkWindow::update();

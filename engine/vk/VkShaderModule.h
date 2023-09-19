@@ -34,6 +34,8 @@ namespace Vixen::Engine {
 
         ~VkShaderModule();
 
+        [[nodiscard]] ::VkShaderModule getModule() const;
+
         class Builder {
         private:
             Stage stage;

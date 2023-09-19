@@ -5,6 +5,7 @@
 #include <glm/glm.hpp>
 #include <vulkan/vk_enum_string_helper.h>
 #include "../Util.h"
+#include "../ShaderModule.h"
 
 #ifdef DEBUG
 
@@ -27,6 +28,17 @@ namespace Vixen::Engine {
 
     static inline std::string getVersionString(uint32_t version) {
         return fmt::format("{}.{}.{}", VK_VERSION_MAJOR(version), VK_VERSION_MINOR(version), VK_VERSION_PATCH(version));
+    }
+
+    static inline VkShaderStageFlagBits getVulkanShaderStage(ShaderModule::Stage stage) {
+        switch (stage) {
+            case ShaderModule::Stage::VERTEX:
+                return VK_SHADER_STAGE_VERTEX_BIT;
+            case ShaderModule::Stage::FRAGMENT:
+                return VK_SHADER_STAGE_FRAGMENT_BIT;
+        }
+
+        return VK_SHADER_STAGE_FLAG_BITS_MAX_ENUM;
     }
 
 #ifdef DEBUG

@@ -16,4 +16,8 @@ namespace Vixen::Engine {
     VkShaderModule::~VkShaderModule() {
         vkDestroyShaderModule(device->getDevice(), module, nullptr);
     }
+
+    ::VkShaderModule VkShaderModule::getModule() const {
+        return module;
+    }
 }
