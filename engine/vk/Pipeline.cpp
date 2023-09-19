@@ -35,6 +35,20 @@ namespace Vixen::Engine {
                 .pScissors = &config.scissor
         };
 
+        VkPipelineColorBlendStateCreateInfo colorBlendInfo{
+                .sType = VK_STRUCTURE_TYPE_PIPELINE_COLOR_BLEND_STATE_CREATE_INFO,
+                .logicOpEnable = VK_FALSE,
+                .logicOp = VK_LOGIC_OP_COPY,
+                .attachmentCount = 1,
+                .pAttachments = &config.colorBlendAttachment,
+                .blendConstants{
+                        0.0f,
+                        0.0f,
+                        0.0f,
+                        0.0f
+                }
+        };
+
         assert(
                 config.pipelineLayout != VK_NULL_HANDLE &&
                 "Pipeline config has a layout of null"
@@ -53,7 +67,7 @@ namespace Vixen::Engine {
                 .pRasterizationState = &config.rasterizationInfo,
                 .pMultisampleState = &config.multisampleInfo,
                 .pDepthStencilState= &config.depthStencilInfo,
-                .pColorBlendState = &config.colorBlendInfo,
+                .pColorBlendState = &colorBlendInfo,
                 .pDynamicState= nullptr,
 
                 .layout = config.pipelineLayout,

@@ -7,13 +7,14 @@ namespace Vixen::Engine {
     class Pipeline {
     public:
         struct Config {
+            Config() = default;
+
             VkViewport viewport{};
             VkRect2D scissor{};
             VkPipelineInputAssemblyStateCreateInfo inputAssemblyInfo{};
             VkPipelineRasterizationStateCreateInfo rasterizationInfo{};
             VkPipelineMultisampleStateCreateInfo multisampleInfo{};
             VkPipelineColorBlendAttachmentState colorBlendAttachment{};
-            VkPipelineColorBlendStateCreateInfo colorBlendInfo{};
             VkPipelineDepthStencilStateCreateInfo depthStencilInfo{};
             VkPipelineLayout pipelineLayout = VK_NULL_HANDLE;
             VkRenderPass renderPass = VK_NULL_HANDLE;
@@ -96,19 +97,6 @@ namespace Vixen::Engine {
                         .alphaBlendOp = VK_BLEND_OP_ADD,
                         .colorWriteMask = VK_COLOR_COMPONENT_R_BIT | VK_COLOR_COMPONENT_G_BIT |
                                           VK_COLOR_COMPONENT_B_BIT | VK_COLOR_COMPONENT_A_BIT,
-                };
-                config.colorBlendInfo = {
-                        .sType = VK_STRUCTURE_TYPE_PIPELINE_COLOR_BLEND_STATE_CREATE_INFO,
-                        .logicOpEnable = VK_FALSE,
-                        .logicOp = VK_LOGIC_OP_COPY,
-                        .attachmentCount = 1,
-                        .pAttachments = &config.colorBlendAttachment,
-                        .blendConstants{
-                                0.0f,
-                                0.0f,
-                                0.0f,
-                                0.0f
-                        }
                 };
                 config.depthStencilInfo = {
                         .sType = VK_STRUCTURE_TYPE_PIPELINE_DEPTH_STENCIL_STATE_CREATE_INFO,
