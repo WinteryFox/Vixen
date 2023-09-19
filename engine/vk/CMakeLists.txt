@@ -25,16 +25,18 @@ add_library(
         Allocator.cpp
         Swapchain.cpp
         Swapchain.h
-        Pipeline.cpp
-        Pipeline.h
+        VkPipeline.cpp
+        VkPipeline.h
         VkShaderModule.cpp
         VkShaderModule.h
         VkShaderProgram.cpp
         VkShaderProgram.h
         CommandBuffer.cpp
         CommandBuffer.h
-        Renderer.cpp
-        Renderer.h
+        VkRenderer.cpp
+        VkRenderer.h
+        VkPipelineLayout.cpp
+        VkPipelineLayout.h
 )
 target_link_libraries(VkVixen PUBLIC Vixen volk GPUOpen::VulkanMemoryAllocator)
 

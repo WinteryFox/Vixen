@@ -21,15 +21,15 @@ namespace Vixen::Vk {
 
         std::shared_ptr<Device> device;
 
-        VkSwapchainKHR swapchain;
+        VkSwapchainKHR swapchain = VK_NULL_HANDLE;
 
         std::vector<VkImage> images;
 
         std::vector<VkImageView> imageViews;
 
-        VkSurfaceFormatKHR format;
+        VkSurfaceFormatKHR format{};
 
-        VkExtent2D extent;
+        VkExtent2D extent{};
 
         static VkSurfaceFormatKHR determineSurfaceFormat(const std::vector<VkSurfaceFormatKHR> &available);
 

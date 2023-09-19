@@ -3,9 +3,10 @@
 #include "Device.h"
 #include "VkShaderProgram.h"
 #include "Swapchain.h"
+#include "VkPipelineLayout.h"
 
 namespace Vixen::Vk {
-    class Pipeline {
+    class VkPipeline {
     public:
         struct Config {
             VkViewport viewport{};
@@ -15,7 +16,6 @@ namespace Vixen::Vk {
             VkPipelineMultisampleStateCreateInfo multisampleInfo{};
             VkPipelineColorBlendAttachmentState colorBlendAttachment{};
             VkPipelineDepthStencilStateCreateInfo depthStencilInfo{};
-            VkPipelineLayout pipelineLayout = VK_NULL_HANDLE;
             VkRenderPass renderPass = VK_NULL_HANDLE;
             uint32_t subpass = 0;
         };
@@ -27,16 +27,20 @@ namespace Vixen::Vk {
 
         Config config;
 
-        VkPipeline pipeline = VK_NULL_HANDLE;
+        VkPipelineLayout pipelineLayout;
+
+        ::VkPipeline pipeline = VK_NULL_HANDLE;
 
     public:
-        Pipeline(const std::shared_ptr<Device> &device, const Swapchain &swapchain, const VkShaderProgram &program, const Config &config);
+        VkPipeline(const std::shared_ptr<Device> &device, const Swapchain &swapchain, const VkShaderProgram &program, const Config &config);
 
-        Pipeline(const Pipeline &) = delete;
+        VkPipeline(const VkPipeline &) = delete;
 
-        Pipeline &operator=(const Pipeline &) = delete;
+        VkPipeline &operator=(const VkPipeline &) = delete;
 
-        ~Pipeline();
+        ~VkPipeline();
+
+        [[nodiscard]] const VkShaderProgram &getProgram() const;
 
         class Builder {
             Config config{
@@ -142,12 +146,12 @@ namespace Vixen::Vk {
                 return *this;
             }
 
-            std::unique_ptr<Pipeline> build(
+            std::unique_ptr<VkPipeline> build(
                     const std::shared_ptr<Device> &d,
                     const Swapchain &s,
                     const VkShaderProgram &p
             ) {
-                return std::move(std::make_unique<Pipeline>(d, s, p, config));
+                return std::move(std::make_unique<VkPipeline>(d, s, p, config));
             }
         };
     };

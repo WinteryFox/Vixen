@@ -7,7 +7,7 @@
 #include <cstdlib>
 #include <string>
 #include "../VkVixen.h"
-#include "Pipeline.h"
+#include "VkPipeline.h"
 
 int main() {
 #ifdef _WIN32
@@ -27,7 +27,7 @@ int main() {
             .build(vixen.device);
     auto program = Vixen::Vk::VkShaderProgram({vertex, fragment});
 
-    auto pipeline = Vixen::Vk::Pipeline::Builder()
+    auto pipeline = Vixen::Vk::VkPipeline::Builder()
             .setWidth(720)
             .setHeight(480)
             .build(vixen.device, vixen.swapchain, program);

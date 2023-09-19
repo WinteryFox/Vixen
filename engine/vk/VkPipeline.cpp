@@ -1,12 +1,12 @@
-#include "Pipeline.h"
+#include "VkPipeline.h"
 
 namespace Vixen::Vk {
-    Pipeline::Pipeline(
+    VkPipeline::VkPipeline(
             const std::shared_ptr<Device> &device,
             const Swapchain &swapchain,
             const VkShaderProgram &program,
             const Config &config
-    ) : device(device), program(program), config(config) {
+    ) : device(device), program(program), config(config), pipelineLayout(device, program) {
         const auto &modules = program.getModules();
 
         std::vector<VkPipelineShaderStageCreateInfo> stages;
@@ -54,12 +54,8 @@ namespace Vixen::Vk {
         };
 
         assert(
-                config.pipelineLayout != VK_NULL_HANDLE &&
-                "Pipeline config has a layout of null"
-        );
-        assert(
                 config.renderPass != VK_NULL_HANDLE &&
-                "Pipeline config has a render pass of null"
+                "VkPipeline config has a render pass of null"
         );
         VkGraphicsPipelineCreateInfo pipelineInfo{
                 .sType = VK_STRUCTURE_TYPE_GRAPHICS_PIPELINE_CREATE_INFO,
@@ -74,7 +70,7 @@ namespace Vixen::Vk {
                 .pColorBlendState = &colorBlendInfo,
                 .pDynamicState= nullptr,
 
-                .layout = config.pipelineLayout,
+                .layout = pipelineLayout.getLayout(),
                 .renderPass = config.renderPass,
                 .subpass = config.subpass,
 
@@ -88,7 +84,11 @@ namespace Vixen::Vk {
         );
     }
 
-    Pipeline::~Pipeline() {
+    VkPipeline::~VkPipeline() {
         vkDestroyPipeline(device->getDevice(), pipeline, nullptr);
+    }
+
+    const VkShaderProgram &VkPipeline::getProgram() const {
+        return program;
     }
 }
