@@ -7,14 +7,14 @@ namespace Vixen::Engine {
     class Pipeline {
     public:
         struct Config {
-            VkViewport viewport;
-            VkRect2D scissor;
-            VkPipelineInputAssemblyStateCreateInfo inputAssemblyInfo;
-            VkPipelineRasterizationStateCreateInfo rasterizationInfo;
-            VkPipelineMultisampleStateCreateInfo multisampleInfo;
-            VkPipelineColorBlendAttachmentState colorBlendAttachment;
-            VkPipelineColorBlendStateCreateInfo colorBlendInfo;
-            VkPipelineDepthStencilStateCreateInfo depthStencilInfo;
+            VkViewport viewport{};
+            VkRect2D scissor{};
+            VkPipelineInputAssemblyStateCreateInfo inputAssemblyInfo{};
+            VkPipelineRasterizationStateCreateInfo rasterizationInfo{};
+            VkPipelineMultisampleStateCreateInfo multisampleInfo{};
+            VkPipelineColorBlendAttachmentState colorBlendAttachment{};
+            VkPipelineColorBlendStateCreateInfo colorBlendInfo{};
+            VkPipelineDepthStencilStateCreateInfo depthStencilInfo{};
             VkPipelineLayout pipelineLayout = VK_NULL_HANDLE;
             VkRenderPass renderPass = VK_NULL_HANDLE;
             uint32_t subpass = 0;
