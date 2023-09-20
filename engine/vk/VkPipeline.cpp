@@ -6,7 +6,11 @@ namespace Vixen::Vk {
             const Swapchain &swapchain,
             const VkShaderProgram &program,
             const Config &config
-    ) : device(device), program(program), config(config), pipelineLayout(device, program) {
+    ) : device(device),
+    program(program),
+    config(config),
+    pipelineLayout(device, program),
+    renderPass(device, program, swapchain) {
         const auto &modules = program.getModules();
 
         std::vector<VkPipelineShaderStageCreateInfo> stages;
@@ -53,10 +57,6 @@ namespace Vixen::Vk {
                 }
         };
 
-        assert(
-                config.renderPass != VK_NULL_HANDLE &&
-                "VkPipeline config has a render pass of null"
-        );
         VkGraphicsPipelineCreateInfo pipelineInfo{
                 .sType = VK_STRUCTURE_TYPE_GRAPHICS_PIPELINE_CREATE_INFO,
                 .stageCount = static_cast<uint32_t>(stages.size()),
@@ -71,7 +71,7 @@ namespace Vixen::Vk {
                 .pDynamicState= nullptr,
 
                 .layout = pipelineLayout.getLayout(),
-                .renderPass = config.renderPass,
+                .renderPass = renderPass.getRenderPass(),
                 .subpass = config.subpass,
 
                 .basePipelineHandle = VK_NULL_HANDLE,

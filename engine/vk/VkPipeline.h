@@ -4,6 +4,7 @@
 #include "VkShaderProgram.h"
 #include "Swapchain.h"
 #include "VkPipelineLayout.h"
+#include "VkRenderPass.h"
 
 namespace Vixen::Vk {
     class VkPipeline {
@@ -16,7 +17,6 @@ namespace Vixen::Vk {
             VkPipelineMultisampleStateCreateInfo multisampleInfo{};
             VkPipelineColorBlendAttachmentState colorBlendAttachment{};
             VkPipelineDepthStencilStateCreateInfo depthStencilInfo{};
-            VkRenderPass renderPass = VK_NULL_HANDLE;
             uint32_t subpass = 0;
         };
 
@@ -26,6 +26,8 @@ namespace Vixen::Vk {
         VkShaderProgram program;
 
         Config config;
+
+        VkRenderPass renderPass;
 
         VkPipelineLayout pipelineLayout;
 

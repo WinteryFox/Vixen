@@ -16,6 +16,10 @@ namespace Vixen::Vk {
 
         ~Swapchain();
 
+        [[nodiscard]] const VkSurfaceFormatKHR &getFormat() const;
+
+        [[nodiscard]] const VkExtent2D &getExtent() const;
+
     private:
         uint32_t imageCount;
 

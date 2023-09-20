@@ -37,6 +37,8 @@ add_library(
         VkRenderer.h
         VkPipelineLayout.cpp
         VkPipelineLayout.h
+        VkRenderPass.cpp
+        VkRenderPass.h
 )
 target_link_libraries(VkVixen PUBLIC Vixen volk GPUOpen::VulkanMemoryAllocator)
 

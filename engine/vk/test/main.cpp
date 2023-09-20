@@ -18,12 +18,12 @@ int main() {
     auto vixen = Vixen::Vk::VkVixen("Vixen Vulkan Test", {1, 0, 0});
 
     auto vertex = Vixen::Vk::VkShaderModule::Builder()
-            .compileFromFile("../../editor/shaders/triangle.vert")
             .setStage(Vixen::ShaderModule::Stage::VERTEX)
+            .compileFromFile("../../editor/shaders/triangle.vert")
             .build(vixen.device);
     auto fragment = Vixen::Vk::VkShaderModule::Builder()
-            .compileFromFile("../../editor/shaders/triangle.frag")
             .setStage(Vixen::ShaderModule::Stage::FRAGMENT)
+            .compileFromFile("../../editor/shaders/triangle.frag")
             .build(vixen.device);
     auto program = Vixen::Vk::VkShaderProgram({vertex, fragment});
 

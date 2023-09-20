@@ -71,7 +71,10 @@ namespace Vixen::Vk {
                     }
             };
 
-            vkCreateImageView(device->getDevice(), &imageViewCreateInfo, nullptr, &imageViews[i]);
+            checkVulkanResult(
+                    vkCreateImageView(device->getDevice(), &imageViewCreateInfo, nullptr, &imageViews[i]),
+                    "Failed to create image view"
+            );
         }
     }
 
@@ -99,5 +102,13 @@ namespace Vixen::Vk {
         }
 
         return VK_PRESENT_MODE_FIFO_KHR;
+    }
+
+    const VkSurfaceFormatKHR &Swapchain::getFormat() const {
+        return format;
+    }
+
+    const VkExtent2D &Swapchain::getExtent() const {
+        return extent;
     }
 }

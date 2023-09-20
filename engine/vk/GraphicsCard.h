@@ -143,5 +143,20 @@ namespace Vixen::Vk {
                     [layer](VkLayerProperties props) { return layer == props.layerName; }
             ) != std::end(layers);
         }
+
+        [[nodiscard]] VkFormat
+        pickFormat(const std::vector<VkFormat> &formats, VkImageTiling tiling, VkFormatFeatureFlags feats) const {
+            for (const auto &format: formats) {
+                VkFormatProperties props;
+                vkGetPhysicalDeviceFormatProperties(device, format, &props);
+
+                if ((tiling == VK_IMAGE_TILING_LINEAR && (props.linearTilingFeatures & feats) == feats) ||
+                    (tiling == VK_IMAGE_TILING_OPTIMAL && (props.optimalTilingFeatures & feats) == feats))
+                    return format;
+            }
+
+            spdlog::error("Failed to pick suitable format");
+            throw std::runtime_error("Failed to pick suitable format");
+        }
     };
 }

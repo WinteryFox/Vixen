@@ -37,6 +37,7 @@ namespace Vixen::Vk {
         [[nodiscard]] ::VkShaderModule getModule() const;
 
         class Builder {
+            // TODO: This builder has slightly confusing API, you can compile before setting the stage meaning its possible to mistakenly have the wrong stage set at compile time
         private:
             Stage stage;
 
@@ -77,7 +78,7 @@ namespace Vixen::Vk {
                 shader.setStrings(&src, 1);
                 shader.setEnvInput(glslang::EShSourceGlsl, s, glslang::EShClientVulkan, 100);
                 shader.setEnvClient(glslang::EShClientVulkan, glslang::EShTargetVulkan_1_3);
-                shader.setEnvTarget(glslang::EShTargetSpv, glslang::EShTargetSpv_1_3);
+                shader.setEnvTarget(glslang::EShTargetSpv, glslang::EShTargetSpv_1_6);
 #ifdef DEBUG
                 shader.setDebugInfo(true);
 #endif
@@ -118,7 +119,8 @@ namespace Vixen::Vk {
 #ifdef DEBUG
                 std::stringstream stream;
                 spv::Disassemble(stream, binary);
-                spdlog::debug("Disassembled SPIR-V:\n{}", stream.str());
+                spdlog::debug("Passed in GLSL source string:\n{}\n\nDisassembled SPIR-V:\n{}",
+                              std::string_view(source.begin(), source.end()), stream.str());
 #endif
 
                 if (!program.buildReflection()) {
