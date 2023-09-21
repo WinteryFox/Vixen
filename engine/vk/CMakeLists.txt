@@ -39,6 +39,10 @@ add_library(
         VkPipelineLayout.h
         VkRenderPass.cpp
         VkRenderPass.h
+        VkCommandBuffer.cpp
+        VkCommandBuffer.h
+        VkCommandPool.cpp
+        VkCommandPool.h
 )
 target_link_libraries(VkVixen PUBLIC Vixen volk GPUOpen::VulkanMemoryAllocator)
 

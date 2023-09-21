@@ -4,6 +4,7 @@ namespace Vixen::Vk {
     Device::Device(const std::vector<const char *> &extensions, GraphicsCard gpu, VkSurfaceKHR surface)
             : device(VK_NULL_HANDLE), gpu(gpu), surface(surface) {
         graphicsQueueFamily = gpu.getQueueFamilyWithFlags(VK_QUEUE_GRAPHICS_BIT)[0];
+        transferQueueFamily = gpu.getQueueFamilyWithFlags(VK_QUEUE_TRANSFER_BIT)[0];
         presentQueueFamily = gpu.getSurfaceSupportedQueues(surface)[0];
         std::set<uint32_t> queueFamilies = {graphicsQueueFamily.index, presentQueueFamily.index};
         // TODO: Detect and select best graphics and present queues
@@ -37,6 +38,7 @@ namespace Vixen::Vk {
         volkLoadDevice(device);
 
         graphicsQueue = getQueueHandle(graphicsQueueFamily.index, 0);
+        transferQueue = getQueueHandle(transferQueueFamily.index, 0);
         presentQueue = getQueueHandle(presentQueueFamily.index, 0);
     }
 
@@ -53,7 +55,7 @@ namespace Vixen::Vk {
         return queue;
     }
 
-    const VkDevice Device::getDevice() const {
+    VkDevice Device::getDevice() const {
         return device;
     }
 
@@ -61,23 +63,32 @@ namespace Vixen::Vk {
         return gpu;
     }
 
-    const VkSurfaceKHR Device::getSurface() const {
+    VkSurfaceKHR Device::getSurface() const {
         return surface;
     }
 
-    const VkQueue_T *Device::getGraphicsQueue() const {
-        return graphicsQueue;
-    }
-
-    const VkQueue_T *Device::getPresentQueue() const {
-        return presentQueue;
-    }
 
     const QueueFamily &Device::getGraphicsQueueFamily() const {
         return graphicsQueueFamily;
     }
 
+    VkQueue Device::getGraphicsQueue() const {
+        return graphicsQueue;
+    }
+
+    const QueueFamily &Device::getTransferQueueFamily() const {
+        return transferQueueFamily;
+    }
+
+    VkQueue Device::getTransferQueue() const {
+        return transferQueue;
+    }
+
     const QueueFamily &Device::getPresentQueueFamily() const {
         return presentQueueFamily;
+    }
+
+    VkQueue Device::getPresentQueue() const {
+        return presentQueue;
     }
 }

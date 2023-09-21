@@ -8,6 +8,7 @@
 #include <string>
 #include "../VkVixen.h"
 #include "VkPipeline.h"
+#include "VkRenderer.h"
 
 int main() {
 #ifdef _WIN32
@@ -31,6 +32,8 @@ int main() {
             .setWidth(720)
             .setHeight(480)
             .build(vixen.device, vixen.swapchain, program);
+
+    auto renderer = Vixen::Vk::VkRenderer(vixen.device, pipeline);
 
     while (!vixen.window.shouldClose()) {
         Vixen::Vk::VkWindow::update();

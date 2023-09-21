@@ -32,7 +32,7 @@ namespace Vixen::Vk {
                 nullptr,
                 this->flags
         );
-        spdlog::trace("Created new GL buffer {} ({}B) and flags {}", buffer, size, this->flags);
+        spdlog::trace("Created new GL commandBuffer {} ({}B) and flags {}", buffer, size, this->flags);
         dataPointer = map(0, size);
     }
 
@@ -49,16 +49,16 @@ namespace Vixen::Vk {
 
     void *GlBuffer::map(std::size_t offset, std::size_t length) const {
         if (offset > size)
-            error("Offset is greater than the total buffer size");
+            error("Offset is greater than the total commandBuffer size");
         if (offset + length > size)
-            error("The offset plus length is greater than the total buffer size");
+            error("The offset plus length is greater than the total commandBuffer size");
 
         void *d = glMapNamedBufferRange(buffer, static_cast<GLsizeiptr>(offset), static_cast<GLsizeiptr>(length),
                                         flags);
         if (d == nullptr)
-            error("Failed to map GL buffer {}", buffer);
+            error("Failed to map GL commandBuffer {}", buffer);
 
-        spdlog::trace("Mapped GL buffer {} into {} at offset {}B and length {}B using flags {}", buffer, d, offset,
+        spdlog::trace("Mapped GL commandBuffer {} into {} at offset {}B and length {}B using flags {}", buffer, d, offset,
                       length, flags);
         return d;
     }

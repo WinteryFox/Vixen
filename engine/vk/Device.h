@@ -16,6 +16,10 @@ namespace Vixen::Vk {
 
         VkQueue graphicsQueue;
 
+        QueueFamily transferQueueFamily;
+
+        VkQueue transferQueue;
+
         QueueFamily presentQueueFamily;
 
         VkQueue presentQueue;
@@ -25,19 +29,23 @@ namespace Vixen::Vk {
 
         ~Device();
 
-        const VkDevice getDevice() const;
+        [[nodiscard]] VkDevice getDevice() const;
 
-        const GraphicsCard &getGpu() const;
+        [[nodiscard]] const GraphicsCard &getGpu() const;
 
-        const VkSurfaceKHR getSurface() const;
+        [[nodiscard]] VkSurfaceKHR getSurface() const;
 
-        const VkQueue_T *getGraphicsQueue() const;
+        [[nodiscard]] const QueueFamily &getGraphicsQueueFamily() const;
 
-        const VkQueue_T *getPresentQueue() const;
+        [[nodiscard]] VkQueue getGraphicsQueue() const;
 
-        const QueueFamily &getGraphicsQueueFamily() const;
+        [[nodiscard]] const QueueFamily &getTransferQueueFamily() const;
 
-        const QueueFamily &getPresentQueueFamily() const;
+        [[nodiscard]] VkQueue getTransferQueue() const;
+
+        [[nodiscard]] const QueueFamily &getPresentQueueFamily() const;
+
+        [[nodiscard]] VkQueue getPresentQueue() const;
 
         [[nodiscard]] VkQueue getQueueHandle(uint32_t queueFamilyIndex, uint32_t queueIndex = 0) const;
     };

@@ -43,7 +43,10 @@ namespace Vixen::Vk {
             info.pQueueFamilyIndices = nullptr;
         }
 
-        vkCreateSwapchainKHR(device->getDevice(), &info, nullptr, &swapchain);
+        checkVulkanResult(
+                vkCreateSwapchainKHR(device->getDevice(), &info, nullptr, &swapchain),
+                "Failed to create swapchain"
+        );
 
         vkGetSwapchainImagesKHR(device->getDevice(), swapchain, &imageCount, nullptr);
         images.resize(imageCount);
