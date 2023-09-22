@@ -5,6 +5,13 @@
 
 namespace Vixen::Vk {
     class VkCommandBuffer {
+    public:
+        enum class Level {
+            PRIMARY = VK_COMMAND_BUFFER_LEVEL_PRIMARY,
+            SECONDARY = VK_COMMAND_BUFFER_LEVEL_SECONDARY
+        };
+
+    private:
         std::shared_ptr<VkCommandPool> commandPool;
 
         ::VkCommandBuffer commandBuffer;
@@ -12,12 +19,17 @@ namespace Vixen::Vk {
     public:
         VkCommandBuffer(const std::shared_ptr<VkCommandPool> &commandPool, ::VkCommandBuffer commandBuffer);
 
-        VkCommandBuffer(const std::shared_ptr<VkCommandPool> &commandPool, VkCommandBufferLevel level);
+        VkCommandBuffer(const std::shared_ptr<VkCommandPool> &commandPool, Level level);
 
-        VkCommandBuffer(const VkCommandBuffer &) = delete;
-
-        VkCommandBuffer &operator=(const VkCommandBuffer &) = delete;
+        VkCommandBuffer(VkCommandBuffer &&o) noexcept;
 
         ~VkCommandBuffer();
+
+        static std::vector<VkCommandBuffer>
+        allocateCommandBuffers(const std::shared_ptr<VkCommandPool> &commandPool, Level level, uint32_t count);
+
+    private:
+        static std::vector<::VkCommandBuffer>
+        allocateCommandBuffers(const std::shared_ptr<VkCommandPool> &commandPool, VkCommandBufferLevel level, uint32_t count);
     };
 }
