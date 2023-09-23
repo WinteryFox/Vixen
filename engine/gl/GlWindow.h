@@ -6,7 +6,7 @@
 #include <spdlog/spdlog.h>
 #include <spdlog/sinks/stdout_color_sinks.h>
 #include <fmt/color.h>
-#include "../BaseWindow.h"
+#include "../Window.h"
 
 #ifdef DEBUG
 

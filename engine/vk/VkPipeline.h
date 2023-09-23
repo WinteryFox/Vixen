@@ -143,7 +143,7 @@ namespace Vixen::Vk {
                 return *this;
             }
 
-            Builder &setColorBlend(VkPipelineDepthStencilStateCreateInfo info) {
+            Builder &setDepthStencil(VkPipelineDepthStencilStateCreateInfo info) {
                 config.depthStencilInfo = info;
                 return *this;
             }

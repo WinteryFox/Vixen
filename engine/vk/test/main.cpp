@@ -33,7 +33,7 @@ int main() {
             .setHeight(480)
             .build(vixen.device, vixen.swapchain, program);
 
-    auto renderer = Vixen::Vk::VkRenderer(vixen.device, pipeline);
+    auto renderer = Vixen::Vk::VkRenderer(vixen.device, vixen.swapchain, pipeline);
 
     while (!vixen.window.shouldClose()) {
         Vixen::Vk::VkWindow::update();

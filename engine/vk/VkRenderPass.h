@@ -8,7 +8,7 @@ namespace Vixen::Vk {
     class VkRenderPass {
         std::shared_ptr<Device> device;
 
-        ::VkRenderPass renderPass = VK_NULL_HANDLE;
+        ::VkRenderPass renderPass;
 
     public:
         VkRenderPass(
@@ -23,6 +23,6 @@ namespace Vixen::Vk {
 
         ~VkRenderPass();
 
-        [[nodiscard]] const ::VkRenderPass getRenderPass() const;
+        [[nodiscard]] ::VkRenderPass getRenderPass() const;
     };
 }

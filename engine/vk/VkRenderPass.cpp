@@ -5,7 +5,7 @@ namespace Vixen::Vk {
             const std::shared_ptr<Device> &device,
             const VkShaderProgram &program,
             const Swapchain &swapchain
-    ) : device(device) {
+    ) : device(device), renderPass(VK_NULL_HANDLE) {
         std::vector<VkAttachmentDescription> attachments{};
 
         attachments.emplace_back(VkAttachmentDescription{
@@ -83,7 +83,7 @@ namespace Vixen::Vk {
         vkDestroyRenderPass(device->getDevice(), renderPass, nullptr);
     }
 
-    const ::VkRenderPass VkRenderPass::getRenderPass() const {
+    ::VkRenderPass VkRenderPass::getRenderPass() const {
         return renderPass;
     }
 }

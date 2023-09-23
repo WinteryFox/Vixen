@@ -7,10 +7,10 @@ namespace Vixen::Vk {
             const VkShaderProgram &program,
             const Config &config
     ) : device(device),
-    program(program),
-    config(config),
-    pipelineLayout(device, program),
-    renderPass(device, program, swapchain) {
+        program(program),
+        config(config),
+        pipelineLayout(device, program),
+        renderPass(device, program, swapchain) {
         const auto &modules = program.getModules();
 
         std::vector<VkPipelineShaderStageCreateInfo> stages;
@@ -49,7 +49,7 @@ namespace Vixen::Vk {
                 .logicOp = VK_LOGIC_OP_COPY,
                 .attachmentCount = 1,
                 .pAttachments = &config.colorBlendAttachment,
-                .blendConstants{
+                .blendConstants = {
                         0.0f,
                         0.0f,
                         0.0f,

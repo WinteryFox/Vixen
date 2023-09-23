@@ -20,6 +20,8 @@ namespace Vixen::Vk {
 
         [[nodiscard]] const VkExtent2D &getExtent() const;
 
+        [[nodiscard]] uint32_t getImageCount() const;
+
     private:
         uint32_t imageCount;
 

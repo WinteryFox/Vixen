@@ -27,7 +27,5 @@ namespace Vixen::Vk {
         [[nodiscard]] ::VkCommandPool getCommandPool() const;
 
         [[nodiscard]] const std::shared_ptr<Device> &getDevice() const;
-
-        VkCommandBuffer createCommandBuffers();
     };
 }

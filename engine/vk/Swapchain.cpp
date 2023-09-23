@@ -2,7 +2,8 @@
 
 namespace Vixen::Vk {
     Swapchain::Swapchain(const std::shared_ptr<Device> &device, FramesInFlight framesInFlight)
-            : device(device), imageCount(static_cast<uint32_t>(framesInFlight) + 1) {
+            : device(device),
+              imageCount(static_cast<uint32_t>(framesInFlight) + 1) {
         const auto surface = device->getSurface();
         const auto capabilities = device->getGpu().getSurfaceCapabilities(device->getSurface());
 
@@ -113,5 +114,9 @@ namespace Vixen::Vk {
 
     const VkExtent2D &Swapchain::getExtent() const {
         return extent;
+    }
+
+    uint32_t Swapchain::getImageCount() const {
+        return imageCount;
     }
 }
