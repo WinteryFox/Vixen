@@ -1,9 +1,11 @@
 #include "Instance.h"
 
 namespace Vixen::Vk {
-    Instance::Instance(const std::string &appName, glm::vec3 appVersion,
-                       const std::vector<const char *> &requiredExtensions)
-            : instance(VK_NULL_HANDLE) {
+    Instance::Instance(
+            const std::string &appName,
+            glm::vec3 appVersion,
+            const std::vector<const char *> &requiredExtensions
+    ) : instance(VK_NULL_HANDLE) {
         volkInitialize();
 
         VkApplicationInfo appInfo{};

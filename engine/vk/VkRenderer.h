@@ -2,32 +2,36 @@
 
 #include "Device.h"
 #include "VkPipeline.h"
-#include "CommandBuffer.h"
+#include "VkCommandBuffer.h"
 #include "VkPipelineLayout.h"
 #include "VkCommandPool.h"
-#include "VkCommandBuffer.h"
+#include "VkFramebuffer.h"
 
 namespace Vixen::Vk {
     class VkRenderer {
         std::shared_ptr<Device> device;
 
-        const Swapchain &swapchain;
+        Swapchain &swapchain;
 
         std::unique_ptr<VkPipelineLayout> pipelineLayout;
 
-        std::unique_ptr<VkPipeline> pipeline;
-
-        std::vector<CommandBuffer> commandBuffers;
+        std::shared_ptr<VkPipeline> pipeline;
 
         std::shared_ptr<VkCommandPool> renderCommandPool;
 
         std::vector<VkCommandBuffer> renderCommandBuffers;
 
+        std::vector<VkFramebuffer> framebuffers;
+
+        std::vector<VkImage> depthImages;
+
+        std::vector<std::unique_ptr<VkImageView>> depthImageViews;
+
     public:
         VkRenderer(
                 const std::shared_ptr<Vk::Device> &device,
-                const Swapchain &swapchain,
-                std::unique_ptr<Vk::VkPipeline> &pipeline
+                Swapchain &swapchain,
+                const std::shared_ptr<Vk::VkPipeline> &pipeline
         );
 
         VkRenderer(const VkRenderer &) = delete;
@@ -35,5 +39,12 @@ namespace Vixen::Vk {
         VkRenderer &operator=(const VkRenderer &) = delete;
 
         ~VkRenderer();
+
+        void render();
+
+        void present(uint32_t imageIndex);
+
+    private:
+        void prepare(VkCommandBuffer &commandBuffer);
     };
 }

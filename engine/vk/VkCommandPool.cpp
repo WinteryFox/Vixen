@@ -3,7 +3,8 @@
 namespace Vixen::Vk {
     VkCommandPool::VkCommandPool(
             const std::shared_ptr<Device> &device,
-            Usage usage
+            Usage usage,
+            bool createReset
     ) : device(device),
         commandPool(VK_NULL_HANDLE) {
         VkCommandPoolCreateFlags flags;
@@ -18,6 +19,9 @@ namespace Vixen::Vk {
                 index = device->getTransferQueueFamily().index;
                 break;
         }
+
+        if (createReset)
+            flags |= VK_COMMAND_POOL_CREATE_RESET_COMMAND_BUFFER_BIT;
 
         VkCommandPoolCreateInfo info{
                 .sType = VK_STRUCTURE_TYPE_COMMAND_POOL_CREATE_INFO,

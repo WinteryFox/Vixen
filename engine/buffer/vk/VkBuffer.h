@@ -1,7 +1,7 @@
 #include <memory>
-#include "Allocator.h"
 #include "../Buffer.h"
 #include "Vulkan.h"
+#include "Allocator.h"
 
 namespace Vixen::Vk {
     class VkBuffer : virtual Buffer {

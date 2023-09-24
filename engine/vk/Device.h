@@ -3,12 +3,15 @@
 #include <memory>
 #include <set>
 #include "Instance.h"
+#include "Allocator.h"
 
 namespace Vixen::Vk {
     class Device {
         GraphicsCard gpu;
 
         VkDevice device;
+
+        std::shared_ptr<Allocator> allocator;
 
         VkSurfaceKHR surface;
 
@@ -25,13 +28,20 @@ namespace Vixen::Vk {
         VkQueue presentQueue;
 
     public:
-        Device(const std::vector<const char *> &extensions, GraphicsCard gpu, VkSurfaceKHR surface);
+        Device(
+                const Instance &instance,
+                const std::vector<const char *> &extensions,
+                GraphicsCard gpu,
+                VkSurfaceKHR surface
+        );
 
         ~Device();
 
         [[nodiscard]] VkDevice getDevice() const;
 
         [[nodiscard]] const GraphicsCard &getGpu() const;
+
+        [[nodiscard]] const std::shared_ptr<Allocator> &getAllocator() const;
 
         [[nodiscard]] VkSurfaceKHR getSurface() const;
 

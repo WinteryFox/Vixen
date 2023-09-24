@@ -1,12 +1,19 @@
 #include "Device.h"
 
 namespace Vixen::Vk {
-    Device::Device(const std::vector<const char *> &extensions, GraphicsCard gpu, VkSurfaceKHR surface)
-            : device(VK_NULL_HANDLE), gpu(gpu), surface(surface) {
+    Device::Device(
+            const Instance &instance,
+            const std::vector<const char *> &extensions,
+            GraphicsCard gpu,
+            VkSurfaceKHR surface
+    ) : device(VK_NULL_HANDLE),
+        gpu(gpu),
+        surface(surface) {
         graphicsQueueFamily = gpu.getQueueFamilyWithFlags(VK_QUEUE_GRAPHICS_BIT)[0];
         transferQueueFamily = gpu.getQueueFamilyWithFlags(VK_QUEUE_TRANSFER_BIT)[0];
         presentQueueFamily = gpu.getSurfaceSupportedQueues(surface)[0];
         std::set<uint32_t> queueFamilies = {graphicsQueueFamily.index, presentQueueFamily.index};
+
         // TODO: Detect and select best graphics and present queues
         std::vector<VkDeviceQueueCreateInfo> queueInfos;
         for (const auto &family: queueFamilies) {
@@ -37,12 +44,15 @@ namespace Vixen::Vk {
         );
         volkLoadDevice(device);
 
+        allocator = std::make_shared<Allocator>(gpu.device, device, instance.instance);
+
         graphicsQueue = getQueueHandle(graphicsQueueFamily.index, 0);
         transferQueue = getQueueHandle(transferQueueFamily.index, 0);
         presentQueue = getQueueHandle(presentQueueFamily.index, 0);
     }
 
     Device::~Device() {
+        vkDeviceWaitIdle(device);
         vkDestroyDevice(device, nullptr);
     }
 
@@ -61,6 +71,10 @@ namespace Vixen::Vk {
 
     const GraphicsCard &Device::getGpu() const {
         return gpu;
+    }
+
+    const std::shared_ptr<Allocator> &Device::getAllocator() const {
+        return allocator;
     }
 
     VkSurfaceKHR Device::getSurface() const {

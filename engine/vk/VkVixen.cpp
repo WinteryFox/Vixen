@@ -7,11 +7,12 @@ namespace Vixen::Vk {
               instance(Instance(appTitle, appVersion, window.requiredExtensions)),
               surface(instance.surfaceForWindow(window)),
               device(std::make_shared<Device>(
+                      instance,
                       deviceExtensions,
                       instance.findOptimalGraphicsCard(surface, deviceExtensions),
                       surface
               )),
-              allocator(std::make_shared<Allocator>(device->getGpu().device, device->getDevice(), instance.instance)),
+              allocator(device->getGpu().device, device->getDevice(), instance.instance),
               swapchain(device, Swapchain::FramesInFlight::TRIPLE_BUFFER) {
         window.center();
         window.setVisible(true);

@@ -7,7 +7,6 @@
 #include "VkWindow.h"
 #include "Instance.h"
 #include "Device.h"
-#include "Allocator.h"
 #include "Swapchain.h"
 #include "VkShaderModule.h"
 #include "VkShaderProgram.h"
@@ -27,9 +26,9 @@ namespace Vixen::Vk {
 
         std::shared_ptr<Device> device;
 
-        Swapchain swapchain;
+        Allocator allocator;
 
-        std::shared_ptr<Allocator> allocator;
+        Swapchain swapchain;
 
         VkVixen(const std::string &appTitle, glm::vec3 appVersion);
 

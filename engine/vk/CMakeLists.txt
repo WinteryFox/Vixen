@@ -31,8 +31,6 @@ add_library(
         VkShaderModule.h
         VkShaderProgram.cpp
         VkShaderProgram.h
-        CommandBuffer.cpp
-        CommandBuffer.h
         VkRenderer.cpp
         VkRenderer.h
         VkPipelineLayout.cpp
@@ -43,6 +41,14 @@ add_library(
         VkCommandBuffer.h
         VkCommandPool.cpp
         VkCommandPool.h
+        VkFence.cpp
+        VkFence.h
+        VkFramebuffer.cpp
+        VkFramebuffer.h
+        VkImage.cpp
+        VkImage.h
+        VkImageView.cpp
+        VkImageView.h
 )
 target_link_libraries(VkVixen PUBLIC Vixen volk GPUOpen::VulkanMemoryAllocator)
 

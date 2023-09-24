@@ -11,5 +11,7 @@ namespace Vixen::Vk {
         Allocator(VkPhysicalDevice gpu, VkDevice device, VkInstance instance);
 
         ~Allocator();
+
+        [[nodiscard]] VmaAllocator getAllocator() const;
     };
 }

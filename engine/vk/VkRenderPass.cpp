@@ -5,9 +5,8 @@ namespace Vixen::Vk {
             const std::shared_ptr<Device> &device,
             const VkShaderProgram &program,
             const Swapchain &swapchain
-    ) : device(device), renderPass(VK_NULL_HANDLE) {
-        std::vector<VkAttachmentDescription> attachments{};
-
+    ) : device(device),
+        renderPass(VK_NULL_HANDLE) {
         attachments.emplace_back(VkAttachmentDescription{
                 .format = swapchain.getFormat().format,
                 .samples = VK_SAMPLE_COUNT_1_BIT,
@@ -26,7 +25,11 @@ namespace Vixen::Vk {
 
         attachments.emplace_back(VkAttachmentDescription{
                 .format = device->getGpu().pickFormat(
-                        {VK_FORMAT_D32_SFLOAT, VK_FORMAT_D32_SFLOAT_S8_UINT, VK_FORMAT_D24_UNORM_S8_UINT},
+                        {
+                                VK_FORMAT_D32_SFLOAT,
+                                VK_FORMAT_D32_SFLOAT_S8_UINT,
+                                VK_FORMAT_D24_UNORM_S8_UINT
+                        },
                         VK_IMAGE_TILING_OPTIMAL,
                         VK_FORMAT_FEATURE_DEPTH_STENCIL_ATTACHMENT_BIT
                 ),
@@ -85,5 +88,9 @@ namespace Vixen::Vk {
 
     ::VkRenderPass VkRenderPass::getRenderPass() const {
         return renderPass;
+    }
+
+    std::vector<VkAttachmentDescription> VkRenderPass::getAttachments() const {
+        return attachments;
     }
 }

@@ -35,8 +35,21 @@ int main() {
 
     auto renderer = Vixen::Vk::VkRenderer(vixen.device, vixen.swapchain, pipeline);
 
+    double old = glfwGetTime();
+    uint32_t fps;
     while (!vixen.window.shouldClose()) {
         Vixen::Vk::VkWindow::update();
+
+        renderer.render();
+
+        fps++;
+        double now = glfwGetTime();
+        if (old - now >= 1) {
+            spdlog::info("FPS: {}", fps);
+            old = now;
+            fps = 0;
+        }
     }
+
     return EXIT_SUCCESS;
 }

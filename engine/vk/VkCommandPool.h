@@ -16,7 +16,7 @@ namespace Vixen::Vk {
         ::VkCommandPool commandPool;
 
     public:
-        VkCommandPool(const std::shared_ptr<Device> &device, Usage usage);
+        VkCommandPool(const std::shared_ptr<Device> &device, Usage usage, bool createReset);
 
         VkCommandPool(const VkCommandPool &) = delete;
 

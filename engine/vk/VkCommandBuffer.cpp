@@ -10,7 +10,7 @@ namespace Vixen::Vk {
               commandBuffer(allocateCommandBuffers(commandPool, static_cast<VkCommandBufferLevel>(level), 1)[0]) {}
 
     VkCommandBuffer::VkCommandBuffer(VkCommandBuffer &&o) noexcept
-            : commandPool(o.commandPool),
+            : commandPool(std::move(o.commandPool)),
               commandBuffer(std::exchange(o.commandBuffer, nullptr)) {}
 
     VkCommandBuffer::~VkCommandBuffer() {
@@ -48,6 +48,10 @@ namespace Vixen::Vk {
                 "Failed to create command buffers"
         );
 
-        return std::vector<::VkCommandBuffer>();
+        return commandBuffers;
+    }
+
+    ::VkCommandBuffer VkCommandBuffer::getCommandBuffer() const {
+        return commandBuffer;
     }
 }

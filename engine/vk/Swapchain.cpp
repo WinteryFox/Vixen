@@ -3,7 +3,9 @@
 namespace Vixen::Vk {
     Swapchain::Swapchain(const std::shared_ptr<Device> &device, FramesInFlight framesInFlight)
             : device(device),
-              imageCount(static_cast<uint32_t>(framesInFlight) + 1) {
+              imageCount(static_cast<uint32_t>(framesInFlight) + 1),
+              imageReadyFences(device, imageCount, true),
+              swapchain(VK_NULL_HANDLE) {
         const auto surface = device->getSurface();
         const auto capabilities = device->getGpu().getSurfaceCapabilities(device->getSurface());
 
@@ -83,9 +85,9 @@ namespace Vixen::Vk {
     }
 
     Swapchain::~Swapchain() {
-        vkDestroySwapchainKHR(device->getDevice(), swapchain, nullptr);
         for (auto &imageView: imageViews)
             vkDestroyImageView(device->getDevice(), imageView, nullptr);
+        vkDestroySwapchainKHR(device->getDevice(), swapchain, nullptr);
     }
 
     VkSurfaceFormatKHR Swapchain::determineSurfaceFormat(const std::vector<VkSurfaceFormatKHR> &available) {
@@ -108,6 +110,10 @@ namespace Vixen::Vk {
         return VK_PRESENT_MODE_FIFO_KHR;
     }
 
+    VkSwapchainKHR Swapchain::getSwapchain() const {
+        return swapchain;
+    }
+
     const VkSurfaceFormatKHR &Swapchain::getFormat() const {
         return format;
     }
@@ -118,5 +124,9 @@ namespace Vixen::Vk {
 
     uint32_t Swapchain::getImageCount() const {
         return imageCount;
+    }
+
+    const std::vector<::VkImageView> &Swapchain::getImageViews() const {
+        return imageViews;
     }
 }

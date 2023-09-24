@@ -91,4 +91,12 @@ namespace Vixen::Vk {
     const VkShaderProgram &VkPipeline::getProgram() const {
         return program;
     }
+
+    const VkRenderPass &VkPipeline::getRenderPass() const {
+        return renderPass;
+    }
+
+    void VkPipeline::bind(::VkCommandBuffer commandBuffer, VkPipelineBindPoint binding) const {
+        vkCmdBindPipeline(commandBuffer, binding, pipeline);
+    }
 }

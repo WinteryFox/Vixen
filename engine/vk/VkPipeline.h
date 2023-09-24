@@ -42,18 +42,22 @@ namespace Vixen::Vk {
 
         ~VkPipeline();
 
+        void bind(::VkCommandBuffer commandBuffer, VkPipelineBindPoint binding) const;
+
         [[nodiscard]] const VkShaderProgram &getProgram() const;
+
+        [[nodiscard]] const VkRenderPass &getRenderPass() const;
 
         class Builder {
             Config config{
-                    .viewport{
+                    .viewport = {
                             .x = 0,
                             .y = 0,
                             .minDepth = 0.0f,
                             .maxDepth = 1.0f
                     },
-                    .scissor{
-                            .offset{0, 0},
+                    .scissor = {
+                            .offset = {0, 0},
                     }
             };
 
@@ -104,8 +108,8 @@ namespace Vixen::Vk {
                         .depthCompareOp = VK_COMPARE_OP_LESS,
                         .depthBoundsTestEnable = VK_FALSE,
                         .stencilTestEnable = VK_FALSE,
-                        .front{},
-                        .back{},
+                        .front = {},
+                        .back = {},
                         .minDepthBounds = 0.0f,
                         .maxDepthBounds = 1.0f,
                 };
@@ -148,12 +152,12 @@ namespace Vixen::Vk {
                 return *this;
             }
 
-            std::unique_ptr<VkPipeline> build(
+            std::shared_ptr<VkPipeline> build(
                     const std::shared_ptr<Device> &d,
                     const Swapchain &s,
                     const VkShaderProgram &p
             ) {
-                return std::move(std::make_unique<VkPipeline>(d, s, p, config));
+                return std::make_shared<VkPipeline>(d, s, p, config);
             }
         };
     };

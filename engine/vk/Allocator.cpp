@@ -45,4 +45,8 @@ namespace Vixen::Vk {
     Allocator::~Allocator() {
         vmaDestroyAllocator(allocator);
     }
+
+    VmaAllocator Allocator::getAllocator() const {
+        return allocator;
+    }
 }

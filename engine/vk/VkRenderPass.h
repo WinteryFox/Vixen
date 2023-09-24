@@ -10,6 +10,10 @@ namespace Vixen::Vk {
 
         ::VkRenderPass renderPass;
 
+        std::vector<VkAttachmentDescription> attachments;
+
+        std::vector<VkAttachmentReference> references;
+
     public:
         VkRenderPass(
                 const std::shared_ptr<Device> &device,
@@ -24,5 +28,7 @@ namespace Vixen::Vk {
         ~VkRenderPass();
 
         [[nodiscard]] ::VkRenderPass getRenderPass() const;
+
+        [[nodiscard]] std::vector<VkAttachmentDescription> getAttachments() const;
     };
 }
