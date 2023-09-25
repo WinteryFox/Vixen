@@ -12,7 +12,7 @@ namespace Vixen::Vk {
         appInfo.sType = VK_STRUCTURE_TYPE_APPLICATION_INFO;
         appInfo.pApplicationName = appName.c_str();
         appInfo.applicationVersion = VK_MAKE_API_VERSION(0, appVersion.x, appVersion.y, appVersion.z);
-        appInfo.pEngineName = "Vixen";
+        appInfo.pEngineName = "Vixen Engine";
         appInfo.engineVersion = VK_MAKE_API_VERSION(0, 1, 0, 0);
         appInfo.apiVersion = VK_API_VERSION_1_3;
 
@@ -101,29 +101,41 @@ namespace Vixen::Vk {
 
         spdlog::trace("Attempting to find optimal GPU");
         bool foundSuitableGpu = false;
-        GraphicsCard optimalCard = gpus[0];
-        for (const auto &gpu: gpus) {
+        uint32_t optimalCardIndex = -1;
+        for (size_t i = 0; i < gpus.size(); i++) {
+            auto &gpu = gpus[i];
+            spdlog::trace("GPU \"{}\"", gpu.properties.deviceName);
+
             if (!gpu.supportsExtensions(extensions)) {
-                spdlog::debug("Disqualified gpu \"{}\" for missing extensions", gpu.properties.deviceName);
+                spdlog::trace("Disqualified for missing extensions");
                 continue;
             }
 
             if (gpu.getPresentModes(surface).empty()) {
-                spdlog::debug("Disqualified gpu \"{}\" for lack of present mode support", gpu.properties.deviceName);
+                spdlog::trace("Disqualified for lack of present mode support");
                 continue;
             }
 
             if (gpu.getSurfaceFormats(surface).empty()) {
-                spdlog::debug("Disqualified gpu \"{}\" for lack of surface format support", gpu.properties.deviceName);
+                spdlog::trace("Disqualified for lack of surface format support");
                 continue;
             }
 
-            optimalCard = gpu;
+            spdlog::trace("GPU supports Vulkan version {}", getVersionString(gpu.properties.apiVersion));
+            if (VK_API_VERSION_MAJOR(gpu.properties.apiVersion) < VK_API_VERSION_MAJOR(VK_API_VERSION_1_3) ||
+                VK_API_VERSION_MINOR(gpu.properties.apiVersion) < VK_API_VERSION_MINOR(VK_API_VERSION_1_3)) {
+                spdlog::trace("Disqualified for lack of Vulkan 1.3 support");
+                continue;
+            }
+
+            optimalCardIndex = i;
             foundSuitableGpu = true;
         }
 
         if (!foundSuitableGpu)
             error("Failed to find suitable graphics card");
+
+        const auto &optimalCard = gpus[optimalCardIndex];
         spdlog::trace("Optimal graphics card is \"{}\"", optimalCard.properties.deviceName);
 
         // TODO: Implement

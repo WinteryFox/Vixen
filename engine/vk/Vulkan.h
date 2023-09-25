@@ -27,7 +27,7 @@ namespace Vixen::Vk {
     }
 
     static inline std::string getVersionString(uint32_t version) {
-        return fmt::format("{}.{}.{}", VK_VERSION_MAJOR(version), VK_VERSION_MINOR(version), VK_VERSION_PATCH(version));
+        return fmt::format("{}.{}.{}", VK_API_VERSION_MAJOR(version), VK_API_VERSION_MINOR(version), VK_API_VERSION_PATCH(version));
     }
 
     static inline VkShaderStageFlagBits getVulkanShaderStage(ShaderModule::Stage stage) {

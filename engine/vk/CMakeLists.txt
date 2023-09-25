@@ -49,6 +49,8 @@ add_library(
         VkImage.h
         VkImageView.cpp
         VkImageView.h
+        VkSemaphore.cpp
+        VkSemaphore.h
 )
 target_link_libraries(VkVixen PUBLIC Vixen volk GPUOpen::VulkanMemoryAllocator)
 

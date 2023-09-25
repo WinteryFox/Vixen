@@ -25,7 +25,7 @@ namespace Vixen::Vk {
                     [this, lambda](const auto &fence) constexpr {
                         uint32_t imageIndex;
 
-                        return vkAcquireNextImageKHR(
+                        auto result = vkAcquireNextImageKHR(
                                 device->getDevice(),
                                 swapchain,
                                 std::numeric_limits<uint64_t>::max(),
@@ -35,6 +35,8 @@ namespace Vixen::Vk {
                         );
 
                         lambda(imageIndex, fence);
+
+                        return result;
                     });
 
             if (result == VK_SUCCESS)
