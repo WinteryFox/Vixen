@@ -56,10 +56,13 @@ namespace Vixen::Vk {
             return *this;
         }
 
+        void reset();
+
         [[nodiscard]] ::VkCommandBuffer getCommandBuffer() const;
 
     private:
         static std::vector<::VkCommandBuffer>
-        allocateCommandBuffers(const std::shared_ptr<VkCommandPool> &commandPool, VkCommandBufferLevel level, uint32_t count);
+        allocateCommandBuffers(const std::shared_ptr<VkCommandPool> &commandPool, VkCommandBufferLevel level,
+                               uint32_t count);
     };
 }

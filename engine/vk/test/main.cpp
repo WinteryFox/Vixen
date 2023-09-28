@@ -44,7 +44,7 @@ int main() {
 
         fps++;
         double now = glfwGetTime();
-        if (old - now >= 1) {
+        if (now - old >= 1) {
             spdlog::info("FPS: {}", fps);
             old = now;
             fps = 0;

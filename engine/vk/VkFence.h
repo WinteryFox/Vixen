@@ -17,20 +17,23 @@ namespace Vixen::Vk {
 
         template<typename R, typename F>
         R waitFirst(uint64_t timeout, bool reset, const F &lambda) {
-            vkWaitForFences(device->getDevice(), fences.size(), fences.data(), VK_FALSE, timeout);
+            auto result = vkWaitForFences(device->getDevice(), fences.size(), fences.data(), VK_FALSE, timeout);
 
-            for (const auto &fence: fences) {
+            if (result == VK_TIMEOUT)
+                spdlog::debug("Fence timed out");
+            else
+                checkVulkanResult(result, "Fence was signaled with an error");
+
+            for (size_t i = 0; i < fences.size(); i++) {
+                auto &fence = fences[i];
                 auto v = vkGetFenceStatus(device->getDevice(), fence);
 
                 if (v == VK_SUCCESS) {
                     if (reset)
                         vkResetFences(device->getDevice(), 1, &fence);
 
-                    return lambda(fence);
-                } else if (v == VK_TIMEOUT)
-                    spdlog::debug("Fence timed out");
-                else
-                    checkVulkanResult(v, "Fence was signaled with an error");
+                    return lambda(fence, i);
+                }
             }
 
             throw std::runtime_error("Ono");

@@ -3,6 +3,7 @@
 #include <memory>
 #include "Device.h"
 #include "VkFence.h"
+#include "VkSemaphore.h"
 
 namespace Vixen::Vk {
     class Swapchain {
@@ -18,31 +19,37 @@ namespace Vixen::Vk {
         ~Swapchain();
 
         template<typename F>
-        bool acquireImage(const F &lambda) {
-            auto result = imageReadyFences.waitFirst<VkResult>(
+        bool acquireImage(const F &lambda, uint64_t timeout) {
+            auto result = inFlightFences.waitFirst<VkResult>(
                     std::numeric_limits<uint64_t>::max(),
                     true,
-                    [this, lambda](const auto &fence) constexpr {
-                        uint32_t imageIndex;
+                    [this, &lambda, &timeout](const auto &fence, const auto &index) constexpr {
+                        auto &semaphore = imageAvailableSemaphores[index];
 
+                        uint32_t imageIndex;
                         auto result = vkAcquireNextImageKHR(
                                 device->getDevice(),
                                 swapchain,
-                                std::numeric_limits<uint64_t>::max(),
+                                timeout,
+                                semaphore.getSemaphore(),
                                 VK_NULL_HANDLE,
-                                fence,
                                 &imageIndex
                         );
 
-                        lambda(imageIndex, fence);
+                        lambda(imageIndex, semaphore, fence);
 
                         return result;
                     });
 
-            if (result == VK_SUCCESS)
-                return false;
-            else if (result == VK_SUBOPTIMAL_KHR)
-                return true;
+            switch (result) {
+                case VK_SUCCESS:
+                    return false;
+                case VK_SUBOPTIMAL_KHR:
+                case VK_ERROR_OUT_OF_DATE_KHR:
+                    return true;
+                default:
+                    break;
+            }
 
             checkVulkanResult(result, "Failed to acquire swapchain image index");
             return true;
@@ -77,7 +84,7 @@ namespace Vixen::Vk {
 
         VkExtent2D extent{};
 
-        VkFence imageReadyFences;
+        VkFence inFlightFences;
 
         std::vector<VkSemaphore> imageAvailableSemaphores;
 

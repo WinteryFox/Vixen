@@ -15,6 +15,14 @@ namespace Vixen::Vk {
     }
 
     VkFence::~VkFence() {
+        vkWaitForFences(
+                device->getDevice(),
+                fences.size(),
+                fences.data(),
+                VK_TRUE,
+                std::numeric_limits<uint64_t>::max()
+        );
+
         for (const auto &fence: fences)
             vkDestroyFence(device->getDevice(), fence, nullptr);
     }

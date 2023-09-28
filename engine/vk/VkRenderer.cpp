@@ -19,7 +19,12 @@ namespace Vixen::Vk {
         ) {
         const auto &renderPass = pipeline->getRenderPass();
 
-        for (size_t i = 0; i < swapchain.getImageCount(); i++) {
+        const auto imageCount = swapchain.getImageCount();
+        depthImages.reserve(imageCount);
+        depthImageViews.reserve(imageCount);
+        framebuffers.reserve(imageCount);
+        renderFinishedSemaphores.reserve(imageCount);
+        for (size_t i = 0; i < imageCount; i++) {
             depthImages.emplace_back(
                     device,
                     swapchain.getExtent().width,
@@ -28,16 +33,14 @@ namespace Vixen::Vk {
                     VK_IMAGE_TILING_OPTIMAL,
                     VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT
             );
+
             depthImageViews.emplace_back(
                     std::make_unique<VkImageView>(
                             depthImages[i],
                             VK_IMAGE_ASPECT_DEPTH_BIT
                     )
             );
-        }
 
-        framebuffers.reserve(swapchain.getImageCount());
-        for (size_t i = 0; i < swapchain.getImageCount(); i++) {
             framebuffers.emplace_back(
                     device,
                     renderPass,
@@ -48,64 +51,70 @@ namespace Vixen::Vk {
                             depthImageViews[i]->getImageView()
                     }
             );
+
+            renderFinishedSemaphores.emplace_back(device);
         }
     }
 
     VkRenderer::~VkRenderer() {
-
+        vkDeviceWaitIdle(device->getDevice());
     }
 
     void VkRenderer::render() {
-        auto &commandBuffer = renderCommandBuffers[0];
-        auto c = commandBuffer.getCommandBuffer();
-
-        prepare(commandBuffer);
-
         auto graphicsQueue = device->getGraphicsQueue();
-        bool invalid = swapchain.acquireImage([this, &c, &graphicsQueue](const auto &imageIndex, auto &fence) {
-            VkPipelineStageFlags waitStages[] = {VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT};
+        auto invalid = swapchain.acquireImage([this, &graphicsQueue](
+                const auto &imageIndex,
+                const auto &semaphore,
+                const auto &fence
+        ) {
+            auto waitSemaphore = semaphore.getSemaphore();
+            auto signalSemaphore = renderFinishedSemaphores[imageIndex].getSemaphore();
 
-            VkSubmitInfo info{
+            auto &commandBuffer = renderCommandBuffers[imageIndex];
+            auto c = commandBuffer.getCommandBuffer();
+
+            prepare(commandBuffer, framebuffers[imageIndex]);
+
+            VkPipelineStageFlags waitStages[] = {
+                    VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT
+            };
+
+            VkSubmitInfo submitInfo{
                     .sType = VK_STRUCTURE_TYPE_SUBMIT_INFO,
-                    .waitSemaphoreCount = 0,
-                    // TODO
-                    .pWaitSemaphores = nullptr,
+                    .waitSemaphoreCount = 1,
+                    .pWaitSemaphores = &waitSemaphore,
                     .pWaitDstStageMask = waitStages,
                     .commandBufferCount = 1,
                     .pCommandBuffers = &c,
-                    .signalSemaphoreCount = 0,
-                    .pSignalSemaphores = nullptr
+                    .signalSemaphoreCount = 1,
+                    .pSignalSemaphores = &signalSemaphore
             };
 
             checkVulkanResult(
-                    vkQueueSubmit(graphicsQueue, 1, &info, fence),
+                    vkQueueSubmit(graphicsQueue, 1, &submitInfo, fence),
                     "Failed to submit to queue"
             );
 
-            present(imageIndex);
-        });
+            const auto &s = swapchain.getSwapchain();
+            VkPresentInfoKHR presentInfo{
+                    .sType = VK_STRUCTURE_TYPE_PRESENT_INFO_KHR,
+                    .waitSemaphoreCount = 1,
+                    .pWaitSemaphores = &signalSemaphore,
+                    .swapchainCount = 1,
+                    .pSwapchains = &s,
+                    .pImageIndices = &imageIndex,
+                    .pResults = nullptr,
+            };
+
+            vkQueuePresentKHR(device->getPresentQueue(), &presentInfo);
+        }, std::numeric_limits<uint64_t>::max());
 
         if (invalid)
             spdlog::warn("Outdated swapchain state");
     }
 
-    void VkRenderer::present(uint32_t imageIndex) {
-        const auto &s = swapchain.getSwapchain();
-        VkPresentInfoKHR info{
-                .sType = VK_STRUCTURE_TYPE_PRESENT_INFO_KHR,
-                .waitSemaphoreCount = 0,
-                .pWaitSemaphores = nullptr,
-                .swapchainCount = 1,
-                .pSwapchains = &s,
-                .pImageIndices = &imageIndex,
-                .pResults = nullptr,
-        };
-
-        vkQueuePresentKHR(device->getPresentQueue(), &info);
-    }
-
-    void VkRenderer::prepare(VkCommandBuffer &commandBuffer) {
-        commandBuffer.record([this](::VkCommandBuffer commandBuffer) {
+    void VkRenderer::prepare(VkCommandBuffer &commandBuffer, VkFramebuffer &framebuffer) {
+        commandBuffer.record([this, &framebuffer](::VkCommandBuffer commandBuffer) {
             std::vector<VkClearValue> clearValues{
                     {
                             .color = {
@@ -126,7 +135,7 @@ namespace Vixen::Vk {
             VkRenderPassBeginInfo renderPassInfo{
                     .sType = VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO,
                     .renderPass = pipeline->getRenderPass().getRenderPass(),
-                    .framebuffer = framebuffers[0].getFramebuffer(),
+                    .framebuffer = framebuffer.getFramebuffer(),
                     .renderArea = {
                             .offset = {
                                     .x = 0,
@@ -141,6 +150,21 @@ namespace Vixen::Vk {
             vkCmdBeginRenderPass(commandBuffer, &renderPassInfo, VK_SUBPASS_CONTENTS_INLINE);
 
             pipeline->bind(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS);
+
+//            VkViewport viewport{};
+//            viewport.x = 0.0f;
+//            viewport.y = 0.0f;
+//            viewport.width = static_cast<float>(swapchain.getExtent().width);
+//            viewport.height = static_cast<float>(swapchain.getExtent().height);
+//            viewport.minDepth = 0.0f;
+//            viewport.maxDepth = 1.0f;
+//            vkCmdSetViewport(commandBuffer, 0, 1, &viewport);
+//
+//            VkRect2D scissor{};
+//            scissor.offset = {0, 0};
+//            scissor.extent = swapchain.getExtent();
+//            vkCmdSetScissor(commandBuffer, 0, 1, &scissor);
+
             vkCmdDraw(commandBuffer, 3, 1, 0, 0);
 
             vkCmdEndRenderPass(commandBuffer);

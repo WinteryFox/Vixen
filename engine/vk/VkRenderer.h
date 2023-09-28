@@ -6,6 +6,7 @@
 #include "VkPipelineLayout.h"
 #include "VkCommandPool.h"
 #include "VkFramebuffer.h"
+#include "VkSemaphore.h"
 
 namespace Vixen::Vk {
     class VkRenderer {
@@ -27,6 +28,8 @@ namespace Vixen::Vk {
 
         std::vector<std::unique_ptr<VkImageView>> depthImageViews;
 
+        std::vector<VkSemaphore> renderFinishedSemaphores;
+
     public:
         VkRenderer(
                 const std::shared_ptr<Vk::Device> &device,
@@ -42,9 +45,7 @@ namespace Vixen::Vk {
 
         void render();
 
-        void present(uint32_t imageIndex);
-
     private:
-        void prepare(VkCommandBuffer &commandBuffer);
+        void prepare(VkCommandBuffer &commandBuffer, VkFramebuffer &framebuffer);
     };
 }

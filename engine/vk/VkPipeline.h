@@ -122,8 +122,8 @@ namespace Vixen::Vk {
             }
 
             Builder &setHeight(uint32_t h) {
-                config.viewport.width = static_cast<float>(h);
-                config.scissor.extent.width = h;
+                config.viewport.height = static_cast<float>(h);
+                config.scissor.extent.height = h;
                 return *this;
             }
 

@@ -51,6 +51,10 @@ namespace Vixen::Vk {
         return commandBuffers;
     }
 
+    void VkCommandBuffer::reset() {
+        vkResetCommandBuffer(commandBuffer, 0);
+    }
+
     ::VkCommandBuffer VkCommandBuffer::getCommandBuffer() const {
         return commandBuffer;
     }

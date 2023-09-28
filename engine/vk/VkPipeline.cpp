@@ -68,7 +68,7 @@ namespace Vixen::Vk {
                 .pMultisampleState = &config.multisampleInfo,
                 .pDepthStencilState= &config.depthStencilInfo,
                 .pColorBlendState = &colorBlendInfo,
-                .pDynamicState= nullptr,
+                .pDynamicState = nullptr,
 
                 .layout = pipelineLayout.getLayout(),
                 .renderPass = renderPass.getRenderPass(),

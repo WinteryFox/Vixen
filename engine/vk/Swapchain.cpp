@@ -4,7 +4,7 @@ namespace Vixen::Vk {
     Swapchain::Swapchain(const std::shared_ptr<Device> &device, FramesInFlight framesInFlight)
             : device(device),
               imageCount(static_cast<uint32_t>(framesInFlight) + 1),
-              imageReadyFences(device, imageCount, true),
+              inFlightFences(device, imageCount, true),
               swapchain(VK_NULL_HANDLE) {
         const auto surface = device->getSurface();
         const auto capabilities = device->getGpu().getSurfaceCapabilities(device->getSurface());
@@ -56,6 +56,7 @@ namespace Vixen::Vk {
         vkGetSwapchainImagesKHR(device->getDevice(), swapchain, &imageCount, images.data());
 
         imageViews.resize(images.size());
+        imageAvailableSemaphores.reserve(images.size());
         for (auto i = 0; i < images.size(); i++) {
             VkImageViewCreateInfo imageViewCreateInfo{
                     .sType = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO,
@@ -81,6 +82,8 @@ namespace Vixen::Vk {
                     vkCreateImageView(device->getDevice(), &imageViewCreateInfo, nullptr, &imageViews[i]),
                     "Failed to create image view"
             );
+
+            imageAvailableSemaphores.emplace_back(device);
         }
     }
 

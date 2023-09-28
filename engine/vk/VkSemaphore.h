@@ -13,8 +13,12 @@ namespace Vixen::Vk {
 
         VkSemaphore(const VkSemaphore &) = delete;
 
+        VkSemaphore(VkSemaphore &&o) noexcept;
+
         VkSemaphore &operator=(const VkSemaphore &) = delete;
 
         ~VkSemaphore();
+
+        [[nodiscard]] ::VkSemaphore getSemaphore() const;
     };
 }
