@@ -36,8 +36,11 @@ namespace Vixen::Vk {
         deviceInfo.enabledExtensionCount = extensions.size();
         deviceInfo.ppEnabledExtensionNames = extensions.data();
 
-        spdlog::info("Creating new Vulkan device using \"{} ({})\"", gpu.properties.deviceName,
-                     getVersionString(gpu.properties.driverVersion));
+        spdlog::info(
+                "Creating new Vulkan device using GPU \"{}\" Vulkan {}",
+                gpu.properties.deviceName,
+                getVersionString(gpu.properties.apiVersion)
+        );
         checkVulkanResult(
                 vkCreateDevice(gpu.device, &deviceInfo, nullptr, &device),
                 "Failed to create Vulkan device"

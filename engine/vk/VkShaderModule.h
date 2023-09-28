@@ -16,6 +16,8 @@
 #include "Vulkan.h"
 #include "Device.h"
 
+#define VIXEN_VK_SPIRV_VERSION 130
+
 namespace Vixen::Vk {
     class VkShaderModule : public ShaderModule {
         ::VkShaderModule module = VK_NULL_HANDLE;
@@ -76,7 +78,7 @@ namespace Vixen::Vk {
 
                 auto src = source.data();
                 shader.setStrings(&src, 1);
-                shader.setEnvInput(glslang::EShSourceGlsl, s, glslang::EShClientVulkan, 100);
+                shader.setEnvInput(glslang::EShSourceGlsl, s, glslang::EShClientVulkan, VIXEN_VK_SPIRV_VERSION);
                 shader.setEnvClient(glslang::EShClientVulkan, glslang::EShTargetVulkan_1_3);
                 shader.setEnvTarget(glslang::EShTargetSpv, glslang::EShTargetSpv_1_6);
 #ifdef DEBUG
@@ -89,7 +91,7 @@ namespace Vixen::Vk {
                 auto messages = (EShMessages) (EShMsgSpvRules | EShMsgVulkanRules);
                 glslang::TShader::ForbidIncluder includer;
 
-                if (!shader.parse(GetDefaultResources(), 100, false, messages)) {
+                if (!shader.parse(GetDefaultResources(), VIXEN_VK_SPIRV_VERSION, false, messages)) {
                     spdlog::error("Failed to parse shader; {}", shader.getInfoLog());
                     throw std::runtime_error("Failed to parse shader");
                 }
