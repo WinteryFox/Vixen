@@ -114,13 +114,14 @@ namespace Vixen::Vk {
     }
 
     void VkRenderer::prepare(VkCommandBuffer &commandBuffer, VkFramebuffer &framebuffer) {
+        commandBuffer.reset();
         commandBuffer.record([this, &framebuffer](::VkCommandBuffer commandBuffer) {
             std::vector<VkClearValue> clearValues{
                     {
                             .color = {
                                     0.0f,
                                     0.0f,
-                                    1.0f,
+                                    0.0f,
                                     1.0f
                             }
                     },

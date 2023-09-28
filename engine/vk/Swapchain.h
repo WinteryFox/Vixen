@@ -9,9 +9,9 @@ namespace Vixen::Vk {
     class Swapchain {
     public:
         enum class FramesInFlight {
-            SINGLE_BUFFER = 0,
-            DOUBLE_BUFFER = 1,
-            TRIPLE_BUFFER = 2
+            SINGLE_BUFFER = 1,
+            DOUBLE_BUFFER = 2,
+            TRIPLE_BUFFER = 3
         };
 
         Swapchain(const std::shared_ptr<Device> &device, FramesInFlight framesInFlight);
