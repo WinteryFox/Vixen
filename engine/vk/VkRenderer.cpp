@@ -62,12 +62,12 @@ namespace Vixen::Vk {
         prepare(commandBuffer);
 
         auto graphicsQueue = device->getGraphicsQueue();
-        auto invalid = swapchain.acquireImage([this, &c, &graphicsQueue](const auto &imageIndex, auto &fence) {
+        bool invalid = swapchain.acquireImage([this, &c, &graphicsQueue](const auto &imageIndex, auto &fence) {
             VkPipelineStageFlags waitStages[] = {VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT};
 
             VkSubmitInfo info{
                     .sType = VK_STRUCTURE_TYPE_SUBMIT_INFO,
-                    .waitSemaphoreCount = 1,
+                    .waitSemaphoreCount = 0,
                     // TODO
                     .pWaitSemaphores = nullptr,
                     .pWaitDstStageMask = waitStages,
