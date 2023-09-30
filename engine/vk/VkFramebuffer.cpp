@@ -9,8 +9,8 @@ namespace Vixen::Vk {
     ) : device(device),
         framebuffer(VK_NULL_HANDLE) {
         const auto &attachments = renderPass.getAttachments();
-        //images.reserve(attachments.size());
-        //imageViews.reserve(attachments.size());
+        images.reserve(attachments.size());
+        imageViews.reserve(attachments.size());
 
         for (size_t i = 0; i < attachments.size(); i++) {
             const auto &attachment = attachments[i];
@@ -63,7 +63,8 @@ namespace Vixen::Vk {
             uint32_t width,
             uint32_t height,
             std::vector<::VkImageView> imageViews
-    ) {
+    ) : device(device),
+        framebuffer(VK_NULL_HANDLE) {
         VkFramebufferCreateInfo info{
                 .sType = VK_STRUCTURE_TYPE_FRAMEBUFFER_CREATE_INFO,
                 .renderPass = renderPass.getRenderPass(),

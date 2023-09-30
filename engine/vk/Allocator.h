@@ -10,6 +10,10 @@ namespace Vixen::Vk {
     public:
         Allocator(VkPhysicalDevice gpu, VkDevice device, VkInstance instance);
 
+        Allocator(const Allocator &) = delete;
+
+        //Allocator &operator=(Allocator &&o);
+
         ~Allocator();
 
         [[nodiscard]] VmaAllocator getAllocator() const;

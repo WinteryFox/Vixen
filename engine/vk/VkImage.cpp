@@ -72,4 +72,8 @@ namespace Vixen::Vk {
     VkFormat VkImage::getFormat() const {
         return format;
     }
+
+    VkImageUsageFlags VkImage::getUsageFlags() const {
+        return usageFlags;
+    }
 }
