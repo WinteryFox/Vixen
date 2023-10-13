@@ -28,9 +28,13 @@ int main() {
             .build(vixen.device);
     auto program = Vixen::Vk::VkShaderProgram({vertex, fragment});
 
+    int width;
+    int height;
+    vixen.window.getFramebufferSize(width, height);
+
     auto pipeline = Vixen::Vk::VkPipeline::Builder()
-            .setWidth(720)
-            .setHeight(480)
+            .setWidth(width)
+            .setHeight(height)
             .build(vixen.device, vixen.swapchain, program);
 
     auto renderer = Vixen::Vk::VkRenderer(vixen.device, vixen.swapchain, pipeline);

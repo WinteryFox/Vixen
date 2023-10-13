@@ -45,5 +45,7 @@ namespace Vixen {
         std::unordered_map<GLFWmonitor *, Monitor> getMonitors() const;
 
         void setClearColor(float r, float g, float b, float a);
+
+        void getFramebufferSize(int &width, int &height);
     };
 }

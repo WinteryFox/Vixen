@@ -1,5 +1,12 @@
 project("Vixen Engine Vk")
 
+find_package(Vulkan 1.3 REQUIRED)
+find_package(spirv_cross_core CONFIG REQUIRED)
+find_package(spirv_cross_glsl CONFIG REQUIRED)
+find_package(spirv_cross_reflect CONFIG REQUIRED)
+find_package(spirv_cross_cpp CONFIG REQUIRED)
+find_package(glslang REQUIRED)
+
 include(FetchContent)
 FetchContent_Declare(
         vma
@@ -52,7 +59,29 @@ add_library(
         VkSemaphore.cpp
         VkSemaphore.h
 )
-target_link_libraries(VkVixen PUBLIC Vixen volk GPUOpen::VulkanMemoryAllocator)
+target_link_libraries(
+        VkVixen
+        PUBLIC
+        Vixen
+        Vulkan::Headers
+        volk
+        GPUOpen::VulkanMemoryAllocator
+#       glslang::OSDependent
+        glslang::glslang
+#       glslang::MachineIndependent
+#       glslang::GenericCodeGen
+#       glslang::OGLCompiler
+#       glslang::glslangValidator
+#       glslang::spirv-remap
+        glslang::glslang-default-resource-limits
+#       glslang::SPVRemapper
+        glslang::SPIRV
+#       glslang::HLSL
+        spirv-cross-core
+        spirv-cross-glsl
+        spirv-cross-reflect
+        spirv-cross-cpp
+)
 
 target_compile_definitions(VkVixen PUBLIC -DVK_NO_PROTOTYPES)
 

@@ -89,7 +89,7 @@ namespace Vixen {
         });
     }
 
-    std::unordered_map<GLFWmonitor*, Monitor> Window::getMonitors() const {
+    std::unordered_map<GLFWmonitor *, Monitor> Window::getMonitors() const {
         return monitors;
     }
 
@@ -97,7 +97,7 @@ namespace Vixen {
         int w, h = 0;
         int x, y = 0;
         int refreshRate = 0;
-        GLFWmonitor* m = nullptr;
+        GLFWmonitor *m = nullptr;
 
         if (mode == Mode::FULLSCREEN) {
             auto videoMode = glfwGetVideoMode(monitor);
@@ -127,5 +127,9 @@ namespace Vixen {
 
     void Window::setClearColor(float r, float g, float b, float a) {
         clearColor = glm::vec4(r, g, b, a);
+    }
+
+    void Window::getFramebufferSize(int &width, int &height) {
+        glfwGetFramebufferSize(window, &width, &height);
     }
 }
