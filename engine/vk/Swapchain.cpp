@@ -1,16 +1,70 @@
 #include "Swapchain.h"
 
 namespace Vixen::Vk {
-    Swapchain::Swapchain(const std::shared_ptr<Device> &device, FramesInFlight framesInFlight)
+    Swapchain::Swapchain(const std::shared_ptr<Device> &device, uint32_t framesInFlight)
             : device(device),
-              imageCount(static_cast<uint32_t>(framesInFlight) + 1),
+              currentFrame(0),
+              imageCount(framesInFlight),
+              format(determineSurfaceFormat(device->getGpu().getSurfaceFormats(device->getSurface()))),
               inFlightFences(device, imageCount, true),
               swapchain(VK_NULL_HANDLE) {
+        create();
+    }
+
+    Swapchain::~Swapchain() {
+        destroy();
+    }
+
+    VkSurfaceFormatKHR Swapchain::determineSurfaceFormat(const std::vector<VkSurfaceFormatKHR> &available) {
+        for (const auto &format: available) {
+            if (format.format == VK_FORMAT_B8G8R8A8_SRGB &&
+                format.colorSpace == VK_COLOR_SPACE_SRGB_NONLINEAR_KHR)
+                return format;
+        }
+
+        return available[0];
+    }
+
+    VkPresentModeKHR Swapchain::determinePresentMode(const std::vector<VkPresentModeKHR> &available) {
+        for (const auto &mode: available) {
+            if (mode == VK_PRESENT_MODE_MAILBOX_KHR) {
+                return mode;
+            }
+        }
+
+        return VK_PRESENT_MODE_FIFO_KHR;
+    }
+
+    VkSwapchainKHR Swapchain::getSwapchain() const {
+        return swapchain;
+    }
+
+    const VkSurfaceFormatKHR &Swapchain::getFormat() const {
+        return format;
+    }
+
+    const VkExtent2D &Swapchain::getExtent() const {
+        return extent;
+    }
+
+    uint32_t Swapchain::getImageCount() const {
+        return imageCount;
+    }
+
+    const std::vector<::VkImageView> &Swapchain::getImageViews() const {
+        return imageViews;
+    }
+
+    void Swapchain::invalidate() {
+        destroy();
+        create();
+    }
+
+    void Swapchain::create() {
         const auto surface = device->getSurface();
         const auto capabilities = device->getGpu().getSurfaceCapabilities(device->getSurface());
 
         VkPresentModeKHR presentMode = determinePresentMode(device->getGpu().getPresentModes(surface));
-        format = determineSurfaceFormat(device->getGpu().getSurfaceFormats(surface));
         extent = capabilities.currentExtent;
 
         spdlog::trace("Selected present mode {} and image format {} and color space {}",
@@ -87,49 +141,11 @@ namespace Vixen::Vk {
         }
     }
 
-    Swapchain::~Swapchain() {
+    void Swapchain::destroy() {
+        vkDeviceWaitIdle(device->getDevice());
+
         for (auto &imageView: imageViews)
             vkDestroyImageView(device->getDevice(), imageView, nullptr);
         vkDestroySwapchainKHR(device->getDevice(), swapchain, nullptr);
-    }
-
-    VkSurfaceFormatKHR Swapchain::determineSurfaceFormat(const std::vector<VkSurfaceFormatKHR> &available) {
-        for (const auto &format: available) {
-            if (format.format == VK_FORMAT_B8G8R8A8_SRGB &&
-                format.colorSpace == VK_COLOR_SPACE_SRGB_NONLINEAR_KHR)
-                return format;
-        }
-
-        return available[0];
-    }
-
-    VkPresentModeKHR Swapchain::determinePresentMode(const std::vector<VkPresentModeKHR> &available) {
-        for (const auto &mode: available) {
-            if (mode == VK_PRESENT_MODE_MAILBOX_KHR) {
-                return mode;
-            }
-        }
-
-        return VK_PRESENT_MODE_FIFO_KHR;
-    }
-
-    VkSwapchainKHR Swapchain::getSwapchain() const {
-        return swapchain;
-    }
-
-    const VkSurfaceFormatKHR &Swapchain::getFormat() const {
-        return format;
-    }
-
-    const VkExtent2D &Swapchain::getExtent() const {
-        return extent;
-    }
-
-    uint32_t Swapchain::getImageCount() const {
-        return imageCount;
-    }
-
-    const std::vector<::VkImageView> &Swapchain::getImageViews() const {
-        return imageViews;
     }
 }

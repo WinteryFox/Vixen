@@ -58,7 +58,12 @@ namespace Vixen::Vk {
                 return *this;
             }
 
-            Builder &compile(const std::vector<char> &source) {
+            Builder &setEntrypoint(const std::string &entry) {
+                entrypoint = entry;
+                return *this;
+            }
+
+            std::shared_ptr<VkShaderModule> compile(const std::shared_ptr<Device> &d, const std::vector<char> &source) {
                 EShLanguage s;
                 switch (stage) {
                     case Stage::VERTEX:
@@ -137,14 +142,14 @@ namespace Vixen::Vk {
 
                 glslang::FinalizeProcess();
 
-                return *this;
+                return std::make_shared<VkShaderModule>(d, stage, binary, entrypoint);
             }
 
-            Builder &compile(const std::string &source) {
-                return compile(std::vector(source.begin(), source.end()));
+            std::shared_ptr<VkShaderModule> compile(const std::shared_ptr<Device> &d, const std::string &source) {
+                return compile(d, std::vector(source.begin(), source.end()));
             }
 
-            Builder &compileFromFile(const std::string &path) {
+            std::shared_ptr<VkShaderModule> compileFromFile(const std::shared_ptr<Device> &d, const std::string &path) {
                 std::ifstream file(path, std::ios::ate);
                 if (!file.is_open())
                     throw std::runtime_error("Failed to read from file");
@@ -155,16 +160,7 @@ namespace Vixen::Vk {
                 file.read(buffer.data(), size);
                 file.close();
 
-                return compile(buffer);
-            }
-
-            Builder &setEntrypoint(const std::string &entry) {
-                entrypoint = entry;
-                return *this;
-            }
-
-            std::shared_ptr<VkShaderModule> build(const std::shared_ptr<Device> &d) {
-                return std::make_shared<VkShaderModule>(d, stage, binary, entrypoint);
+                return compile(d, buffer);
             }
         };
     };

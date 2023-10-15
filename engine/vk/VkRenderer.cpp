@@ -20,40 +20,12 @@ namespace Vixen::Vk {
         const auto &renderPass = pipeline->getRenderPass();
 
         const auto imageCount = swapchain.getImageCount();
-        depthImages.reserve(imageCount);
-        depthImageViews.reserve(imageCount);
-        framebuffers.reserve(imageCount);
+
         renderFinishedSemaphores.reserve(imageCount);
-        for (size_t i = 0; i < imageCount; i++) {
-            depthImages.emplace_back(
-                    device,
-                    swapchain.getExtent().width,
-                    swapchain.getExtent().height,
-                    VK_FORMAT_D32_SFLOAT,
-                    VK_IMAGE_TILING_OPTIMAL,
-                    VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT
-            );
-
-            depthImageViews.emplace_back(
-                    std::make_unique<VkImageView>(
-                            depthImages[i],
-                            VK_IMAGE_ASPECT_DEPTH_BIT
-                    )
-            );
-
-            framebuffers.emplace_back(
-                    device,
-                    renderPass,
-                    swapchain.getExtent().width,
-                    swapchain.getExtent().height,
-                    std::vector<::VkImageView>{
-                            swapchain.getImageViews()[i],
-                            depthImageViews[i]->getImageView()
-                    }
-            );
-
+        for (size_t i = 0; i < imageCount; i++)
             renderFinishedSemaphores.emplace_back(device);
-        }
+
+        createFramebuffers();
     }
 
     VkRenderer::~VkRenderer() {
@@ -62,32 +34,36 @@ namespace Vixen::Vk {
 
     void VkRenderer::render() {
         auto graphicsQueue = device->getGraphicsQueue();
-        auto isSwapchainOutdated = swapchain.acquireImage([this, &graphicsQueue](
+        auto state = swapchain.acquireImage([this, &graphicsQueue](
+                const auto &currentFrame,
                 const auto &imageIndex,
-                const auto &semaphore,
+                const auto &imageAvailableSemaphore,
                 const auto &fence
         ) {
-            auto waitSemaphore = semaphore.getSemaphore();
-            auto signalSemaphore = renderFinishedSemaphores[imageIndex].getSemaphore();
-
-            auto &commandBuffer = renderCommandBuffers[imageIndex];
+            auto &commandBuffer = renderCommandBuffers[currentFrame];
             auto c = commandBuffer.getCommandBuffer();
 
             prepare(commandBuffer, framebuffers[imageIndex]);
 
+            ::VkSemaphore waitSemaphores[] = {imageAvailableSemaphore.getSemaphore()};
             VkPipelineStageFlags waitStages[] = {
                     VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT
             };
 
+            ::VkSemaphore signalSemaphores[] = {renderFinishedSemaphores[currentFrame].getSemaphore()};
+
             VkSubmitInfo submitInfo{
                     .sType = VK_STRUCTURE_TYPE_SUBMIT_INFO,
+
                     .waitSemaphoreCount = 1,
-                    .pWaitSemaphores = &waitSemaphore,
+                    .pWaitSemaphores = waitSemaphores,
                     .pWaitDstStageMask = waitStages,
+
                     .commandBufferCount = 1,
                     .pCommandBuffers = &c,
+
                     .signalSemaphoreCount = 1,
-                    .pSignalSemaphores = &signalSemaphore
+                    .pSignalSemaphores = signalSemaphores
             };
 
             checkVulkanResult(
@@ -98,10 +74,13 @@ namespace Vixen::Vk {
             const auto &s = swapchain.getSwapchain();
             VkPresentInfoKHR presentInfo{
                     .sType = VK_STRUCTURE_TYPE_PRESENT_INFO_KHR,
+
                     .waitSemaphoreCount = 1,
-                    .pWaitSemaphores = &signalSemaphore,
+                    .pWaitSemaphores = signalSemaphores,
+
                     .swapchainCount = 1,
                     .pSwapchains = &s,
+
                     .pImageIndices = &imageIndex,
                     .pResults = nullptr,
             };
@@ -109,9 +88,17 @@ namespace Vixen::Vk {
             vkQueuePresentKHR(device->getPresentQueue(), &presentInfo);
         }, std::numeric_limits<uint64_t>::max());
 
-        if (isSwapchainOutdated)
-            spdlog::warn("Swapchain is outdated");
-            //swapchain = Swapchain();
+        if (state == Swapchain::State::OUT_OF_DATE) {
+            vkDeviceWaitIdle(device->getDevice());
+
+            framebuffers.clear();
+            depthImageViews.clear();
+            depthImages.clear();
+
+            swapchain.invalidate();
+
+            createFramebuffers();
+        }
     }
 
     void VkRenderer::prepare(VkCommandBuffer &commandBuffer, VkFramebuffer &framebuffer) {
@@ -171,5 +158,41 @@ namespace Vixen::Vk {
 
             vkCmdEndRenderPass(commandBuffer);
         }, VkCommandBuffer::Usage::SIMULTANEOUS);
+    }
+
+    void VkRenderer::createFramebuffers() {
+        const auto &imageCount = swapchain.getImageCount();
+
+        depthImages.reserve(imageCount);
+        depthImageViews.reserve(imageCount);
+        framebuffers.reserve(imageCount);
+        for (size_t i = 0; i < imageCount; i++) {
+            depthImages.emplace_back(
+                    device,
+                    swapchain.getExtent().width,
+                    swapchain.getExtent().height,
+                    VK_FORMAT_D32_SFLOAT,
+                    VK_IMAGE_TILING_OPTIMAL,
+                    VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT
+            );
+
+            depthImageViews.emplace_back(
+                    std::make_unique<VkImageView>(
+                            depthImages[i],
+                            VK_IMAGE_ASPECT_DEPTH_BIT
+                    )
+            );
+
+            framebuffers.emplace_back(
+                    device,
+                    pipeline->getRenderPass(),
+                    swapchain.getExtent().width,
+                    swapchain.getExtent().height,
+                    std::vector<::VkImageView>{
+                            swapchain.getImageViews()[i],
+                            depthImageViews[i]->getImageView()
+                    }
+            );
+        }
     }
 }

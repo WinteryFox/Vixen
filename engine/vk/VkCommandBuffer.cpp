@@ -52,7 +52,10 @@ namespace Vixen::Vk {
     }
 
     void VkCommandBuffer::reset() {
-        vkResetCommandBuffer(commandBuffer, 0);
+        checkVulkanResult(
+                vkResetCommandBuffer(commandBuffer, 0),
+                "Failed to reset command buffer"
+        );
     }
 
     ::VkCommandBuffer VkCommandBuffer::getCommandBuffer() const {

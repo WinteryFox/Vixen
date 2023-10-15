@@ -22,11 +22,11 @@ namespace Vixen::Vk {
 
         std::vector<VkCommandBuffer> renderCommandBuffers;
 
-        std::vector<VkFramebuffer> framebuffers;
-
         std::vector<VkImage> depthImages;
 
         std::vector<std::unique_ptr<VkImageView>> depthImageViews;
+
+        std::vector<VkFramebuffer> framebuffers;
 
         std::vector<VkSemaphore> renderFinishedSemaphores;
 
@@ -46,6 +46,8 @@ namespace Vixen::Vk {
         void render();
 
     private:
+        void createFramebuffers();
+
         void prepare(VkCommandBuffer &commandBuffer, VkFramebuffer &framebuffer);
     };
 }

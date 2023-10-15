@@ -8,13 +8,13 @@
 namespace Vixen::Vk {
     class Swapchain {
     public:
-        enum class FramesInFlight {
-            SINGLE_BUFFER = 1,
-            DOUBLE_BUFFER = 2,
-            TRIPLE_BUFFER = 3
+        enum class State {
+            OK,
+            SUBOPTIMAL,
+            OUT_OF_DATE
         };
 
-        Swapchain(const std::shared_ptr<Device> &device, FramesInFlight framesInFlight);
+        Swapchain(const std::shared_ptr<Device> &device, uint32_t framesInFlight);
 
         ~Swapchain();
 
@@ -26,40 +26,45 @@ namespace Vixen::Vk {
          * otherwise false.
          */
         template<typename F>
-        bool acquireImage(const F &lambda, uint64_t timeout) {
-            auto result = inFlightFences.waitFirst<VkResult>(
+        State acquireImage(const F &lambda, uint64_t timeout) {
+            auto result = inFlightFences.wait<State>(
+                    currentFrame,
                     std::numeric_limits<uint64_t>::max(),
-                    true,
-                    [this, &lambda, &timeout](const auto &fence, const auto &index) constexpr {
-                        auto &semaphore = imageAvailableSemaphores[index];
+                    [this, &lambda, &timeout](const auto &fence) constexpr {
+                        auto &imageAvailableSemaphore = imageAvailableSemaphores[currentFrame];
 
                         uint32_t imageIndex;
                         auto result = vkAcquireNextImageKHR(
                                 device->getDevice(),
                                 swapchain,
                                 timeout,
-                                semaphore.getSemaphore(),
+                                imageAvailableSemaphore.getSemaphore(),
                                 VK_NULL_HANDLE,
                                 &imageIndex
                         );
 
-                        lambda(imageIndex, semaphore, fence);
+                        if (result == VK_ERROR_OUT_OF_DATE_KHR) {
+                            spdlog::debug("Swapchain is outdated");
+                            return State::OUT_OF_DATE;
+                        }
 
-                        return result;
+                        vkResetFences(device->getDevice(), 1, &fence);
+                        lambda(currentFrame, imageIndex, imageAvailableSemaphore, fence);
+
+                        switch (result) {
+                            case VK_SUCCESS:
+                                return State::OK;
+                            case VK_SUBOPTIMAL_KHR:
+                                spdlog::warn("Suboptimal swapchain state");
+                                return State::SUBOPTIMAL;
+                            default:
+                                checkVulkanResult(result, "Failed to acquire swapchain image");
+                                return State::OUT_OF_DATE;
+                        }
                     });
 
-            switch (result) {
-                case VK_SUCCESS:
-                case VK_SUBOPTIMAL_KHR:
-                    return false;
-                case VK_ERROR_OUT_OF_DATE_KHR:
-                    return true;
-                default:
-                    break;
-            }
-
-            checkVulkanResult(result, "Failed to acquire swapchain image index");
-            return true;
+            currentFrame = (currentFrame + 1) % imageCount;
+            return result;
         }
 
         [[nodiscard]] const VkSurfaceFormatKHR &getFormat() const;
@@ -72,7 +77,11 @@ namespace Vixen::Vk {
 
         [[nodiscard]] VkSwapchainKHR getSwapchain() const;
 
+        void invalidate();
+
     private:
+        uint32_t currentFrame;
+
         uint32_t imageCount;
 
         std::shared_ptr<Device> device;
@@ -82,10 +91,6 @@ namespace Vixen::Vk {
         std::vector<::VkImage> images;
 
         std::vector<::VkImageView> imageViews;
-
-        std::vector<::VkImage> depthImages;
-
-        std::vector<::VkImageView> depthImageViews;
 
         VkSurfaceFormatKHR format{};
 
@@ -98,5 +103,9 @@ namespace Vixen::Vk {
         static VkSurfaceFormatKHR determineSurfaceFormat(const std::vector<VkSurfaceFormatKHR> &available);
 
         static VkPresentModeKHR determinePresentMode(const std::vector<VkPresentModeKHR> &available);
+
+        void create();
+
+        void destroy();
     };
 }

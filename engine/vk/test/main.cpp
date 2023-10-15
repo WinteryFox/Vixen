@@ -20,12 +20,10 @@ int main() {
 
     auto vertex = Vixen::Vk::VkShaderModule::Builder()
             .setStage(Vixen::ShaderModule::Stage::VERTEX)
-            .compileFromFile("../../editor/shaders/triangle.vert")
-            .build(vixen.device);
+            .compileFromFile(vixen.device, "../../editor/shaders/triangle.vert");
     auto fragment = Vixen::Vk::VkShaderModule::Builder()
             .setStage(Vixen::ShaderModule::Stage::FRAGMENT)
-            .compileFromFile("../../editor/shaders/triangle.frag")
-            .build(vixen.device);
+            .compileFromFile(vixen.device, "../../editor/shaders/triangle.frag");
     auto program = Vixen::Vk::VkShaderProgram({vertex, fragment});
 
     int width;

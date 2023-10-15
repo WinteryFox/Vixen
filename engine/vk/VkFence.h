@@ -16,11 +16,24 @@ namespace Vixen::Vk {
         ~VkFence();
 
         template<typename R, typename F>
-        R waitFirst(uint64_t timeout, bool reset, const F &lambda) {
+        R wait(uint32_t index, uint64_t timeout, const F &lambda) {
+            auto &fence = fences[index];
+            auto result = vkWaitForFences(device->getDevice(), 1, &fence, VK_TRUE, timeout);
+
+            if (result == VK_TIMEOUT)
+                spdlog::warn("Waiting on fence index {} timed out", index);
+            else
+                checkVulkanResult(result, "Fence was signaled with an error");
+
+            return lambda(fence);
+        }
+
+        template<typename R, typename F>
+        R waitFirst(uint64_t timeout, const F &lambda) {
             auto result = vkWaitForFences(device->getDevice(), fences.size(), fences.data(), VK_FALSE, timeout);
 
             if (result == VK_TIMEOUT)
-                spdlog::debug("Fence timed out");
+                spdlog::warn("Waiting on fences timed out");
             else
                 checkVulkanResult(result, "Fence was signaled with an error");
 
@@ -28,12 +41,8 @@ namespace Vixen::Vk {
                 auto &fence = fences[i];
                 auto v = vkGetFenceStatus(device->getDevice(), fence);
 
-                if (v == VK_SUCCESS) {
-                    if (reset)
-                        vkResetFences(device->getDevice(), 1, &fence);
-
+                if (v == VK_SUCCESS)
                     return lambda(fence, i);
-                }
             }
 
             throw std::runtime_error("Ono");

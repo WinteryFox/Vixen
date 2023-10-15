@@ -13,7 +13,7 @@ namespace Vixen::Vk {
                       surface
               )),
               allocator(device->getGpu().device, device->getDevice(), instance.instance),
-              swapchain(device, Swapchain::FramesInFlight::TRIPLE_BUFFER) {
+              swapchain(device, 3) {
         window.center();
         window.setVisible(true);
     }
