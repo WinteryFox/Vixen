@@ -27,6 +27,17 @@ namespace Vixen::Vk {
             });
         }
 
+        std::vector<VkDynamicState> dynamicStates{
+            VK_DYNAMIC_STATE_VIEWPORT,
+            VK_DYNAMIC_STATE_SCISSOR
+        };
+
+        VkPipelineDynamicStateCreateInfo dynamicStateInfo{
+            .sType = VK_STRUCTURE_TYPE_PIPELINE_DYNAMIC_STATE_CREATE_INFO,
+            .dynamicStateCount = static_cast<uint32_t>(dynamicStates.size()),
+            .pDynamicStates = dynamicStates.data()
+        };
+
         VkPipelineVertexInputStateCreateInfo vertexInputInfo{
                 .sType = VK_STRUCTURE_TYPE_PIPELINE_VERTEX_INPUT_STATE_CREATE_INFO,
                 .vertexBindingDescriptionCount = 0,
@@ -68,7 +79,7 @@ namespace Vixen::Vk {
                 .pMultisampleState = &config.multisampleInfo,
                 .pDepthStencilState= &config.depthStencilInfo,
                 .pColorBlendState = &colorBlendInfo,
-                .pDynamicState = nullptr,
+                .pDynamicState = &dynamicStateInfo,
 
                 .layout = pipelineLayout.getLayout(),
                 .renderPass = renderPass.getRenderPass(),
@@ -88,15 +99,27 @@ namespace Vixen::Vk {
         vkDestroyPipeline(device->getDevice(), pipeline, nullptr);
     }
 
+    void VkPipeline::bind(::VkCommandBuffer commandBuffer, VkPipelineBindPoint binding) const {
+        vkCmdBindPipeline(commandBuffer, binding, pipeline);
+    }
+
+    void VkPipeline::bindGraphics(::VkCommandBuffer commandBuffer) const {
+        bind(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS);
+    }
+
+    void VkPipeline::bindCompute(::VkCommandBuffer commandBuffer) const {
+        bind(commandBuffer, VK_PIPELINE_BIND_POINT_COMPUTE);
+    }
+
+    void VkPipeline::bindRayTracing(::VkCommandBuffer commandBuffer) const {
+        bind(commandBuffer, VK_PIPELINE_BIND_POINT_RAY_TRACING_KHR);
+    }
+
     const VkShaderProgram &VkPipeline::getProgram() const {
         return program;
     }
 
     const VkRenderPass &VkPipeline::getRenderPass() const {
         return renderPass;
-    }
-
-    void VkPipeline::bind(::VkCommandBuffer commandBuffer, VkPipelineBindPoint binding) const {
-        vkCmdBindPipeline(commandBuffer, binding, pipeline);
     }
 }

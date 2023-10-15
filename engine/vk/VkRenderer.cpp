@@ -62,7 +62,7 @@ namespace Vixen::Vk {
 
     void VkRenderer::render() {
         auto graphicsQueue = device->getGraphicsQueue();
-        auto invalid = swapchain.acquireImage([this, &graphicsQueue](
+        auto isSwapchainOutdated = swapchain.acquireImage([this, &graphicsQueue](
                 const auto &imageIndex,
                 const auto &semaphore,
                 const auto &fence
@@ -109,8 +109,9 @@ namespace Vixen::Vk {
             vkQueuePresentKHR(device->getPresentQueue(), &presentInfo);
         }, std::numeric_limits<uint64_t>::max());
 
-        if (invalid)
-            spdlog::warn("Outdated swapchain state");
+        if (isSwapchainOutdated)
+            spdlog::warn("Swapchain is outdated");
+            //swapchain = Swapchain();
     }
 
     void VkRenderer::prepare(VkCommandBuffer &commandBuffer, VkFramebuffer &framebuffer) {
@@ -150,21 +151,21 @@ namespace Vixen::Vk {
 
             vkCmdBeginRenderPass(commandBuffer, &renderPassInfo, VK_SUBPASS_CONTENTS_INLINE);
 
-            pipeline->bind(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS);
+            pipeline->bindGraphics(commandBuffer);
 
-//            VkViewport viewport{};
-//            viewport.x = 0.0f;
-//            viewport.y = 0.0f;
-//            viewport.width = static_cast<float>(swapchain.getExtent().width);
-//            viewport.height = static_cast<float>(swapchain.getExtent().height);
-//            viewport.minDepth = 0.0f;
-//            viewport.maxDepth = 1.0f;
-//            vkCmdSetViewport(commandBuffer, 0, 1, &viewport);
-//
-//            VkRect2D scissor{};
-//            scissor.offset = {0, 0};
-//            scissor.extent = swapchain.getExtent();
-//            vkCmdSetScissor(commandBuffer, 0, 1, &scissor);
+            VkViewport viewport{};
+            viewport.x = 0.0f;
+            viewport.y = 0.0f;
+            viewport.width = static_cast<float>(swapchain.getExtent().width);
+            viewport.height = static_cast<float>(swapchain.getExtent().height);
+            viewport.minDepth = 0.0f;
+            viewport.maxDepth = 1.0f;
+            vkCmdSetViewport(commandBuffer, 0, 1, &viewport);
+
+            VkRect2D scissor{};
+            scissor.offset = {0, 0};
+            scissor.extent = swapchain.getExtent();
+            vkCmdSetScissor(commandBuffer, 0, 1, &scissor);
 
             vkCmdDraw(commandBuffer, 3, 1, 0, 0);
 

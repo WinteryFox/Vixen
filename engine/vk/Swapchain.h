@@ -18,6 +18,13 @@ namespace Vixen::Vk {
 
         ~Swapchain();
 
+        /**
+         * Waits for and then acquires the next available swapchain image.
+         * @param lambda The lambda to execute as soon as an image becomes available.
+         * @param timeout The amount of time in microseconds to wait on an image before timing out.
+         * @return Returns true when the swapchain is out-of-date, indicating the need to recreate the swapchain,
+         * otherwise false.
+         */
         template<typename F>
         bool acquireImage(const F &lambda, uint64_t timeout) {
             auto result = inFlightFences.waitFirst<VkResult>(
@@ -43,8 +50,8 @@ namespace Vixen::Vk {
 
             switch (result) {
                 case VK_SUCCESS:
-                    return false;
                 case VK_SUBOPTIMAL_KHR:
+                    return false;
                 case VK_ERROR_OUT_OF_DATE_KHR:
                     return true;
                 default:

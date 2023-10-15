@@ -34,7 +34,8 @@ namespace Vixen::Vk {
         ::VkPipeline pipeline = VK_NULL_HANDLE;
 
     public:
-        VkPipeline(const std::shared_ptr<Device> &device, const Swapchain &swapchain, const VkShaderProgram &program, const Config &config);
+        VkPipeline(const std::shared_ptr<Device> &device, const Swapchain &swapchain, const VkShaderProgram &program,
+                   const Config &config);
 
         VkPipeline(const VkPipeline &) = delete;
 
@@ -43,6 +44,12 @@ namespace Vixen::Vk {
         ~VkPipeline();
 
         void bind(::VkCommandBuffer commandBuffer, VkPipelineBindPoint binding) const;
+
+        void bindGraphics(::VkCommandBuffer commandBuffer) const;
+
+        void bindCompute(::VkCommandBuffer commandBuffer) const;
+
+        void bindRayTracing(::VkCommandBuffer commandBuffer) const;
 
         [[nodiscard]] const VkShaderProgram &getProgram() const;
 
