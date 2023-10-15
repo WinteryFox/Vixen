@@ -35,14 +35,17 @@ int main() {
             .setHeight(height)
             .build(vixen.device, vixen.swapchain, program);
 
-    auto renderer = Vixen::Vk::VkRenderer(vixen.device, vixen.swapchain, pipeline);
+    auto renderer = std::make_unique<Vixen::Vk::VkRenderer>(vixen.device, vixen.swapchain, pipeline);
 
     double old = glfwGetTime();
     uint32_t fps;
     while (!vixen.window.shouldClose()) {
-        Vixen::Vk::VkWindow::update();
+        if (vixen.window.update()) {
+            vixen.swapchain.invalidate();
+            renderer = std::make_unique<Vixen::Vk::VkRenderer>(vixen.device, vixen.swapchain, pipeline);
+        }
 
-        renderer.render();
+        renderer->render();
 
         fps++;
         double now = glfwGetTime();

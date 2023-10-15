@@ -3,8 +3,12 @@
 #include "Window.h"
 
 namespace Vixen {
-    Window::Window(bool transparentFrameBuffer)
-            : window(nullptr) {
+    Window::Window(
+            const std::string &title,
+            const uint32_t &width,
+            const uint32_t &height,
+            bool transparentFrameBuffer
+    ) : window(nullptr) {
         glfwSetErrorCallback([](int code, const char *message) {
             spdlog::error("[GLFW] {} ({})", message, code);
         });
@@ -32,11 +36,26 @@ namespace Vixen {
             };
         }
 
+        glfwWindowHint(GLFW_CLIENT_API, GLFW_NO_API);
         glfwWindowHint(GLFW_VISIBLE, GLFW_FALSE);
         glfwWindowHint(GLFW_TRANSPARENT_FRAMEBUFFER, transparentFrameBuffer ? GLFW_TRUE : GLFW_FALSE);
         /*glfwSetInputMode(window, GLFW_CURSOR, GLFW_CURSOR_DISABLED);
         if (glfwRawMouseMotionSupported())
             glfwSetInputMode(window, GLFW_RAW_MOUSE_MOTION, GLFW_TRUE);*/
+
+        window = glfwCreateWindow(static_cast<int>(width), static_cast<int>(height), title.c_str(), nullptr, nullptr);
+        if (!window) {
+            spdlog::error("Failed to create window");
+            glfwDestroyWindow(window);
+            glfwTerminate();
+            throw std::runtime_error("Failed to create window");
+        }
+
+        glfwSetWindowUserPointer(window, this);
+        glfwSetFramebufferSizeCallback(window, [](auto w, auto width, auto height) {
+            auto wind = static_cast<Window *>(glfwGetWindowUserPointer(w));
+            wind->framebufferSizeChanged = true;
+        });
     }
 
     Window::~Window() {
@@ -49,8 +68,15 @@ namespace Vixen {
         return glfwWindowShouldClose(window) == GLFW_TRUE;
     }
 
-    void Window::update() {
+    bool Window::update() {
         glfwPollEvents();
+
+        if (framebufferSizeChanged) {
+            framebufferSizeChanged = false;
+            return true;
+        }
+
+        return false;
     }
 
     void Window::setVisible(bool visible) const {
@@ -67,7 +93,11 @@ namespace Vixen {
         const auto mode = glfwGetVideoMode(monitor);
         uint32_t x, y;
         glfwGetMonitorPos(monitor, reinterpret_cast<int *>(&x), reinterpret_cast<int *>(&y));
-        glfwSetWindowPos(window, x + mode->width / 2 - w / 2, y + mode->height / 2 - h / 2);
+        glfwSetWindowPos(
+                window,
+                static_cast<int>(x) + mode->width / 2 - w / 2,
+                static_cast<int>(y) + mode->height / 2 - h / 2
+        );
     }
 
     std::unique_ptr<Monitor> Window::getMonitor() const {

@@ -6,18 +6,8 @@ namespace Vixen::Vk {
             const uint32_t &width,
             const uint32_t &height,
             bool transparentFrameBuffer
-    ) : Vixen::Window(transparentFrameBuffer) {
+    ) : Vixen::Window(title, width, height, transparentFrameBuffer) {
         spdlog::trace("Creating new Vulkan window");
-        glfwWindowHint(GLFW_CLIENT_API, GLFW_NO_API);
-
-        window = glfwCreateWindow(static_cast<int>(width), static_cast<int>(height), title.c_str(), nullptr, nullptr);
-        if (!window) {
-            spdlog::error("Failed to create window");
-            glfwDestroyWindow(window);
-            glfwTerminate();
-            throw std::runtime_error("Failed to create window");
-        }
-
         if (!glfwVulkanSupported()) {
             glfwDestroyWindow(window);
             glfwTerminate();

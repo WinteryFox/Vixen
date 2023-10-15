@@ -56,6 +56,7 @@ namespace Vixen::Vk {
     }
 
     void Swapchain::invalidate() {
+        vkDeviceWaitIdle(device->getDevice());
         destroy();
         create();
     }
@@ -142,8 +143,6 @@ namespace Vixen::Vk {
     }
 
     void Swapchain::destroy() {
-        vkDeviceWaitIdle(device->getDevice());
-
         for (auto &imageView: imageViews)
             vkDestroyImageView(device->getDevice(), imageView, nullptr);
         vkDestroySwapchainKHR(device->getDevice(), swapchain, nullptr);

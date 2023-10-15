@@ -25,14 +25,19 @@ namespace Vixen {
 
         glm::vec4 clearColor{0.0f, 0.0f, 0.0f, 1.0f};
 
-        explicit Window(bool transparentFrameBuffer);
+        Window(
+                const std::string &title,
+                const uint32_t &width,
+                const uint32_t &height,
+                bool transparentFrameBuffer
+        );
 
         ~Window();
 
     public:
         [[nodiscard]] bool shouldClose() const;
 
-        static void update();
+        bool update();
 
         void setVisible(bool visible) const;
 
@@ -47,5 +52,8 @@ namespace Vixen {
         void setClearColor(float r, float g, float b, float a);
 
         void getFramebufferSize(int &width, int &height);
+
+    private:
+        bool framebufferSizeChanged = false;
     };
 }

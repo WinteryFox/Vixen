@@ -17,10 +17,8 @@ namespace Vixen::Vk {
                         swapchain.getImageCount()
                 )
         ) {
-        const auto &renderPass = pipeline->getRenderPass();
 
         const auto imageCount = swapchain.getImageCount();
-
         renderFinishedSemaphores.reserve(imageCount);
         for (size_t i = 0; i < imageCount; i++)
             renderFinishedSemaphores.emplace_back(device);
