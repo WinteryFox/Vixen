@@ -11,8 +11,22 @@ namespace Vixen {
             FRAGMENT,
         };
 
-        ShaderModule(Stage stage, std::string entrypoint)
-                : stage(stage), entrypoint(std::move(entrypoint)) {}
+        struct IO {
+            std::string name;
+            std::uint32_t size;
+            std::optional<uint32_t> location;
+            std::optional<uint32_t> binding;
+        };
+
+        ShaderModule(
+                Stage stage,
+                const std::vector<IO> &inputs,
+                const std::vector<IO> &outputs,
+                std::string entrypoint
+        ) : stage(stage),
+            inputs(inputs),
+            outputs(outputs),
+            entrypoint(std::move(entrypoint)) {}
 
         [[nodiscard]] Stage getStage() const {
             return stage;
@@ -22,9 +36,21 @@ namespace Vixen {
             return entrypoint;
         }
 
+        [[nodiscard]] const std::vector<IO> &getInputs() const {
+            return inputs;
+        }
+
+        [[nodiscard]] const std::vector<IO> &getOutputs() const {
+            return outputs;
+        }
+
     protected:
         Stage stage;
 
         std::string entrypoint;
+
+        std::vector<IO> inputs;
+
+        std::vector<IO> outputs;
     };
 }

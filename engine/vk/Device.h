@@ -2,16 +2,17 @@
 
 #include <memory>
 #include <set>
+#include <vk_mem_alloc.h>
 #include "Instance.h"
-#include "Allocator.h"
+#include "VkCommandPool.h"
 
 namespace Vixen::Vk {
     class Device {
         GraphicsCard gpu;
 
-        VkDevice device;
+        ::VkDevice device;
 
-        std::shared_ptr<Allocator> allocator;
+        VmaAllocator allocator;
 
         VkSurfaceKHR surface;
 
@@ -19,13 +20,15 @@ namespace Vixen::Vk {
 
         VkQueue graphicsQueue;
 
+        QueueFamily presentQueueFamily;
+
+        VkQueue presentQueue;
+
         QueueFamily transferQueueFamily;
 
         VkQueue transferQueue;
 
-        QueueFamily presentQueueFamily;
-
-        VkQueue presentQueue;
+        std::unique_ptr<VkCommandPool> transferCommandPool;
 
     public:
         Device(
@@ -37,11 +40,11 @@ namespace Vixen::Vk {
 
         ~Device();
 
+        void waitIdle() const;
+
         [[nodiscard]] VkDevice getDevice() const;
 
         [[nodiscard]] const GraphicsCard &getGpu() const;
-
-        [[nodiscard]] const std::shared_ptr<Allocator> &getAllocator() const;
 
         [[nodiscard]] VkSurfaceKHR getSurface() const;
 
@@ -53,10 +56,14 @@ namespace Vixen::Vk {
 
         [[nodiscard]] VkQueue getTransferQueue() const;
 
+        [[nodiscard]] std::unique_ptr<VkCommandPool> &getTransferCommandPool();
+
         [[nodiscard]] const QueueFamily &getPresentQueueFamily() const;
 
         [[nodiscard]] VkQueue getPresentQueue() const;
 
         [[nodiscard]] VkQueue getQueueHandle(uint32_t queueFamilyIndex, uint32_t queueIndex = 0) const;
+
+        [[nodiscard]] VmaAllocator getAllocator() const;
     };
 }

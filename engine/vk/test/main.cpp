@@ -6,7 +6,7 @@
 
 #include <cstdlib>
 #include <string>
-#include "../VkVixen.h"
+#include "VkVixen.h"
 #include "VkPipeline.h"
 #include "VkRenderer.h"
 
@@ -24,7 +24,12 @@ int main() {
     auto fragment = Vixen::Vk::VkShaderModule::Builder()
             .setStage(Vixen::ShaderModule::Stage::FRAGMENT)
             .compileFromFile(vixen.device, "../../editor/shaders/triangle.frag");
-    auto program = Vixen::Vk::VkShaderProgram({vertex, fragment});
+    auto program = Vixen::Vk::VkShaderProgram(
+            {
+                    {Vixen::ShaderModule::Stage::VERTEX,   vertex},
+                    {Vixen::ShaderModule::Stage::FRAGMENT, fragment}
+            }
+    );
 
     int width;
     int height;
@@ -37,15 +42,28 @@ int main() {
 
     auto renderer = std::make_unique<Vixen::Vk::VkRenderer>(vixen.device, vixen.swapchain, pipeline);
 
+    std::vector<glm::vec3> vertices{
+            {0.0f,  -0.5f, 0.0f},
+            {0.5f,  0.5f,  0.0f},
+            {-0.5f, 0.5f,  0.0f},
+    };
+    auto buffer = Vixen::Vk::VkBuffer(
+            vixen.device,
+            3 * sizeof(glm::vec3),
+            Vixen::Vk::BufferUsage::VERTEX
+    );
+    buffer.write(vertices.data(), 3 * sizeof(glm::vec3), 0);
+
     double old = glfwGetTime();
     uint32_t fps;
     while (!vixen.window.shouldClose()) {
         if (vixen.window.update()) {
             vixen.swapchain.invalidate();
+            // TODO: Recreating the entire renderer is probably overkill, need a better way to recreate framebuffers on resize triggered from window
             renderer = std::make_unique<Vixen::Vk::VkRenderer>(vixen.device, vixen.swapchain, pipeline);
         }
 
-        renderer->render();
+        renderer->render(buffer);
 
         fps++;
         double now = glfwGetTime();
@@ -55,6 +73,8 @@ int main() {
             fps = 0;
         }
     }
+
+    vixen.device->waitIdle();
 
     return EXIT_SUCCESS;
 }

@@ -11,16 +11,16 @@ namespace Vixen::Vk {
         config(config),
         pipelineLayout(device, program),
         renderPass(device, program, swapchain) {
-        const auto &modules = program.getModules();
+        auto modules = program.getModules();
 
         std::vector<VkPipelineShaderStageCreateInfo> stages;
         stages.reserve(modules.size());
-        for (const auto &module: modules) {
+        for (const auto &[stage, module]: modules) {
             stages.emplace_back(VkPipelineShaderStageCreateInfo{
                     .sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO,
                     .pNext = VK_NULL_HANDLE,
                     .flags = 0,
-                    .stage = getVulkanShaderStage(module->getStage()),
+                    .stage = getVulkanShaderStage(stage),
                     .module = module->getModule(),
                     .pName = module->getEntrypoint().c_str(),
                     .pSpecializationInfo = VK_NULL_HANDLE
@@ -28,22 +28,47 @@ namespace Vixen::Vk {
         }
 
         std::vector<VkDynamicState> dynamicStates{
-            VK_DYNAMIC_STATE_VIEWPORT,
-            VK_DYNAMIC_STATE_SCISSOR
+                VK_DYNAMIC_STATE_VIEWPORT,
+                VK_DYNAMIC_STATE_SCISSOR
         };
 
         VkPipelineDynamicStateCreateInfo dynamicStateInfo{
-            .sType = VK_STRUCTURE_TYPE_PIPELINE_DYNAMIC_STATE_CREATE_INFO,
-            .dynamicStateCount = static_cast<uint32_t>(dynamicStates.size()),
-            .pDynamicStates = dynamicStates.data()
+                .sType = VK_STRUCTURE_TYPE_PIPELINE_DYNAMIC_STATE_CREATE_INFO,
+                .dynamicStateCount = static_cast<uint32_t>(dynamicStates.size()),
+                .pDynamicStates = dynamicStates.data()
         };
+
+        std::vector<VkVertexInputBindingDescription> vertexBindings{};
+        std::vector<VkVertexInputAttributeDescription> vertexAttributes{};
+
+        const auto &vertexModule = modules[ShaderModule::Stage::VERTEX];
+        for (const auto &input: vertexModule->getInputs()) {
+            vertexBindings.push_back(
+                    {
+                            .binding = input.binding.value_or(0),
+                            .stride = input.size,
+                            // TODO: Allow specification of input rate
+                            .inputRate = VK_VERTEX_INPUT_RATE_VERTEX
+                    }
+            );
+
+            vertexAttributes.push_back(
+                    {
+                            .location = input.location.value_or(0),
+                            .binding = input.binding.value_or(0),
+                            // TODO: Automatically determine the format and offset
+                            .format = VK_FORMAT_R32G32B32_SFLOAT,
+                            .offset = 0
+                    }
+            );
+        }
 
         VkPipelineVertexInputStateCreateInfo vertexInputInfo{
                 .sType = VK_STRUCTURE_TYPE_PIPELINE_VERTEX_INPUT_STATE_CREATE_INFO,
-                .vertexBindingDescriptionCount = 0,
-                .pVertexBindingDescriptions = nullptr,
-                .vertexAttributeDescriptionCount = 0,
-                .pVertexAttributeDescriptions = nullptr,
+                .vertexBindingDescriptionCount = static_cast<uint32_t>(vertexBindings.size()),
+                .pVertexBindingDescriptions = vertexBindings.data(),
+                .vertexAttributeDescriptionCount = static_cast<uint32_t>(vertexAttributes.size()),
+                .pVertexAttributeDescriptions = vertexAttributes.data(),
         };
 
         VkPipelineViewportStateCreateInfo viewportInfo{

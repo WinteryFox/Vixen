@@ -1,6 +1,6 @@
 #pragma once
 
-#include "Device.h"
+#include "VkCommandBuffer.h"
 
 namespace Vixen::Vk {
     class VkCommandPool {
@@ -11,12 +11,19 @@ namespace Vixen::Vk {
         };
 
     private:
-        std::shared_ptr<Device> device;
+        ::VkDevice device;
 
         ::VkCommandPool commandPool;
 
+        static std::vector<::VkCommandBuffer> allocateCommandBuffers(
+                ::VkDevice device,
+                ::VkCommandPool commandPool,
+                VkCommandBufferLevel level,
+                uint32_t count
+        );
+
     public:
-        VkCommandPool(const std::shared_ptr<Device> &device, Usage usage, bool createReset);
+        VkCommandPool(::VkDevice device, uint32_t queueFamilyIndex, Usage usage, bool createReset);
 
         VkCommandPool(const VkCommandPool &) = delete;
 
@@ -24,8 +31,10 @@ namespace Vixen::Vk {
 
         ~VkCommandPool();
 
-        [[nodiscard]] ::VkCommandPool getCommandPool() const;
+        std::vector<VkCommandBuffer> allocateCommandBuffers(VkCommandBuffer::Level level, uint32_t count);
 
-        [[nodiscard]] const std::shared_ptr<Device> &getDevice() const;
+        VkCommandBuffer allocateCommandBuffer(VkCommandBuffer::Level level);
+
+        [[nodiscard]] ::VkCommandPool getCommandPool() const;
     };
 }

@@ -12,7 +12,6 @@ namespace Vixen::Vk {
                       instance.findOptimalGraphicsCard(surface, deviceExtensions),
                       surface
               )),
-              allocator(device->getGpu().device, device->getDevice(), instance.instance),
               swapchain(device, 3) {
         window.center();
         window.setVisible(true);

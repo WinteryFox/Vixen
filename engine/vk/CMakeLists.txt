@@ -28,8 +28,7 @@ add_library(
         Instance.cpp
         Device.cpp
         Device.h
-        ../buffer/vk/VkBuffer.cpp
-        Allocator.cpp
+        VkBuffer.cpp
         Swapchain.cpp
         Swapchain.h
         VkPipeline.cpp

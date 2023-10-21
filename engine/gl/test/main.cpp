@@ -2,7 +2,7 @@
 #include "../GlWindow.h"
 #include "../GlShaderModule.h"
 #include "../GlShaderProgram.h"
-#include "../../buffer/gl/GlBuffer.h"
+#include "GlBuffer.h"
 #include "../../buffer/gl/WritableGlBuffer.h"
 #include "../GlVertexArrayObject.h"
 #include <unistd.h>

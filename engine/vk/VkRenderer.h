@@ -7,6 +7,7 @@
 #include "VkCommandPool.h"
 #include "VkFramebuffer.h"
 #include "VkSemaphore.h"
+#include "VkBuffer.h"
 
 namespace Vixen::Vk {
     class VkRenderer {
@@ -43,11 +44,11 @@ namespace Vixen::Vk {
 
         ~VkRenderer();
 
-        void render();
+        void render(const VkBuffer &buffer);
 
     private:
         void createFramebuffers();
 
-        void prepare(VkCommandBuffer &commandBuffer, VkFramebuffer &framebuffer);
+        void prepare(VkCommandBuffer &commandBuffer, VkFramebuffer &framebuffer, const VkBuffer &buffer);
     };
 }

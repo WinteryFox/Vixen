@@ -6,15 +6,6 @@
 #include <cstring>
 
 namespace Vixen::Vk {
-    enum class AllocationUsage {
-        GPU_ONLY,
-        CPU_ONLY,
-        CPU_TO_GPU,
-        GPU_TO_CPU,
-        /*CPU_COPY,
-        GPU_LAZY_ALLOCATED,*/
-    };
-
     enum class BufferUsage : std::uint32_t {
         VERTEX = 1 << 0,
         INDEX = 1 << 1,
@@ -36,23 +27,29 @@ namespace Vixen::Vk {
      */
     class Buffer {
     public:
+        Buffer &operator=(const Buffer &) = delete;
+
+        virtual void write(const void *data, size_t dataSize, size_t offset) = 0;
+
+        [[nodiscard]] size_t getSize() const;
+
+        [[nodiscard]] BufferUsage getBufferUsage() const;
+
+    protected:
         const std::size_t size;
 
         const BufferUsage bufferUsage;
 
-        const AllocationUsage allocationUsage;
-
-        Buffer(const Buffer &) = delete;
-
-        Buffer &operator=(const Buffer &) = delete;
-
-    protected:
         /**
          * Create a new buffer. Where the allocation is made is determined by the allocation usage.
          * @param size The size of this buffer measured in bytes.
          * @param bufferUsage Specifies how the buffer will be used and what data it will hold.
          * @param allocationUsage Specifies how this buffer's allocated memory will be used.
          */
-        Buffer(const std::size_t &size, BufferUsage bufferUsage, AllocationUsage allocationUsage);
+        Buffer(const std::size_t &size, BufferUsage bufferUsage);
+
+        virtual void *map() = 0;
+
+        virtual void unmap() = 0;
     };
 }

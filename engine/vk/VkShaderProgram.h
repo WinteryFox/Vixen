@@ -14,6 +14,6 @@
 namespace Vixen::Vk {
     class VkShaderProgram : public ShaderProgram<VkShaderModule> {
     public:
-        explicit VkShaderProgram(const std::vector<std::shared_ptr<VkShaderModule>> &modules);
+        explicit VkShaderProgram(const std::map<ShaderModule::Stage, std::shared_ptr<VkShaderModule>> &modules);
     };
 }

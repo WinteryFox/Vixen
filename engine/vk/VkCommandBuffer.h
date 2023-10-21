@@ -1,7 +1,7 @@
 #pragma once
 
 #include <memory>
-#include "VkCommandPool.h"
+#include "Vulkan.h"
 
 namespace Vixen::Vk {
     class VkCommandBuffer {
@@ -18,21 +18,22 @@ namespace Vixen::Vk {
         };
 
     private:
-        std::shared_ptr<VkCommandPool> commandPool;
+        ::VkDevice device;
+
+        ::VkCommandPool commandPool;
 
         ::VkCommandBuffer commandBuffer;
 
     public:
-        VkCommandBuffer(const std::shared_ptr<VkCommandPool> &commandPool, ::VkCommandBuffer commandBuffer);
+        VkCommandBuffer(::VkDevice device, ::VkCommandPool commandPool, ::VkCommandBuffer commandBuffer);
 
-        VkCommandBuffer(const std::shared_ptr<VkCommandPool> &commandPool, Level level);
+        VkCommandBuffer(VkCommandBuffer &) = delete;
 
-        VkCommandBuffer(VkCommandBuffer &&o) noexcept;
+        VkCommandBuffer &operator=(VkCommandBuffer &) = delete;
+
+        VkCommandBuffer(VkCommandBuffer &&o) noexcept = default;
 
         ~VkCommandBuffer();
-
-        static std::vector<VkCommandBuffer>
-        allocateCommandBuffers(const std::shared_ptr<VkCommandPool> &commandPool, Level level, uint32_t count);
 
         template<typename F>
         VkCommandBuffer &record(F commands, Usage usage) {
@@ -59,10 +60,5 @@ namespace Vixen::Vk {
         void reset();
 
         [[nodiscard]] ::VkCommandBuffer getCommandBuffer() const;
-
-    private:
-        static std::vector<::VkCommandBuffer>
-        allocateCommandBuffers(const std::shared_ptr<VkCommandPool> &commandPool, VkCommandBufferLevel level,
-                               uint32_t count);
     };
 }

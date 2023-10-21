@@ -9,15 +9,18 @@ namespace Vixen::Vk {
         swapchain(swapchain),
         pipeline(pipeline),
         pipelineLayout(std::make_unique<VkPipelineLayout>(device, pipeline->getProgram())),
-        renderCommandPool(std::make_shared<VkCommandPool>(device, VkCommandPool::Usage::GRAPHICS, true)),
+        renderCommandPool(std::make_shared<VkCommandPool>(
+                device->getDevice(),
+                device->getGraphicsQueueFamily().index,
+                VkCommandPool::Usage::GRAPHICS,
+                true
+        )),
         renderCommandBuffers(
-                VkCommandBuffer::allocateCommandBuffers(
-                        renderCommandPool,
+                renderCommandPool->allocateCommandBuffers(
                         VkCommandBuffer::Level::PRIMARY,
                         swapchain.getImageCount()
                 )
         ) {
-
         const auto imageCount = swapchain.getImageCount();
         renderFinishedSemaphores.reserve(imageCount);
         for (size_t i = 0; i < imageCount; i++)
@@ -30,9 +33,9 @@ namespace Vixen::Vk {
         vkDeviceWaitIdle(device->getDevice());
     }
 
-    void VkRenderer::render() {
+    void VkRenderer::render(const VkBuffer &buffer) {
         auto graphicsQueue = device->getGraphicsQueue();
-        auto state = swapchain.acquireImage([this, &graphicsQueue](
+        auto state = swapchain.acquireImage([this, &graphicsQueue, &buffer](
                 const auto &currentFrame,
                 const auto &imageIndex,
                 const auto &imageAvailableSemaphore,
@@ -41,7 +44,7 @@ namespace Vixen::Vk {
             auto &commandBuffer = renderCommandBuffers[currentFrame];
             auto c = commandBuffer.getCommandBuffer();
 
-            prepare(commandBuffer, framebuffers[imageIndex]);
+            prepare(commandBuffer, framebuffers[imageIndex], buffer);
 
             ::VkSemaphore waitSemaphores[] = {imageAvailableSemaphore.getSemaphore()};
             VkPipelineStageFlags waitStages[] = {
@@ -99,9 +102,9 @@ namespace Vixen::Vk {
         }
     }
 
-    void VkRenderer::prepare(VkCommandBuffer &commandBuffer, VkFramebuffer &framebuffer) {
+    void VkRenderer::prepare(VkCommandBuffer &commandBuffer, VkFramebuffer &framebuffer, const VkBuffer &buffer) {
         commandBuffer.reset();
-        commandBuffer.record([this, &framebuffer](::VkCommandBuffer commandBuffer) {
+        commandBuffer.record([this, &framebuffer, &buffer](::VkCommandBuffer commandBuffer) {
             std::vector<VkClearValue> clearValues{
                     {
                             .color = {
@@ -151,6 +154,10 @@ namespace Vixen::Vk {
             scissor.offset = {0, 0};
             scissor.extent = swapchain.getExtent();
             vkCmdSetScissor(commandBuffer, 0, 1, &scissor);
+
+            std::vector<::VkBuffer> vertexBuffers{buffer.getBuffer()};
+            ::VkDeviceSize offsets[] = {0};
+            vkCmdBindVertexBuffers(commandBuffer, 0, vertexBuffers.size(), vertexBuffers.data(), offsets);
 
             vkCmdDraw(commandBuffer, 3, 1, 0, 0);
 

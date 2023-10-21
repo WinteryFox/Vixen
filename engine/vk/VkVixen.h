@@ -26,8 +26,6 @@ namespace Vixen::Vk {
 
         std::shared_ptr<Device> device;
 
-        Allocator allocator;
-
         Swapchain swapchain;
 
         VkVixen(const std::string &appTitle, glm::vec3 appVersion);

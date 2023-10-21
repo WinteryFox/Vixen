@@ -1,6 +1,0 @@
-#include "WritableBuffer.h"
-
-namespace Vixen::Vk {
-    WritableBuffer::WritableBuffer(const size_t &size, BufferUsage bufferUsage, AllocationUsage allocationUsage)
-            : Buffer(size, bufferUsage, allocationUsage) {}
-}

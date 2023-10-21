@@ -3,7 +3,7 @@
 #include <GL/glew.h>
 #include <spdlog/spdlog.h>
 #include "../Buffer.h"
-#include "../../Util.h"
+#include "../Util.h"
 
 namespace Vixen::Vk {
     class GlBuffer : public Buffer {
