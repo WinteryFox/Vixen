@@ -34,10 +34,6 @@ namespace Vixen::Vk {
         return VK_PRESENT_MODE_FIFO_KHR;
     }
 
-    VkSwapchainKHR Swapchain::getSwapchain() const {
-        return swapchain;
-    }
-
     const VkSurfaceFormatKHR &Swapchain::getFormat() const {
         return format;
     }
@@ -52,6 +48,23 @@ namespace Vixen::Vk {
 
     const std::vector<::VkImageView> &Swapchain::getImageViews() const {
         return imageViews;
+    }
+
+    void Swapchain::present(uint32_t imageIndex, const std::vector<::VkSemaphore> &waitSemaphores) {
+        VkPresentInfoKHR presentInfo{
+                .sType = VK_STRUCTURE_TYPE_PRESENT_INFO_KHR,
+
+                .waitSemaphoreCount = static_cast<uint32_t>(waitSemaphores.size()),
+                .pWaitSemaphores = waitSemaphores.data(),
+
+                .swapchainCount = 1,
+                .pSwapchains = &swapchain,
+
+                .pImageIndices = &imageIndex,
+                .pResults = nullptr,
+        };
+
+        vkQueuePresentKHR(device->getPresentQueue(), &presentInfo);
     }
 
     void Swapchain::invalidate() {

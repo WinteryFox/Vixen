@@ -57,21 +57,7 @@ namespace Vixen::Vk {
                             signalSemaphores
                     );
 
-                    const auto &s = swapchain.getSwapchain();
-                    VkPresentInfoKHR presentInfo{
-                            .sType = VK_STRUCTURE_TYPE_PRESENT_INFO_KHR,
-
-                            .waitSemaphoreCount = static_cast<uint32_t>(signalSemaphores.size()),
-                            .pWaitSemaphores = signalSemaphores.data(),
-
-                            .swapchainCount = 1,
-                            .pSwapchains = &s,
-
-                            .pImageIndices = &imageIndex,
-                            .pResults = nullptr,
-                    };
-
-                    vkQueuePresentKHR(device->getPresentQueue(), &presentInfo);
+                    swapchain.present(imageIndex, signalSemaphores);
                 }
         );
 

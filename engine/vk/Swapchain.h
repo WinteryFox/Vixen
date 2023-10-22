@@ -68,7 +68,7 @@ namespace Vixen::Vk {
 
         [[nodiscard]] const std::vector<::VkImageView> &getImageViews() const;
 
-        [[nodiscard]] VkSwapchainKHR getSwapchain() const;
+        void present(uint32_t imageIndex, const std::vector<::VkSemaphore> &waitSemaphores);
 
         void invalidate();
 
