@@ -34,60 +34,46 @@ namespace Vixen::Vk {
     }
 
     void VkRenderer::render(const VkBuffer &buffer) {
-        auto graphicsQueue = device->getGraphicsQueue();
-        auto state = swapchain.acquireImage([this, &graphicsQueue, &buffer](
-                const auto &currentFrame,
-                const auto &imageIndex,
-                const auto &imageAvailableSemaphore,
-                const auto &fence
-        ) {
-            auto &commandBuffer = renderCommandBuffers[currentFrame];
-            auto c = commandBuffer.getCommandBuffer();
+        auto state = swapchain.acquireImage(
+                std::numeric_limits<uint64_t>::max(),
+                [this, &buffer](
+                        const auto &currentFrame,
+                        const auto &imageIndex,
+                        const auto &imageAvailableSemaphore
+                ) {
+                    auto &commandBuffer = renderCommandBuffers[currentFrame];
 
-            prepare(commandBuffer, framebuffers[imageIndex], buffer);
+                    commandBuffer.wait();
+                    prepare(commandBuffer, framebuffers[imageIndex], buffer);
 
-            ::VkSemaphore waitSemaphores[] = {imageAvailableSemaphore.getSemaphore()};
-            VkPipelineStageFlags waitStages[] = {
-                    VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT
-            };
+                    std::vector<::VkSemaphore> waitSemaphores = {imageAvailableSemaphore.getSemaphore()};
+                    std::vector<::VkSemaphore> signalSemaphores = {
+                            renderFinishedSemaphores[currentFrame].getSemaphore()};
 
-            ::VkSemaphore signalSemaphores[] = {renderFinishedSemaphores[currentFrame].getSemaphore()};
+                    commandBuffer.submit(
+                            device->getGraphicsQueue(),
+                            waitSemaphores,
+                            {VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT},
+                            signalSemaphores
+                    );
 
-            VkSubmitInfo submitInfo{
-                    .sType = VK_STRUCTURE_TYPE_SUBMIT_INFO,
+                    const auto &s = swapchain.getSwapchain();
+                    VkPresentInfoKHR presentInfo{
+                            .sType = VK_STRUCTURE_TYPE_PRESENT_INFO_KHR,
 
-                    .waitSemaphoreCount = 1,
-                    .pWaitSemaphores = waitSemaphores,
-                    .pWaitDstStageMask = waitStages,
+                            .waitSemaphoreCount = static_cast<uint32_t>(signalSemaphores.size()),
+                            .pWaitSemaphores = signalSemaphores.data(),
 
-                    .commandBufferCount = 1,
-                    .pCommandBuffers = &c,
+                            .swapchainCount = 1,
+                            .pSwapchains = &s,
 
-                    .signalSemaphoreCount = 1,
-                    .pSignalSemaphores = signalSemaphores
-            };
+                            .pImageIndices = &imageIndex,
+                            .pResults = nullptr,
+                    };
 
-            checkVulkanResult(
-                    vkQueueSubmit(graphicsQueue, 1, &submitInfo, fence),
-                    "Failed to submit to queue"
-            );
-
-            const auto &s = swapchain.getSwapchain();
-            VkPresentInfoKHR presentInfo{
-                    .sType = VK_STRUCTURE_TYPE_PRESENT_INFO_KHR,
-
-                    .waitSemaphoreCount = 1,
-                    .pWaitSemaphores = signalSemaphores,
-
-                    .swapchainCount = 1,
-                    .pSwapchains = &s,
-
-                    .pImageIndices = &imageIndex,
-                    .pResults = nullptr,
-            };
-
-            vkQueuePresentKHR(device->getPresentQueue(), &presentInfo);
-        }, std::numeric_limits<uint64_t>::max());
+                    vkQueuePresentKHR(device->getPresentQueue(), &presentInfo);
+                }
+        );
 
         if (state == Swapchain::State::OUT_OF_DATE) {
             device->waitIdle();
@@ -103,66 +89,68 @@ namespace Vixen::Vk {
     }
 
     void VkRenderer::prepare(VkCommandBuffer &commandBuffer, VkFramebuffer &framebuffer, const VkBuffer &buffer) {
-        commandBuffer.reset();
-        commandBuffer.record([this, &framebuffer, &buffer](::VkCommandBuffer commandBuffer) {
-            std::vector<VkClearValue> clearValues{
-                    {
-                            .color = {
-                                    0.0f,
-                                    0.0f,
-                                    0.0f,
-                                    1.0f
-                            }
-                    },
-                    {
-                            .depthStencil = {
-                                    1.0f,
-                                    0
-                            }
-                    }
-            };
-
-            VkRenderPassBeginInfo renderPassInfo{
-                    .sType = VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO,
-                    .renderPass = pipeline->getRenderPass().getRenderPass(),
-                    .framebuffer = framebuffer.getFramebuffer(),
-                    .renderArea = {
-                            .offset = {
-                                    .x = 0,
-                                    .y = 0
+        commandBuffer.record(
+                VkCommandBuffer::Usage::SIMULTANEOUS,
+                [this, &framebuffer, &buffer](::VkCommandBuffer commandBuffer) {
+                    std::vector<VkClearValue> clearValues{
+                            {
+                                    .color = {
+                                            0.0f,
+                                            0.0f,
+                                            0.0f,
+                                            1.0f
+                                    }
                             },
-                            .extent = swapchain.getExtent(),
-                    },
-                    .clearValueCount = static_cast<uint32_t>(clearValues.size()),
-                    .pClearValues = clearValues.data()
-            };
+                            {
+                                    .depthStencil = {
+                                            1.0f,
+                                            0
+                                    }
+                            }
+                    };
 
-            vkCmdBeginRenderPass(commandBuffer, &renderPassInfo, VK_SUBPASS_CONTENTS_INLINE);
+                    VkRenderPassBeginInfo renderPassInfo{
+                            .sType = VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO,
+                            .renderPass = pipeline->getRenderPass().getRenderPass(),
+                            .framebuffer = framebuffer.getFramebuffer(),
+                            .renderArea = {
+                                    .offset = {
+                                            .x = 0,
+                                            .y = 0
+                                    },
+                                    .extent = swapchain.getExtent(),
+                            },
+                            .clearValueCount = static_cast<uint32_t>(clearValues.size()),
+                            .pClearValues = clearValues.data()
+                    };
 
-            pipeline->bindGraphics(commandBuffer);
+                    vkCmdBeginRenderPass(commandBuffer, &renderPassInfo, VK_SUBPASS_CONTENTS_INLINE);
 
-            VkViewport viewport{};
-            viewport.x = 0.0f;
-            viewport.y = 0.0f;
-            viewport.width = static_cast<float>(swapchain.getExtent().width);
-            viewport.height = static_cast<float>(swapchain.getExtent().height);
-            viewport.minDepth = 0.0f;
-            viewport.maxDepth = 1.0f;
-            vkCmdSetViewport(commandBuffer, 0, 1, &viewport);
+                    pipeline->bindGraphics(commandBuffer);
 
-            VkRect2D scissor{};
-            scissor.offset = {0, 0};
-            scissor.extent = swapchain.getExtent();
-            vkCmdSetScissor(commandBuffer, 0, 1, &scissor);
+                    VkViewport viewport{};
+                    viewport.x = 0.0f;
+                    viewport.y = 0.0f;
+                    viewport.width = static_cast<float>(swapchain.getExtent().width);
+                    viewport.height = static_cast<float>(swapchain.getExtent().height);
+                    viewport.minDepth = 0.0f;
+                    viewport.maxDepth = 1.0f;
+                    vkCmdSetViewport(commandBuffer, 0, 1, &viewport);
 
-            std::vector<::VkBuffer> vertexBuffers{buffer.getBuffer()};
-            ::VkDeviceSize offsets[] = {0};
-            vkCmdBindVertexBuffers(commandBuffer, 0, vertexBuffers.size(), vertexBuffers.data(), offsets);
+                    VkRect2D scissor{};
+                    scissor.offset = {0, 0};
+                    scissor.extent = swapchain.getExtent();
+                    vkCmdSetScissor(commandBuffer, 0, 1, &scissor);
 
-            vkCmdDraw(commandBuffer, 3, 1, 0, 0);
+                    std::vector<::VkBuffer> vertexBuffers{buffer.getBuffer()};
+                    ::VkDeviceSize offsets[] = {0};
+                    vkCmdBindVertexBuffers(commandBuffer, 0, vertexBuffers.size(), vertexBuffers.data(), offsets);
 
-            vkCmdEndRenderPass(commandBuffer);
-        }, VkCommandBuffer::Usage::SIMULTANEOUS);
+                    vkCmdDraw(commandBuffer, 3, 1, 0, 0);
+
+                    vkCmdEndRenderPass(commandBuffer);
+                }
+        );
     }
 
     void VkRenderer::createFramebuffers() {

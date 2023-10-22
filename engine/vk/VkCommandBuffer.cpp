@@ -5,49 +5,62 @@ namespace Vixen::Vk {
             : device(device),
               commandPool(commandPool),
               commandBuffer(commandBuffer),
-              fence(device, 1, true) {}
+              fence(device, true) {}
 
     VkCommandBuffer::~VkCommandBuffer() {
-        fence.waitAll(std::numeric_limits<uint64_t>::max());
-        vkFreeCommandBuffers(device, commandPool, 1, &commandBuffer);
+        fence.wait<void>(
+                std::numeric_limits<uint64_t>::max(),
+                [this](const auto &f) {
+                    vkFreeCommandBuffers(device, commandPool, 1, &commandBuffer);
+                }
+        );
     }
 
-    void VkCommandBuffer::reset() {
+    VkCommandBuffer &VkCommandBuffer::wait() {
+        fence.wait<void>(
+                std::numeric_limits<uint64_t>::max(),
+                [](const auto &f) {}
+        );
+
+        return *this;
+    }
+
+    VkCommandBuffer &VkCommandBuffer::reset() {
+        wait();
+        fence.reset();
         checkVulkanResult(
                 vkResetCommandBuffer(commandBuffer, 0),
                 "Failed to reset command buffer"
         );
+
+        return *this;
     }
 
-    ::VkCommandBuffer VkCommandBuffer::getCommandBuffer() const {
-        return commandBuffer;
-    }
+    VkCommandBuffer &VkCommandBuffer::submit(
+            ::VkQueue queue,
+            const std::vector<::VkSemaphore> &waitSemaphores,
+            const std::vector<::VkPipelineStageFlags> &waitMasks,
+            const std::vector<::VkSemaphore> &signalSemaphores
+    ) {
+        VkSubmitInfo info{
+                .sType = VK_STRUCTURE_TYPE_SUBMIT_INFO,
 
-    void VkCommandBuffer::submit(::VkQueue queue) {
-        fence.waitAny<void>(
-                std::numeric_limits<uint64_t>::max(),
-                [this, &queue](const auto &f) {
-                    fence.resetAll();
+                .waitSemaphoreCount = static_cast<uint32_t>(waitSemaphores.size()),
+                .pWaitSemaphores = waitSemaphores.data(),
+                .pWaitDstStageMask = waitMasks.data(),
 
-                    VkSubmitInfo info{
-                            .sType = VK_STRUCTURE_TYPE_SUBMIT_INFO,
+                .commandBufferCount = 1,
+                .pCommandBuffers = &commandBuffer,
 
-                            .waitSemaphoreCount = 0,
-                            .pWaitSemaphores = nullptr,
-                            .pWaitDstStageMask = nullptr,
+                .signalSemaphoreCount = static_cast<uint32_t>(signalSemaphores.size()),
+                .pSignalSemaphores = signalSemaphores.data(),
+        };
 
-                            .commandBufferCount = 1,
-                            .pCommandBuffers = &commandBuffer,
-
-                            .signalSemaphoreCount = 0,
-                            .pSignalSemaphores = nullptr,
-                    };
-
-                    checkVulkanResult(
-                            vkQueueSubmit(queue, 1, &info, f),
-                            "Failed to submit command buffer to queue"
-                    );
-                }
+        checkVulkanResult(
+                vkQueueSubmit(queue, 1, &info, fence.getFence()),
+                "Failed to submit command buffer to queue"
         );
+
+        return *this;
     }
 }

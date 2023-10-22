@@ -6,7 +6,6 @@ namespace Vixen::Vk {
               currentFrame(0),
               imageCount(framesInFlight),
               format(determineSurfaceFormat(device->getGpu().getSurfaceFormats(device->getSurface()))),
-              inFlightFences(device->getDevice(), imageCount, true),
               swapchain(VK_NULL_HANDLE) {
         create();
     }

@@ -26,45 +26,38 @@ namespace Vixen::Vk {
          * otherwise false.
          */
         template<typename F>
-        State acquireImage(const F &lambda, uint64_t timeout) {
-            auto result = inFlightFences.wait<State>(
-                    currentFrame,
-                    std::numeric_limits<uint64_t>::max(),
-                    [this, &lambda, &timeout](const auto &fence) constexpr {
-                        auto &imageAvailableSemaphore = imageAvailableSemaphores[currentFrame];
+        State acquireImage(uint64_t timeout, const F &lambda) {
+            auto &imageAvailableSemaphore = imageAvailableSemaphores[currentFrame];
 
-                        uint32_t imageIndex;
-                        auto result = vkAcquireNextImageKHR(
-                                device->getDevice(),
-                                swapchain,
-                                timeout,
-                                imageAvailableSemaphore.getSemaphore(),
-                                VK_NULL_HANDLE,
-                                &imageIndex
-                        );
+            uint32_t imageIndex;
+            auto result = vkAcquireNextImageKHR(
+                    device->getDevice(),
+                    swapchain,
+                    timeout,
+                    imageAvailableSemaphore.getSemaphore(),
+                    VK_NULL_HANDLE,
+                    &imageIndex
+            );
 
-                        if (result == VK_ERROR_OUT_OF_DATE_KHR) {
-                            spdlog::debug("Swapchain is outdated");
-                            return State::OUT_OF_DATE;
-                        }
+            if (result == VK_ERROR_OUT_OF_DATE_KHR) {
+                spdlog::debug("Swapchain is outdated");
+                return State::OUT_OF_DATE;
+            }
 
-                        vkResetFences(device->getDevice(), 1, &fence);
-                        lambda(currentFrame, imageIndex, imageAvailableSemaphore, fence);
-
-                        switch (result) {
-                            case VK_SUCCESS:
-                                return State::OK;
-                            case VK_SUBOPTIMAL_KHR:
-                                spdlog::warn("Suboptimal swapchain state");
-                                return State::SUBOPTIMAL;
-                            default:
-                                checkVulkanResult(result, "Failed to acquire swapchain image");
-                                return State::OUT_OF_DATE;
-                        }
-                    });
+            lambda(currentFrame, imageIndex, imageAvailableSemaphore);
 
             currentFrame = (currentFrame + 1) % imageCount;
-            return result;
+
+            switch (result) {
+                case VK_SUCCESS:
+                    return State::OK;
+                case VK_SUBOPTIMAL_KHR:
+                    spdlog::warn("Suboptimal swapchain state");
+                    return State::SUBOPTIMAL;
+                default:
+                    checkVulkanResult(result, "Failed to acquire swapchain image");
+                    return State::OUT_OF_DATE;
+            }
         }
 
         [[nodiscard]] const VkSurfaceFormatKHR &getFormat() const;
@@ -95,8 +88,6 @@ namespace Vixen::Vk {
         VkSurfaceFormatKHR format{};
 
         VkExtent2D extent{};
-
-        VkFence inFlightFences;
 
         std::vector<VkSemaphore> imageAvailableSemaphores;
 

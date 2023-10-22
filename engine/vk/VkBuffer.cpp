@@ -83,18 +83,21 @@ namespace Vixen::Vk {
             VkBuffer &destination,
             size_t destinationOffset
     ) {
-        device->getTransferCommandPool()->allocateCommandBuffer(VkCommandBuffer::Level::PRIMARY).record(
-                [this, &destination, &destinationOffset](auto commandBuffer) {
-                    VkBufferCopy region{
-                            .srcOffset = 0,
-                            .dstOffset = destinationOffset,
-                            .size = size,
-                    };
+        device->getTransferCommandPool()
+                ->allocateCommandBuffer(VkCommandBuffer::Level::PRIMARY)
+                .record(
+                        VkCommandBuffer::Usage::SINGLE,
+                        [this, &destination, &destinationOffset](auto commandBuffer) {
+                            VkBufferCopy region{
+                                    .srcOffset = 0,
+                                    .dstOffset = destinationOffset,
+                                    .size = size,
+                            };
 
-                    vkCmdCopyBuffer(commandBuffer, buffer, destination.getBuffer(), 1, &region);
-                },
-                VkCommandBuffer::Usage::SINGLE
-        ).submit(device->getTransferQueue());
+                            vkCmdCopyBuffer(commandBuffer, buffer, destination.getBuffer(), 1, &region);
+                        }
+                )
+                .submit(device->getTransferQueue(), {}, {}, {});
     }
 
     VkBuffer VkBuffer::stage(

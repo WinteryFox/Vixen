@@ -37,11 +37,13 @@ namespace Vixen::Vk {
         ~VkCommandBuffer();
 
         template<typename F>
-        VkCommandBuffer &record(F commands, Usage usage) {
+        VkCommandBuffer &record(Usage usage, F commands) {
             VkCommandBufferBeginInfo info{
                     .sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO,
                     .flags = static_cast<VkCommandBufferUsageFlags>(usage)
             };
+
+            reset();
 
             checkVulkanResult(
                     vkBeginCommandBuffer(commandBuffer, &info),
@@ -58,10 +60,15 @@ namespace Vixen::Vk {
             return *this;
         }
 
-        void reset();
+        VkCommandBuffer &wait();
 
-        void submit(::VkQueue queue);
+        VkCommandBuffer &reset();
 
-        [[nodiscard]] ::VkCommandBuffer getCommandBuffer() const;
+        VkCommandBuffer &submit(
+                ::VkQueue queue,
+                const std::vector<::VkSemaphore> &waitSemaphores,
+                const std::vector<::VkPipelineStageFlags> &waitMasks,
+                const std::vector<::VkSemaphore> &signalSemaphores
+        );
     };
 }
