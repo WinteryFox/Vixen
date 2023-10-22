@@ -1,7 +1,7 @@
 #include "VkFence.h"
 
 namespace Vixen::Vk {
-    VkFence::VkFence(const std::shared_ptr<Device> &device, uint32_t count, bool createSignaled)
+    VkFence::VkFence(::VkDevice device, uint32_t count, bool createSignaled)
             : device(device) {
         fences.resize(count);
 
@@ -11,12 +11,16 @@ namespace Vixen::Vk {
         };
 
         for (size_t i = 0; i < fences.size(); i++)
-            vkCreateFence(device->getDevice(), &info, nullptr, fences.data() + i);
+            vkCreateFence(device, &info, nullptr, fences.data() + i);
     }
+
+    VkFence::VkFence(VkFence &&o) noexcept:
+            device(std::exchange(o.device, VK_NULL_HANDLE)),
+            fences(std::exchange(o.fences, {})) {}
 
     VkFence::~VkFence() {
         vkWaitForFences(
-                device->getDevice(),
+                device,
                 fences.size(),
                 fences.data(),
                 VK_TRUE,
@@ -24,14 +28,14 @@ namespace Vixen::Vk {
         );
 
         for (const auto &fence: fences)
-            vkDestroyFence(device->getDevice(), fence, nullptr);
+            vkDestroyFence(device, fence, nullptr);
     }
 
     void VkFence::waitAll(uint64_t timeout) {
-        vkWaitForFences(device->getDevice(), fences.size(), fences.data(), VK_TRUE, timeout);
+        vkWaitForFences(device, fences.size(), fences.data(), VK_TRUE, timeout);
     }
 
     void VkFence::resetAll() {
-        vkResetFences(device->getDevice(), fences.size(), fences.data());
+        vkResetFences(device, fences.size(), fences.data());
     }
 }

@@ -30,7 +30,7 @@ namespace Vixen::Vk {
     }
 
     VkRenderer::~VkRenderer() {
-        vkDeviceWaitIdle(device->getDevice());
+        device->waitIdle();
     }
 
     void VkRenderer::render(const VkBuffer &buffer) {
@@ -90,7 +90,7 @@ namespace Vixen::Vk {
         }, std::numeric_limits<uint64_t>::max());
 
         if (state == Swapchain::State::OUT_OF_DATE) {
-            vkDeviceWaitIdle(device->getDevice());
+            device->waitIdle();
 
             framebuffers.clear();
             depthImageViews.clear();

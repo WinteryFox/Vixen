@@ -95,8 +95,4 @@ namespace Vixen::Vk {
                 )[0]
         };
     }
-
-    ::VkCommandPool VkCommandPool::getCommandPool() const {
-        return commandPool;
-    }
 }

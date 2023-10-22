@@ -1,7 +1,6 @@
 #pragma once
 
 #include <cstdio>
-#include <vector>
 #include <cstdint>
 #include <cstring>
 

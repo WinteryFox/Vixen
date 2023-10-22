@@ -17,9 +17,8 @@
 namespace Vixen::Vk {
     template<typename T = std::runtime_error>
     static inline void checkVulkanResult(VkResult result, const std::string &message) {
-        if (result != VK_SUCCESS) {
+        if (result != VK_SUCCESS)
             error<T>("{} ({})", message, string_VkResult(result));
-        }
     }
 
     static inline std::string getVersionString(glm::vec3 version) {

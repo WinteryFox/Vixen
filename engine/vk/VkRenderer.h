@@ -2,9 +2,7 @@
 
 #include "Device.h"
 #include "VkPipeline.h"
-#include "VkCommandBuffer.h"
 #include "VkPipelineLayout.h"
-#include "VkCommandPool.h"
 #include "VkFramebuffer.h"
 #include "VkSemaphore.h"
 #include "VkBuffer.h"

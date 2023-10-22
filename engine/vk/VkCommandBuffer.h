@@ -1,7 +1,6 @@
 #pragma once
 
-#include <memory>
-#include "Vulkan.h"
+#include "VkFence.h"
 
 namespace Vixen::Vk {
     class VkCommandBuffer {
@@ -23,6 +22,8 @@ namespace Vixen::Vk {
         ::VkCommandPool commandPool;
 
         ::VkCommandBuffer commandBuffer;
+
+        VkFence fence;
 
     public:
         VkCommandBuffer(::VkDevice device, ::VkCommandPool commandPool, ::VkCommandBuffer commandBuffer);
@@ -58,6 +59,8 @@ namespace Vixen::Vk {
         }
 
         void reset();
+
+        void submit(::VkQueue queue);
 
         [[nodiscard]] ::VkCommandBuffer getCommandBuffer() const;
     };

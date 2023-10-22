@@ -2,6 +2,7 @@
 
 #include <string>
 #include <utility>
+#include <optional>
 
 namespace Vixen {
     class ShaderModule {

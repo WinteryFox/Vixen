@@ -34,7 +34,5 @@ namespace Vixen::Vk {
         std::vector<VkCommandBuffer> allocateCommandBuffers(VkCommandBuffer::Level level, uint32_t count);
 
         VkCommandBuffer allocateCommandBuffer(VkCommandBuffer::Level level);
-
-        [[nodiscard]] ::VkCommandPool getCommandPool() const;
     };
 }

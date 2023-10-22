@@ -25,6 +25,8 @@ namespace Vixen::Vk {
 
         void write(const void *data, size_t dataSize, size_t offset) override;
 
+        void transfer(VkBuffer &destination);
+
         [[nodiscard]] ::VkBuffer getBuffer() const;
 
     protected:

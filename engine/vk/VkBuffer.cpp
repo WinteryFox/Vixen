@@ -57,7 +57,7 @@ namespace Vixen::Vk {
             throw std::runtime_error("Buffer overflow");
 
         void *d = map();
-        memcpy(static_cast<char*>(d) + offset, data, dataSize);
+        memcpy(static_cast<char *>(d) + offset, data, dataSize);
         unmap();
     }
 
@@ -77,5 +77,20 @@ namespace Vixen::Vk {
 
     ::VkBuffer VkBuffer::getBuffer() const {
         return buffer;
+    }
+
+    void VkBuffer::transfer(VkBuffer &destination) {
+        device->getTransferCommandPool()->allocateCommandBuffer(VkCommandBuffer::Level::PRIMARY).record(
+                [this, &destination](auto commandBuffer) {
+                    VkBufferCopy region{
+                            .srcOffset = 0,
+                            .dstOffset = 0,
+                            .size = size,
+                    };
+
+                    vkCmdCopyBuffer(commandBuffer, buffer, destination.getBuffer(), 1, &region);
+                },
+                VkCommandBuffer::Usage::SINGLE
+        ).submit(device->getTransferQueue());
     }
 }

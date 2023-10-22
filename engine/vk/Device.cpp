@@ -105,7 +105,9 @@ namespace Vixen::Vk {
     }
 
     Device::~Device() {
-        vkDeviceWaitIdle(device);
+        waitIdle();
+        graphicsQueue = nullptr;
+        presentQueue = nullptr;
         transferCommandPool = nullptr;
         vmaDestroyAllocator(allocator);
         vkDestroyDevice(device, nullptr);
@@ -131,7 +133,6 @@ namespace Vixen::Vk {
     VkSurfaceKHR Device::getSurface() const {
         return surface;
     }
-
 
     const QueueFamily &Device::getGraphicsQueueFamily() const {
         return graphicsQueueFamily;
