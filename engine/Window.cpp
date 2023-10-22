@@ -73,6 +73,21 @@ namespace Vixen {
 
         if (framebufferSizeChanged) {
             framebufferSizeChanged = false;
+
+            int width, height;
+            glfwGetFramebufferSize(window, &width, &height);
+
+            spdlog::trace("Framebuffer resized to {}x{}", width, height);
+
+            if (width == 0 || height == 0) {
+                while (width == 0 || height == 0) {
+                    glfwGetFramebufferSize(window, &width, &height);
+                    glfwWaitEvents();
+                }
+
+                return false;
+            }
+
             return true;
         }
 
