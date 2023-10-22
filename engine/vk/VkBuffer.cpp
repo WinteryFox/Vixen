@@ -79,12 +79,15 @@ namespace Vixen::Vk {
         return buffer;
     }
 
-    void VkBuffer::transfer(VkBuffer &destination) {
+    void VkBuffer::transfer(
+            VkBuffer &destination,
+            size_t destinationOffset
+    ) {
         device->getTransferCommandPool()->allocateCommandBuffer(VkCommandBuffer::Level::PRIMARY).record(
-                [this, &destination](auto commandBuffer) {
+                [this, &destination, &destinationOffset](auto commandBuffer) {
                     VkBufferCopy region{
                             .srcOffset = 0,
-                            .dstOffset = 0,
+                            .dstOffset = destinationOffset,
                             .size = size,
                     };
 
@@ -92,5 +95,20 @@ namespace Vixen::Vk {
                 },
                 VkCommandBuffer::Usage::SINGLE
         ).submit(device->getTransferQueue());
+    }
+
+    VkBuffer VkBuffer::stage(
+            const std::shared_ptr<Device> &device,
+            const void *data,
+            size_t size,
+            BufferUsage usage
+    ) {
+        auto source = VkBuffer(device, size, usage | BufferUsage::TRANSFER_SRC);
+        auto destination = VkBuffer(device, size, usage | BufferUsage::TRANSFER_DST);
+
+        source.write(data, size, 0);
+        source.transfer(destination, 0);
+
+        return destination;
     }
 }

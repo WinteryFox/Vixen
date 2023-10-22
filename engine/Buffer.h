@@ -28,6 +28,12 @@ namespace Vixen::Vk {
     public:
         Buffer &operator=(const Buffer &) = delete;
 
+        /**
+         * Map the buffer, write to it and unmap the buffer from host memory.
+         * @param data A pointer pointing to the start of the data.
+         * @param dataSize The size of the data.
+         * @param offset The offset within this buffer to start writing from.
+         */
         virtual void write(const void *data, size_t dataSize, size_t offset) = 0;
 
         [[nodiscard]] size_t getSize() const;

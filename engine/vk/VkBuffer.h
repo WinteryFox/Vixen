@@ -25,9 +25,24 @@ namespace Vixen::Vk {
 
         void write(const void *data, size_t dataSize, size_t offset) override;
 
-        void transfer(VkBuffer &destination);
+        /**
+         * Copies data from one buffer to another.
+         * @param destination The destination buffer to copy the data to.
+         * @param destinationOffset The offset from the destination buffer to copy into.
+         */
+        void transfer(VkBuffer &destination, size_t destinationOffset);
 
         [[nodiscard]] ::VkBuffer getBuffer() const;
+
+        /**
+         * Transfers data from host memory to a host local buffer and uploads that to a device local buffer.
+         * @param device The device to create the buffers on.
+         * @param data Pointer to the start of the data.
+         * @param size The size of the data.
+         * @param usage The usage flags for the resulting buffer. Do not include any TRANSFER usage flags.
+         * @return Returns the resulting device local buffer.
+         */
+        static VkBuffer stage(const std::shared_ptr<Device> &device, const void *data, size_t size, BufferUsage usage);
 
     protected:
         void *map() override;
