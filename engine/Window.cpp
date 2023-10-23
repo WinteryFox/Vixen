@@ -170,10 +170,6 @@ namespace Vixen {
         glfwSetWindowMonitor(window, m, x, y, w, h, refreshRate);
     }
 
-    void Window::setClearColor(float r, float g, float b, float a) {
-        clearColor = glm::vec4(r, g, b, a);
-    }
-
     void Window::getFramebufferSize(int &width, int &height) {
         glfwGetFramebufferSize(window, &width, &height);
     }

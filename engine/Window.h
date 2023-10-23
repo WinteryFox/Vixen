@@ -23,8 +23,6 @@ namespace Vixen {
 
         std::unordered_map<GLFWmonitor *, Monitor> monitors;
 
-        glm::vec4 clearColor{0.0f, 0.0f, 0.0f, 1.0f};
-
         Window(
                 const std::string &title,
                 const uint32_t &width,
@@ -35,12 +33,27 @@ namespace Vixen {
         ~Window();
 
     public:
+        /**
+         * Has the current window been requested to close?
+         * @return True if the window should close, false if not.
+         */
         [[nodiscard]] bool shouldClose() const;
 
+        /**
+         * Polls window events and processes them.
+         * @return Returns true if the framebuffer size has been resized, false if not.
+         */
         bool update();
 
+        /**
+         * Sets the visibility of the window.
+         * @param visible True for visible, false for hidden.
+         */
         void setVisible(bool visible) const;
 
+        /**
+         * Centers the window on the current monitor.
+         */
         void center() const;
 
         void setWindowedMode(Mode mode) const;
@@ -48,8 +61,6 @@ namespace Vixen {
         std::unique_ptr<Monitor> getMonitor() const;
 
         std::unordered_map<GLFWmonitor *, Monitor> getMonitors() const;
-
-        void setClearColor(float r, float g, float b, float a);
 
         void getFramebufferSize(int &width, int &height);
 
