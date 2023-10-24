@@ -1,8 +1,8 @@
 #include "VkBuffer.h"
 
 namespace Vixen::Vk {
-    VkBuffer::VkBuffer(const std::shared_ptr<Device> &device, const size_t &size, BufferUsage bufferUsage)
-            : Buffer(size, bufferUsage),
+    VkBuffer::VkBuffer(const std::shared_ptr<Device> &device, BufferUsage bufferUsage, const size_t &size)
+            : Buffer(bufferUsage, size),
               device(device),
               allocation(VK_NULL_HANDLE),
               buffer(VK_NULL_HANDLE) {
@@ -44,7 +44,7 @@ namespace Vixen::Vk {
     }
 
     VkBuffer::VkBuffer(VkBuffer &&o) noexcept
-            : Buffer(o.size, o.bufferUsage),
+            : Buffer(o.bufferUsage, o.size),
               allocation(std::exchange(o.allocation, nullptr)),
               buffer(std::exchange(o.buffer, nullptr)) {}
 
@@ -102,12 +102,12 @@ namespace Vixen::Vk {
 
     VkBuffer VkBuffer::stage(
             const std::shared_ptr<Device> &device,
-            const void *data,
+            BufferUsage usage,
             size_t size,
-            BufferUsage usage
+            const void *data
     ) {
-        auto source = VkBuffer(device, size, usage | BufferUsage::TRANSFER_SRC);
-        auto destination = VkBuffer(device, size, usage | BufferUsage::TRANSFER_DST);
+        auto source = VkBuffer(device, usage | BufferUsage::TRANSFER_SRC, size);
+        auto destination = VkBuffer(device, usage | BufferUsage::TRANSFER_DST, size);
 
         source.write(data, size, 0);
         source.transfer(destination, 0);

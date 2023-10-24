@@ -43,15 +43,25 @@ int main() {
     auto renderer = std::make_unique<Vixen::Vk::VkRenderer>(vixen.device, vixen.swapchain, pipeline);
 
     std::vector<glm::vec3> vertices{
-            {0.0f,  -0.5f, 0.0f},
+            {-0.5f, -0.5f, 0.0f},
+            {0.5f,  -0.5f, 0.0f},
             {0.5f,  0.5f,  0.0f},
-            {-0.5f, 0.5f,  0.0f},
+            {-0.5f, 0.5f,  0.0f}
+    };
+    std::vector<uint32_t> indices{
+            0, 1, 2,
+            2, 3, 0
     };
     auto buffer = Vixen::Vk::VkBuffer::stage(
             vixen.device,
-            vertices.data(),
-            vertices.size() * sizeof(glm::vec3),
-            Vixen::Vk::BufferUsage::VERTEX
+            Vixen::Vk::BufferUsage::VERTEX |
+            Vixen::Vk::BufferUsage::INDEX,
+            vertices.size() * sizeof(glm::vec3) +
+            indices.size() * sizeof(uint32_t),
+            [&vertices, &indices](auto data) {
+                memcpy(data, vertices.data(), sizeof(glm::vec3) * vertices.size());
+                memcpy(static_cast<glm::vec3*>(data) + vertices.size(), indices.data(), sizeof(uint32_t) * indices.size());
+            }
     );
 
     double old = glfwGetTime();
@@ -63,7 +73,7 @@ int main() {
             renderer = std::make_unique<Vixen::Vk::VkRenderer>(vixen.device, vixen.swapchain, pipeline);
         }
 
-        renderer->render(buffer);
+        renderer->render(buffer, vertices.size(), indices.size());
 
         fps++;
         double now = glfwGetTime();

@@ -42,11 +42,17 @@ namespace Vixen::Vk {
 
         ~VkRenderer();
 
-        void render(const VkBuffer &buffer);
+        void render(const VkBuffer &buffer, uint32_t vertexCount, uint32_t indexCount);
 
     private:
         void createFramebuffers();
 
-        void prepare(VkCommandBuffer &commandBuffer, VkFramebuffer &framebuffer, const VkBuffer &buffer);
+        void prepare(
+                VkCommandBuffer &commandBuffer,
+                VkFramebuffer &framebuffer,
+                const VkBuffer &buffer,
+                uint32_t vertexCount,
+                uint32_t indexCount
+        );
     };
 }

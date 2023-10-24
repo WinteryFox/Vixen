@@ -13,7 +13,7 @@ namespace Vixen::Vk {
         ::VkBuffer buffer;
 
     public:
-        VkBuffer(const std::shared_ptr<Device> &device, const size_t &size, BufferUsage bufferUsage);
+        VkBuffer(const std::shared_ptr<Device> &device, BufferUsage bufferUsage, const size_t &size);
 
         VkBuffer(const VkBuffer &) = delete;
 
@@ -22,6 +22,10 @@ namespace Vixen::Vk {
         VkBuffer(VkBuffer &&o) noexcept;
 
         ~VkBuffer();
+
+        void *map() override;
+
+        void unmap() override;
 
         void write(const void *data, size_t dataSize, size_t offset) override;
 
@@ -37,16 +41,29 @@ namespace Vixen::Vk {
         /**
          * Transfers data from host memory to a host local buffer and uploads that to a device local buffer.
          * @param device The device to create the buffers on.
-         * @param data Pointer to the start of the data.
-         * @param size The size of the data.
          * @param usage The usage flags for the resulting buffer. Do not include any TRANSFER usage flags.
+         * @param size The size of the data.
+         * @param data Pointer to the start of the data.
          * @return Returns the resulting device local buffer.
          */
-        static VkBuffer stage(const std::shared_ptr<Device> &device, const void *data, size_t size, BufferUsage usage);
+        static VkBuffer stage(const std::shared_ptr<Device> &device, BufferUsage usage, size_t size, const void *data);
 
-    protected:
-        void *map() override;
+        template<typename F>
+        static VkBuffer stage(
+                const std::shared_ptr<Device> &device,
+                BufferUsage usage,
+                size_t size,
+                F lambda
+        ) {
+            auto source = VkBuffer(device, usage | BufferUsage::TRANSFER_SRC, size);
+            auto destination = VkBuffer(device, usage | BufferUsage::TRANSFER_DST, size);
 
-        void unmap() override;
+            void *data = source.map();
+            lambda(data);
+            source.unmap();
+            source.transfer(destination, 0);
+
+            return destination;
+        }
     };
 }

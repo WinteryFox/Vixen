@@ -33,10 +33,10 @@ namespace Vixen::Vk {
         device->waitIdle();
     }
 
-    void VkRenderer::render(const VkBuffer &buffer) {
+    void VkRenderer::render(const VkBuffer &buffer, uint32_t vertexCount, uint32_t indexCount) {
         auto state = swapchain.acquireImage(
                 std::numeric_limits<uint64_t>::max(),
-                [this, &buffer](
+                [this, &buffer, &vertexCount, &indexCount](
                         const auto &currentFrame,
                         const auto &imageIndex,
                         const auto &imageAvailableSemaphore
@@ -44,7 +44,7 @@ namespace Vixen::Vk {
                     auto &commandBuffer = renderCommandBuffers[currentFrame];
 
                     commandBuffer.wait();
-                    prepare(commandBuffer, framebuffers[imageIndex], buffer);
+                    prepare(commandBuffer, framebuffers[imageIndex], buffer, vertexCount, indexCount);
 
                     std::vector<::VkSemaphore> waitSemaphores = {imageAvailableSemaphore.getSemaphore()};
                     std::vector<::VkSemaphore> signalSemaphores = {
@@ -74,10 +74,16 @@ namespace Vixen::Vk {
         }
     }
 
-    void VkRenderer::prepare(VkCommandBuffer &commandBuffer, VkFramebuffer &framebuffer, const VkBuffer &buffer) {
+    void VkRenderer::prepare(
+            VkCommandBuffer &commandBuffer,
+            VkFramebuffer &framebuffer,
+            const VkBuffer &buffer,
+            uint32_t vertexCount,
+            uint32_t indexCount
+    ) {
         commandBuffer.record(
                 VkCommandBuffer::Usage::SIMULTANEOUS,
-                [this, &framebuffer, &buffer](::VkCommandBuffer commandBuffer) {
+                [this, &framebuffer, &buffer, &vertexCount, &indexCount](::VkCommandBuffer commandBuffer) {
                     std::vector<VkClearValue> clearValues{
                             {
                                     .color = {
@@ -128,11 +134,25 @@ namespace Vixen::Vk {
                     scissor.extent = swapchain.getExtent();
                     vkCmdSetScissor(commandBuffer, 0, 1, &scissor);
 
-                    std::vector<::VkBuffer> vertexBuffers{buffer.getBuffer()};
+                    ::VkBuffer vertexBuffers[1]{buffer.getBuffer()};
                     ::VkDeviceSize offsets[] = {0};
-                    vkCmdBindVertexBuffers(commandBuffer, 0, vertexBuffers.size(), vertexBuffers.data(), offsets);
 
-                    vkCmdDraw(commandBuffer, 3, 1, 0, 0);
+                    vkCmdBindVertexBuffers(
+                            commandBuffer,
+                            0,
+                            1,
+                            vertexBuffers,
+                            offsets
+                    );
+
+                    vkCmdBindIndexBuffer(
+                            commandBuffer,
+                            buffer.getBuffer(),
+                            vertexCount * sizeof(glm::vec3),
+                            VK_INDEX_TYPE_UINT32
+                    );
+
+                    vkCmdDrawIndexed(commandBuffer, indexCount, 1, 0, 0, 0);
 
                     vkCmdEndRenderPass(commandBuffer);
                 }

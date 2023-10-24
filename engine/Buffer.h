@@ -41,17 +41,17 @@ namespace Vixen::Vk {
         [[nodiscard]] BufferUsage getBufferUsage() const;
 
     protected:
-        const std::size_t size;
-
         const BufferUsage bufferUsage;
+
+        const std::size_t size;
 
         /**
          * Create a new buffer. Where the allocation is made is determined by the allocation usage.
-         * @param size The size of this buffer measured in bytes.
          * @param bufferUsage Specifies how the buffer will be used and what data it will hold.
+         * @param size The size of this buffer measured in bytes.
          * @param allocationUsage Specifies how this buffer's allocated memory will be used.
          */
-        Buffer(const std::size_t &size, BufferUsage bufferUsage);
+        Buffer(BufferUsage bufferUsage, const std::size_t &size);
 
         virtual void *map() = 0;
 
