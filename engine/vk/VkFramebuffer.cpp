@@ -19,6 +19,7 @@ namespace Vixen::Vk {
                     device,
                     width,
                     height,
+                    VK_SAMPLE_COUNT_1_BIT,
                     attachment.format,
                     VK_IMAGE_TILING_OPTIMAL,
                     VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT

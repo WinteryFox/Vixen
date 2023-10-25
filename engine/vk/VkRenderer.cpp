@@ -170,6 +170,7 @@ namespace Vixen::Vk {
                     device,
                     swapchain.getExtent().width,
                     swapchain.getExtent().height,
+                    VK_SAMPLE_COUNT_1_BIT,
                     VK_FORMAT_D32_SFLOAT,
                     VK_IMAGE_TILING_OPTIMAL,
                     VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT

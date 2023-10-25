@@ -1,21 +1,21 @@
 #include "VkBuffer.h"
 
 namespace Vixen::Vk {
-    VkBuffer::VkBuffer(const std::shared_ptr<Device> &device, BufferUsage bufferUsage, const size_t &size)
+    VkBuffer::VkBuffer(const std::shared_ptr<Device> &device, Usage bufferUsage, const size_t &size)
             : Buffer(bufferUsage, size),
               device(device),
               allocation(VK_NULL_HANDLE),
               buffer(VK_NULL_HANDLE) {
         VkBufferUsageFlags bufferUsageFlags;
-        if (bufferUsage & BufferUsage::VERTEX)
+        if (bufferUsage & Usage::VERTEX)
             bufferUsageFlags |= VK_BUFFER_USAGE_VERTEX_BUFFER_BIT;
-        if (bufferUsage & BufferUsage::INDEX)
+        if (bufferUsage & Usage::INDEX)
             bufferUsageFlags |= VK_BUFFER_USAGE_INDEX_BUFFER_BIT;
-        if (bufferUsage & BufferUsage::TRANSFER_DST)
+        if (bufferUsage & Usage::TRANSFER_DST)
             bufferUsageFlags |= VK_BUFFER_USAGE_TRANSFER_DST_BIT;
-        if (bufferUsage & BufferUsage::TRANSFER_SRC)
+        if (bufferUsage & Usage::TRANSFER_SRC)
             bufferUsageFlags |= VK_BUFFER_USAGE_TRANSFER_SRC_BIT;
-        if (bufferUsage & BufferUsage::UNIFORM)
+        if (bufferUsage & Usage::UNIFORM)
             bufferUsageFlags |= VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT;
 
         VkBufferCreateInfo bufferCreateInfo = {};
@@ -102,12 +102,12 @@ namespace Vixen::Vk {
 
     VkBuffer VkBuffer::stage(
             const std::shared_ptr<Device> &device,
-            BufferUsage usage,
+            Usage usage,
             size_t size,
             const void *data
     ) {
-        auto source = VkBuffer(device, usage | BufferUsage::TRANSFER_SRC, size);
-        auto destination = VkBuffer(device, usage | BufferUsage::TRANSFER_DST, size);
+        auto source = VkBuffer(device, usage | Usage::TRANSFER_SRC, size);
+        auto destination = VkBuffer(device, usage | Usage::TRANSFER_DST, size);
 
         source.write(data, size, 0);
         source.transfer(destination, 0);

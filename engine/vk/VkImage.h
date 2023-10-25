@@ -1,6 +1,8 @@
 #pragma once
 
+#include <FreeImage.h>
 #include "Device.h"
+#include "VkBuffer.h"
 
 namespace Vixen::Vk {
     class VkImage {
@@ -25,6 +27,7 @@ namespace Vixen::Vk {
                 const std::shared_ptr<Device> &device,
                 uint32_t width,
                 uint32_t height,
+                VkSampleCountFlagBits samples,
                 VkFormat format,
                 VkImageTiling tiling,
                 VkImageUsageFlags usageFlags

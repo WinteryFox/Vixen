@@ -15,7 +15,7 @@ namespace Vixen::Vk {
         ::VkBuffer buffer;
 
     public:
-        VkBuffer(const std::shared_ptr<Device> &device, BufferUsage bufferUsage, const size_t &size);
+        VkBuffer(const std::shared_ptr<Device> &device, Usage bufferUsage, const size_t &size);
 
         VkBuffer(const VkBuffer &) = delete;
 
@@ -48,17 +48,17 @@ namespace Vixen::Vk {
          * @param data Pointer to the start of the data.
          * @return Returns the resulting device local buffer.
          */
-        static VkBuffer stage(const std::shared_ptr<Device> &device, BufferUsage usage, size_t size, const void *data);
+        static VkBuffer stage(const std::shared_ptr<Device> &device, Usage usage, size_t size, const void *data);
 
         template<typename F>
         static VkBuffer stage(
                 const std::shared_ptr<Device> &device,
-                BufferUsage usage,
+                Usage usage,
                 size_t size,
                 F lambda
         ) {
-            auto source = VkBuffer(device, usage | BufferUsage::TRANSFER_SRC, size);
-            auto destination = VkBuffer(device, usage | BufferUsage::TRANSFER_DST, size);
+            auto source = VkBuffer(device, usage | Usage::TRANSFER_SRC, size);
+            auto destination = VkBuffer(device, usage | Usage::TRANSFER_DST, size);
 
             void *data = source.map();
             lambda(data);
