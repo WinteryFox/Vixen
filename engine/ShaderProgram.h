@@ -7,14 +7,20 @@ namespace Vixen {
     template<class T, class = std::enable_if<std::is_base_of<ShaderModule, T>::value>>
     class ShaderProgram {
     protected:
-        std::map<ShaderModule::Stage, std::shared_ptr<T>> modules;
+        std::shared_ptr<T> vertex;
+
+        std::shared_ptr<T> fragment;
 
     public:
-        explicit ShaderProgram(const std::map<ShaderModule::Stage, std::shared_ptr<T>> &modules)
-                : modules(modules) {}
+        ShaderProgram(const std::shared_ptr<T> &vertex, const std::shared_ptr<T> &fragment)
+                : vertex(vertex), fragment(fragment) {}
 
-        const std::map<ShaderModule::Stage, std::shared_ptr<T>> &getModules() const {
-            return modules;
+        const std::shared_ptr<T> &getVertex() const {
+            return vertex;
+        }
+
+        const std::shared_ptr<T> &getFragment() const {
+            return fragment;
         }
     };
 }

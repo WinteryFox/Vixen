@@ -44,12 +44,7 @@ int main() {
     auto fragment = Vixen::Vk::VkShaderModule::Builder()
             .setStage(Vixen::ShaderModule::Stage::FRAGMENT)
             .compileFromFile(vixen.device, "../../editor/shaders/triangle.frag");
-    auto program = Vixen::Vk::VkShaderProgram(
-            {
-                    {Vixen::ShaderModule::Stage::VERTEX,   vertex},
-                    {Vixen::ShaderModule::Stage::FRAGMENT, fragment}
-            }
-    );
+    auto program = Vixen::Vk::VkShaderProgram(vertex, fragment);
 
     int width;
     int height;

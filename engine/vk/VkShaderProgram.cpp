@@ -1,6 +1,8 @@
 #include "VkShaderProgram.h"
 
 namespace Vixen::Vk {
-    VkShaderProgram::VkShaderProgram(const std::map<ShaderModule::Stage, std::shared_ptr<VkShaderModule>> &modules)
-            : ShaderProgram(modules) {}
+    VkShaderProgram::VkShaderProgram(
+            const std::shared_ptr<VkShaderModule> &vertex,
+            const std::shared_ptr<VkShaderModule> &fragment
+    ) : ShaderProgram(vertex, fragment) {}
 }

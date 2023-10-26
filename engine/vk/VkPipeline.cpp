@@ -11,21 +11,9 @@ namespace Vixen::Vk {
         config(config),
         pipelineLayout(device, program),
         renderPass(device, program, swapchain) {
-        auto modules = program.getModules();
-
         std::vector<VkPipelineShaderStageCreateInfo> stages;
-        stages.reserve(modules.size());
-        for (const auto &[stage, module]: modules) {
-            stages.emplace_back(VkPipelineShaderStageCreateInfo{
-                    .sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO,
-                    .pNext = VK_NULL_HANDLE,
-                    .flags = 0,
-                    .stage = getVulkanShaderStage(stage),
-                    .module = module->getModule(),
-                    .pName = module->getEntrypoint().c_str(),
-                    .pSpecializationInfo = VK_NULL_HANDLE
-            });
-        }
+        stages.emplace_back(program.getVertex()->createInfo());
+        stages.emplace_back(program.getFragment()->createInfo());
 
         std::vector<VkDynamicState> dynamicStates{
                 VK_DYNAMIC_STATE_VIEWPORT,
@@ -38,7 +26,7 @@ namespace Vixen::Vk {
                 .pDynamicStates = dynamicStates.data()
         };
 
-        const auto &vertexModule = modules[ShaderModule::Stage::VERTEX];
+        const auto &vertexModule = program.getVertex();
 
         std::vector<VkVertexInputBindingDescription> vertexBindings{};
         for (const auto &binding: vertexModule->getBindings()) {

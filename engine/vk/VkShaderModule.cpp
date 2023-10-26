@@ -27,7 +27,15 @@ namespace Vixen::Vk {
         vkDestroyShaderModule(device->getDevice(), module, nullptr);
     }
 
-    ::VkShaderModule VkShaderModule::getModule() const {
-        return module;
+    VkPipelineShaderStageCreateInfo VkShaderModule::createInfo() {
+        return {
+                .sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO,
+                .pNext = VK_NULL_HANDLE,
+                .flags = 0,
+                .stage = getVulkanShaderStage(stage),
+                .module = module,
+                .pName = entrypoint.c_str(),
+                .pSpecializationInfo = VK_NULL_HANDLE
+        };
     }
 }

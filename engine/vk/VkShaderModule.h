@@ -41,7 +41,7 @@ namespace Vixen::Vk {
 
         ~VkShaderModule();
 
-        [[nodiscard]] ::VkShaderModule getModule() const;
+        VkPipelineShaderStageCreateInfo createInfo();
 
         class Builder {
             // TODO: This builder has slightly confusing API, you can compile before setting the stage meaning its possible to mistakenly have the wrong stage set at compile time
