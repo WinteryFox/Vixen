@@ -6,6 +6,7 @@
 #include "VkPipelineLayout.h"
 #include "VkRenderPass.h"
 
+// TODO: This should really be abstracted so that we can later more easily create different pipelines
 namespace Vixen::Vk {
     class VkPipeline {
     public:
@@ -54,6 +55,8 @@ namespace Vixen::Vk {
         [[nodiscard]] const VkShaderProgram &getProgram() const;
 
         [[nodiscard]] const VkRenderPass &getRenderPass() const;
+
+        [[nodiscard]] const Config &getConfig() const;
 
         class Builder {
             Config config{

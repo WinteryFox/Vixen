@@ -38,27 +38,39 @@ namespace Vixen::Vk {
                 .pDynamicStates = dynamicStates.data()
         };
 
-        std::vector<VkVertexInputBindingDescription> vertexBindings{};
-        std::vector<VkVertexInputAttributeDescription> vertexAttributes{};
-
         const auto &vertexModule = modules[ShaderModule::Stage::VERTEX];
-        for (const auto &input: vertexModule->getInputs()) {
+
+        std::vector<VkVertexInputBindingDescription> vertexBindings{};
+        for (const auto &binding: vertexModule->getBindings()) {
+            VkVertexInputRate rate;
+            switch (binding.rate) {
+                case ShaderModule::Rate::VERTEX:
+                    rate = VK_VERTEX_INPUT_RATE_VERTEX;
+                    break;
+                case ShaderModule::Rate::INSTANCE:
+                    rate = VK_VERTEX_INPUT_RATE_INSTANCE;
+                    break;
+            }
+
             vertexBindings.push_back(
                     {
-                            .binding = input.binding.value_or(0),
-                            .stride = input.size,
+                            .binding = binding.binding,
+                            .stride = static_cast<uint32_t>(binding.stride),
                             // TODO: Allow specification of input rate
-                            .inputRate = VK_VERTEX_INPUT_RATE_VERTEX
+                            .inputRate = rate
                     }
             );
+        }
 
+        std::vector<VkVertexInputAttributeDescription> vertexAttributes{};
+        for (const auto &input: vertexModule->getInputs()) {
             vertexAttributes.push_back(
                     {
                             .location = input.location.value_or(0),
                             .binding = input.binding.value_or(0),
                             // TODO: Automatically determine the format and offset
                             .format = VK_FORMAT_R32G32B32_SFLOAT,
-                            .offset = 0
+                            .offset = static_cast<uint32_t>(input.offset)
                     }
             );
         }
@@ -146,5 +158,9 @@ namespace Vixen::Vk {
 
     const VkRenderPass &VkPipeline::getRenderPass() const {
         return renderPass;
+    }
+
+    const VkPipeline::Config &VkPipeline::getConfig() const {
+        return config;
     }
 }

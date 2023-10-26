@@ -135,6 +135,7 @@ namespace Vixen::Vk {
                     vkCmdSetScissor(commandBuffer, 0, 1, &scissor);
 
                     ::VkBuffer vertexBuffers[1]{buffer.getBuffer()};
+                    // TODO: Hardcoded buffer offset should probably automatically be determined somehow
                     ::VkDeviceSize offsets[] = {0};
 
                     vkCmdBindVertexBuffers(
@@ -148,10 +149,11 @@ namespace Vixen::Vk {
                     vkCmdBindIndexBuffer(
                             commandBuffer,
                             buffer.getBuffer(),
-                            vertexCount * sizeof(glm::vec3),
+                            vertexCount * 24,
                             VK_INDEX_TYPE_UINT32
                     );
 
+                    // TODO: Hardcoded buffer offset should probably automatically be determined somehow
                     vkCmdDrawIndexed(commandBuffer, indexCount, 1, 0, 0, 0);
 
                     vkCmdEndRenderPass(commandBuffer);

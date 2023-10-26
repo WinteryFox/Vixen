@@ -5,10 +5,10 @@ namespace Vixen::Vk {
             const std::shared_ptr<Device> &device,
             Stage stage,
             const std::vector<uint32_t> &binary,
+            const std::vector<Binding> &bindings,
             const std::vector<IO> &inputs,
-            const std::vector<IO> &outputs,
             const std::string &entrypoint
-    ) : ShaderModule(stage, inputs, outputs, entrypoint),
+    ) : ShaderModule(stage, bindings, inputs, entrypoint),
         device(device),
         module(VK_NULL_HANDLE) {
         VkShaderModuleCreateInfo info{

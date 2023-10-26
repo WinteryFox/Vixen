@@ -10,6 +10,11 @@
 #include "VkPipeline.h"
 #include "VkRenderer.h"
 
+struct Vertex {
+    glm::vec3 position;
+    glm::vec3 color;
+};
+
 int main() {
 #ifdef _WIN32
     system(("chcp " + std::to_string(CP_UTF8)).c_str());
@@ -20,6 +25,21 @@ int main() {
 
     auto vertex = Vixen::Vk::VkShaderModule::Builder()
             .setStage(Vixen::ShaderModule::Stage::VERTEX)
+            .addBinding({
+                .binding = 0,
+                .stride = sizeof(Vertex),
+                .rate = Vixen::Vk::VkShaderModule::Rate::VERTEX,
+            })
+            .addInput({
+                .binding = 0,
+                .location = 0,
+                .offset = offsetof(Vertex, position),
+            })
+            .addInput({
+                .binding = 0,
+                .location = 1,
+                .offset = offsetof(Vertex, color),
+            })
             .compileFromFile(vixen.device, "../../editor/shaders/triangle.vert");
     auto fragment = Vixen::Vk::VkShaderModule::Builder()
             .setStage(Vixen::ShaderModule::Stage::FRAGMENT)
@@ -42,25 +62,36 @@ int main() {
 
     auto renderer = std::make_unique<Vixen::Vk::VkRenderer>(vixen.device, vixen.swapchain, pipeline);
 
-    std::vector<glm::vec3> vertices{
-            {-0.5f, -0.5f, 0.0f},
-            {0.5f,  -0.5f, 0.0f},
-            {0.5f,  0.5f,  0.0f},
-            {-0.5f, 0.5f,  0.0f}
+    std::vector<Vertex> vertices{
+            {{-0.5f, -0.5f, 0.0f}, {1.0f, 0.0f, 0.0f}},
+            {{0.5f,  -0.5f, 0.0f}, {0.0f, 1.0f, 0.0f}},
+            {{0.5f,  0.5f,  0.0f}, {0.0f, 0.0f, 1.0f}},
+            {{-0.5f, 0.5f,  0.0f}, {1.0f, 1.0f, 1.0f}}
     };
+
     std::vector<uint32_t> indices{
             0, 1, 2,
             2, 3, 0
     };
+
     auto buffer = Vixen::Vk::VkBuffer::stage(
             vixen.device,
             Vixen::Vk::Buffer::Usage::VERTEX |
             Vixen::Vk::Buffer::Usage::INDEX,
-            vertices.size() * sizeof(glm::vec3) +
+            vertices.size() * sizeof(Vertex) +
             indices.size() * sizeof(uint32_t),
             [&vertices, &indices](auto data) {
-                memcpy(data, vertices.data(), sizeof(glm::vec3) * vertices.size());
-                memcpy(static_cast<glm::vec3*>(data) + vertices.size(), indices.data(), sizeof(uint32_t) * indices.size());
+                memcpy(
+                        data,
+                        vertices.data(),
+                        sizeof(Vertex) * vertices.size()
+                );
+
+                memcpy(
+                        static_cast<Vertex *>(data) + vertices.size(),
+                        indices.data(),
+                        sizeof(uint32_t) * indices.size()
+                );
             }
     );
 

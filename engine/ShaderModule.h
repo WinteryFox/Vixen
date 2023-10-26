@@ -12,21 +12,31 @@ namespace Vixen {
             FRAGMENT,
         };
 
+        enum class Rate {
+            VERTEX,
+            INSTANCE
+        };
+
+        struct Binding {
+            uint32_t binding;
+            size_t stride;
+            Rate rate;
+        };
+
         struct IO {
-            std::string name;
-            std::uint32_t size;
-            std::optional<uint32_t> location;
             std::optional<uint32_t> binding;
+            std::optional<uint32_t> location;
+            size_t offset;
         };
 
         ShaderModule(
                 Stage stage,
+                const std::vector<Binding> &bindings,
                 const std::vector<IO> &inputs,
-                const std::vector<IO> &outputs,
                 std::string entrypoint
         ) : stage(stage),
+            bindings(bindings),
             inputs(inputs),
-            outputs(outputs),
             entrypoint(std::move(entrypoint)) {}
 
         [[nodiscard]] Stage getStage() const {
@@ -37,12 +47,12 @@ namespace Vixen {
             return entrypoint;
         }
 
-        [[nodiscard]] const std::vector<IO> &getInputs() const {
-            return inputs;
+        [[nodiscard]] const std::vector<Binding> &getBindings() const {
+            return bindings;
         }
 
-        [[nodiscard]] const std::vector<IO> &getOutputs() const {
-            return outputs;
+        [[nodiscard]] const std::vector<IO> &getInputs() const {
+            return inputs;
         }
 
     protected:
@@ -50,8 +60,8 @@ namespace Vixen {
 
         std::string entrypoint;
 
-        std::vector<IO> inputs;
+        std::vector<Binding> bindings;
 
-        std::vector<IO> outputs;
+        std::vector<IO> inputs;
     };
 }

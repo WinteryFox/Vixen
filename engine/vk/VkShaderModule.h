@@ -9,6 +9,7 @@
 #include <glslang/Public/ShaderLang.h>
 #include <glslang/Public/ResourceLimits.h>
 #include <glslang/SPIRV/GlslangToSpv.h>
+#include <spirv_reflect.hpp>
 #include <spdlog/spdlog.h>
 #include <spdlog/fmt/bin_to_hex.h>
 #include <fstream>
@@ -29,8 +30,8 @@ namespace Vixen::Vk {
                 const std::shared_ptr<Device> &device,
                 Stage stage,
                 const std::vector<uint32_t> &binary,
+                const std::vector<Binding> &bindings,
                 const std::vector<IO> &inputs,
-                const std::vector<IO> &outputs,
                 const std::string &entrypoint = "main"
         );
 
@@ -51,11 +52,11 @@ namespace Vixen::Vk {
 
             std::string entrypoint = "main";
 
+            std::vector<Binding> bindings{};
+
             std::vector<IO> inputs{};
 
-            std::vector<IO> outputs{};
-
-            uint32_t getTypeSize(const glslang::TType *type) {
+            static uint32_t getTypeSize(const glslang::TType *type) {
                 uint32_t size;
 
                 switch (type->getBasicType()) {
@@ -159,13 +160,13 @@ namespace Vixen::Vk {
                 return *this;
             }
 
-            Builder &addInput(const IO &input) {
-                inputs.push_back(input);
+            Builder &addBinding(Binding binding) {
+                bindings.push_back(binding);
                 return *this;
             }
 
-            Builder &addOutput(const IO &output) {
-                outputs.push_back(output);
+            Builder &addInput(const IO &input) {
+                inputs.push_back(input);
                 return *this;
             }
 
@@ -195,6 +196,7 @@ namespace Vixen::Vk {
 #ifdef DEBUG
                 shader.setDebugInfo(true);
 #endif
+                shader.setAutoMapLocations(true);
 
                 shader.setEntryPoint(entrypoint.c_str());
                 shader.setSourceEntryPoint(entrypoint.c_str());
@@ -202,30 +204,30 @@ namespace Vixen::Vk {
                 auto messages = (EShMessages) (EShMsgSpvRules | EShMsgVulkanRules);
                 glslang::TShader::ForbidIncluder includer;
 
-                if (!shader.parse(GetDefaultResources(), VIXEN_VK_SPIRV_VERSION, false, messages)) {
-                    spdlog::error("Failed to parse shader; {}", shader.getInfoLog());
-                    throw std::runtime_error("Failed to parse shader");
-                }
+                if (!shader.parse(GetDefaultResources(), VIXEN_VK_SPIRV_VERSION, false, messages))
+                    error("Failed to parse shader; {}", shader.getInfoLog());
 
                 program.addShader(&shader);
-                if (!program.link(messages)) {
-                    spdlog::error("Failed to link shader program; {}", shader.getInfoLog());
-                    throw std::runtime_error("Failed to link shader program");
-                }
+                if (!program.link(messages))
+                    error("Failed to link shader program; {}", shader.getInfoLog());
 
-                glslang::SpvOptions options;
+                glslang::SpvOptions options{
 #ifdef DEBUG
-                options.generateDebugInfo = true;
-                options.disableOptimizer = true;
-                options.optimizeSize = false;
-                options.stripDebugInfo = false;
+                        .generateDebugInfo = true,
+                        .stripDebugInfo = false,
+                        .disableOptimizer = true,
+                        .optimizeSize = false,
+                        .disassemble = true,
 #else
-                options.disableOptimizer = false;
-                options.disableOptimizer = false;
-                options.optimizeSize = true;
-                options.stripDebugInfo = true;
+                        .generateDebugInfo = false,
+                        .stripDebugInfo = true,
+                        .disableOptimizer = false,
+                        .optimizeSize = true,
+                        .disassemble = false,
 #endif
-                options.validate = true;
+                        .validate = true,
+                };
+
                 spv::SpvBuildLogger logger;
                 glslang::GlslangToSpv(*program.getIntermediate(s), binary, &logger, &options);
 
@@ -236,44 +238,25 @@ namespace Vixen::Vk {
                               std::string_view(source.begin(), source.end()), stream.str());
 #endif
 
-                if (!program.buildReflection()) {
-                    spdlog::error("Failed to process shader reflection; {}", shader.getInfoLog());
-                    throw std::runtime_error("Failed to link shader program");
-                }
+                spirv_cross::CompilerReflection c{binary};
+                auto resources = c.get_shader_resources();
 
-                for (auto i = 0; i < program.getNumPipeInputs(); i++) {
-                    const auto &input = program.getPipeInput(i);
-                    auto type = input.getType();
+                for (const auto &uniformBuffer: resources.uniform_buffers) {
+                    /*const auto &binding = c.get_decoration(input.id, spv::DecorationBinding);
+                    const auto &location = c.get_decoration(input.id, spv::DecorationLocation);
 
                     inputs.push_back(
                             {
                                     .name = input.name,
-                                    .size = getTypeSize(type),
-                                    .location = input.index == -1 ?
-                                                std::nullopt :
-                                                std::optional{static_cast<uint32_t>(input.index)},
-                                    .binding = input.counterIndex == -1 ?
+                                    .size = 3 * sizeof(float),
+                                    .binding = binding == 0 ?
                                                std::nullopt :
-                                               std::optional{static_cast<uint32_t>(input.counterIndex)}
-                            }
-                    );
-                }
-
-                for (auto i = 0; i < program.getNumPipeOutputs(); i++) {
-                    const auto &output = program.getPipeOutput(i);
-
-                    outputs.push_back(
-                            {
-                                    .name = output.name,
-                                    .size = static_cast<uint32_t>(output.size),
-                                    .location = output.index == -1 ?
+                                               std::optional{static_cast<uint32_t>(binding)},
+                                    .location = location == 0 ?
                                                 std::nullopt :
-                                                std::optional{static_cast<uint32_t>(output.index)},
-                                    .binding = output.counterIndex == -1 ?
-                                               std::nullopt :
-                                               std::optional{static_cast<uint32_t>(output.counterIndex)}
+                                                std::optional{static_cast<uint32_t>(location)},
                             }
-                    );
+                    );*/
                 }
 
                 if (!logger.getAllMessages().empty())
@@ -283,7 +266,7 @@ namespace Vixen::Vk {
 
                 glslang::FinalizeProcess();
 
-                return std::make_shared<VkShaderModule>(d, stage, binary, inputs, outputs, entrypoint);
+                return std::make_shared<VkShaderModule>(d, stage, binary, bindings, inputs, entrypoint);
             }
 
             std::shared_ptr<VkShaderModule> compile(const std::shared_ptr<Device> &d, const std::string &source) {
