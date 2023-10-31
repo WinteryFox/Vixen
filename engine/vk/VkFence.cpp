@@ -27,8 +27,4 @@ namespace Vixen::Vk {
     void VkFence::reset() {
         vkResetFences(device, 1, &fence);
     }
-
-    const ::VkFence VkFence::getFence() const {
-        return fence;
-    }
 }

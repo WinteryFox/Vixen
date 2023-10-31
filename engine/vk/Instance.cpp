@@ -155,9 +155,8 @@ namespace Vixen::Vk {
     bool Instance::isExtensionSupported(const std::string &extension) {
         const auto extensions = getSupportedExtensions();
 
-        return std::find_if(
-                extensions.begin(),
-                extensions.end(),
+        return std::ranges::find_if(
+                extensions,
                 [extension](VkExtensionProperties props) { return extension == props.extensionName; }
         ) != std::end(extensions);
     }
@@ -175,9 +174,8 @@ namespace Vixen::Vk {
     bool Instance::isLayerSupported(const std::string &layer) {
         const auto layers = getSupportedLayers();
 
-        return std::find_if(
-                layers.begin(),
-                layers.end(),
+        return std::ranges::find_if(
+                layers,
                 [layer](VkLayerProperties props) { return layer == props.layerName; }
         ) != std::end(layers);
     }

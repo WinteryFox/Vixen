@@ -21,7 +21,7 @@ namespace Vixen::Vk {
             error<T>("{} ({})", message, string_VkResult(result));
     }
 
-    static inline std::string getVersionString(glm::vec3 version) {
+    static inline std::string getVersionString(glm::ivec3 version) {
         return fmt::format("{}.{}.{}", version.x, version.y, version.z);
     }
 

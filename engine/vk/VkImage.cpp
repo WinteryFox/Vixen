@@ -88,7 +88,7 @@ namespace Vixen::Vk {
         VkDeviceSize size = width * height * sizeof(uint32_t);
 
         auto staging = VkBuffer(device, Buffer::Usage::INDEX, size);
-        staging.write(pixels, size, 0);
+        staging.write(reinterpret_cast<const char *>(pixels), size, 0);
 
         FreeImage_Unload(converted);
         FreeImage_Unload(bitmap);

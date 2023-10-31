@@ -56,6 +56,8 @@ namespace Vixen::Vk {
 
             std::vector<IO> inputs{};
 
+            std::vector<IO> uniformBuffers{};
+
             static uint32_t getTypeSize(const glslang::TType *type) {
                 uint32_t size;
 
@@ -242,21 +244,17 @@ namespace Vixen::Vk {
                 auto resources = c.get_shader_resources();
 
                 for (const auto &uniformBuffer: resources.uniform_buffers) {
-                    /*const auto &binding = c.get_decoration(input.id, spv::DecorationBinding);
-                    const auto &location = c.get_decoration(input.id, spv::DecorationLocation);
+                    uint32_t binding = c.get_decoration(uniformBuffer.id, spv::DecorationBinding);
+                    uint32_t location = c.get_decoration(uniformBuffer.id, spv::DecorationLocation);
 
-                    inputs.push_back(
-                            {
-                                    .name = input.name,
-                                    .size = 3 * sizeof(float),
-                                    .binding = binding == 0 ?
-                                               std::nullopt :
-                                               std::optional{static_cast<uint32_t>(binding)},
-                                    .location = location == 0 ?
-                                                std::nullopt :
-                                                std::optional{static_cast<uint32_t>(location)},
-                            }
-                    );*/
+
+
+                    uniformBuffers.push_back({
+                        .binding = binding,
+                        .location = location,
+                        .size = 0,
+                        .offset = 0,
+                    });
                 }
 
                 if (!logger.getAllMessages().empty())

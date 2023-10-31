@@ -74,7 +74,8 @@ namespace Vixen {
         if (framebufferSizeChanged) {
             framebufferSizeChanged = false;
 
-            int width, height;
+            int width;
+            int height;
             glfwGetFramebufferSize(window, &width, &height);
 
             spdlog::trace("Framebuffer resized to {}x{}", width, height);
@@ -102,11 +103,14 @@ namespace Vixen {
     }
 
     void Window::center() const {
-        uint32_t w, h;
+        uint32_t w;
+        uint32_t h;
         glfwGetWindowSize(window, reinterpret_cast<int *>(&w), reinterpret_cast<int *>(&h));
 
         const auto mode = glfwGetVideoMode(monitor);
-        uint32_t x, y;
+
+        uint32_t x;
+        uint32_t y;
         glfwGetMonitorPos(monitor, reinterpret_cast<int *>(&x), reinterpret_cast<int *>(&y));
         glfwSetWindowPos(
                 window,
@@ -139,10 +143,12 @@ namespace Vixen {
     }
 
     void Window::setWindowedMode(Mode mode) const {
-        int w, h = 0;
-        int x, y = 0;
-        int refreshRate = 0;
-        GLFWmonitor *m = nullptr;
+        int w;
+        int h;
+        int x;
+        int y;
+        int refreshRate;
+        GLFWmonitor *m;
 
         if (mode == Mode::FULLSCREEN) {
             auto videoMode = glfwGetVideoMode(monitor);

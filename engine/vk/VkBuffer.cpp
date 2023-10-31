@@ -52,7 +52,7 @@ namespace Vixen::Vk {
         vmaDestroyBuffer(device->getAllocator(), buffer, allocation);
     }
 
-    void VkBuffer::write(const void *data, size_t dataSize, size_t offset) {
+    void VkBuffer::write(const char *data, size_t dataSize, size_t offset) {
         if (offset + dataSize > size)
             throw std::runtime_error("Buffer overflow");
 
@@ -61,14 +61,14 @@ namespace Vixen::Vk {
         unmap();
     }
 
-    void *VkBuffer::map() {
-        void *data = nullptr;
+    char *VkBuffer::map() {
+        void *data;
         checkVulkanResult(
                 vmaMapMemory(device->getAllocator(), allocation, &data),
                 "Failed to map buffer"
         );
 
-        return data;
+        return static_cast<char *>(data);
     }
 
     void VkBuffer::unmap() {
@@ -104,7 +104,7 @@ namespace Vixen::Vk {
             const std::shared_ptr<Device> &device,
             Usage usage,
             size_t size,
-            const void *data
+            const char *data
     ) {
         auto source = VkBuffer(device, usage | Usage::TRANSFER_SRC, size);
         auto destination = VkBuffer(device, usage | Usage::TRANSFER_DST, size);

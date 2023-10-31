@@ -26,18 +26,31 @@ namespace Vixen {
         struct IO {
             std::optional<uint32_t> binding;
             std::optional<uint32_t> location;
+            size_t size;
             size_t offset;
         };
 
+    private:
+        Stage stage;
+
+        std::string entrypoint;
+
+        std::vector<Binding> bindings;
+
+        std::vector<IO> inputs;
+
+        std::vector<IO> uniformBuffers;
+
+    public:
         ShaderModule(
                 Stage stage,
+                std::string entrypoint,
                 const std::vector<Binding> &bindings,
-                const std::vector<IO> &inputs,
-                std::string entrypoint
+                const std::vector<IO> &inputs
         ) : stage(stage),
+            entrypoint(std::move(entrypoint)),
             bindings(bindings),
-            inputs(inputs),
-            entrypoint(std::move(entrypoint)) {}
+            inputs(inputs) {}
 
         [[nodiscard]] Stage getStage() const {
             return stage;
@@ -54,14 +67,5 @@ namespace Vixen {
         [[nodiscard]] const std::vector<IO> &getInputs() const {
             return inputs;
         }
-
-    protected:
-        Stage stage;
-
-        std::string entrypoint;
-
-        std::vector<Binding> bindings;
-
-        std::vector<IO> inputs;
     };
 }

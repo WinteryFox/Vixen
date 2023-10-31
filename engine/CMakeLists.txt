@@ -10,8 +10,10 @@ find_library(FreeImage_LIBRARY NAMES FreeImage HINTS ${FreeImage_ROOT})
 include(FindPackageHandleStandardArgs)
 find_package_handle_standard_args(FreeImage DEFAULT_MSG FreeImage_INCLUDE_DIR FreeImage_LIBRARY)
 
-set(HEADERS Window.h ShaderModule.h ShaderProgram.h Monitor.h Buffer.h Mesh.h Util.h Renderer.h Vixen.h Framebuffer.h RenderPass.h Material.h Entity.h)
-set(SOURCES Window.cpp Buffer.cpp Blending.h)
+set(HEADERS Window.h ShaderModule.h ShaderProgram.h Monitor.h Buffer.h Mesh.h Util.h Renderer.h Vixen.h Framebuffer.h RenderPass.h Material.h Entity.h
+        Camera.h)
+set(SOURCES Window.cpp Buffer.cpp Blending.h
+        Camera.cpp)
 
 link_libraries(
         PkgConfig::GLM

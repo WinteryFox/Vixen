@@ -43,7 +43,6 @@ namespace Vixen::Vk {
                 ) {
                     auto &commandBuffer = renderCommandBuffers[currentFrame];
 
-                    commandBuffer.wait();
                     prepare(commandBuffer, framebuffers[imageIndex], buffer, vertexCount, indexCount);
 
                     std::vector<::VkSemaphore> waitSemaphores = {imageAvailableSemaphore.getSemaphore()};
@@ -120,18 +119,20 @@ namespace Vixen::Vk {
 
                     pipeline->bindGraphics(commandBuffer);
 
-                    VkViewport viewport{};
-                    viewport.x = 0.0f;
-                    viewport.y = 0.0f;
-                    viewport.width = static_cast<float>(swapchain.getExtent().width);
-                    viewport.height = static_cast<float>(swapchain.getExtent().height);
-                    viewport.minDepth = 0.0f;
-                    viewport.maxDepth = 1.0f;
+                    VkViewport viewport{
+                            .x = 0.0f,
+                            .y = 0.0f,
+                            .width = static_cast<float>(swapchain.getExtent().width),
+                            .height = static_cast<float>(swapchain.getExtent().height),
+                            .minDepth = 0.0f,
+                            .maxDepth = 1.0f,
+                    };
                     vkCmdSetViewport(commandBuffer, 0, 1, &viewport);
 
-                    VkRect2D scissor{};
-                    scissor.offset = {0, 0};
-                    scissor.extent = swapchain.getExtent();
+                    VkRect2D scissor{
+                            .offset = {0, 0},
+                            .extent = swapchain.getExtent(),
+                    };
                     vkCmdSetScissor(commandBuffer, 0, 1, &scissor);
 
                     ::VkBuffer vertexBuffers[1]{buffer.getBuffer()};

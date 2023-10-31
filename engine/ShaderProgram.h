@@ -4,9 +4,8 @@
 #include "ShaderModule.h"
 
 namespace Vixen {
-    template<class T, class = std::enable_if<std::is_base_of<ShaderModule, T>::value>>
+    template<class T> requires std::is_base_of_v<ShaderModule, T>
     class ShaderProgram {
-    protected:
         std::shared_ptr<T> vertex;
 
         std::shared_ptr<T> fragment;

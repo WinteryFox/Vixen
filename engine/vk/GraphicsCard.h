@@ -112,10 +112,11 @@ namespace Vixen::Vk {
         }
 
         [[nodiscard]] bool isExtensionSupported(const std::string &extension) const {
-            return std::find_if(
-                    extensions.begin(),
-                    extensions.end(),
-                    [extension](VkExtensionProperties props) { return extension == props.extensionName; }
+            return std::ranges::find_if(
+                    extensions,
+                    [extension](VkExtensionProperties props) {
+                        return extension == props.extensionName;
+                    }
             ) != std::end(extensions);
         }
 
@@ -137,10 +138,11 @@ namespace Vixen::Vk {
         }
 
         [[nodiscard]] bool isLayerSupported(const std::string &layer) const {
-            return std::find_if(
-                    layers.begin(),
-                    layers.end(),
-                    [layer](VkLayerProperties props) { return layer == props.layerName; }
+            return std::ranges::find_if(
+                    layers,
+                    [layer](VkLayerProperties props) {
+                        return layer == props.layerName;
+                    }
             ) != std::end(layers);
         }
 

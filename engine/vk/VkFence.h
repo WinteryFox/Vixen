@@ -32,7 +32,5 @@ namespace Vixen::Vk {
         }
 
         void reset();
-
-        const ::VkFence getFence() const;
     };
 }

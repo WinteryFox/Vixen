@@ -26,7 +26,7 @@ namespace Vixen::Vk {
          * @param dataSize The size of the data.
          * @param offset The offset within this buffer to start writing from.
          */
-        virtual void write(const void *data, size_t dataSize, size_t offset) = 0;
+        virtual void write(const char *data, size_t dataSize, size_t offset) = 0;
 
         [[nodiscard]] size_t getSize() const;
 
@@ -45,7 +45,7 @@ namespace Vixen::Vk {
          */
         Buffer(Usage bufferUsage, const std::size_t &size);
 
-        virtual void *map() = 0;
+        virtual char *map() = 0;
 
         virtual void unmap() = 0;
     };

@@ -49,14 +49,17 @@ namespace Vixen::Vk {
             currentFrame = (currentFrame + 1) % imageCount;
 
             switch (result) {
+                using
+                enum State;
+
                 case VK_SUCCESS:
-                    return State::OK;
+                    return OK;
                 case VK_SUBOPTIMAL_KHR:
                     spdlog::warn("Suboptimal swapchain state");
-                    return State::SUBOPTIMAL;
+                    return SUBOPTIMAL;
                 default:
                     checkVulkanResult(result, "Failed to acquire swapchain image");
-                    return State::OUT_OF_DATE;
+                    return OUT_OF_DATE;
             }
         }
 
@@ -73,19 +76,19 @@ namespace Vixen::Vk {
         void invalidate();
 
     private:
+        std::shared_ptr<Device> device;
+
         uint32_t currentFrame;
 
         uint32_t imageCount;
 
-        std::shared_ptr<Device> device;
+        VkSurfaceFormatKHR format;
 
         VkSwapchainKHR swapchain;
 
         std::vector<::VkImage> images;
 
         std::vector<::VkImageView> imageViews;
-
-        VkSurfaceFormatKHR format{};
 
         VkExtent2D extent{};
 

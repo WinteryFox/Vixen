@@ -34,7 +34,7 @@ namespace Vixen::Vk {
         }
 
         std::vector<::VkImageView> views{imageViews.size()};
-        std::transform(imageViews.begin(), imageViews.end(), views.data(), [](const auto &imageView) {
+        std::ranges::transform(imageViews, views.data(), [](const auto &imageView) {
             return imageView->getImageView();
         });
         VkFramebufferCreateInfo info{

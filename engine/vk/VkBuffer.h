@@ -7,7 +7,6 @@
 
 namespace Vixen::Vk {
     class VkBuffer : public Buffer {
-    protected:
         std::shared_ptr<Device> device;
 
         VmaAllocation allocation;
@@ -25,11 +24,11 @@ namespace Vixen::Vk {
 
         ~VkBuffer();
 
-        void *map() override;
+        char *map() override;
 
         void unmap() override;
 
-        void write(const void *data, size_t dataSize, size_t offset) override;
+        void write(const char *data, size_t dataSize, size_t offset) override;
 
         /**
          * Copies data from one buffer to another.
@@ -48,7 +47,7 @@ namespace Vixen::Vk {
          * @param data Pointer to the start of the data.
          * @return Returns the resulting device local buffer.
          */
-        static VkBuffer stage(const std::shared_ptr<Device> &device, Usage usage, size_t size, const void *data);
+        static VkBuffer stage(const std::shared_ptr<Device> &device, Usage usage, size_t size, const char *data);
 
         template<typename F>
         static VkBuffer stage(

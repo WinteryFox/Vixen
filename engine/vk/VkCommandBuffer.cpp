@@ -27,7 +27,6 @@ namespace Vixen::Vk {
 
     VkCommandBuffer &VkCommandBuffer::reset() {
         wait();
-        fence.reset();
         checkVulkanResult(
                 vkResetCommandBuffer(commandBuffer, 0),
                 "Failed to reset command buffer"
@@ -42,23 +41,30 @@ namespace Vixen::Vk {
             const std::vector<::VkPipelineStageFlags> &waitMasks,
             const std::vector<::VkSemaphore> &signalSemaphores
     ) {
-        VkSubmitInfo info{
-                .sType = VK_STRUCTURE_TYPE_SUBMIT_INFO,
+        fence.wait<void>(
+                std::numeric_limits<uint64_t>::max(),
+                [this, queue, waitSemaphores, waitMasks, signalSemaphores](const auto &f) {
+                    fence.reset();
 
-                .waitSemaphoreCount = static_cast<uint32_t>(waitSemaphores.size()),
-                .pWaitSemaphores = waitSemaphores.data(),
-                .pWaitDstStageMask = waitMasks.data(),
+                    VkSubmitInfo info{
+                            .sType = VK_STRUCTURE_TYPE_SUBMIT_INFO,
 
-                .commandBufferCount = 1,
-                .pCommandBuffers = &commandBuffer,
+                            .waitSemaphoreCount = static_cast<uint32_t>(waitSemaphores.size()),
+                            .pWaitSemaphores = waitSemaphores.data(),
+                            .pWaitDstStageMask = waitMasks.data(),
 
-                .signalSemaphoreCount = static_cast<uint32_t>(signalSemaphores.size()),
-                .pSignalSemaphores = signalSemaphores.data(),
-        };
+                            .commandBufferCount = 1,
+                            .pCommandBuffers = &commandBuffer,
 
-        checkVulkanResult(
-                vkQueueSubmit(queue, 1, &info, fence.getFence()),
-                "Failed to submit command buffer to queue"
+                            .signalSemaphoreCount = static_cast<uint32_t>(signalSemaphores.size()),
+                            .pSignalSemaphores = signalSemaphores.data(),
+                    };
+
+                    checkVulkanResult(
+                            vkQueueSubmit(queue, 1, &info, f),
+                            "Failed to submit command buffer to queue"
+                    );
+                }
         );
 
         return *this;

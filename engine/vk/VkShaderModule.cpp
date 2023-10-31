@@ -8,7 +8,7 @@ namespace Vixen::Vk {
             const std::vector<Binding> &bindings,
             const std::vector<IO> &inputs,
             const std::string &entrypoint
-    ) : ShaderModule(stage, bindings, inputs, entrypoint),
+    ) : ShaderModule(stage, entrypoint, bindings, inputs),
         device(device),
         module(VK_NULL_HANDLE) {
         VkShaderModuleCreateInfo info{
@@ -32,9 +32,9 @@ namespace Vixen::Vk {
                 .sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO,
                 .pNext = VK_NULL_HANDLE,
                 .flags = 0,
-                .stage = getVulkanShaderStage(stage),
+                .stage = getVulkanShaderStage(getStage()),
                 .module = module,
-                .pName = entrypoint.c_str(),
+                .pName = getEntrypoint().c_str(),
                 .pSpecializationInfo = VK_NULL_HANDLE
         };
     }

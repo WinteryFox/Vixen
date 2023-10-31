@@ -4,7 +4,6 @@
 #include "Vulkan.h"
 #include "GraphicsCard.h"
 #include "VkWindow.h"
-#include "../Util.h"
 
 namespace Vixen::Vk {
     class Instance {
