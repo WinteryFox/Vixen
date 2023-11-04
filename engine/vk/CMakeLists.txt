@@ -72,7 +72,7 @@ target_compile_definitions(VkVixen PUBLIC -DVK_NO_PROTOTYPES)
 find_package(glslang QUIET)
 if (${glslang_FOUND})
     target_link_libraries(
-            VKVixen
+            VkVixen
             PUBLIC
             #           glslang::OSDependent
             glslang::glslang
