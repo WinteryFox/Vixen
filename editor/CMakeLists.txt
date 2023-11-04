@@ -1,6 +1,6 @@
 project("Vixen Editor")
 
-find_package(Qt6 REQUIRED COMPONENTS Core Qml Widgets Quick)
+find_package(Qt6 6.3 REQUIRED COMPONENTS Core Qml Widgets Quick)
 qt_standard_project_setup()
 qt_policy(SET QTP0001 NEW)
 
