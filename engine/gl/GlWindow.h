@@ -1,22 +1,16 @@
 #pragma once
 
+#include <GL/glew.h>
 #include <cstdint>
 #include <string>
-#include <GL/glew.h>
 #include <spdlog/spdlog.h>
 #include <spdlog/sinks/stdout_color_sinks.h>
 #include <fmt/color.h>
 #include "../Window.h"
 
+namespace Vixen::Gl {
 #ifdef DEBUG
-
-
-
-#endif
-
-namespace Vixen::Vk {
-#ifdef DEBUG
-    static void APIENTRY glDebugCallback(
+    static void glDebugCallback(
             GLenum source,
             GLenum type,
             GLuint id,
@@ -109,7 +103,7 @@ namespace Vixen::Vk {
 
 #endif
 
-    class GlWindow : public BaseWindow {
+    class GlWindow : public Window {
     public:
         GlWindow(const std::string &title, const int &width, const int &height, bool transparentFrameBuffer);
 

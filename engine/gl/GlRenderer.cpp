@@ -1,12 +1,12 @@
 #include "GlRenderer.h"
 
-namespace Vixen::Vk {
+namespace Vixen::Gl {
     GlRenderer::GlRenderer() {
 
     }
 
     void GlRenderer::submit() {
-        for (const auto &pass: passes) {
+        /*for (const auto &pass: passes) {
             for (const auto &material: pass.materials) {
                 material.shader.bind();
 
@@ -29,6 +29,6 @@ namespace Vixen::Vk {
                                                 static_cast<GLsizei>(commands.size()), 0);
                 }
             }
-        }
+        }*/
     }
 }

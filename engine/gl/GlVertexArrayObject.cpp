@@ -1,13 +1,13 @@
 #include "GlVertexArrayObject.h"
 
-namespace Vixen::Vk {
+namespace Vixen::Gl {
     GlVertexArrayObject::GlVertexArrayObject(const std::vector<VertexBinding> &bindings, size_t indexOffset)
             : bindings(), indexOffset(indexOffset) {
         glCreateVertexArrays(1, &vao);
 
         for (const auto &binding: bindings) {
             for (const auto &location: binding.locations) {
-                glVertexArrayVertexBuffer(vao, location.index, binding.buffer->buffer, location.offset,
+                glVertexArrayVertexBuffer(vao, location.index, binding.buffer->getBuffer(), location.offset,
                                           location.stride);
                 glVertexArrayAttribFormat(vao, location.index, location.size, location.type, location.normalized,
                                           location.offset);
@@ -16,8 +16,8 @@ namespace Vixen::Vk {
                 glVertexArrayAttribBinding(vao, location.index, location.index);
             }
 
-            if (binding.buffer->bufferUsage & BufferUsage::INDEX)
-                glVertexArrayElementBuffer(vao, binding.buffer->buffer);
+            if (binding.buffer->getBufferUsage() & Buffer::Usage::INDEX)
+                glVertexArrayElementBuffer(vao, binding.buffer->getBuffer());
         }
     }
 

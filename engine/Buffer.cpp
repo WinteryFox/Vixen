@@ -1,6 +1,6 @@
 #include "Buffer.h"
 
-namespace Vixen::Vk {
+namespace Vixen {
     Buffer::Buffer(Usage bufferUsage, const size_t &size)
             : bufferUsage(bufferUsage),
               size(size) {}

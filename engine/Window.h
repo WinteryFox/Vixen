@@ -1,8 +1,9 @@
 #pragma once
 
+#define GLFW_INCLUDE_NONE
+#include <GLFW/glfw3.h>
 #include <string>
 #include <spdlog/spdlog.h>
-#include <GLFW/glfw3.h>
 #include <iostream>
 #include <glm/glm.hpp>
 #include "Monitor.h"
@@ -23,6 +24,7 @@ namespace Vixen {
 
         std::unordered_map<GLFWmonitor *, Monitor> monitors;
 
+    public:
         Window(
                 const std::string &title,
                 const uint32_t &width,
@@ -32,7 +34,6 @@ namespace Vixen {
 
         ~Window();
 
-    public:
         /**
          * Has the current window been requested to close?
          * @return True if the window should close, false if not.

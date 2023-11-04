@@ -2,9 +2,6 @@
 #include <QGuiApplication>
 #include <QQmlApplicationEngine>
 #include <QQuickView>
-#include "widgets/GlViewport.h"
-
-using namespace Vixen::Editor;
 
 int main(int argc, char **argv) {
     spdlog::set_level(spdlog::level::trace);
@@ -14,7 +11,7 @@ int main(int argc, char **argv) {
     QCoreApplication::setApplicationName("Vixen Editor");
     QCoreApplication::setOrganizationName("Vixen");
 
-    qmlRegisterType<GlViewport>("Vixen", 1, 0, "GlViewport");
+    //qmlRegisterType<GlViewport>("Vixen", 1, 0, "GlViewport");
 
     QQmlApplicationEngine engine;
     engine.load(u"qrc:/editor/ui/main.qml"_qs);

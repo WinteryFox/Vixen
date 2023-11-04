@@ -1,4 +1,4 @@
-cmake_minimum_required(VERSION 3.20)
+cmake_minimum_required(VERSION 3.25)
 project("Vixen")
 
 set(CMAKE_INCLUDE_CURRENT_DIR ON)
@@ -16,6 +16,7 @@ endif ()
 
 set(SKIP_INSTALL_ALL ON)
 
+include(FetchContent)
 find_package(PkgConfig REQUIRED)
 
 option(ENABLE_VULKAN "Enable or disable Vulkan support" ON)

@@ -4,7 +4,7 @@ find_package(Qt6 REQUIRED COMPONENTS Core Qml Widgets Quick)
 qt_standard_project_setup()
 qt_policy(SET QTP0001 NEW)
 
-add_executable(editor main.cpp widgets/GlViewport.cpp widgets/GlViewport.h widgets/GlViewportRenderer.cpp widgets/GlViewportRenderer.h)
+add_executable(editor main.cpp)
 target_include_directories(editor PUBLIC ../engine)
 target_link_libraries(editor PRIVATE Vixen Qt6::Core Qt6::Qml Qt6::Quick Qt6::Widgets)
 

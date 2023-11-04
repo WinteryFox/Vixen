@@ -6,8 +6,8 @@ find_package(spirv_cross_glsl CONFIG REQUIRED)
 find_package(spirv_cross_reflect CONFIG REQUIRED)
 find_package(spirv_cross_cpp CONFIG REQUIRED)
 find_package(glslang CONFIG REQUIRED)
+#pkg_check_modules(glslang REQUIRED IMPORTED_TARGET glslang)
 
-include(FetchContent)
 FetchContent_Declare(
         vma
         GIT_REPOSITORY https://github.com/GPUOpen-LibrariesAndSDKs/VulkanMemoryAllocator

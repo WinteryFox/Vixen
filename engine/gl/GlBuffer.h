@@ -5,26 +5,24 @@
 #include "../Buffer.h"
 #include "../Util.h"
 
-namespace Vixen::Vk {
+namespace Vixen::Gl {
     class GlBuffer : public Buffer {
-        friend class WritableGlBuffer;
-
-        friend class GlVertexArrayObject;
-
-    protected:
-        GLuint buffer;
+    private:
+        GLuint buffer = 0;
 
         GLbitfield flags;
 
-        void *dataPointer;
-
-        GlBuffer(GLbitfield flags, const size_t &size, BufferUsage bufferUsage, AllocationUsage allocationUsage);
-
-        GlBuffer(GLuint buffer, GLbitfield flags, const size_t &size, BufferUsage bufferUsage,
-                 AllocationUsage allocationUsage);
+    public:
+        GlBuffer(Usage bufferUsage, const size_t &size);
 
         ~GlBuffer();
 
-        [[nodiscard]] void *map(std::size_t offset, std::size_t length) const;
+        void write(const char *data, size_t dataSize, size_t offset) override;
+
+        char *map() override;
+
+        void unmap() override;
+
+        [[nodiscard]] GLuint getBuffer() const;
     };
 }

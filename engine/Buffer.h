@@ -4,7 +4,7 @@
 #include <cstdint>
 #include <cstring>
 
-namespace Vixen::Vk {
+namespace Vixen {
     /**
      * A persistently mapped, coherent, synchronized, host or server data buffer.
      */
@@ -18,7 +18,9 @@ namespace Vixen::Vk {
             TRANSFER_SRC = 1 << 4,
         };
 
-        Buffer &operator=(const Buffer &) = delete;
+        virtual char *map() = 0;
+
+        virtual void unmap() = 0;
 
         /**
          * Map the buffer, write to it and unmap the buffer from host memory.
@@ -44,10 +46,6 @@ namespace Vixen::Vk {
          * @param allocationUsage Specifies how this buffer's allocated memory will be used.
          */
         Buffer(Usage bufferUsage, const std::size_t &size);
-
-        virtual char *map() = 0;
-
-        virtual void unmap() = 0;
     };
 
     inline Buffer::Usage operator|(Buffer::Usage a, Buffer::Usage b) {

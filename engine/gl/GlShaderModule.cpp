@@ -1,45 +1,8 @@
 #include "GlShaderModule.h"
 
-namespace Vixen::Vk {
+namespace Vixen::Gl {
     GlShaderModule::GlShaderModule(Stage stage, const std::string &source, const std::string &entry)
-                : Vk::ShaderModule(stage, source, entry), module(0) {
-        // TODO: Not sure if compiling from the SPIR-V is the best route to go, so (possibly temporarily) just grab
-        // TODO: the raw source and compile it. This might cause issues later for Vulkan specific features, but we might
-        // TODO: just not support those in the end. This is something we should decide on later.
-        /*spirv_cross::CompilerGLSL compiler(binary);
-        spirv_cross::CompilerGLSL::Options options {
-            .version = 450,
-            .es = false,
-            .force_temporary = false,
-            .force_recompile_max_debug_iterations = 3,
-            .vulkan_semantics = false,
-            .separate_shader_objects = true,
-            .flatten_multidimensional_arrays = false,
-            .enable_420pack_extension = true,
-            .emit_push_constant_as_uniform_buffer = true,
-            .emit_uniform_buffer_as_plain_uniforms = false,
-            .emit_line_directives = false,
-            .enable_storage_image_qualifier_deduction = true,
-            .force_zero_initialized_variables = false,
-            .force_flattened_io_blocks = false,
-            .relax_nan_checks = false,
-            // .enable_row_major_workaround = true,
-            .ovr_multiview_view_count = 0,
-            .vertex = {
-                    .fixup_clipspace = true,
-                    .flip_vert_y = false,
-                    .support_nonzero_base_instance = true
-            },
-            .fragment = {
-                    .default_float_precision = spirv_cross::CompilerGLSL::Options::Mediump,
-                    .default_int_precision = spirv_cross::CompilerGLSL::Options::Highp,
-            }
-        };
-
-        compiler.set_common_options(options);
-        auto crossed = compiler.compile();
-        spdlog::trace("Cross-compiled GLSL shader\n{}", crossed);*/
-
+                : ShaderModule(stage, entry, {}, {}), module(0) {
         switch (stage) {
             case Stage::VERTEX:
                 module = glCreateShader(GL_VERTEX_SHADER);

@@ -3,7 +3,6 @@
 #include "../GlShaderModule.h"
 #include "../GlShaderProgram.h"
 #include "GlBuffer.h"
-#include "../../buffer/gl/WritableGlBuffer.h"
 #include "../GlVertexArrayObject.h"
 #include <unistd.h>
 
@@ -12,8 +11,6 @@
 #include <windows.h>
 
 #endif
-
-using namespace Vixen::Vk;
 
 int main() {
 #ifdef _WIN32
@@ -32,36 +29,35 @@ int main() {
             1, 2, 3    // second triangle
     };
 
-    auto window = GlWindow("Vixen OpenGL Test", 720, 480, true);
+    auto window = Vixen::Gl::GlWindow("Vixen OpenGL Test", 720, 480, true);
     window.center();
-    window.setClearColor(0.13f, 0.23f, 0.33f, 1.0f);
     window.setVisible(true);
 
     std::ifstream vertexStream("../../editor/shaders/triangle.vert");
     std::string vertexSource((std::istreambuf_iterator<char>(vertexStream)), std::istreambuf_iterator<char>());
-    auto vertexModule = std::make_shared<GlShaderModule>(Vixen::Vk::ShaderModule::Stage::VERTEX, vertexSource);
+    auto vertexModule = std::make_shared<Vixen::Gl::GlShaderModule>(Vixen::ShaderModule::Stage::VERTEX, vertexSource);
 
     std::ifstream fragmentStream("../../editor/shaders/triangle.frag");
     std::string fragmentSource((std::istreambuf_iterator<char>(fragmentStream)), std::istreambuf_iterator<char>());
-    auto fragmentModule = std::make_shared<GlShaderModule>(Vixen::Vk::ShaderModule::Stage::FRAGMENT,
-                                                           fragmentSource);
+    auto fragmentModule = std::make_shared<Vixen::Gl::GlShaderModule>(Vixen::ShaderModule::Stage::FRAGMENT,
+                                                                      fragmentSource);
 
-    GlShaderProgram program({vertexModule, fragmentModule});
+    Vixen::Gl::GlShaderProgram program(vertexModule, fragmentModule);
 
-    auto vbo = std::make_shared<WritableGlBuffer>(
-            vertices.size() * sizeof(glm::vec3) + indices.size() * sizeof(std::uint32_t),
-            Vixen::Vk::BufferUsage::VERTEX | Vixen::Vk::BufferUsage::INDEX,
-            Vixen::Vk::AllocationUsage::GPU_ONLY
+    auto vbo = std::make_shared<Vixen::Gl::GlBuffer>(
+            Vixen::Buffer::Usage::VERTEX | Vixen::Buffer::Usage::INDEX,
+            vertices.size() * sizeof(glm::vec3) +
+            indices.size() * sizeof(std::uint32_t)
     );
-    vbo->write(vertices, 0);
-    vbo->write(indices, vertices.size() * sizeof(glm::vec3));
+    vbo->write(reinterpret_cast<const char *>(vertices.data()), vertices.size() * sizeof(glm::vec3), 0);
+    vbo->write(reinterpret_cast<const char *>(indices.data()), vertices.size() * sizeof(glm::vec3), 0);
 
-    auto vao = GlVertexArrayObject(
+    auto vao = Vixen::Gl::GlVertexArrayObject(
             {
-                    VertexBinding(
+                    Vixen::Gl::VertexBinding(
                             vbo,
                             {
-                                    VertexBinding::Location(0, 3, GL_FLOAT, GL_FALSE, 0, sizeof(glm::vec3))
+                                    Vixen::Gl::VertexBinding::Location(0, 3, GL_FLOAT, GL_FALSE, 0, sizeof(glm::vec3))
                             }
                     )
             },
@@ -73,9 +69,9 @@ int main() {
 
         program.bind();
         vao.bind();
-        glDrawElements(GL_TRIANGLES, static_cast<GLsizei>(indices.size()), GL_UNSIGNED_INT, (void*) vao.indexOffset);
+        glDrawElements(GL_TRIANGLES, static_cast<GLsizei>(indices.size()), GL_UNSIGNED_INT, (void *) vao.indexOffset);
 
-        GlWindow::update();
+        window.update();
         window.swap();
     }
     return EXIT_SUCCESS;

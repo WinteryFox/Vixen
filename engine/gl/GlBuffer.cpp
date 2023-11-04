@@ -1,30 +1,30 @@
 #include "GlBuffer.h"
 
-namespace Vixen::Vk {
+namespace Vixen::Gl {
     // TODO: Synchronization
-    GlBuffer::GlBuffer(GLbitfield flags, const size_t &size, BufferUsage bufferUsage, AllocationUsage allocationUsage)
-            : Buffer(size, bufferUsage, allocationUsage), buffer() {
-        this->flags = flags;
-        this->flags |= GL_MAP_COHERENT_BIT |
-                       GL_MAP_PERSISTENT_BIT;
-
+    GlBuffer::GlBuffer(Usage bufferUsage, const size_t &size)
+            : Buffer(bufferUsage, size),
+              flags(GL_MAP_WRITE_BIT) {
         glCreateBuffers(1, &buffer);
-        switch (allocationUsage) {
-            case AllocationUsage::GPU_ONLY:
-            case AllocationUsage::CPU_TO_GPU:
+        switch (bufferUsage) {
+//            case AllocationUsage::GPU_ONLY:
+//            case AllocationUsage::CPU_TO_GPU:
+//                break;
+//            case AllocationUsage::CPU_ONLY:
+//            case AllocationUsage::GPU_TO_CPU:
+//                flags |= GL_CLIENT_STORAGE_BIT;
+//                break;
+            case Usage::VERTEX:
                 break;
-            case AllocationUsage::CPU_ONLY:
-            case AllocationUsage::GPU_TO_CPU:
-                flags |= GL_CLIENT_STORAGE_BIT;
+            case Usage::INDEX:
+                break;
+            case Usage::UNIFORM:
+                break;
+            case Usage::TRANSFER_DST:
+                break;
+            case Usage::TRANSFER_SRC:
                 break;
         }
-
-        // TODO
-        if (bufferUsage & BufferUsage::VERTEX);
-        if (bufferUsage & BufferUsage::INDEX);
-        if (bufferUsage & BufferUsage::TRANSFER_DST);
-        if (bufferUsage & BufferUsage::TRANSFER_SRC);
-        if (bufferUsage & BufferUsage::UNIFORM);
 
         glNamedBufferStorage(
                 buffer,
@@ -33,33 +33,47 @@ namespace Vixen::Vk {
                 this->flags
         );
         spdlog::trace("Created new GL commandBuffer {} ({}B) and flags {}", buffer, size, this->flags);
-        dataPointer = map(0, size);
-    }
-
-    GlBuffer::GlBuffer(GLuint buffer, GLbitfield flags, const size_t &size, BufferUsage bufferUsage,
-                       AllocationUsage allocationUsage)
-            : Buffer(size, bufferUsage, allocationUsage), buffer(buffer), flags(flags) {
-        dataPointer = map(0, size);
     }
 
     GlBuffer::~GlBuffer() {
-        glUnmapNamedBuffer(buffer);
         glDeleteBuffers(1, &buffer);
     }
 
-    void *GlBuffer::map(std::size_t offset, std::size_t length) const {
-        if (offset > size)
-            error("Offset is greater than the total commandBuffer size");
-        if (offset + length > size)
-            error("The offset plus length is greater than the total commandBuffer size");
+//    void *GlBuffer::map(std::size_t offset, std::size_t length) const {
+//        if (offset > size)
+//            error("Offset is greater than the total commandBuffer size");
+//        if (offset + length > size)
+//            error("The offset plus length is greater than the total commandBuffer size");
+//
+//        void *d = glMapNamedBufferRange(buffer, static_cast<GLsizeiptr>(offset), static_cast<GLsizeiptr>(length),
+//                                        flags);
+//        if (d == nullptr)
+//            error("Failed to map GL commandBuffer {}", buffer);
+//
+//        spdlog::trace("Mapped GL commandBuffer {} into {} at offset {}B and length {}B using flags {}", buffer, d,
+//                      offset,
+//                      length, flags);
+//        return d;
+//    }
 
-        void *d = glMapNamedBufferRange(buffer, static_cast<GLsizeiptr>(offset), static_cast<GLsizeiptr>(length),
-                                        flags);
-        if (d == nullptr)
-            error("Failed to map GL commandBuffer {}", buffer);
+    void GlBuffer::write(const char *data, size_t dataSize, size_t offset) {
+        if (offset + dataSize > size)
+            throw std::runtime_error("Buffer overflow");
 
-        spdlog::trace("Mapped GL commandBuffer {} into {} at offset {}B and length {}B using flags {}", buffer, d, offset,
-                      length, flags);
-        return d;
+        char *d = map();
+        memcpy(static_cast<char *>(d) + offset, data, dataSize);
+        unmap();
+    }
+
+    char *GlBuffer::map() {
+        return static_cast<char *>(glMapNamedBuffer(buffer, GL_WRITE_ONLY));
+    }
+
+    void GlBuffer::unmap() {
+        glUnmapNamedBuffer(buffer);
+    }
+
+    GLuint GlBuffer::getBuffer() const {
+        return buffer;
     }
 }

@@ -1,15 +1,15 @@
 #pragma once
 
-#include <GL/glew.h>
 #include "../ShaderProgram.h"
 #include "GlShaderModule.h"
 
-namespace Vixen::Vk {
+namespace Vixen::Gl {
     class GlShaderProgram : ShaderProgram<GlShaderModule> {
         unsigned int program;
 
     public:
-        explicit GlShaderProgram(const std::vector<std::shared_ptr<GlShaderModule>> &modules);
+        explicit GlShaderProgram(const std::shared_ptr<GlShaderModule> &vertex,
+                                 const std::shared_ptr<GlShaderModule> &fragment);
 
         GlShaderProgram(const GlShaderProgram &) = delete;
 
@@ -19,6 +19,6 @@ namespace Vixen::Vk {
 
         void bind() const;
 
-        static void unbind() ;
+        static void unbind();
     };
 }

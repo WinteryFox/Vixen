@@ -1,11 +1,10 @@
 #pragma once
 
-#include <GL/glew.h>
 #include <unordered_map>
 #include <vector>
 #include "GlBuffer.h"
 
-namespace Vixen::Vk {
+namespace Vixen::Gl {
     struct VertexBinding {
         struct Location {
             Location(GLuint index, GLint size, GLenum type, GLboolean normalized, GLintptr offset, GLsizei stride)

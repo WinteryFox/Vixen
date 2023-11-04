@@ -1,11 +1,17 @@
 #include "GlShaderProgram.h"
 
-namespace Vixen::Vk {
-    GlShaderProgram::GlShaderProgram(const std::vector<std::shared_ptr<GlShaderModule>> &modules)
-            : Vk::ShaderProgram<GlShaderModule>(modules) {
+namespace Vixen::Gl {
+    GlShaderProgram::GlShaderProgram(const std::shared_ptr<GlShaderModule> &vertex,
+                                     const std::shared_ptr<GlShaderModule> &fragment)
+            : ShaderProgram<GlShaderModule>(vertex, fragment) {
         program = glCreateProgram();
-        for (const auto &m: modules)
-            glAttachShader(program, m->module);
+
+        if (vertex != nullptr)
+            glAttachShader(program, vertex->module);
+
+        if (fragment != nullptr)
+            glAttachShader(program, fragment->module);
+
         glLinkProgram(program);
 
         int success;

@@ -1,11 +1,10 @@
 #pragma once
 
-#include <spirv_cross/spirv_cpp.hpp>
-#include <spirv_cross/spirv_glsl.hpp>
 #include <GL/glew.h>
+#include <spdlog/spdlog.h>
 #include "../ShaderModule.h"
 
-namespace Vixen::Vk {
+namespace Vixen::Gl {
     class GlShaderModule : public ShaderModule {
         friend class GlShaderProgram;
 

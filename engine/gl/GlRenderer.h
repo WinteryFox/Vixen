@@ -1,8 +1,7 @@
-#include <gl/glew.h>
 #include <cstdint>
 #include "../Renderer.h"
 
-namespace Vixen::Vk {
+namespace Vixen::Gl {
     class GlRenderer : public Renderer {
         struct DrawElementsIndirectCommand {
             std::uint32_t count;
