@@ -7,16 +7,8 @@
         <entry key="Debug">
           <value>
             <PerProfileState>
-              <option name="myQmlPath" value="$PROJECT_DIR$/../../../../msys64/mingw64/share/qt6/qml" />
-              <option name="myQtBinPath" value="$PROJECT_DIR$/../../../../msys64/mingw64/bin" />
-            </PerProfileState>
-          </value>
-        </entry>
-        <entry key="Release">
-          <value>
-            <PerProfileState>
-              <option name="myQmlPath" value="$PROJECT_DIR$/../../../../msys64/mingw64/share/qt6/qml" />
-              <option name="myQtBinPath" value="$PROJECT_DIR$/../../../../msys64/mingw64/bin" />
+              <option name="myQmlPath" value="/usr/lib/x86_64-linux-gnu/qt6/qml" />
+              <option name="myQtBinPath" value="/usr/lib/qt6/bin" />
             </PerProfileState>
           </value>
         </entry>

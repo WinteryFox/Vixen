@@ -1,12 +1,8 @@
 project("Vixen Engine Vk")
 
 find_package(Vulkan 1.3 REQUIRED)
-find_package(spirv_cross_core CONFIG REQUIRED)
-find_package(spirv_cross_glsl CONFIG REQUIRED)
-find_package(spirv_cross_reflect CONFIG REQUIRED)
-find_package(spirv_cross_cpp CONFIG REQUIRED)
-find_package(glslang CONFIG REQUIRED)
-#pkg_check_modules(glslang REQUIRED IMPORTED_TARGET glslang)
+
+find_package(spirv_cross_reflect REQUIRED)
 
 FetchContent_Declare(
         vma
@@ -65,17 +61,6 @@ target_link_libraries(
         Vulkan::Headers
         volk
         GPUOpen::VulkanMemoryAllocator
-#       glslang::OSDependent
-        glslang::glslang
-#       glslang::MachineIndependent
-#       glslang::GenericCodeGen
-#       glslang::OGLCompiler
-#       glslang::glslangValidator
-#       glslang::spirv-remap
-        glslang::glslang-default-resource-limits
-#       glslang::SPVRemapper
-        glslang::SPIRV
-#       glslang::HLSL
         spirv-cross-core
         spirv-cross-glsl
         spirv-cross-reflect
@@ -83,6 +68,33 @@ target_link_libraries(
 )
 
 target_compile_definitions(VkVixen PUBLIC -DVK_NO_PROTOTYPES)
+
+find_package(glslang QUIET)
+if (${glslang_FOUND})
+    target_link_libraries(
+            VKVixen
+            PUBLIC
+            #           glslang::OSDependent
+            glslang::glslang
+            #           glslang::MachineIndependent
+            #           glslang::GenericCodeGen
+            #           glslang::OGLCompiler
+            #           glslang::glslangValidator
+            #           glslang::spirv-remap
+            glslang::glslang-default-resource-limits
+            #           glslang::SPVRemapper
+            glslang::SPIRV
+            #           glslang::HLSL
+    )
+else ()
+    pkg_check_modules(glslang REQUIRED IMPORTED_TARGET glslang)
+    target_link_libraries(
+            VkVixen
+            PUBLIC
+            PkgConfig::glslang
+            PkgConfig::SPIRV
+    )
+endif ()
 
 if (ENABLE_TESTS)
     add_executable(vktest test/main.cpp)

@@ -17,7 +17,7 @@ namespace Vixen::Vk {
         appInfo.apiVersion = VK_API_VERSION_1_3;
 
         std::vector<const char *> extensions(requiredExtensions);
-        extensions.emplace_back(VK_KHR_PORTABILITY_ENUMERATION_EXTENSION_NAME);
+//        extensions.emplace_back(VK_KHR_PORTABILITY_ENUMERATION_EXTENSION_NAME);
 
         std::vector<const char *> layers{};
 #ifdef DEBUG
@@ -36,7 +36,7 @@ namespace Vixen::Vk {
         instanceInfo.ppEnabledExtensionNames = extensions.data();
         instanceInfo.enabledLayerCount = layers.size();
         instanceInfo.ppEnabledLayerNames = layers.data();
-        instanceInfo.flags |= VK_INSTANCE_CREATE_ENUMERATE_PORTABILITY_BIT_KHR;
+//        instanceInfo.flags |= VK_INSTANCE_CREATE_ENUMERATE_PORTABILITY_BIT_KHR;
 
         spdlog::info(
                 "Creating new Vulkan instance for app \"{} ({})\" with extensions [{}] and layers [{}]",
@@ -61,8 +61,8 @@ namespace Vixen::Vk {
                 VK_DEBUG_UTILS_MESSAGE_SEVERITY_ERROR_BIT_EXT;
         debugInfo.messageType = VK_DEBUG_UTILS_MESSAGE_TYPE_GENERAL_BIT_EXT |
                                 VK_DEBUG_UTILS_MESSAGE_TYPE_VALIDATION_BIT_EXT |
-                                VK_DEBUG_UTILS_MESSAGE_TYPE_PERFORMANCE_BIT_EXT |
-                                VK_DEBUG_UTILS_MESSAGE_TYPE_DEVICE_ADDRESS_BINDING_BIT_EXT;
+                                VK_DEBUG_UTILS_MESSAGE_TYPE_PERFORMANCE_BIT_EXT;
+//                                VK_DEBUG_UTILS_MESSAGE_TYPE_DEVICE_ADDRESS_BINDING_BIT_EXT;
         debugInfo.pfnUserCallback = vkDebugCallback;
 
         vkCreateDebugUtilsMessengerEXT(instance, &debugInfo, nullptr, &debugMessenger);
