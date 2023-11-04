@@ -7,7 +7,7 @@
 #endif
 
 #include <glslang/Public/ShaderLang.h>
-#include <glslang/Include/ResourceLimits.h>
+#include <glslang/Public/ResourceLimits.h>
 #include <glslang/SPIRV/GlslangToSpv.h>
 #include <spirv_reflect.hpp>
 #include <spdlog/spdlog.h>
@@ -184,6 +184,8 @@ namespace Vixen::Vk {
                         throw std::runtime_error("Unsupported stage for shader module");
                 }
 
+                spdlog::trace("Passed in shader source\n{}", source.data());
+
                 glslang::InitializeProcess();
                 glslang::TShader shader{s};
                 glslang::TProgram program;
@@ -199,32 +201,33 @@ namespace Vixen::Vk {
                 shader.setSourceEntryPoint(entrypoint.c_str());
 
                 auto messages = (EShMessages) (EShMsgSpvRules | EShMsgVulkanRules);
+                // TODO: Add actual includer
                 glslang::TShader::ForbidIncluder includer;
 
-                const auto &limits = TBuiltInResource();
-                if (!shader.parse(&limits, VIXEN_VK_SPIRV_VERSION, false, messages))
+                // TODO: Resource limit should probably be gotten from the GPU
+                if (!shader.parse(GetDefaultResources(), VIXEN_VK_SPIRV_VERSION, false, messages))
                     error("Failed to parse shader; {}", shader.getInfoLog());
 
                 program.addShader(&shader);
                 if (!program.link(messages))
                     error("Failed to link shader program; {}", shader.getInfoLog());
 
-                glslang::SpvOptions options;
-
+                glslang::SpvOptions options{
 #ifdef DEBUG
-                options.generateDebugInfo = true;
-                options.stripDebugInfo = false;
-                options.disableOptimizer = true;
-                options.optimizeSize = false;
-                options.disassemble = true;
+                        .generateDebugInfo = true,
+                        .stripDebugInfo = false,
+                        .disableOptimizer = true,
+                        .optimizeSize = false,
+                        .disassemble = true,
 #else
-                options.generateDebugInfo = false;
-                options.stripDebugInfo = true;
-                options.disableOptimizer = false;
-                options.optimizeSize = true;
-                options.disassemble = false;
+                        .generateDebugInfo = false,
+                        .stripDebugInfo = true,
+                        .disableOptimizer = false,
+                        .optimizeSize = true,
+                        .disassemble = false,
 #endif
-                options.validate = true;
+                        .validate = true,
+                };
 
                 spv::SpvBuildLogger logger;
                 glslang::GlslangToSpv(*program.getIntermediate(s), binary, &logger, &options);
@@ -273,7 +276,7 @@ namespace Vixen::Vk {
 
                 std::streamsize size = file.tellg();
                 std::vector<char> buffer(size);
-                file.seekg(0);
+                file.seekg(0, std::ios_base::beg);
                 file.read(buffer.data(), size);
                 file.close();
 
