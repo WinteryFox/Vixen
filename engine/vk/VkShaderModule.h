@@ -7,12 +7,13 @@
 #endif
 
 #include <glslang/Public/ShaderLang.h>
-#include <glslang/Public/ResourceLimits.h>
+#include <glslang/Include/ResourceLimits.h>
 #include <glslang/SPIRV/GlslangToSpv.h>
 #include <spirv_reflect.hpp>
 #include <spdlog/spdlog.h>
 #include <spdlog/fmt/bin_to_hex.h>
 #include <fstream>
+#include <sstream>
 #include "../ShaderModule.h"
 #include "Vulkan.h"
 #include "Device.h"
@@ -123,12 +124,6 @@ namespace Vixen::Vk {
                     case glslang::EbtRayQuery:
                         size = 0;
                         break;
-                    case glslang::EbtHitObjectNV:
-                        size = 0;
-                        break;
-                    case glslang::EbtCoopmat:
-                        size = 0;
-                        break;
                     case glslang::EbtSpirvType:
                         size = 0;
                         break;
@@ -136,6 +131,9 @@ namespace Vixen::Vk {
                         size = 0;
                         break;
                     case glslang::EbtNumTypes:
+                        size = 0;
+                        break;
+                    default:
                         size = 0;
                         break;
                 }
@@ -195,9 +193,6 @@ namespace Vixen::Vk {
                 shader.setEnvInput(glslang::EShSourceGlsl, s, glslang::EShClientVulkan, VIXEN_VK_SPIRV_VERSION);
                 shader.setEnvClient(glslang::EShClientVulkan, glslang::EShTargetVulkan_1_3);
                 shader.setEnvTarget(glslang::EShTargetSpv, glslang::EShTargetSpv_1_6);
-#ifdef DEBUG
-                shader.setDebugInfo(true);
-#endif
                 shader.setAutoMapLocations(true);
 
                 shader.setEntryPoint(entrypoint.c_str());
@@ -206,29 +201,30 @@ namespace Vixen::Vk {
                 auto messages = (EShMessages) (EShMsgSpvRules | EShMsgVulkanRules);
                 glslang::TShader::ForbidIncluder includer;
 
-                if (!shader.parse(GetDefaultResources(), VIXEN_VK_SPIRV_VERSION, false, messages))
+                const auto &limits = TBuiltInResource();
+                if (!shader.parse(&limits, VIXEN_VK_SPIRV_VERSION, false, messages))
                     error("Failed to parse shader; {}", shader.getInfoLog());
 
                 program.addShader(&shader);
                 if (!program.link(messages))
                     error("Failed to link shader program; {}", shader.getInfoLog());
 
-                glslang::SpvOptions options{
+                glslang::SpvOptions options;
+
 #ifdef DEBUG
-                        .generateDebugInfo = true,
-                        .stripDebugInfo = false,
-                        .disableOptimizer = true,
-                        .optimizeSize = false,
-                        .disassemble = true,
+                options.generateDebugInfo = true;
+                options.stripDebugInfo = false;
+                options.disableOptimizer = true;
+                options.optimizeSize = false;
+                options.disassemble = true;
 #else
-                        .generateDebugInfo = false,
-                        .stripDebugInfo = true,
-                        .disableOptimizer = false,
-                        .optimizeSize = true,
-                        .disassemble = false,
+                options.generateDebugInfo = false;
+                options.stripDebugInfo = true;
+                options.disableOptimizer = false;
+                options.optimizeSize = true;
+                options.disassemble = false;
 #endif
-                        .validate = true,
-                };
+                options.validate = true;
 
                 spv::SpvBuildLogger logger;
                 glslang::GlslangToSpv(*program.getIntermediate(s), binary, &logger, &options);
@@ -248,13 +244,12 @@ namespace Vixen::Vk {
                     uint32_t location = c.get_decoration(uniformBuffer.id, spv::DecorationLocation);
 
 
-
                     uniformBuffers.push_back({
-                        .binding = binding,
-                        .location = location,
-                        .size = 0,
-                        .offset = 0,
-                    });
+                                                     .binding = binding,
+                                                     .location = location,
+                                                     .size = 0,
+                                                     .offset = 0,
+                                             });
                 }
 
                 if (!logger.getAllMessages().empty())

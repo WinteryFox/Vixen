@@ -71,8 +71,8 @@ int main() {
 
     auto buffer = Vixen::Vk::VkBuffer::stage(
             vixen.device,
-            Vixen::Vk::Buffer::Usage::VERTEX |
-            Vixen::Vk::Buffer::Usage::INDEX,
+            Vixen::Buffer::Usage::VERTEX |
+            Vixen::Buffer::Usage::INDEX,
             vertices.size() * sizeof(Vertex) +
             indices.size() * sizeof(uint32_t),
             [&vertices, &indices](auto data) {
