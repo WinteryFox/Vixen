@@ -65,6 +65,7 @@ target_link_libraries(
         spirv-cross-glsl
         spirv-cross-reflect
         spirv-cross-cpp
+        freeimage
 )
 
 target_compile_definitions(VkVixen PUBLIC -DVK_NO_PROTOTYPES)
