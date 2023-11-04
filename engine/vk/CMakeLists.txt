@@ -5,7 +5,7 @@ find_package(spirv_cross_core CONFIG REQUIRED)
 find_package(spirv_cross_glsl CONFIG REQUIRED)
 find_package(spirv_cross_reflect CONFIG REQUIRED)
 find_package(spirv_cross_cpp CONFIG REQUIRED)
-find_package(glslang REQUIRED)
+find_package(glslang CONFIG REQUIRED)
 
 include(FetchContent)
 FetchContent_Declare(
