@@ -70,6 +70,7 @@ int main() {
             {
                     Vixen::Gl::VertexBinding(
                             0,
+                            sizeof(Vertex),
                             vbo,
                             {
                                     Vixen::Gl::VertexBinding::Location(
@@ -77,16 +78,14 @@ int main() {
                                             3,
                                             GL_FLOAT,
                                             GL_FALSE,
-                                            offsetof(Vertex, position),
-                                            sizeof(Vertex)
+                                            offsetof(Vertex, position)
                                     ),
                                     Vixen::Gl::VertexBinding::Location(
                                             1,
                                             3,
                                             GL_FLOAT,
                                             GL_FALSE,
-                                            offsetof(Vertex, color),
-                                            sizeof(Vertex)
+                                            offsetof(Vertex, color)
                                     )
                             }
                     )

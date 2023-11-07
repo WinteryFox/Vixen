@@ -7,8 +7,8 @@
 namespace Vixen::Gl {
     struct VertexBinding {
         struct Location {
-            Location(GLuint index, GLint size, GLenum type, GLboolean normalized, GLintptr offset, GLsizei stride)
-                    : index(index), size(size), type(type), normalized(normalized), offset(offset), stride(stride) {}
+            Location(GLuint index, GLint size, GLenum type, GLboolean normalized, GLintptr offset)
+                    : index(index), size(size), type(type), normalized(normalized), offset(offset) {}
 
             GLuint index;
 
@@ -19,14 +19,15 @@ namespace Vixen::Gl {
             GLboolean normalized;
 
             GLintptr offset;
-
-            GLsizei stride;
         };
 
-        VertexBinding(uint32_t index, const std::shared_ptr<GlBuffer> &buffer, const std::vector<Location> &locations)
-                : index(index), buffer(buffer), locations(locations) {}
+        VertexBinding(uint32_t index, uint32_t stride, const std::shared_ptr<GlBuffer> &buffer,
+                      const std::vector<Location> &locations)
+                : index(index), stride(stride), buffer(buffer), locations(locations) {}
 
         uint32_t index;
+
+        uint32_t stride;
 
         std::shared_ptr<GlBuffer> buffer;
 

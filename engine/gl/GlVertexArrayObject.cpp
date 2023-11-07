@@ -8,7 +8,7 @@ namespace Vixen::Gl {
         for (const auto &binding: bindings) {
             for (const auto &location: binding.locations) {
                 glVertexArrayVertexBuffer(vao, location.index, binding.buffer->getBuffer(), location.offset,
-                                          location.stride);
+                                          static_cast<GLsizei>(binding.stride));
                 glVertexArrayAttribFormat(vao, location.index, location.size, location.type, location.normalized,
                                           location.offset);
                 glEnableVertexArrayAttrib(vao, location.index);
