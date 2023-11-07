@@ -38,6 +38,8 @@ namespace Vixen::Gl {
         }
 #endif
 
+        glEnable(GL_FRAMEBUFFER_SRGB);
+
         glfwDefaultWindowHints();
     }
 
