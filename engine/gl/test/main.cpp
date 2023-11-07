@@ -12,24 +12,18 @@
 
 #endif
 
+struct Vertex {
+    glm::vec3 position;
+    glm::vec3 color;
+};
+
 int main() {
 #ifdef _WIN32
     system(("chcp " + std::to_string(CP_UTF8)).c_str());
 #endif
     spdlog::set_level(spdlog::level::trace);
 
-    std::vector<glm::vec3> vertices = {
-            {0.5f,  0.5f,  0.0f},  // top right
-            {0.5f,  -0.5f, 0.0f},  // bottom right
-            {-0.5f, -0.5f, 0.0f},  // bottom left
-            {-0.5f, 0.5f,  0.0f}   // top left
-    };
-    std::vector<std::uint32_t> indices = {  // note that we start from 0!
-            0, 1, 3,   // first triangle
-            1, 2, 3    // second triangle
-    };
-
-    auto window = Vixen::Gl::GlWindow("Vixen OpenGL Test", 720, 480, true);
+    auto window = Vixen::Gl::GlWindow("Vixen OpenGL Test", 1920, 1080, true);
     window.center();
     window.setVisible(true);
 
@@ -44,26 +38,64 @@ int main() {
 
     Vixen::Gl::GlShaderProgram program(vertexModule, fragmentModule);
 
+    std::vector<Vertex> vertices{
+            {{-0.5f, -0.5f, 0.0f}, {1.0f, 0.0f, 0.0f}},
+            {{0.5f,  -0.5f, 0.0f}, {0.0f, 1.0f, 0.0f}},
+            {{0.5f,  0.5f,  0.0f}, {0.0f, 0.0f, 1.0f}},
+            {{-0.5f, 0.5f,  0.0f}, {1.0f, 1.0f, 1.0f}}
+    };
+
+    std::vector<uint32_t> indices{
+            0, 1, 2,
+            2, 3, 0
+    };
+
     auto vbo = std::make_shared<Vixen::Gl::GlBuffer>(
             Vixen::Buffer::Usage::VERTEX | Vixen::Buffer::Usage::INDEX,
-            vertices.size() * sizeof(glm::vec3) +
-            indices.size() * sizeof(std::uint32_t)
+            vertices.size() * sizeof(Vertex) +
+            indices.size() * sizeof(uint32_t)
     );
-    vbo->write(reinterpret_cast<const char *>(vertices.data()), vertices.size() * sizeof(glm::vec3), 0);
-    vbo->write(reinterpret_cast<const char *>(indices.data()), vertices.size() * sizeof(glm::vec3), 0);
+    vbo->write(
+            reinterpret_cast<const char *>(vertices.data()),
+            sizeof(Vertex) * vertices.size(),
+            0
+    );
+    vbo->write(
+            reinterpret_cast<const char *>(indices.data()),
+            sizeof(uint32_t) * indices.size(),
+            sizeof(Vertex) * vertices.size()
+    );
 
     auto vao = Vixen::Gl::GlVertexArrayObject(
             {
                     Vixen::Gl::VertexBinding(
+                            0,
                             vbo,
                             {
-                                    Vixen::Gl::VertexBinding::Location(0, 3, GL_FLOAT, GL_FALSE, 0, sizeof(glm::vec3))
+                                    Vixen::Gl::VertexBinding::Location(
+                                            0,
+                                            3,
+                                            GL_FLOAT,
+                                            GL_FALSE,
+                                            offsetof(Vertex, position),
+                                            sizeof(Vertex)
+                                    ),
+                                    Vixen::Gl::VertexBinding::Location(
+                                            1,
+                                            3,
+                                            GL_FLOAT,
+                                            GL_FALSE,
+                                            offsetof(Vertex, color),
+                                            sizeof(Vertex)
+                                    )
                             }
                     )
             },
-            vertices.size() * sizeof(glm::vec3)
+            vertices.size() * sizeof(Vertex)
     );
 
+    double old = glfwGetTime();
+    uint32_t fps;
     while (!window.shouldClose()) {
         window.clear();
 
@@ -73,6 +105,14 @@ int main() {
 
         window.update();
         window.swap();
+
+        fps++;
+        double now = glfwGetTime();
+        if (now - old >= 1) {
+            spdlog::info("FPS: {}", fps);
+            old = now;
+            fps = 0;
+        }
     }
     return EXIT_SUCCESS;
 }

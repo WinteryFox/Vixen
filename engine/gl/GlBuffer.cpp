@@ -30,9 +30,9 @@ namespace Vixen::Gl {
                 buffer,
                 static_cast<GLsizeiptr>(size),
                 nullptr,
-                this->flags
+                flags
         );
-        spdlog::trace("Created new GL commandBuffer {} ({}B) and flags {}", buffer, size, this->flags);
+        spdlog::trace("Created new GL commandBuffer {} ({}B) and flags {}", buffer, size, flags);
     }
 
     GlBuffer::~GlBuffer() {

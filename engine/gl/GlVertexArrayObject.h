@@ -23,8 +23,10 @@ namespace Vixen::Gl {
             GLsizei stride;
         };
 
-        VertexBinding(const std::shared_ptr<GlBuffer> &buffer, const std::vector<Location> &locations)
-                : buffer(buffer), locations(locations) {}
+        VertexBinding(uint32_t index, const std::shared_ptr<GlBuffer> &buffer, const std::vector<Location> &locations)
+                : index(index), buffer(buffer), locations(locations) {}
+
+        uint32_t index;
 
         std::shared_ptr<GlBuffer> buffer;
 

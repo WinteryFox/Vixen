@@ -12,8 +12,7 @@ namespace Vixen::Gl {
                 glVertexArrayAttribFormat(vao, location.index, location.size, location.type, location.normalized,
                                           location.offset);
                 glEnableVertexArrayAttrib(vao, location.index);
-                // TODO: The binding index doesn't necessarily need to be the same as the attribute index
-                glVertexArrayAttribBinding(vao, location.index, location.index);
+                glVertexArrayAttribBinding(vao, location.index, binding.index);
             }
 
             if (binding.buffer->getBufferUsage() & Buffer::Usage::INDEX)
