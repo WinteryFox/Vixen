@@ -15,6 +15,9 @@ namespace Vixen::Vk {
     }
 
     VkSurfaceFormatKHR Swapchain::determineSurfaceFormat(const std::vector<VkSurfaceFormatKHR> &available) {
+        if (available.empty())
+            throw std::runtime_error("Failed to find suitable surface format");
+
         for (const auto &format: available) {
             if (format.format == VK_FORMAT_B8G8R8A8_SRGB &&
                 format.colorSpace == VK_COLOR_SPACE_SRGB_NONLINEAR_KHR)
@@ -25,13 +28,19 @@ namespace Vixen::Vk {
     }
 
     VkPresentModeKHR Swapchain::determinePresentMode(const std::vector<VkPresentModeKHR> &available) {
-        for (const auto &mode: available) {
-            if (mode == VK_PRESENT_MODE_MAILBOX_KHR) {
-                return mode;
-            }
-        }
+        if (available.empty())
+            throw std::runtime_error("Failed to find suitable present mode");
 
-        return VK_PRESENT_MODE_FIFO_KHR;
+        if (std::ranges::contains(available, VK_PRESENT_MODE_MAILBOX_KHR))
+            return VK_PRESENT_MODE_MAILBOX_KHR;
+        else if (std::ranges::contains(available, VK_PRESENT_MODE_FIFO_KHR))
+            return VK_PRESENT_MODE_FIFO_KHR;
+        else if (std::ranges::contains(available, VK_PRESENT_MODE_FIFO_RELAXED_KHR))
+            return VK_PRESENT_MODE_FIFO_RELAXED_KHR;
+        else if (std::ranges::contains(available, VK_PRESENT_MODE_IMMEDIATE_KHR))
+            return VK_PRESENT_MODE_IMMEDIATE_KHR;
+
+        return available[0];
     }
 
     const VkSurfaceFormatKHR &Swapchain::getFormat() const {
