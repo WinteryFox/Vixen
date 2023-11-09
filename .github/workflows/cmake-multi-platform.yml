@@ -52,6 +52,11 @@ jobs:
         working-directory: ${{ steps.strings.outputs.build-output-dir }}
         run: ctest --build-config ${{ matrix.build_type }}
 
+  analyze:
+    runs-on: [ self-hosted ]
+    needs: [ build ]
+
+    steps:
       - name: Install sonar-scanner and build-wrapper
         uses: SonarSource/sonarcloud-github-c-cpp@v2
 
@@ -60,4 +65,4 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
         run: |
-          sonar-scanner --define sonar.cfamily.compile-commands="${{ steps.strings.outputs.build-output-dir }}/compile_commands.json"
+          sonar-scanner --define sonar.cfamily.compile-commands="${{ github.workspace }}/build/compile_commands.json"
