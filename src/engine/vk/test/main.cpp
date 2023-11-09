@@ -40,10 +40,10 @@ int main() {
                 .location = 1,
                 .offset = offsetof(Vertex, color),
             })
-            .compileFromFile(vixen.device, "../../editor/shaders/triangle.vert");
+            .compileFromFile(vixen.device, "../../src/editor/shaders/triangle.vert");
     auto fragment = Vixen::Vk::VkShaderModule::Builder()
             .setStage(Vixen::ShaderModule::Stage::FRAGMENT)
-            .compileFromFile(vixen.device, "../../editor/shaders/triangle.frag");
+            .compileFromFile(vixen.device, "../../src/editor/shaders/triangle.frag");
     auto program = Vixen::Vk::VkShaderProgram(vertex, fragment);
 
     int width;

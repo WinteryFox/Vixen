@@ -27,11 +27,11 @@ int main() {
     window.center();
     window.setVisible(true);
 
-    std::ifstream vertexStream("../../editor/shaders/triangle.vert");
+    std::ifstream vertexStream("../../src/editor/shaders/triangle.vert");
     std::string vertexSource((std::istreambuf_iterator<char>(vertexStream)), std::istreambuf_iterator<char>());
     auto vertexModule = std::make_shared<Vixen::Gl::GlShaderModule>(Vixen::ShaderModule::Stage::VERTEX, vertexSource);
 
-    std::ifstream fragmentStream("../../editor/shaders/triangle.frag");
+    std::ifstream fragmentStream("../../src/editor/shaders/triangle.frag");
     std::string fragmentSource((std::istreambuf_iterator<char>(fragmentStream)), std::istreambuf_iterator<char>());
     auto fragmentModule = std::make_shared<Vixen::Gl::GlShaderModule>(Vixen::ShaderModule::Stage::FRAGMENT,
                                                                       fragmentSource);
