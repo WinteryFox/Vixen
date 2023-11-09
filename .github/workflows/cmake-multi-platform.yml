@@ -54,6 +54,7 @@ jobs:
 
   analyze:
     runs-on: [ self-hosted ]
+    needs: [ build ]
 
     steps:
       - name: Install sonar-scanner and build-wrapper
