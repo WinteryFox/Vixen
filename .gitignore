@@ -66,6 +66,7 @@ Makefile*
 *build-*
 *.qm
 *.prl
+QtSettings.qml
 
 # Qt unit tests
 target_wrapper.*

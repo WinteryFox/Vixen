@@ -6,6 +6,7 @@ set(CMAKE_CXX_STANDARD 23)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/bin)
 set(CMAKE_LIBRARY_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/bin)
+set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 # Statically linking to libstd with C++23 causes a linker bug
 # https://gcc.gnu.org/bugzilla/show_bug.cgi?id=110572
 # set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} -static-libstdc++ -static-libgcc -static")
@@ -28,8 +29,8 @@ if (CMAKE_BUILD_TYPE MATCHES "Debug")
     add_definitions(-DDEBUG)
 endif ()
 
-add_subdirectory(engine)
+add_subdirectory(src/engine)
 
 if (ENABLE_EDITOR)
-    add_subdirectory(editor)
+    add_subdirectory(src/editor)
 endif ()
