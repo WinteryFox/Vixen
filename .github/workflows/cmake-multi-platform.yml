@@ -52,11 +52,6 @@ jobs:
         working-directory: ${{ steps.strings.outputs.build-output-dir }}
         run: ctest --build-config ${{ matrix.build_type }}
 
-  analyze:
-    runs-on: [ self-hosted ]
-    needs: [ build ]
-
-    steps:
       - name: Install sonar-scanner and build-wrapper
         uses: SonarSource/sonarcloud-github-c-cpp@v2
 
