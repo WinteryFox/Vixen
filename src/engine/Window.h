@@ -57,6 +57,8 @@ namespace Vixen {
          */
         void center() const;
 
+        void maximize() const;
+
         void setWindowedMode(Mode mode) const;
 
         std::unique_ptr<Monitor> getMonitor() const;

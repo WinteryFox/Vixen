@@ -4,9 +4,10 @@
 
 namespace Vixen::Gl {
     class GlVixen : public Vixen {
-        GlWindow window;
 
     public:
         GlVixen(const std::string &appTitle, const glm::vec3 &appVersion);
+
+        GlWindow window;
     };
 }

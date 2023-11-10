@@ -179,4 +179,8 @@ namespace Vixen {
     void Window::getFramebufferSize(int &width, int &height) {
         glfwGetFramebufferSize(window, &width, &height);
     }
+
+    void Window::maximize() const {
+        glfwMaximizeWindow(window);
+    }
 }

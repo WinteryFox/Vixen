@@ -4,6 +4,7 @@
 #include "../GlShaderProgram.h"
 #include "GlBuffer.h"
 #include "../GlVertexArrayObject.h"
+#include "GlVixen.h"
 #include <unistd.h>
 
 #ifdef _WIN32
@@ -23,9 +24,7 @@ int main() {
 #endif
     spdlog::set_level(spdlog::level::trace);
 
-    auto window = Vixen::Gl::GlWindow("Vixen OpenGL Test", 1920, 1080, true);
-    window.center();
-    window.setVisible(true);
+    auto vixen = Vixen::Gl::GlVixen("Vixen OpenGL Test", {1, 0, 0});
 
     std::ifstream vertexStream("../../src/editor/shaders/triangle.vert");
     std::string vertexSource((std::istreambuf_iterator<char>(vertexStream)), std::istreambuf_iterator<char>());
@@ -95,15 +94,15 @@ int main() {
 
     double old = glfwGetTime();
     uint32_t fps;
-    while (!window.shouldClose()) {
-        window.clear();
+    while (!vixen.window.shouldClose()) {
+        vixen.window.clear();
 
         program.bind();
         vao.bind();
         glDrawElements(GL_TRIANGLES, static_cast<GLsizei>(indices.size()), GL_UNSIGNED_INT, (void *) vao.indexOffset);
 
-        window.update();
-        window.swap();
+        vixen.window.update();
+        vixen.window.swap();
 
         fps++;
         double now = glfwGetTime();
