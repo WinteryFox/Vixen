@@ -9,6 +9,7 @@
 #include "VkVixen.h"
 #include "VkPipeline.h"
 #include "VkRenderer.h"
+#include "VkDescriptorPool.h"
 
 struct Vertex {
     glm::vec3 position;
@@ -26,8 +27,7 @@ int main() {
 
     auto vixen = Vixen::Vk::VkVixen("Vixen Vulkan Test", {1, 0, 0});
 
-    const auto vertex = Vixen::Vk::VkShaderModule::Builder()
-                        .setStage(Vixen::ShaderModule::Stage::VERTEX)
+    const auto vertex = Vixen::Vk::VkShaderModule::Builder(Vixen::ShaderModule::Stage::VERTEX)
                         .addBinding({
                             .binding = 0,
                             .stride = sizeof(Vertex),
@@ -44,8 +44,7 @@ int main() {
                             .offset = offsetof(Vertex, color),
                         })
                         .compileFromFile(vixen.device, "../../src/editor/shaders/triangle.vert");
-    const auto fragment = Vixen::Vk::VkShaderModule::Builder()
-                          .setStage(Vixen::ShaderModule::Stage::FRAGMENT)
+    const auto fragment = Vixen::Vk::VkShaderModule::Builder(Vixen::ShaderModule::Stage::FRAGMENT)
                           .compileFromFile(vixen.device, "../../src/editor/shaders/triangle.frag");
     const auto program = Vixen::Vk::VkShaderProgram(vertex, fragment);
 
@@ -92,6 +91,14 @@ int main() {
             );
         }
     );
+
+    const std::vector<VkDescriptorPoolSize> sizes{
+        {
+            .type = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER,
+            .descriptorCount = 1
+        }
+    };
+    const auto pool = Vixen::Vk::VkDescriptorPool(vixen.device, sizes, 1);
 
     double old = glfwGetTime();
     uint32_t fps = 0;

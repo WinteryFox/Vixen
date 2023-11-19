@@ -17,16 +17,16 @@ namespace Vixen::Vk {
         };
 
     private:
-        ::VkDevice device;
+        VkDevice device;
 
-        ::VkCommandPool commandPool;
+        VkCommandPool commandPool;
 
         ::VkCommandBuffer commandBuffer;
 
         VkFence fence;
 
     public:
-        VkCommandBuffer(::VkDevice device, ::VkCommandPool commandPool, ::VkCommandBuffer commandBuffer);
+        VkCommandBuffer(VkDevice device, VkCommandPool commandPool, ::VkCommandBuffer commandBuffer);
 
         VkCommandBuffer(VkCommandBuffer &) = delete;
 

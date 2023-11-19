@@ -16,20 +16,20 @@
 
 namespace Vixen::Vk {
     template<typename T = std::runtime_error>
-    static inline void checkVulkanResult(VkResult result, const std::string &message) {
+    static void checkVulkanResult(VkResult result, const std::string &message) {
         if (result != VK_SUCCESS)
             error<T>("{} ({})", message, string_VkResult(result));
     }
 
-    static inline std::string getVersionString(glm::ivec3 version) {
+    static std::string getVersionString(glm::ivec3 version) {
         return fmt::format("{}.{}.{}", version.x, version.y, version.z);
     }
 
-    static inline std::string getVersionString(uint32_t version) {
+    static std::string getVersionString(const uint32_t version) {
         return fmt::format("{}.{}.{}", VK_API_VERSION_MAJOR(version), VK_API_VERSION_MINOR(version), VK_API_VERSION_PATCH(version));
     }
 
-    static inline VkShaderStageFlagBits getVulkanShaderStage(ShaderModule::Stage stage) {
+    static VkShaderStageFlagBits getVulkanShaderStage(const ShaderModule::Stage stage) {
         switch (stage) {
             case ShaderModule::Stage::VERTEX:
                 return VK_SHADER_STAGE_VERTEX_BIT;

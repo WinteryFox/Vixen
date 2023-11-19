@@ -53,6 +53,10 @@ add_library(
         VkImageView.h
         VkSemaphore.cpp
         VkSemaphore.h
+        VkDescriptorPool.cpp
+        VkDescriptorPool.h
+        VkDescriptorSetLayout.cpp
+        VkDescriptorSetLayout.h
 )
 target_link_libraries(
         VkVixen
