@@ -10,10 +10,18 @@
 #include "VkPipeline.h"
 #include "VkRenderer.h"
 #include "VkDescriptorPool.h"
+#include "VkDescriptorSet.h"
+#include "../../Camera.h"
 
 struct Vertex {
     glm::vec3 position;
     glm::vec3 color;
+};
+
+struct UniformBufferObject {
+    glm::mat4 model;
+    glm::mat4 view;
+    glm::mat4 projection;
 };
 
 int main() {
@@ -45,7 +53,7 @@ int main() {
                         })
                         .compileFromFile(vixen.device, "../../src/editor/shaders/triangle.vert");
     const auto fragment = Vixen::Vk::VkShaderModule::Builder(Vixen::ShaderModule::Stage::FRAGMENT)
-                          .compileFromFile(vixen.device, "../../src/editor/shaders/triangle.frag");
+        .compileFromFile(vixen.device, "../../src/editor/shaders/triangle.frag");
     const auto program = Vixen::Vk::VkShaderProgram(vertex, fragment);
 
     int width;
@@ -92,13 +100,31 @@ int main() {
         }
     );
 
+    auto camera = Vixen::Camera({0.0f, 0.0f, -5.0f});
+
     const std::vector<VkDescriptorPoolSize> sizes{
         {
             .type = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER,
             .descriptorCount = 1
         }
     };
-    const auto pool = Vixen::Vk::VkDescriptorPool(vixen.device, sizes, 1);
+
+    auto uniformBuffer = Vixen::Vk::VkBuffer(
+        vixen.device,
+        Vixen::Buffer::Usage::UNIFORM,
+        sizeof(UniformBufferObject)
+    );
+
+    UniformBufferObject ubo{
+        glm::rotate(glm::mat4(1.0f), glm::radians(90.0f), glm::vec3(0.0f, 0.0f, 1.0f)),
+        camera.view(),
+        camera.perspective(static_cast<float>(width) / static_cast<float>(height))
+    };
+    uniformBuffer.write(reinterpret_cast<const char*>(&ubo), sizeof(UniformBufferObject), 0);
+
+    auto descriptorPool = std::make_shared<Vixen::Vk::VkDescriptorPool>(vixen.device, sizes, 1);
+    auto descriptorSet = Vixen::Vk::VkDescriptorSet(vixen.device, descriptorPool, vertex->getDescriptorSetLayout());
+    descriptorSet.updateUniformBuffer(0, uniformBuffer);
 
     double old = glfwGetTime();
     uint32_t fps = 0;
@@ -109,7 +135,7 @@ int main() {
             renderer = std::make_unique<Vixen::Vk::VkRenderer>(vixen.device, vixen.swapchain, pipeline);
         }
 
-        renderer->render(buffer, vertices.size(), indices.size());
+        renderer->render(buffer, vertices.size(), indices.size(), descriptorSet);
 
         fps++;
         if (const double& now = glfwGetTime(); now - old >= 1) {

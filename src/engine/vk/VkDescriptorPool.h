@@ -1,6 +1,6 @@
 #pragma once
 
-#include "Device.h"
+#include "VkDescriptorSetLayout.h"
 
 namespace Vixen::Vk {
     class VkDescriptorPool {
@@ -15,12 +15,20 @@ namespace Vixen::Vk {
             uint32_t maxSets
         );
 
-        VkDescriptorPool(const VkDescriptorPool& other) = delete;
+        VkDescriptorPool(VkDescriptorPool& other) = delete;
 
-        VkDescriptorPool(VkDescriptorPool&& other) noexcept = delete;
+        VkDescriptorPool& operator=(const VkDescriptorPool& other) = delete;
 
-        VkDescriptorPool& operator=(VkDescriptorPool other) = delete;
+        VkDescriptorPool(VkDescriptorPool&& fp) noexcept;
+
+        VkDescriptorPool const& operator=(VkDescriptorPool&& fp) noexcept;
 
         ~VkDescriptorPool();
+
+        [[nodiscard]] ::VkDescriptorSet allocate(const VkDescriptorSetLayout &layout) const;
+
+        [[nodiscard]] std::shared_ptr<Device> getDevice() const;
+
+        [[nodiscard]] ::VkDescriptorPool getPool() const;
     };
 }

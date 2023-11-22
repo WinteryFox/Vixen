@@ -17,6 +17,7 @@
 #include "../ShaderModule.h"
 #include "Vulkan.h"
 #include "Device.h"
+#include "VkDescriptorSetLayout.h"
 
 #define VIXEN_VK_SPIRV_VERSION 130
 
@@ -26,6 +27,8 @@ namespace Vixen::Vk {
 
         std::shared_ptr<Device> device;
 
+        VkDescriptorSetLayout descriptorSetLayout;
+
     public:
         VkShaderModule(
             const std::shared_ptr<Device>& device,
@@ -33,6 +36,7 @@ namespace Vixen::Vk {
             const std::vector<uint32_t>& binary,
             const std::vector<Binding>& bindings,
             const std::vector<IO>& inputs,
+            const std::vector<IO>& uniformBuffers,
             const std::string& entrypoint = "main"
         );
 
@@ -45,6 +49,8 @@ namespace Vixen::Vk {
         [[nodiscard]] VkPipelineShaderStageCreateInfo createInfo() const;
 
         [[nodiscard]] std::vector<VkDescriptorSetLayoutBinding> createBindings() const;
+
+        [[nodiscard]] const VkDescriptorSetLayout& getDescriptorSetLayout();
 
         class Builder {
             // TODO: This builder has slightly confusing API, you can compile before setting the stage meaning its possible to mistakenly have the wrong stage set at compile time
@@ -180,7 +186,7 @@ namespace Vixen::Vk {
 
                 glslang::FinalizeProcess();
 
-                return std::make_shared<VkShaderModule>(d, stage, binary, bindings, inputs, entrypoint);
+                return std::make_shared<VkShaderModule>(d, stage, binary, bindings, inputs, uniformBuffers, entrypoint);
             }
 
             std::shared_ptr<VkShaderModule> compile(const std::shared_ptr<Device>& d, const std::string& source) {

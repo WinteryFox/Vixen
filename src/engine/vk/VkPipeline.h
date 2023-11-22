@@ -83,7 +83,7 @@ namespace Vixen::Vk {
                         .depthClampEnable = VK_FALSE,
                         .rasterizerDiscardEnable = VK_FALSE,
                         .polygonMode = VK_POLYGON_MODE_FILL,
-                        .cullMode = VK_CULL_MODE_NONE,
+                        .cullMode = VK_CULL_MODE_BACK_BIT,
                         .frontFace = VK_FRONT_FACE_CLOCKWISE,
                         .depthBiasEnable = VK_FALSE,
                         .depthBiasConstantFactor = 0.0f,
@@ -132,7 +132,8 @@ namespace Vixen::Vk {
             }
 
             Builder &setHeight(uint32_t h) {
-                config.viewport.height = static_cast<float>(h);
+                config.viewport.height = static_cast<float>(-h);
+                config.viewport.y = static_cast<float>(h);
                 config.scissor.extent.height = h;
                 return *this;
             }

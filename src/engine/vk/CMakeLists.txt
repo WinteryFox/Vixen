@@ -57,6 +57,8 @@ add_library(
         VkDescriptorPool.h
         VkDescriptorSetLayout.cpp
         VkDescriptorSetLayout.h
+        VkDescriptorSet.cpp
+        VkDescriptorSet.h
 )
 target_link_libraries(
         VkVixen

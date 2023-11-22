@@ -6,7 +6,7 @@
 #include "Device.h"
 
 namespace Vixen::Vk {
-    class VkBuffer : public Buffer {
+    class VkBuffer final : public Buffer {
         std::shared_ptr<Device> device;
 
         VmaAllocation allocation;
@@ -22,7 +22,7 @@ namespace Vixen::Vk {
 
         VkBuffer(VkBuffer &&o) noexcept;
 
-        ~VkBuffer();
+        ~VkBuffer() override;
 
         char *map() override;
 
@@ -52,8 +52,8 @@ namespace Vixen::Vk {
         template<typename F>
         static VkBuffer stage(
                 const std::shared_ptr<Device> &device,
-                Usage usage,
-                size_t size,
+                const Usage usage,
+                const size_t size,
                 F lambda
         ) {
             auto source = VkBuffer(device, usage | Usage::TRANSFER_SRC, size);

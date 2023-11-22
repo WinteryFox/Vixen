@@ -14,7 +14,6 @@ namespace Vixen::Vk {
               )),
               swapchain(device, 3) {
         window.center();
-        window.maximize();
         window.setVisible(true);
     }
 }

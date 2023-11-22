@@ -44,29 +44,35 @@ namespace Vixen {
 
     public:
         ShaderModule(
-                Stage stage,
-                std::string entrypoint,
-                const std::vector<Binding> &bindings,
-                const std::vector<IO> &inputs
+            const Stage stage,
+            std::string entrypoint,
+            const std::vector<Binding>& bindings,
+            const std::vector<IO>& inputs,
+            const std::vector<IO>& uniformBuffers
         ) : stage(stage),
             entrypoint(std::move(entrypoint)),
             bindings(bindings),
-            inputs(inputs) {}
+            inputs(inputs),
+            uniformBuffers(uniformBuffers) {}
 
         [[nodiscard]] Stage getStage() const {
             return stage;
         }
 
-        [[nodiscard]] const std::string &getEntrypoint() const {
+        [[nodiscard]] const std::string& getEntrypoint() const {
             return entrypoint;
         }
 
-        [[nodiscard]] const std::vector<Binding> &getBindings() const {
+        [[nodiscard]] const std::vector<Binding>& getBindings() const {
             return bindings;
         }
 
-        [[nodiscard]] const std::vector<IO> &getInputs() const {
+        [[nodiscard]] const std::vector<IO>& getInputs() const {
             return inputs;
+        }
+
+        [[nodiscard]] std::vector<IO> getUniformBuffers() const {
+            return uniformBuffers;
         }
     };
 }

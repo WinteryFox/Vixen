@@ -1,8 +1,8 @@
 #include "Camera.h"
 
 namespace Vixen {
-    Camera::Camera(float fieldOfView, float nearPlane, float farPlane, glm::vec3 clearColor)
-            : position(0, 0, 0),
+    Camera::Camera(const glm::vec3 position, const float fieldOfView, const float nearPlane, const float farPlane, const glm::vec3 clearColor)
+            : position(position),
 //              rotation(glm::quat{}),
               rotation({}),
               fieldOfView(fieldOfView),
@@ -16,19 +16,30 @@ namespace Vixen {
 //        glm::mat4 translation = glm::translate({1.0}, -position);
 //
 //        return rot * translation;
+        // return glm::lookAt(
+        //         position,
+        //         position + rotation,
+        //         {0.0f, 1.0f, 0.0f}
+        // );
         return glm::lookAt(
-                position,
-                position + rotation,
-                {0.0f, 1.0f, 0.0f}
+            glm::vec3{2.0f, 2.0f, 2.0f},
+            glm::vec3{0.0f, 0.0f, 0.0f},
+            glm::vec3{0.0f, 0.0f, 1.0f}
         );
     }
 
-    glm::mat4 Camera::perspective(float aspectRatio) const {
+    glm::mat4 Camera::perspective(const float aspectRatio) const {
+        // return glm::perspective(
+        //         glm::radians(fieldOfView),
+        //         aspectRatio,
+        //         nearPlane,
+        //         farPlane
+        // );
         return glm::perspective(
-                glm::radians(fieldOfView),
-                aspectRatio,
-                nearPlane,
-                farPlane
+            glm::radians(45.0f),
+            1.7f,
+            0.1f,
+            10.0f
         );
     }
 

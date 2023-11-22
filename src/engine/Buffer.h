@@ -1,8 +1,6 @@
 #pragma once
 
-#include <cstdio>
 #include <cstdint>
-#include <cstring>
 
 namespace Vixen {
     /**
@@ -18,7 +16,9 @@ namespace Vixen {
             TRANSFER_SRC = 1 << 4,
         };
 
-        virtual char *map() = 0;
+        virtual ~Buffer() = default;
+
+        virtual char* map() = 0;
 
         virtual void unmap() = 0;
 
@@ -28,9 +28,9 @@ namespace Vixen {
          * @param dataSize The size of the data.
          * @param offset The offset within this buffer to start writing from.
          */
-        virtual void write(const char *data, size_t dataSize, size_t offset) = 0;
+        virtual void write(const char* data, std::size_t dataSize, std::size_t offset) = 0;
 
-        [[nodiscard]] size_t getSize() const;
+        [[nodiscard]] std::size_t getSize() const;
 
         [[nodiscard]] Usage getBufferUsage() const;
 
@@ -43,9 +43,8 @@ namespace Vixen {
          * Create a new buffer. Where the allocation is made is determined by the allocation usage.
          * @param bufferUsage Specifies how the buffer will be used and what data it will hold.
          * @param size The size of this buffer measured in bytes.
-         * @param allocationUsage Specifies how this buffer's allocated memory will be used.
          */
-        Buffer(Usage bufferUsage, const std::size_t &size);
+        Buffer(Usage bufferUsage, const std::size_t& size);
     };
 
     inline Buffer::Usage operator|(Buffer::Usage a, Buffer::Usage b) {

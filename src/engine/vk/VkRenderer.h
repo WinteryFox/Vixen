@@ -6,12 +6,13 @@
 #include "VkFramebuffer.h"
 #include "VkSemaphore.h"
 #include "VkBuffer.h"
+#include "VkDescriptorSet.h"
 
 namespace Vixen::Vk {
     class VkRenderer {
         std::shared_ptr<Device> device;
 
-        Swapchain &swapchain;
+        Swapchain& swapchain;
 
         std::unique_ptr<VkPipelineLayout> pipelineLayout;
 
@@ -31,28 +32,34 @@ namespace Vixen::Vk {
 
     public:
         VkRenderer(
-                const std::shared_ptr<Vk::Device> &device,
-                Swapchain &swapchain,
-                const std::shared_ptr<Vk::VkPipeline> &pipeline
+            const std::shared_ptr<Vk::Device>& device,
+            Swapchain& swapchain,
+            const std::shared_ptr<Vk::VkPipeline>& pipeline
         );
 
-        VkRenderer(const VkRenderer &) = delete;
+        VkRenderer(const VkRenderer&) = delete;
 
-        VkRenderer &operator=(const VkRenderer &) = delete;
+        VkRenderer& operator=(const VkRenderer&) = delete;
 
         ~VkRenderer();
 
-        void render(const VkBuffer &buffer, uint32_t vertexCount, uint32_t indexCount);
+        void render(
+            const VkBuffer& buffer,
+            uint32_t vertexCount,
+            uint32_t indexCount,
+            const VkDescriptorSet& set
+        );
 
     private:
         void createFramebuffers();
 
         void prepare(
-                VkCommandBuffer &commandBuffer,
-                VkFramebuffer &framebuffer,
-                const VkBuffer &buffer,
-                uint32_t vertexCount,
-                uint32_t indexCount
-        );
+            VkCommandBuffer& commandBuffer,
+            VkFramebuffer& framebuffer,
+            const VkBuffer& buffer,
+            uint32_t vertexCount,
+            uint32_t indexCount,
+            const VkDescriptorSet& set
+        ) const;
     };
 }

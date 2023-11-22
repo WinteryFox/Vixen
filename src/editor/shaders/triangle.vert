@@ -5,14 +5,13 @@ layout(location = 1) in vec3 color;
 
 layout(location = 0) out vec3 vertColor;
 
-//layout(binding = 0) uniform ModelViewProjection {
-//    mat4 model;
-//    mat4 view;
-//    mat4 projection;
-//} mvp;
+layout(binding = 0) uniform ModelViewProjection {
+    mat4 model;
+    mat4 view;
+    mat4 projection;
+} mvp;
 
 void main() {
-//    gl_Position = mvp.projection * mvp.view * mvp.model * vec4(position, 1.0);
-    gl_Position = vec4(position, 1.0);
+    gl_Position = mvp.projection * mvp.view * mvp.model * vec4(position, 1.0);
     vertColor = color;
 }

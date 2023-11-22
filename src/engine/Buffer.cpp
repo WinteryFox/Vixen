@@ -1,7 +1,7 @@
 #include "Buffer.h"
 
 namespace Vixen {
-    Buffer::Buffer(Usage bufferUsage, const size_t &size)
+    Buffer::Buffer(const Usage bufferUsage, const std::size_t &size)
             : bufferUsage(bufferUsage),
               size(size) {}
 
@@ -9,7 +9,7 @@ namespace Vixen {
         return bufferUsage;
     }
 
-    size_t Buffer::getSize() const {
+    std::size_t Buffer::getSize() const {
         return size;
     }
 }

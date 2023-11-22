@@ -7,10 +7,12 @@ namespace Vixen::Vk {
         const std::vector<uint32_t>& binary,
         const std::vector<Binding>& bindings,
         const std::vector<IO>& inputs,
+        const std::vector<IO>& uniformBuffers,
         const std::string& entrypoint
-    ) : ShaderModule(stage, entrypoint, bindings, inputs),
+    ) : ShaderModule(stage, entrypoint, bindings, inputs, uniformBuffers),
         device(device),
-        module(VK_NULL_HANDLE) {
+        module(VK_NULL_HANDLE),
+        descriptorSetLayout(device, createBindings()) {
         const VkShaderModuleCreateInfo info{
             .sType = VK_STRUCTURE_TYPE_SHADER_MODULE_CREATE_INFO,
             .codeSize = binary.size() * sizeof(uint32_t),
@@ -40,15 +42,16 @@ namespace Vixen::Vk {
     }
 
     std::vector<VkDescriptorSetLayoutBinding> VkShaderModule::createBindings() const {
-        const auto& bindings = getBindings();
+        const VkShaderStageFlags& stage = getVulkanShaderStage(getStage());
+        const auto& uniformBuffers = getUniformBuffers();
 
-        std::vector<VkDescriptorSetLayoutBinding> b{bindings.size()};
-        for (const auto& [binding, stride, rate] : bindings) {
-            const VkShaderStageFlags& stage = getVulkanShaderStage(getStage());
-
-            b.push_back(
+        std::vector<VkDescriptorSetLayoutBinding> b{};
+        b.reserve(uniformBuffers.size());
+        for (const auto& [binding, location, size, offset] : uniformBuffers) {
+            b.emplace_back(
                 VkDescriptorSetLayoutBinding{
-                    .binding = binding,
+                    .binding = binding.value_or(0),
+                    // TODO: Remove hardcoded descriptor type
                     .descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER,
                     // TODO: This count value is used for array bindings
                     .descriptorCount = 1,
@@ -59,5 +62,9 @@ namespace Vixen::Vk {
         }
 
         return b;
+    }
+
+    const VkDescriptorSetLayout& VkShaderModule::getDescriptorSetLayout() {
+        return descriptorSetLayout;
     }
 }
