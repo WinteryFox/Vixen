@@ -37,7 +37,10 @@ namespace Vixen::Vk {
     }
 
     VkDescriptorSet::~VkDescriptorSet() {
-        vkFreeDescriptorSets(device->getDevice(), pool->getPool(), 1, &set);
+        checkVulkanResult(
+            vkFreeDescriptorSets(device->getDevice(), pool->getPool(), 1, &set),
+            "Failed to free descriptor set"
+        );
     }
 
     void VkDescriptorSet::updateUniformBuffer(const uint32_t binding, const VkBuffer& buffer) const {
