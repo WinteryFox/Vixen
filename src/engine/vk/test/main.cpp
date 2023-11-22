@@ -120,13 +120,13 @@ int main() {
         camera.view(),
         camera.perspective(static_cast<float>(width) / static_cast<float>(height))
     };
-    uniformBuffer.write(reinterpret_cast<const char*>(&ubo), sizeof(UniformBufferObject), 0);
 
     auto descriptorPool = std::make_shared<Vixen::Vk::VkDescriptorPool>(vixen.device, sizes, 1);
     auto descriptorSet = Vixen::Vk::VkDescriptorSet(vixen.device, descriptorPool, vertex->getDescriptorSetLayout());
     descriptorSet.updateUniformBuffer(0, uniformBuffer);
 
     double old = glfwGetTime();
+    double lastFrame = old;
     uint32_t fps = 0;
     while (!vixen.window.shouldClose()) {
         if (vixen.window.update()) {
@@ -135,10 +135,16 @@ int main() {
             renderer = std::make_unique<Vixen::Vk::VkRenderer>(vixen.device, vixen.swapchain, pipeline);
         }
 
+        const double& now = glfwGetTime();
+        double deltaTime = now - lastFrame;
+        lastFrame = now;
+        ubo.model = glm::rotate(ubo.model,  static_cast<float>(deltaTime) * glm::radians(90.0f), glm::vec3(0.0f, 0.0f, 1.0f));
+        uniformBuffer.write(reinterpret_cast<const char*>(&ubo), sizeof(UniformBufferObject), 0);
+
         renderer->render(buffer, vertices.size(), indices.size(), descriptorSet);
 
         fps++;
-        if (const double& now = glfwGetTime(); now - old >= 1) {
+        if (now - old >= 1) {
             spdlog::info("FPS: {}", fps);
             old = now;
             fps = 0;
