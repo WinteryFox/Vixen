@@ -6,17 +6,30 @@ namespace Vixen::Vk {
           device(device),
           allocation(VK_NULL_HANDLE),
           buffer(VK_NULL_HANDLE) {
+        VmaAllocationCreateFlags allocationFlags = 0;
         VkBufferUsageFlags bufferUsageFlags = 0;
+        VkMemoryPropertyFlags requiredFlags = 0;
+
         if (bufferUsage & Usage::VERTEX)
             bufferUsageFlags |= VK_BUFFER_USAGE_VERTEX_BUFFER_BIT;
+
         if (bufferUsage & Usage::INDEX)
             bufferUsageFlags |= VK_BUFFER_USAGE_INDEX_BUFFER_BIT;
-        if (bufferUsage & Usage::TRANSFER_DST)
+
+        if (bufferUsage & Usage::TRANSFER_DST) {
             bufferUsageFlags |= VK_BUFFER_USAGE_TRANSFER_DST_BIT;
-        if (bufferUsage & Usage::TRANSFER_SRC)
+        }
+
+        if (bufferUsage & Usage::TRANSFER_SRC) {
+            allocationFlags |= VMA_ALLOCATION_CREATE_HOST_ACCESS_SEQUENTIAL_WRITE_BIT;
             bufferUsageFlags |= VK_BUFFER_USAGE_TRANSFER_SRC_BIT;
-        if (bufferUsage & Usage::UNIFORM)
+        }
+
+        if (bufferUsage & Usage::UNIFORM) {
+            allocationFlags |= VMA_ALLOCATION_CREATE_HOST_ACCESS_SEQUENTIAL_WRITE_BIT;
             bufferUsageFlags |= VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT;
+            requiredFlags |= VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT;
+        }
 
         const VkBufferCreateInfo bufferCreateInfo{
             .sType = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO,
@@ -29,11 +42,16 @@ namespace Vixen::Vk {
             .pQueueFamilyIndices = nullptr
         };
 
-        constexpr VmaAllocationCreateInfo allocationCreateInfo = {
+        const VmaAllocationCreateInfo allocationCreateInfo = {
             // TODO: Only add this flag if necessary (e.g. staging buffer)
-            .flags = VMA_ALLOCATION_CREATE_HOST_ACCESS_SEQUENTIAL_WRITE_BIT,
+            .flags = allocationFlags,
             .usage = VMA_MEMORY_USAGE_AUTO,
-            .requiredFlags = VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT
+            .requiredFlags = requiredFlags,
+            .preferredFlags = 0,
+            .memoryTypeBits = 0,
+            .pool = nullptr,
+            .pUserData = nullptr,
+            .priority = 0.0f
         };
 
         checkVulkanResult(
