@@ -1,18 +1,19 @@
 #include "GlShaderModule.h"
 
 namespace Vixen::Gl {
-    GlShaderModule::GlShaderModule(Stage stage, const std::string &source, const std::string &entry)
-                : ShaderModule(stage, entry, {}, {}), module(0) {
+    GlShaderModule::GlShaderModule(const Stage stage, const std::string& source, const std::string& entry)
+        : ShaderModule(stage, entry, {}, {}, {}),
+          module(0) {
         switch (stage) {
-            case Stage::VERTEX:
-                module = glCreateShader(GL_VERTEX_SHADER);
-                break;
-            case Stage::FRAGMENT:
-                module = glCreateShader(GL_FRAGMENT_SHADER);
-                break;
-            default:
-                spdlog::error("Unsupported shader stage");
-                throw std::runtime_error("Unsupported shader stage");
+        case Stage::VERTEX:
+            module = glCreateShader(GL_VERTEX_SHADER);
+            break;
+        case Stage::FRAGMENT:
+            module = glCreateShader(GL_FRAGMENT_SHADER);
+            break;
+        default:
+            spdlog::error("Unsupported shader stage");
+            throw std::runtime_error("Unsupported shader stage");
         }
         auto src = source.c_str();
         glShaderSource(module, 1, &src, nullptr);
