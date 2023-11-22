@@ -4,7 +4,8 @@ namespace Vixen::Vk {
     VkDescriptorSetLayout::VkDescriptorSetLayout(
         const std::shared_ptr<Device>& device,
         const std::vector<VkDescriptorSetLayoutBinding>& bindings
-    ) : layout(VK_NULL_HANDLE) {
+    ) : layout(VK_NULL_HANDLE),
+        device(device) {
         const VkDescriptorSetLayoutCreateInfo info{
             .sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO,
             .pNext = nullptr,
@@ -25,6 +26,7 @@ namespace Vixen::Vk {
 
     VkDescriptorSetLayout const& VkDescriptorSetLayout::operator=(VkDescriptorSetLayout&& fp) noexcept {
         std::swap(fp.layout, layout);
+        std::swap(fp.device, device);
 
         return *this;
     }
