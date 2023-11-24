@@ -125,13 +125,13 @@ namespace Vixen::Vk {
                 };
             }
 
-            Builder &setWidth(uint32_t w) {
+            Builder &setWidth(const uint32_t w) {
                 config.viewport.width = static_cast<float>(w);
                 config.scissor.extent.width = w;
                 return *this;
             }
 
-            Builder &setHeight(uint32_t h) {
+            Builder &setHeight(const int32_t h) {
                 config.viewport.height = static_cast<float>(-h);
                 config.viewport.y = static_cast<float>(h);
                 config.scissor.extent.height = h;
