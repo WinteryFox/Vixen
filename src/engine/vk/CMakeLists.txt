@@ -70,7 +70,6 @@ target_link_libraries(
         spirv-cross-core
         spirv-cross-glsl
         spirv-cross-reflect
-        spirv-cross-cpp
         freeimage
 )
 
