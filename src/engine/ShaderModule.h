@@ -1,5 +1,6 @@
 #pragma once
 
+#include <utility>
 #include <vector>
 #include <string>
 #include <utility>
@@ -54,6 +55,16 @@ namespace Vixen {
             bindings(bindings),
             inputs(inputs),
             uniformBuffers(uniformBuffers) {}
+
+        ShaderModule(const ShaderModule&) = delete;
+
+        ShaderModule& operator=(const ShaderModule&) = delete;
+
+        ShaderModule(ShaderModule&&) = default;
+
+        ShaderModule& operator=(ShaderModule&&) = default;
+
+        virtual ~ShaderModule() = default;
 
         [[nodiscard]] Stage getStage() const {
             return stage;
