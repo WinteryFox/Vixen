@@ -100,7 +100,7 @@ int main() {
         }
     );
 
-    auto camera = Vixen::Camera({0.0f, 0.0f, -5.0f});
+    auto camera = Vixen::Camera(glm::vec3{0.0f, 0.0f, 2.0f});
 
     const std::vector<VkDescriptorPoolSize> sizes{
         {

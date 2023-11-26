@@ -38,9 +38,13 @@ namespace Vixen::Vk {
         VkPipeline(const std::shared_ptr<Device> &device, const Swapchain &swapchain, const VkShaderProgram &program,
                    const Config &config);
 
-        VkPipeline(const VkPipeline &) = delete;
+        VkPipeline(VkPipeline& other) = delete;
 
-        VkPipeline &operator=(const VkPipeline &) = delete;
+        VkPipeline& operator=(const VkPipeline& other) = delete;
+
+        VkPipeline(VkPipeline&& other) noexcept;
+
+        VkPipeline const& operator=(VkPipeline&& other) noexcept;
 
         ~VkPipeline();
 

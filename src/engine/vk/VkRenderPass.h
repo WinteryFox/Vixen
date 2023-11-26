@@ -21,9 +21,13 @@ namespace Vixen::Vk {
                 const Swapchain &swapchain
         );
 
-        VkRenderPass(const VkRenderPass &) = delete;
+        VkRenderPass(VkRenderPass& other) = delete;
 
-        VkRenderPass &operator=(const VkRenderPass &) = delete;
+        VkRenderPass& operator=(const VkRenderPass& other) = delete;
+
+        VkRenderPass(VkRenderPass&& other) noexcept;
+
+        VkRenderPass const& operator=(VkRenderPass&& other) noexcept;
 
         ~VkRenderPass();
 

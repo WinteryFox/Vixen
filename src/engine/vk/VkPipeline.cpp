@@ -122,6 +122,25 @@ namespace Vixen::Vk {
         );
     }
 
+    VkPipeline::VkPipeline(VkPipeline&& other) noexcept
+        : device(std::move(other.device)),
+          program(std::move(other.program)),
+          config(other.config),
+          renderPass(std::move(other.renderPass)),
+          pipelineLayout(std::move(other.pipelineLayout)),
+          pipeline(std::exchange(other.pipeline, nullptr)) {}
+
+    VkPipeline const& VkPipeline::operator=(VkPipeline&& other) noexcept {
+        std::swap(device, other.device);
+        std::swap(program, other.program);
+        std::swap(config, other.config);
+        std::swap(renderPass, other.renderPass);
+        std::swap(pipelineLayout, other.pipelineLayout);
+        std::swap(pipeline, other.pipeline);
+
+        return *this;
+    }
+
     VkPipeline::~VkPipeline() {
         vkDestroyPipeline(device->getDevice(), pipeline, nullptr);
     }

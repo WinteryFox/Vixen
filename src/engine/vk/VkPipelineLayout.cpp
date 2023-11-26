@@ -20,6 +20,17 @@ namespace Vixen::Vk {
         );
     }
 
+    VkPipelineLayout::VkPipelineLayout(VkPipelineLayout&& fp) noexcept
+        : device(std::move(device)),
+          layout(std::exchange(fp.layout, nullptr)) {}
+
+    VkPipelineLayout const& VkPipelineLayout::operator=(VkPipelineLayout&& fp) noexcept {
+        std::swap(device, fp.device);
+        std::swap(layout, fp.layout);
+
+        return *this;
+    }
+
     VkPipelineLayout::~VkPipelineLayout() {
         vkDestroyPipelineLayout(device->getDevice(), layout, nullptr);
     }

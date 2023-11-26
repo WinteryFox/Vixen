@@ -11,9 +11,13 @@ namespace Vixen::Vk {
     public:
         VkPipelineLayout(const std::shared_ptr<Device> &device, const VkShaderProgram &program);
 
-        VkPipelineLayout(const VkPipelineLayout &) = delete;
+        VkPipelineLayout(VkPipelineLayout& other) = delete;
 
-        VkPipelineLayout &operator=(const VkPipelineLayout &) = delete;
+        VkPipelineLayout& operator=(const VkPipelineLayout& other) = delete;
+
+        VkPipelineLayout(VkPipelineLayout&& fp) noexcept;
+
+        VkPipelineLayout const& operator=(VkPipelineLayout&& fp) noexcept;
 
         ~VkPipelineLayout();
 
