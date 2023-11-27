@@ -16,6 +16,7 @@
 struct Vertex {
     glm::vec3 position;
     glm::vec3 color;
+    glm::vec2 uv;
 };
 
 struct UniformBufferObject {
@@ -39,17 +40,25 @@ int main() {
                         .addBinding({
                             .binding = 0,
                             .stride = sizeof(Vertex),
-                            .rate = Vixen::Vk::VkShaderModule::Rate::VERTEX,
+                            .rate = Vixen::Vk::VkShaderModule::Rate::VERTEX
                         })
                         .addInput({
                             .binding = 0,
                             .location = 0,
-                            .offset = offsetof(Vertex, position),
+                            .size = sizeof(glm::vec3),
+                            .offset = offsetof(Vertex, position)
                         })
                         .addInput({
                             .binding = 0,
                             .location = 1,
-                            .offset = offsetof(Vertex, color),
+                            .size = sizeof(glm::vec3),
+                            .offset = offsetof(Vertex, color)
+                        })
+                        .addInput({
+                            .binding = 0,
+                            .location = 2,
+                            .size = sizeof(glm::vec2),
+                            .offset = offsetof(Vertex, uv)
                         })
                         .compileFromFile(vixen.device, "../../src/editor/shaders/triangle.vert");
     const auto fragment = Vixen::Vk::VkShaderModule::Builder(Vixen::ShaderModule::Stage::FRAGMENT)
@@ -68,10 +77,10 @@ int main() {
     auto renderer = std::make_unique<Vixen::Vk::VkRenderer>(vixen.device, vixen.swapchain, pipeline);
 
     std::vector<Vertex> vertices{
-        {{-0.5f, -0.5f, 0.0f}, {1.0f, 0.0f, 0.0f}},
-        {{0.5f, -0.5f, 0.0f}, {0.0f, 1.0f, 0.0f}},
-        {{0.5f, 0.5f, 0.0f}, {0.0f, 0.0f, 1.0f}},
-        {{-0.5f, 0.5f, 0.0f}, {1.0f, 1.0f, 1.0f}}
+        {{-0.5f, -0.5f, 0.0f}, {1.0f, 0.0f, 0.0f}, {0.0f, 0.0f}},
+        {{0.5f, -0.5f, 0.0f}, {0.0f, 1.0f, 0.0f}, {1.0f, 0.0f}},
+        {{0.5f, 0.5f, 0.0f}, {0.0f, 0.0f, 1.0f}, {1.0f, 1.0f}},
+        {{-0.5f, 0.5f, 0.0f}, {1.0f, 1.0f, 1.0f}, {0.0f, 1.0f}},
     };
 
     std::vector<uint32_t> indices{
@@ -85,7 +94,7 @@ int main() {
         Vixen::Buffer::Usage::INDEX,
         vertices.size() * sizeof(Vertex) +
         indices.size() * sizeof(uint32_t),
-        [&vertices, &indices](auto data) {
+        [&vertices, &indices](const auto &data) {
             memcpy(
                 data,
                 vertices.data(),
@@ -100,7 +109,7 @@ int main() {
         }
     );
 
-    auto camera = Vixen::Camera(glm::vec3{0.0f, 0.0f, 2.0f});
+    auto camera = Vixen::Camera(glm::vec3{2.0f, 2.0f, 2.0f});
 
     const std::vector<VkDescriptorPoolSize> sizes{
         {

@@ -9,7 +9,7 @@ set(CMAKE_LIBRARY_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/bin)
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 # Statically linking to libstd with C++23 causes a linker bug
 # https://gcc.gnu.org/bugzilla/show_bug.cgi?id=110572
-# set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} -static-libstdc++ -static-libgcc -static")
+# set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} -static -static-libstdc++ -static-libgcc")
 
 if (POLICY CMP0025)
     cmake_policy(SET CMP0025 NEW)
@@ -27,6 +27,8 @@ option(ENABLE_EDITOR "Enable or disable the compilation of the editor" ON)
 
 if (CMAKE_BUILD_TYPE MATCHES "Debug")
     add_definitions(-DDEBUG)
+else ()
+    set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} -mwindows")
 endif ()
 
 add_subdirectory(src/engine)

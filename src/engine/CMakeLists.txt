@@ -5,6 +5,8 @@ pkg_check_modules(GLFW REQUIRED IMPORTED_TARGET glfw3)
 pkg_check_modules(ASSIMP REQUIRED IMPORTED_TARGET assimp)
 pkg_check_modules(SPDLOG REQUIRED IMPORTED_TARGET spdlog)
 
+add_definitions(-DGLFW_INCLUDE_NONE)
+
 set(
         SOURCES
         Window.cpp
@@ -18,7 +20,7 @@ link_libraries(
         PkgConfig::ASSIMP
         PkgConfig::SPDLOG
 )
-add_library(Vixen SHARED ${SOURCES})
+add_library(Vixen STATIC ${SOURCES})
 
 if (ENABLE_VULKAN)
     add_subdirectory(vk)

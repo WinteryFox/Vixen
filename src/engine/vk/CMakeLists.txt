@@ -18,7 +18,7 @@ FetchContent_MakeAvailable(VMA volk)
 
 add_library(
         VkVixen
-        SHARED
+        STATIC
         VkVixen.cpp
         VkWindow.cpp
         Instance.cpp
@@ -70,16 +70,15 @@ target_link_libraries(
         spirv-cross-core
         spirv-cross-glsl
         spirv-cross-reflect
-        freeimage
 )
 
-target_compile_definitions(VkVixen PUBLIC -DVK_NO_PROTOTYPES)
+target_compile_definitions(VkVixen PRIVATE -DVK_NO_PROTOTYPES)
 
 find_package(glslang QUIET)
 if (${glslang_FOUND})
     target_link_libraries(
             VkVixen
-            PUBLIC
+            PRIVATE
             #           glslang::OSDependent
             glslang::glslang
             #           glslang::MachineIndependent
@@ -96,7 +95,7 @@ else ()
     pkg_check_modules(glslang REQUIRED IMPORTED_TARGET glslang)
     target_link_libraries(
             VkVixen
-            PUBLIC
+            PRIVATE
             PkgConfig::glslang
             PkgConfig::SPIRV
     )
@@ -104,6 +103,6 @@ endif ()
 
 if (ENABLE_TESTS)
     add_executable(vktest test/main.cpp)
-    target_link_libraries(vktest PUBLIC Vixen VkVixen)
-    target_include_directories(vktest PUBLIC ../engine)
+    target_link_libraries(vktest PRIVATE VkVixen)
+    target_include_directories(vktest PRIVATE ../engine)
 endif ()

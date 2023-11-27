@@ -32,6 +32,17 @@ namespace Vixen {
             size_t offset;
         };
 
+        struct Uniform {
+            enum class Type {
+                BUFFER,
+                SAMPLER
+            };
+
+            Stage stage;
+            std::optional<uint32_t> binding;
+            Type type;
+        };
+
     private:
         Stage stage;
 
@@ -41,7 +52,7 @@ namespace Vixen {
 
         std::vector<IO> inputs;
 
-        std::vector<IO> uniformBuffers;
+        std::vector<Uniform> uniforms;
 
     public:
         ShaderModule(
@@ -49,12 +60,12 @@ namespace Vixen {
             std::string entrypoint,
             const std::vector<Binding>& bindings,
             const std::vector<IO>& inputs,
-            const std::vector<IO>& uniformBuffers
+            const std::vector<Uniform>& uniforms
         ) : stage(stage),
             entrypoint(std::move(entrypoint)),
             bindings(bindings),
             inputs(inputs),
-            uniformBuffers(uniformBuffers) {}
+            uniforms(uniforms) {}
 
         ShaderModule(const ShaderModule&) = delete;
 
@@ -82,8 +93,8 @@ namespace Vixen {
             return inputs;
         }
 
-        [[nodiscard]] std::vector<IO> getUniformBuffers() const {
-            return uniformBuffers;
+        [[nodiscard]] std::vector<Uniform> getUniforms() const {
+            return uniforms;
         }
     };
 }

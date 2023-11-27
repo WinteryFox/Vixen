@@ -9,8 +9,8 @@ namespace Vixen::Vk {
     ) : device(device),
         program(program),
         config(config),
-        pipelineLayout(device, program),
-        renderPass(device, program, swapchain) {
+        renderPass(device, program, swapchain),
+        pipelineLayout(device, program) {
         std::vector<VkPipelineShaderStageCreateInfo> stages;
         stages.emplace_back(program.getVertex()->createInfo());
         stages.emplace_back(program.getFragment()->createInfo());
@@ -53,14 +53,26 @@ namespace Vixen::Vk {
         }
 
         std::vector<VkVertexInputAttributeDescription> vertexAttributes{};
-        for (const auto& input : vertexModule->getInputs()) {
+        for (const auto& [binding, location, size, offset] : vertexModule->getInputs()) {
+            VkFormat format;
+            switch (size) {
+            case 2 * sizeof(float):
+                format = VK_FORMAT_R32G32_SFLOAT;
+                break;
+            case 3 * sizeof(float):
+                format = VK_FORMAT_R32G32B32_SFLOAT;
+                break;
+            default:
+                throw std::runtime_error("Unsupported input format");
+            }
+
             vertexAttributes.push_back(
                 {
-                    .location = input.location.value_or(0),
-                    .binding = input.binding.value_or(0),
+                    .location = location.value_or(0),
+                    .binding = binding.value_or(0),
                     // TODO: Automatically determine the format and offset
-                    .format = VK_FORMAT_R32G32B32_SFLOAT,
-                    .offset = static_cast<uint32_t>(input.offset)
+                    .format = format,
+                    .offset = static_cast<uint32_t>(offset)
                 }
             );
         }

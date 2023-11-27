@@ -3,7 +3,7 @@ project("Vixen Engine Gl")
 find_package(OpenGL REQUIRED)
 pkg_check_modules(GLEW REQUIRED IMPORTED_TARGET glew)
 
-add_library(GlVixen SHARED GlWindow.cpp GlShaderModule.cpp GlShaderProgram.cpp GlVertexArrayObject.cpp GlBuffer.cpp GlVixen.cpp GlRenderer.cpp GlRenderer.h)
+add_library(GlVixen STATIC GlWindow.cpp GlShaderModule.cpp GlShaderProgram.cpp GlVertexArrayObject.cpp GlBuffer.cpp GlVixen.cpp GlRenderer.cpp GlRenderer.h)
 target_link_libraries(GlVixen PUBLIC Vixen OpenGL::GL PkgConfig::GLEW)
 
 if (ENABLE_TESTS)

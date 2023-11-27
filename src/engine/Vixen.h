@@ -1,6 +1,7 @@
 #pragma once
 
 #include <utility>
+#include <glm/vec3.hpp>
 
 #include "Renderer.h"
 #include "Window.h"

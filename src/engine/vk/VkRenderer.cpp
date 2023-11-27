@@ -157,7 +157,8 @@ namespace Vixen::Vk {
                 vkCmdBindIndexBuffer(
                     commandBuffer,
                     buffer.getBuffer(),
-                    vertexCount * 24,
+                    // TODO: Remove hardcoded offset
+                    vertexCount * 32,
                     VK_INDEX_TYPE_UINT32
                 );
 

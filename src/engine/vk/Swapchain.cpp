@@ -33,11 +33,11 @@ namespace Vixen::Vk {
 
         if (std::ranges::contains(available, VK_PRESENT_MODE_MAILBOX_KHR))
             return VK_PRESENT_MODE_MAILBOX_KHR;
-        else if (std::ranges::contains(available, VK_PRESENT_MODE_FIFO_KHR))
+        if (std::ranges::contains(available, VK_PRESENT_MODE_FIFO_KHR))
             return VK_PRESENT_MODE_FIFO_KHR;
-        else if (std::ranges::contains(available, VK_PRESENT_MODE_FIFO_RELAXED_KHR))
+        if (std::ranges::contains(available, VK_PRESENT_MODE_FIFO_RELAXED_KHR))
             return VK_PRESENT_MODE_FIFO_RELAXED_KHR;
-        else if (std::ranges::contains(available, VK_PRESENT_MODE_IMMEDIATE_KHR))
+        if (std::ranges::contains(available, VK_PRESENT_MODE_IMMEDIATE_KHR))
             return VK_PRESENT_MODE_IMMEDIATE_KHR;
 
         return available[0];

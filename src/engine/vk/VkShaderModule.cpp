@@ -7,7 +7,7 @@ namespace Vixen::Vk {
         const std::vector<uint32_t>& binary,
         const std::vector<Binding>& bindings,
         const std::vector<IO>& inputs,
-        const std::vector<IO>& uniformBuffers,
+        const std::vector<Uniform>& uniformBuffers,
         const std::string& entrypoint
     ) : ShaderModule(stage, entrypoint, bindings, inputs, uniformBuffers),
         device(device),
@@ -43,16 +43,27 @@ namespace Vixen::Vk {
 
     std::vector<VkDescriptorSetLayoutBinding> VkShaderModule::createBindings() const {
         const VkShaderStageFlags& stage = getVulkanShaderStage(getStage());
-        const auto& uniformBuffers = getUniformBuffers();
+        const auto& uniformBuffers = getUniforms();
 
         std::vector<VkDescriptorSetLayoutBinding> b{};
         b.reserve(uniformBuffers.size());
-        for (const auto& [binding, location, size, offset] : uniformBuffers) {
+        for (const auto& uniformBuffer : uniformBuffers) {
+            VkDescriptorType type;
+            switch (uniformBuffer.type) {
+            case Uniform::Type::BUFFER:
+                type = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
+                break;
+            case Uniform::Type::SAMPLER:
+                type = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
+                break;
+            default:
+                throw std::runtime_error("Unknown uniform type");
+            }
+
             b.emplace_back(
                 VkDescriptorSetLayoutBinding{
-                    .binding = binding.value_or(0),
-                    // TODO: Remove hardcoded descriptor type
-                    .descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER,
+                    .binding = uniformBuffer.binding.value_or(0),
+                    .descriptorType = type,
                     // TODO: This count value is used for array bindings
                     .descriptorCount = 1,
                     .stageFlags = stage,

@@ -22,7 +22,7 @@
 #define VIXEN_VK_SPIRV_VERSION 130
 
 namespace Vixen::Vk {
-    class VkShaderModule : public ShaderModule {
+    class VkShaderModule final : public ShaderModule {
         ::VkShaderModule module;
 
         std::shared_ptr<Device> device;
@@ -36,7 +36,7 @@ namespace Vixen::Vk {
             const std::vector<uint32_t>& binary,
             const std::vector<Binding>& bindings,
             const std::vector<IO>& inputs,
-            const std::vector<IO>& uniformBuffers,
+            const std::vector<Uniform>& uniformBuffers,
             const std::string& entrypoint = "main"
         );
 
@@ -44,7 +44,7 @@ namespace Vixen::Vk {
 
         VkShaderModule& operator=(const VkShaderModule&) = delete;
 
-        ~VkShaderModule();
+        ~VkShaderModule() override;
 
         [[nodiscard]] VkPipelineShaderStageCreateInfo createInfo() const;
 
@@ -64,7 +64,7 @@ namespace Vixen::Vk {
 
             std::vector<IO> inputs{};
 
-            std::vector<IO> uniformBuffers{};
+            std::vector<Uniform> uniforms{};
 
         public:
             explicit Builder(const Stage stage) : stage(stage) {}
@@ -124,7 +124,7 @@ namespace Vixen::Vk {
                 shader.setEntryPoint(entrypoint.c_str());
                 shader.setSourceEntryPoint(entrypoint.c_str());
 
-                auto messages = static_cast<EShMessages>(EShMsgSpvRules | EShMsgVulkanRules);
+                auto messages = EShMsgEnhanced;
                 // TODO: Add actual includer
                 glslang::TShader::ForbidIncluder includer;
 
@@ -165,17 +165,24 @@ namespace Vixen::Vk {
 
                 spirv_cross::CompilerReflection c{binary};
 
-                for (auto resources = c.get_shader_resources();
-                     const auto& [id, type_id, base_type_id, name] : resources.uniform_buffers) {
+                auto resources = c.get_shader_resources();
+                for (const auto& [id, type_id, base_type_id, name] : resources.uniform_buffers) {
                     uint32_t binding = c.get_decoration(id, spv::DecorationBinding);
-                    uint32_t location = c.get_decoration(id, spv::DecorationLocation);
 
-
-                    uniformBuffers.push_back({
+                    uniforms.push_back({
+                        .stage = stage,
                         .binding = binding,
-                        .location = location,
-                        .size = 0,
-                        .offset = 0,
+                        .type = Uniform::Type::BUFFER
+                    });
+                }
+
+                for (const auto& [id, type_id, base_type_id, name] : resources.sampled_images) {
+                    uint32_t binding = c.get_decoration(id, spv::DecorationBinding);
+
+                    uniforms.push_back({
+                        .stage = stage,
+                        .binding = binding,
+                        .type = Uniform::Type::SAMPLER
                     });
                 }
 
@@ -186,7 +193,7 @@ namespace Vixen::Vk {
 
                 glslang::FinalizeProcess();
 
-                return std::make_shared<VkShaderModule>(d, stage, binary, bindings, inputs, uniformBuffers, entrypoint);
+                return std::make_shared<VkShaderModule>(d, stage, binary, bindings, inputs, uniforms, entrypoint);
             }
 
             std::shared_ptr<VkShaderModule> compile(const std::shared_ptr<Device>& d, const std::string& source) {

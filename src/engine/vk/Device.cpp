@@ -1,3 +1,5 @@
+#define VMA_IMPLEMENTATION
+
 #include "Device.h"
 
 namespace Vixen::Vk {
