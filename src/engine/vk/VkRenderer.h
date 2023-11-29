@@ -22,7 +22,7 @@ namespace Vixen::Vk {
 
         std::vector<VkCommandBuffer> renderCommandBuffers;
 
-        std::vector<VkImage> depthImages;
+        std::vector<std::shared_ptr<VkImage>> depthImages;
 
         std::vector<std::unique_ptr<VkImageView>> depthImageViews;
 
@@ -47,7 +47,7 @@ namespace Vixen::Vk {
             const VkBuffer& buffer,
             uint32_t vertexCount,
             uint32_t indexCount,
-            const VkDescriptorSet& set
+            const std::vector<::VkDescriptorSet> &descriptorSets
         );
 
     private:
@@ -59,7 +59,7 @@ namespace Vixen::Vk {
             const VkBuffer& buffer,
             uint32_t vertexCount,
             uint32_t indexCount,
-            const VkDescriptorSet& set
+            const std::vector<::VkDescriptorSet> &descriptorSets
         ) const;
     };
 }

@@ -94,7 +94,7 @@ int main() {
         Vixen::Buffer::Usage::INDEX,
         vertices.size() * sizeof(Vertex) +
         indices.size() * sizeof(uint32_t),
-        [&vertices, &indices](const auto &data) {
+        [&vertices, &indices](const auto& data) {
             memcpy(
                 data,
                 vertices.data(),
@@ -115,6 +115,10 @@ int main() {
         {
             .type = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER,
             .descriptorCount = 1
+        },
+        {
+            .type = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER,
+            .descriptorCount = 1
         }
     };
 
@@ -130,9 +134,19 @@ int main() {
         camera.perspective(static_cast<float>(width) / static_cast<float>(height))
     };
 
-    auto descriptorPool = std::make_shared<Vixen::Vk::VkDescriptorPool>(vixen.device, sizes, 1);
-    auto descriptorSet = Vixen::Vk::VkDescriptorSet(vixen.device, descriptorPool, vertex->getDescriptorSetLayout());
-    descriptorSet.updateUniformBuffer(0, uniformBuffer);
+    auto descriptorPool = std::make_shared<Vixen::Vk::VkDescriptorPool>(vixen.device, sizes, 2);
+    auto mvp = Vixen::Vk::VkDescriptorSet(vixen.device, descriptorPool, *program.getDescriptorSetLayout());
+    mvp.updateUniformBuffer(0, uniformBuffer);
+
+    auto image = std::make_shared<Vixen::Vk::VkImage>(
+        Vixen::Vk::VkImage::from(vixen.device, "texture.jpg"));
+    auto view = Vixen::Vk::VkImageView(image, VK_IMAGE_ASPECT_COLOR_BIT);
+    auto sampler = Vixen::Vk::VkSampler(vixen.device);
+
+    //auto albedo = Vixen::Vk::VkDescriptorSet(vixen.device, descriptorPool, *program.getDescriptorSetLayout());
+    mvp.updateCombinedImageSampler(1, sampler, view);
+
+    const std::vector descriptorSets = {mvp.getSet()};
 
     double old = glfwGetTime();
     double lastFrame = old;
@@ -147,10 +161,11 @@ int main() {
         const double& now = glfwGetTime();
         double deltaTime = now - lastFrame;
         lastFrame = now;
-        ubo.model = glm::rotate(ubo.model,  static_cast<float>(deltaTime) * glm::radians(90.0f), glm::vec3(0.0f, 0.0f, 1.0f));
+        ubo.model = glm::rotate(ubo.model, static_cast<float>(deltaTime) * glm::radians(90.0f),
+                                glm::vec3(0.0f, 0.0f, 1.0f));
         uniformBuffer.write(reinterpret_cast<const char*>(&ubo), sizeof(UniformBufferObject), 0);
 
-        renderer->render(buffer, vertices.size(), indices.size(), descriptorSet);
+        renderer->render(buffer, vertices.size(), indices.size(), descriptorSets);
 
         fps++;
         if (now - old >= 1) {

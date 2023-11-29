@@ -10,9 +10,8 @@ namespace Vixen::Vk {
         const std::vector<Uniform>& uniformBuffers,
         const std::string& entrypoint
     ) : ShaderModule(stage, entrypoint, bindings, inputs, uniformBuffers),
-        device(device),
         module(VK_NULL_HANDLE),
-        descriptorSetLayout(device, createBindings()) {
+        device(device) {
         const VkShaderModuleCreateInfo info{
             .sType = VK_STRUCTURE_TYPE_SHADER_MODULE_CREATE_INFO,
             .codeSize = binary.size() * sizeof(uint32_t),
@@ -75,7 +74,5 @@ namespace Vixen::Vk {
         return b;
     }
 
-    const VkDescriptorSetLayout& VkShaderModule::getDescriptorSetLayout() {
-        return descriptorSetLayout;
-    }
+    std::shared_ptr<Device> VkShaderModule::getDevice() const { return device; }
 }

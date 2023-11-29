@@ -8,7 +8,7 @@ namespace Vixen::Vk {
     class VkFramebuffer {
         std::shared_ptr<Device> device;
 
-        std::vector<VkImage> images;
+        std::vector<std::shared_ptr<VkImage>> images;
 
         std::vector<std::unique_ptr<VkImageView>> imageViews;
 

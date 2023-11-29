@@ -4,12 +4,12 @@
 
 namespace Vixen::Vk {
     class VkImageView {
-        const VkImage &image;
+        std::shared_ptr<VkImage> image;
 
         ::VkImageView imageView;
 
     public:
-        VkImageView(const VkImage &image, VkImageAspectFlags aspectFlags);
+        VkImageView(const std::shared_ptr<VkImage> &image, VkImageAspectFlags aspectFlags);
 
         VkImageView(const VkImageView &) = delete;
 
@@ -20,5 +20,7 @@ namespace Vixen::Vk {
         ~VkImageView();
 
         [[nodiscard]] ::VkImageView getImageView() const;
+
+        [[nodiscard]] std::shared_ptr<VkImage> getImage() const;
     };
 }

@@ -8,15 +8,15 @@ namespace Vixen::Vk {
             const std::vector<const char *> &extensions,
             GraphicsCard gpu,
             VkSurfaceKHR surface
-    ) : device(VK_NULL_HANDLE),
+    ) : gpu(gpu),
+        device(VK_NULL_HANDLE),
         allocator(VK_NULL_HANDLE),
-        gpu(gpu),
         surface(surface) {
         graphicsQueueFamily = gpu.getQueueFamilyWithFlags(VK_QUEUE_GRAPHICS_BIT)[0];
         presentQueueFamily = gpu.getSurfaceSupportedQueues(surface)[0];
         transferQueueFamily = gpu.getQueueFamilyWithFlags(VK_QUEUE_TRANSFER_BIT)[0];
 
-        std::set<uint32_t> queueFamilies = {
+        std::set queueFamilies = {
                 graphicsQueueFamily.index,
                 presentQueueFamily.index,
                 transferQueueFamily.index,

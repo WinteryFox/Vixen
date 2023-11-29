@@ -18,10 +18,6 @@ namespace Vixen {
 
         virtual ~Buffer() = default;
 
-        virtual char* map() = 0;
-
-        virtual void unmap() = 0;
-
         /**
          * Map the buffer, write to it and unmap the buffer from host memory.
          * @param data A pointer pointing to the start of the data.
@@ -33,6 +29,11 @@ namespace Vixen {
         [[nodiscard]] std::size_t getSize() const;
 
         [[nodiscard]] Usage getBufferUsage() const;
+
+    private:
+        virtual char* map() = 0;
+
+        virtual void unmap() = 0;
 
     protected:
         const Usage bufferUsage;

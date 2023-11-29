@@ -59,6 +59,8 @@ add_library(
         VkDescriptorSetLayout.h
         VkDescriptorSet.cpp
         VkDescriptorSet.h
+        VkSampler.cpp
+        VkSampler.h
 )
 target_link_libraries(
         VkVixen
@@ -70,6 +72,7 @@ target_link_libraries(
         spirv-cross-core
         spirv-cross-glsl
         spirv-cross-reflect
+        freeimage
 )
 
 target_compile_definitions(VkVixen PRIVATE -DVK_NO_PROTOTYPES)

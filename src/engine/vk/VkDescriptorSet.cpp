@@ -68,6 +68,29 @@ namespace Vixen::Vk {
         vkUpdateDescriptorSets(device->getDevice(), 1, &write, 0, nullptr);
     }
 
+    void VkDescriptorSet::updateCombinedImageSampler(const uint32_t binding, const VkSampler &sampler, const VkImageView &view) const {
+        const VkDescriptorImageInfo imageInfo{
+            .sampler = sampler.getSampler(),
+            .imageView = view.getImageView(),
+            .imageLayout = view.getImage()->getLayout()
+        };
+
+        const VkWriteDescriptorSet write{
+            .sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET,
+            .pNext = nullptr,
+            .dstSet = set,
+            .dstBinding = binding,
+            .dstArrayElement = 0,
+            .descriptorCount = 1,
+            .descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER,
+            .pImageInfo = &imageInfo,
+            .pBufferInfo = nullptr,
+            .pTexelBufferView = nullptr
+        };
+
+        vkUpdateDescriptorSets(device->getDevice(), 1, &write, 0, nullptr);
+    }
+
     ::VkDescriptorSet VkDescriptorSet::getSet() const {
         return set;
     }

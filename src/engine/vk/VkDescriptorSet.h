@@ -3,6 +3,8 @@
 #include "Device.h"
 #include "VkDescriptorPool.h"
 #include "VkBuffer.h"
+#include "VkSampler.h"
+#include "VkImageView.h"
 
 namespace Vixen::Vk {
     class VkDescriptorSet {
@@ -31,7 +33,13 @@ namespace Vixen::Vk {
 
         void updateUniformBuffer(
             uint32_t binding,
-            const VkBuffer &buffer
+            const VkBuffer& buffer
+        ) const;
+
+        void updateCombinedImageSampler(
+            uint32_t binding,
+            const VkSampler &sampler,
+            const VkImageView &view
         ) const;
 
         [[nodiscard]] ::VkDescriptorSet getSet() const;

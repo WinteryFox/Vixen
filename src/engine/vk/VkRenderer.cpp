@@ -37,18 +37,18 @@ namespace Vixen::Vk {
         const VkBuffer& buffer,
         uint32_t vertexCount,
         uint32_t indexCount,
-        const VkDescriptorSet& set
+        const std::vector<::VkDescriptorSet>& descriptorSets
     ) {
-        auto state = swapchain.acquireImage(
+        if (const auto state = swapchain.acquireImage(
             std::numeric_limits<uint64_t>::max(),
-            [this, &buffer, &vertexCount, &indexCount, &set](
+            [this, &buffer, &vertexCount, &indexCount, &descriptorSets](
             const auto& currentFrame,
             const auto& imageIndex,
             const auto& imageAvailableSemaphore
         ) {
                 auto& commandBuffer = renderCommandBuffers[currentFrame];
 
-                prepare(commandBuffer, framebuffers[imageIndex], buffer, vertexCount, indexCount, set);
+                prepare(commandBuffer, framebuffers[imageIndex], buffer, vertexCount, indexCount, descriptorSets);
 
                 std::vector<::VkSemaphore> waitSemaphores = {imageAvailableSemaphore.getSemaphore()};
                 std::vector<::VkSemaphore> signalSemaphores = {
@@ -64,9 +64,7 @@ namespace Vixen::Vk {
 
                 swapchain.present(imageIndex, signalSemaphores);
             }
-        );
-
-        if (state == Swapchain::State::OUT_OF_DATE) {
+        ); state == Swapchain::State::OUT_OF_DATE) {
             device->waitIdle();
 
             framebuffers.clear();
@@ -85,11 +83,11 @@ namespace Vixen::Vk {
         const VkBuffer& buffer,
         uint32_t vertexCount,
         uint32_t indexCount,
-        const VkDescriptorSet& set
+        const std::vector<::VkDescriptorSet>& descriptorSets
     ) const {
         commandBuffer.record(
             VkCommandBuffer::Usage::SIMULTANEOUS,
-            [this, &framebuffer, &buffer, &vertexCount, &indexCount, &set](::VkCommandBuffer commandBuffer) {
+            [this, &framebuffer, &buffer, &vertexCount, &indexCount, &descriptorSets](::VkCommandBuffer commandBuffer) {
                 std::vector<VkClearValue> clearValues{
                     {
                         .color = {
@@ -162,14 +160,13 @@ namespace Vixen::Vk {
                     VK_INDEX_TYPE_UINT32
                 );
 
-                const auto& s = set.getSet();
                 vkCmdBindDescriptorSets(
                     commandBuffer,
                     VK_PIPELINE_BIND_POINT_GRAPHICS,
                     pipelineLayout->getLayout(),
                     0,
-                    1,
-                    &s,
+                    descriptorSets.size(),
+                    descriptorSets.data(),
                     0,
                     nullptr
                 );
@@ -189,14 +186,16 @@ namespace Vixen::Vk {
         depthImageViews.reserve(imageCount);
         framebuffers.reserve(imageCount);
         for (size_t i = 0; i < imageCount; i++) {
-            depthImages.emplace_back(
-                device,
-                swapchain.getExtent().width,
-                swapchain.getExtent().height,
-                VK_SAMPLE_COUNT_1_BIT,
-                VK_FORMAT_D32_SFLOAT,
-                VK_IMAGE_TILING_OPTIMAL,
-                VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT
+            depthImages.push_back(
+                std::make_shared<VkImage>(
+                    device,
+                    swapchain.getExtent().width,
+                    swapchain.getExtent().height,
+                    VK_SAMPLE_COUNT_1_BIT,
+                    VK_FORMAT_D32_SFLOAT,
+                    VK_IMAGE_TILING_OPTIMAL,
+                    VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT
+                )
             );
 
             depthImageViews.emplace_back(

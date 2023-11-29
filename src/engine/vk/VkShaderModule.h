@@ -17,7 +17,6 @@
 #include "../ShaderModule.h"
 #include "Vulkan.h"
 #include "Device.h"
-#include "VkDescriptorSetLayout.h"
 
 #define VIXEN_VK_SPIRV_VERSION 130
 
@@ -26,8 +25,6 @@ namespace Vixen::Vk {
         ::VkShaderModule module;
 
         std::shared_ptr<Device> device;
-
-        VkDescriptorSetLayout descriptorSetLayout;
 
     public:
         VkShaderModule(
@@ -50,7 +47,7 @@ namespace Vixen::Vk {
 
         [[nodiscard]] std::vector<VkDescriptorSetLayoutBinding> createBindings() const;
 
-        [[nodiscard]] const VkDescriptorSetLayout& getDescriptorSetLayout();
+        [[nodiscard]] std::shared_ptr<Device> getDevice() const;
 
         class Builder {
             // TODO: This builder has slightly confusing API, you can compile before setting the stage meaning its possible to mistakenly have the wrong stage set at compile time
@@ -120,6 +117,7 @@ namespace Vixen::Vk {
                 shader.setEnvClient(glslang::EShClientVulkan, glslang::EShTargetVulkan_1_3);
                 shader.setEnvTarget(glslang::EShTargetSpv, glslang::EShTargetSpv_1_6);
                 shader.setAutoMapLocations(true);
+                shader.setAutoMapBindings(true);
 
                 shader.setEntryPoint(entrypoint.c_str());
                 shader.setSourceEntryPoint(entrypoint.c_str());

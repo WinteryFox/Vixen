@@ -5,7 +5,8 @@ namespace Vixen::Vk {
         : Buffer(bufferUsage, size),
           device(device),
           allocation(VK_NULL_HANDLE),
-          buffer(VK_NULL_HANDLE) {
+          buffer(VK_NULL_HANDLE),
+          data(nullptr) {
         VmaAllocationCreateFlags allocationFlags = 0;
         VkBufferUsageFlags bufferUsageFlags = 0;
         VkMemoryPropertyFlags requiredFlags = 0;
@@ -65,38 +66,29 @@ namespace Vixen::Vk {
             ),
             "Failed to create Vk buffer"
         );
+
+        if (allocationFlags & VMA_ALLOCATION_CREATE_HOST_ACCESS_SEQUENTIAL_WRITE_BIT)
+            data = map();
     }
 
     VkBuffer::VkBuffer(VkBuffer&& o) noexcept
         : Buffer(o.bufferUsage, o.size),
           allocation(std::exchange(o.allocation, nullptr)),
-          buffer(std::exchange(o.buffer, nullptr)) {}
+          buffer(std::exchange(o.buffer, nullptr)),
+          data(std::exchange(o.data, nullptr)) {}
 
     VkBuffer::~VkBuffer() {
+        unmap();
         vmaDestroyBuffer(device->getAllocator(), buffer, allocation);
     }
 
-    void VkBuffer::write(const char* data, const size_t dataSize, const size_t offset) {
+    void VkBuffer::write(const char* d, const size_t dataSize, const size_t offset) {
+        if (!data)
+            throw std::runtime_error("This buffer is not mapped and thus not writable");
         if (offset + dataSize > size)
             throw std::runtime_error("Buffer overflow");
 
-        void* d = map();
-        memcpy(static_cast<char*>(d) + offset, data, dataSize);
-        unmap();
-    }
-
-    char* VkBuffer::map() {
-        void* data;
-        checkVulkanResult(
-            vmaMapMemory(device->getAllocator(), allocation, &data),
-            "Failed to map buffer"
-        );
-
-        return static_cast<char*>(data);
-    }
-
-    void VkBuffer::unmap() {
-        vmaUnmapMemory(device->getAllocator(), allocation);
+        memcpy(data + offset, d, dataSize);
     }
 
     ::VkBuffer VkBuffer::getBuffer() const {
@@ -137,5 +129,20 @@ namespace Vixen::Vk {
         source.transfer(destination, 0);
 
         return destination;
+    }
+
+    char* VkBuffer::map() {
+        void* data;
+        checkVulkanResult(
+            vmaMapMemory(device->getAllocator(), allocation, &data),
+            "Failed to map buffer"
+        );
+
+        return static_cast<char*>(data);
+    }
+
+    void VkBuffer::unmap() {
+        if (data)
+            vmaUnmapMemory(device->getAllocator(), allocation);
     }
 }
