@@ -109,7 +109,7 @@ int main() {
         }
     );
 
-    auto camera = Vixen::Camera(glm::vec3{2.0f, 2.0f, 2.0f});
+    auto camera = Vixen::Camera(glm::vec3{1.0f, 1.0f, 1.0f});
 
     const std::vector<VkDescriptorPoolSize> sizes{
         {
@@ -134,12 +134,12 @@ int main() {
         camera.perspective(static_cast<float>(width) / static_cast<float>(height))
     };
 
-    auto descriptorPool = std::make_shared<Vixen::Vk::VkDescriptorPool>(vixen.device, sizes, 2);
+    auto descriptorPool = std::make_shared<Vixen::Vk::VkDescriptorPool>(vixen.device, sizes, 1);
     auto mvp = Vixen::Vk::VkDescriptorSet(vixen.device, descriptorPool, *program.getDescriptorSetLayout());
-    mvp.updateUniformBuffer(0, uniformBuffer);
+    mvp.updateUniformBuffer(0, uniformBuffer, 0, uniformBuffer.getSize());
 
     auto image = std::make_shared<Vixen::Vk::VkImage>(
-        Vixen::Vk::VkImage::from(vixen.device, "texture.jpg"));
+        Vixen::Vk::VkImage::from(vixen.device, "../../src/engine/vk/test/texture.jpg"));
     auto view = Vixen::Vk::VkImageView(image, VK_IMAGE_ASPECT_COLOR_BIT);
     auto sampler = Vixen::Vk::VkSampler(vixen.device);
 
@@ -161,8 +161,13 @@ int main() {
         const double& now = glfwGetTime();
         double deltaTime = now - lastFrame;
         lastFrame = now;
-        ubo.model = glm::rotate(ubo.model, static_cast<float>(deltaTime) * glm::radians(90.0f),
-                                glm::vec3(0.0f, 0.0f, 1.0f));
+        ubo.model = rotate(ubo.model, static_cast<float>(deltaTime) * glm::radians(90.0f),
+                           glm::vec3(0.0f, 0.0f, 1.0f));
+        ubo.view = camera.view();
+        ubo.projection = camera.perspective(
+            static_cast<float>(vixen.swapchain.getExtent().width) /
+            static_cast<float>(vixen.swapchain.getExtent().height)
+        );
         uniformBuffer.write(reinterpret_cast<const char*>(&ubo), sizeof(UniformBufferObject), 0);
 
         renderer->render(buffer, vertices.size(), indices.size(), descriptorSets);

@@ -43,13 +43,19 @@ namespace Vixen::Vk {
         );
     }
 
-    void VkDescriptorSet::updateUniformBuffer(const uint32_t binding, const VkBuffer& buffer) const {
+    void VkDescriptorSet::updateUniformBuffer(
+        const uint32_t binding,
+        const VkBuffer& buffer,
+        const uint32_t offset,
+        const uint32_t size
+    ) const {
+        if (offset + size > buffer.getSize())
+            throw std::runtime_error("Offset plus size is greater than buffer size");
+
         const VkDescriptorBufferInfo bufferInfo{
             .buffer = buffer.getBuffer(),
-            // TODO: This can't be hardcoded in the future to deal with buffers storing
-            // multiple descriptors (or other things), will need a better solution
-            .offset = 0,
-            .range = buffer.getSize()
+            .offset = offset,
+            .range = size
         };
 
         const VkWriteDescriptorSet write{
@@ -68,7 +74,11 @@ namespace Vixen::Vk {
         vkUpdateDescriptorSets(device->getDevice(), 1, &write, 0, nullptr);
     }
 
-    void VkDescriptorSet::updateCombinedImageSampler(const uint32_t binding, const VkSampler &sampler, const VkImageView &view) const {
+    void VkDescriptorSet::updateCombinedImageSampler(
+        const uint32_t binding,
+        const VkSampler& sampler,
+        const VkImageView& view
+    ) const {
         const VkDescriptorImageInfo imageInfo{
             .sampler = sampler.getSampler(),
             .imageView = view.getImageView(),

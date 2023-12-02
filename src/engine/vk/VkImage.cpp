@@ -84,7 +84,7 @@ namespace Vixen::Vk {
     VkImage VkImage::from(const std::shared_ptr<Device>& device, const std::string& path) {
         FreeImage_Initialise();
 
-        const auto& format = FreeImage_GetFileType(path.c_str(), 0);
+        const auto& format = FreeImage_GetFileType(path.c_str(), static_cast<int>(path.length()));
         if (format == FIF_UNKNOWN)
             error("Failed to determine image format, possibly unsupported format?");
 

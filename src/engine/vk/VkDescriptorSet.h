@@ -33,7 +33,9 @@ namespace Vixen::Vk {
 
         void updateUniformBuffer(
             uint32_t binding,
-            const VkBuffer& buffer
+            const VkBuffer& buffer,
+            uint32_t offset,
+            uint32_t size
         ) const;
 
         void updateCombinedImageSampler(
