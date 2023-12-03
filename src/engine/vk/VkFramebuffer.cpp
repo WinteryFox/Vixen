@@ -24,7 +24,8 @@ namespace Vixen::Vk {
                     VK_SAMPLE_COUNT_1_BIT,
                     format,
                     VK_IMAGE_TILING_OPTIMAL,
-                    VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT
+                    VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT,
+                    1
                 )
             );
 

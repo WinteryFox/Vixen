@@ -8,7 +8,8 @@ namespace Vixen::Vk {
         const VkSampleCountFlagBits samples,
         const VkFormat format,
         const VkImageTiling tiling,
-        const VkImageUsageFlags usageFlags
+        const VkImageUsageFlags usageFlags,
+        const uint8_t mipLevels
     ) : device(device),
         allocation(VK_NULL_HANDLE),
         image(VK_NULL_HANDLE),
@@ -16,22 +17,27 @@ namespace Vixen::Vk {
         height(height),
         format(format),
         usageFlags(usageFlags),
-        layout(VK_IMAGE_LAYOUT_UNDEFINED) {
+        layout(VK_IMAGE_LAYOUT_UNDEFINED),
+        mipLevels(mipLevels) {
         const VkImageCreateInfo imageCreateInfo{
             .sType = VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO,
+            .pNext = nullptr,
+            .flags = 0,
             .imageType = VK_IMAGE_TYPE_2D,
             .format = format,
-            .extent{
+            .extent = {
                 .width = width,
                 .height = height,
                 .depth = 1
             },
-            .mipLevels = 1,
+            .mipLevels = mipLevels,
             .arrayLayers = 1,
             .samples = samples,
             .tiling = tiling,
             .usage = usageFlags,
             .sharingMode = VK_SHARING_MODE_EXCLUSIVE,
+            .queueFamilyIndexCount = 0,
+            .pQueueFamilyIndices = nullptr,
             .initialLayout = layout
         };
 
@@ -55,14 +61,15 @@ namespace Vixen::Vk {
     }
 
     VkImage::VkImage(VkImage&& other) noexcept
-        : device(other.device),
+        : device(std::exchange(other.device, nullptr)),
           allocation(std::exchange(other.allocation, VK_NULL_HANDLE)),
           width(other.width),
           height(other.height),
           layout(other.layout),
           usageFlags(other.usageFlags),
           image(std::exchange(other.image, VK_NULL_HANDLE)),
-          format(other.format) {}
+          format(other.format),
+          mipLevels(other.mipLevels) {}
 
     VkImage const& VkImage::operator=(VkImage&& other) noexcept {
         std::swap(device, other.device);
@@ -73,12 +80,14 @@ namespace Vixen::Vk {
         std::swap(usageFlags, other.usageFlags);
         std::swap(image, other.image);
         std::swap(format, other.format);
+        std::swap(mipLevels, other.mipLevels);
 
         return *this;
     }
 
     VkImage::~VkImage() {
-        vmaDestroyImage(device->getAllocator(), image, allocation);
+        if (device != nullptr)
+            vmaDestroyImage(device->getAllocator(), image, allocation);
     }
 
     VkImage VkImage::from(const std::shared_ptr<Device>& device, const std::string& path) {
@@ -93,6 +102,8 @@ namespace Vixen::Vk {
             error("Failed to load image from file \"{}\"", path);
 
         const auto& converted = FreeImage_ConvertTo32Bits(bitmap);
+        if (!converted)
+            error("Failed to convert image to 32 bits");
 
         const auto& width = FreeImage_GetWidth(converted);
         const auto& height = FreeImage_GetHeight(converted);
@@ -128,7 +139,8 @@ namespace Vixen::Vk {
             VK_SAMPLE_COUNT_1_BIT,
             f,
             VK_IMAGE_TILING_OPTIMAL,
-            VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_SAMPLED_BIT
+            VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_SAMPLED_BIT,
+            static_cast<uint32_t>(std::floor(std::log2(std::max(width, height)))) + 1
         );
 
         image.transition(VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL);
@@ -138,7 +150,7 @@ namespace Vixen::Vk {
         return image;
     }
 
-    void VkImage::transition(VkImageLayout newLayout) {
+    void VkImage::transition(const VkImageLayout newLayout) {
         VkImageMemoryBarrier barrier{};
         barrier.sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER;
         barrier.oldLayout = layout;
@@ -148,7 +160,7 @@ namespace Vixen::Vk {
         barrier.image = image;
         barrier.subresourceRange.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT; // TODO: This looks sus too
         barrier.subresourceRange.baseMipLevel = 0;
-        barrier.subresourceRange.levelCount = 1;
+        barrier.subresourceRange.levelCount = mipLevels;
         barrier.subresourceRange.baseArrayLayer = 0;
         barrier.subresourceRange.layerCount = 1;
         barrier.srcAccessMask = 0;
@@ -177,7 +189,7 @@ namespace Vixen::Vk {
         }
 
         device->getTransferCommandPool()
-              ->allocateCommandBuffer(VkCommandBuffer::Level::PRIMARY)
+              ->allocate(VkCommandBuffer::Level::PRIMARY)
               .record(
                   VkCommandBuffer::Usage::SINGLE,
                   [this, &source, &destination, &barrier](auto commandBuffer) {
@@ -201,21 +213,30 @@ namespace Vixen::Vk {
     }
 
     void VkImage::copyFrom(VkBuffer const& buffer) {
-        VkBufferImageCopy region{};
-        region.bufferOffset = 0;
-        region.bufferRowLength = 0;
-        region.bufferImageHeight = 0;
-
-        region.imageSubresource.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
-        region.imageSubresource.mipLevel = 0;
-        region.imageSubresource.baseArrayLayer = 0;
-        region.imageSubresource.layerCount = 1;
-
-        region.imageOffset = {0, 0, 0};
-        region.imageExtent = {width, height, 1};
+        VkBufferImageCopy region{
+            .bufferOffset = 0,
+            .bufferRowLength = 0,
+            .bufferImageHeight = 0,
+            .imageSubresource{
+                .aspectMask = VK_IMAGE_ASPECT_COLOR_BIT,
+                .mipLevel = 0,
+                .baseArrayLayer = 0,
+                .layerCount = 1,
+            },
+            .imageOffset{
+                .x = 0,
+                .y = 0,
+                .z = 0
+            },
+            .imageExtent{
+                .width = width,
+                .height = height,
+                .depth = 1
+            }
+        };
 
         device->getTransferCommandPool()
-              ->allocateCommandBuffer(VkCommandBuffer::Level::PRIMARY)
+              ->allocate(VkCommandBuffer::Level::PRIMARY)
               .record(
                   VkCommandBuffer::Usage::SINGLE,
                   [this, &buffer, &region](const auto& commandBuffer) {
@@ -231,6 +252,10 @@ namespace Vixen::Vk {
 
     const std::shared_ptr<Device>& VkImage::getDevice() const {
         return device;
+    }
+
+    uint8_t VkImage::getMipLevels() const {
+        return mipLevels;
     }
 
     VkFormat VkImage::getFormat() const {

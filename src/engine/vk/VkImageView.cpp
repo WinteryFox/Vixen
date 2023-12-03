@@ -1,7 +1,7 @@
 #include "VkImageView.h"
 
 namespace Vixen::Vk {
-    VkImageView::VkImageView(const std::shared_ptr<VkImage>& image, VkImageAspectFlags aspectFlags)
+    VkImageView::VkImageView(const std::shared_ptr<VkImage>& image, const VkImageAspectFlags aspectFlags)
         : image(image),
           imageView(VK_NULL_HANDLE) {
         VkImageViewCreateInfo imageViewCreateInfo{};
@@ -11,7 +11,7 @@ namespace Vixen::Vk {
         imageViewCreateInfo.format = image->getFormat();
         imageViewCreateInfo.subresourceRange.aspectMask = aspectFlags;
         imageViewCreateInfo.subresourceRange.baseMipLevel = 0;
-        imageViewCreateInfo.subresourceRange.levelCount = 1;
+        imageViewCreateInfo.subresourceRange.levelCount = image->getMipLevels();
         imageViewCreateInfo.subresourceRange.baseArrayLayer = 0;
         imageViewCreateInfo.subresourceRange.layerCount = 1;
 

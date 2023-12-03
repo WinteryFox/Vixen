@@ -16,7 +16,7 @@ namespace Vixen::Vk {
             true
         )),
         renderCommandBuffers(
-            renderCommandPool->allocateCommandBuffers(
+            renderCommandPool->allocate(
                 VkCommandBuffer::Level::PRIMARY,
                 swapchain.getImageCount()
             )
@@ -194,7 +194,8 @@ namespace Vixen::Vk {
                     VK_SAMPLE_COUNT_1_BIT,
                     VK_FORMAT_D32_SFLOAT,
                     VK_IMAGE_TILING_OPTIMAL,
-                    VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT
+                    VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT,
+                    1
                 )
             );
 
