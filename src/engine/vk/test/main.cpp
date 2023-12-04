@@ -6,6 +6,9 @@
 
 #include <cstdlib>
 #include <string>
+#include <assimp/Importer.hpp>
+#include <assimp/postprocess.h>
+#include <assimp/scene.h>
 #include "VkVixen.h"
 #include "VkPipeline.h"
 #include "VkRenderer.h"
@@ -36,34 +39,34 @@ int main() {
 
     auto vixen = Vixen::Vk::VkVixen("Vixen Vulkan Test", {1, 0, 0});
 
-    const auto vertex = Vixen::Vk::VkShaderModule::Builder(Vixen::ShaderModule::Stage::VERTEX)
-                        .addBinding({
-                            .binding = 0,
-                            .stride = sizeof(Vertex),
-                            .rate = Vixen::Vk::VkShaderModule::Rate::VERTEX
-                        })
-                        .addInput({
-                            .binding = 0,
-                            .location = 0,
-                            .size = sizeof(glm::vec3),
-                            .offset = offsetof(Vertex, position)
-                        })
-                        .addInput({
-                            .binding = 0,
-                            .location = 1,
-                            .size = sizeof(glm::vec3),
-                            .offset = offsetof(Vertex, color)
-                        })
-                        .addInput({
-                            .binding = 0,
-                            .location = 2,
-                            .size = sizeof(glm::vec2),
-                            .offset = offsetof(Vertex, uv)
-                        })
-                        .compileFromFile(vixen.device, "../../src/editor/shaders/triangle.vert");
+    const auto vertexShader = Vixen::Vk::VkShaderModule::Builder(Vixen::ShaderModule::Stage::VERTEX)
+                              .addBinding({
+                                  .binding = 0,
+                                  .stride = sizeof(Vertex),
+                                  .rate = Vixen::Vk::VkShaderModule::Rate::VERTEX
+                              })
+                              .addInput({
+                                  .binding = 0,
+                                  .location = 0,
+                                  .size = sizeof(glm::vec3),
+                                  .offset = offsetof(Vertex, position)
+                              })
+                              .addInput({
+                                  .binding = 0,
+                                  .location = 1,
+                                  .size = sizeof(glm::vec3),
+                                  .offset = offsetof(Vertex, color)
+                              })
+                              .addInput({
+                                  .binding = 0,
+                                  .location = 2,
+                                  .size = sizeof(glm::vec2),
+                                  .offset = offsetof(Vertex, uv)
+                              })
+                              .compileFromFile(vixen.device, "../../src/editor/shaders/triangle.vert");
     const auto fragment = Vixen::Vk::VkShaderModule::Builder(Vixen::ShaderModule::Stage::FRAGMENT)
         .compileFromFile(vixen.device, "../../src/editor/shaders/triangle.frag");
-    const auto program = Vixen::Vk::VkShaderProgram(vertex, fragment);
+    const auto program = Vixen::Vk::VkShaderProgram(vertexShader, fragment);
 
     int width;
     int height;
@@ -76,17 +79,38 @@ int main() {
 
     auto renderer = std::make_unique<Vixen::Vk::VkRenderer>(vixen.device, vixen.swapchain, pipeline);
 
-    std::vector<Vertex> vertices{
-        {{-0.5f, -0.5f, 0.0f}, {1.0f, 0.0f, 0.0f}, {0.0f, 0.0f}},
-        {{0.5f, -0.5f, 0.0f}, {0.0f, 1.0f, 0.0f}, {1.0f, 0.0f}},
-        {{0.5f, 0.5f, 0.0f}, {0.0f, 0.0f, 1.0f}, {1.0f, 1.0f}},
-        {{-0.5f, 0.5f, 0.0f}, {1.0f, 1.0f, 1.0f}, {0.0f, 1.0f}},
-    };
+    Assimp::Importer importer;
+    const auto& scene = importer.ReadFile("../../src/engine/vk/test/vikingroom.glb",
+                                          aiProcessPreset_TargetRealtime_Fast);
+    if (!scene)
+        throw std::runtime_error("Failed to load model from file");
 
-    std::vector<uint32_t> indices{
-        0, 1, 2,
-        2, 3, 0
-    };
+    const auto& mesh = scene->mMeshes[0];
+    std::vector<Vertex> vertices{mesh->mNumVertices};
+    for (uint32_t i = 0; i < mesh->mNumVertices; i++) {
+        const auto& vertex = mesh->mVertices[i];
+        const auto& color = mesh->HasVertexColors(i) ? *mesh->mColors[i] : aiColor4D{1.0f, 1.0f, 1.0f, 1.0f};
+        const auto& uv = mesh->HasTextureCoords(i) ? *mesh->mTextureCoords[i] : aiVector3D{0.0f, 0.0f, 0.0f};
+
+        vertices[i] = Vertex{
+            .position = {vertex.x, vertex.y, vertex.z},
+            .color = {color.r, color.g, color.b},
+            .uv = {uv.x, uv.y}
+        };
+    }
+
+    std::vector indices{mesh->mNumFaces * 3};
+    for (uint32_t i = 0; i < mesh->mNumFaces; i++) {
+        const auto& face = mesh->mFaces[i];
+        if (face.mNumIndices != 3) {
+            spdlog::warn("Skipping face with {} indices", face.mNumIndices);
+            continue;
+        }
+
+        indices[i * 3] = face.mIndices[0];
+        indices[i * 3 + 1] = face.mIndices[1];
+        indices[i * 3 + 2] = face.mIndices[2];
+    }
 
     const auto buffer = Vixen::Vk::VkBuffer::stage(
         vixen.device,
