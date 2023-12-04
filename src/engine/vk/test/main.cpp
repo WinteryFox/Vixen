@@ -82,11 +82,11 @@ int main() {
     Assimp::Importer importer;
     const auto& scene = importer.ReadFile("../../src/engine/vk/test/vikingroom.glb",
                                           aiProcessPreset_TargetRealtime_Fast);
-    if (!scene)
+    if (nullptr == scene)
         throw std::runtime_error("Failed to load model from file");
 
     const auto& mesh = scene->mMeshes[0];
-    std::vector<Vertex> vertices{mesh->mNumVertices};
+    std::vector<Vertex> vertices(mesh->mNumVertices);
     for (uint32_t i = 0; i < mesh->mNumVertices; i++) {
         const auto& vertex = mesh->mVertices[i];
         const auto& color = mesh->HasVertexColors(i) ? *mesh->mColors[i] : aiColor4D{1.0f, 1.0f, 1.0f, 1.0f};
@@ -99,9 +99,9 @@ int main() {
         };
     }
 
-    std::vector indices{mesh->mNumFaces * 3};
+    std::vector<uint32_t> indices(mesh->mNumFaces * 3);
     for (uint32_t i = 0; i < mesh->mNumFaces; i++) {
-        const auto& face = mesh->mFaces[i];
+        const auto &face = mesh->mFaces[i];
         if (face.mNumIndices != 3) {
             spdlog::warn("Skipping face with {} indices", face.mNumIndices);
             continue;
