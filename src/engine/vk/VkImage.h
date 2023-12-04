@@ -22,6 +22,8 @@ namespace Vixen::Vk {
 
         VkFormat format;
 
+        uint8_t mipLevels;
+
     public:
         VkImage(
             const std::shared_ptr<Device>& device,
@@ -30,7 +32,8 @@ namespace Vixen::Vk {
             VkSampleCountFlagBits samples,
             VkFormat format,
             VkImageTiling tiling,
-            VkImageUsageFlags usageFlags
+            VkImageUsageFlags usageFlags,
+            uint8_t mipLevels
         );
 
         VkImage(VkImage& other) = delete;
@@ -58,5 +61,7 @@ namespace Vixen::Vk {
         [[nodiscard]] ::VkImage getImage() const;
 
         [[nodiscard]] const std::shared_ptr<Device>& getDevice() const;
+
+        [[nodiscard]] uint8_t getMipLevels() const;
     };
 }

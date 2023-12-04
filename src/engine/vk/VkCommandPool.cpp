@@ -2,97 +2,114 @@
 
 namespace Vixen::Vk {
     VkCommandPool::VkCommandPool(
-            ::VkDevice device,
-            uint32_t queueFamilyIndex,
-            Usage usage,
-            bool createReset
+        ::VkDevice device,
+        const uint32_t queueFamilyIndex,
+        const Usage usage,
+        const bool createReset
     ) : device(device),
         commandPool(VK_NULL_HANDLE) {
-        VkCommandPoolCreateFlags flags;
+        VkCommandPoolCreateFlags flags = 0;
 
         switch (usage) {
-            case Usage::GRAPHICS:
-                flags = 0;
-                break;
-            case Usage::TRANSIENT:
-                flags = VK_COMMAND_POOL_CREATE_TRANSIENT_BIT;
-                break;
+        case Usage::GRAPHICS:
+            break;
+        case Usage::TRANSIENT:
+            flags = VK_COMMAND_POOL_CREATE_TRANSIENT_BIT;
+            break;
         }
 
         if (createReset)
             flags |= VK_COMMAND_POOL_CREATE_RESET_COMMAND_BUFFER_BIT;
 
-        VkCommandPoolCreateInfo info{
-                .sType = VK_STRUCTURE_TYPE_COMMAND_POOL_CREATE_INFO,
-                .flags = flags,
-                .queueFamilyIndex = queueFamilyIndex
+        const VkCommandPoolCreateInfo info{
+            .sType = VK_STRUCTURE_TYPE_COMMAND_POOL_CREATE_INFO,
+            .pNext = nullptr,
+            .flags = flags,
+            .queueFamilyIndex = queueFamilyIndex
         };
 
         checkVulkanResult(
-                vkCreateCommandPool(device, &info, nullptr, &commandPool),
-                "Failed to create command pool"
+            vkCreateCommandPool(device, &info, nullptr, &commandPool),
+            "Failed to create command pool"
         );
+    }
+
+    VkCommandPool::VkCommandPool(VkCommandPool&& other) noexcept
+        : device(other.device),
+          commandPool(other.commandPool) {}
+
+    VkCommandPool const& VkCommandPool::operator=(VkCommandPool&& other) noexcept {
+        std::swap(device, other.device);
+        std::swap(commandPool, other.commandPool);
+
+        return *this;
     }
 
     VkCommandPool::~VkCommandPool() {
         vkDestroyCommandPool(device, commandPool, nullptr);
     }
 
-    std::vector<::VkCommandBuffer>
-    VkCommandPool::allocateCommandBuffers(
-            ::VkDevice device,
-            ::VkCommandPool commandPool,
-            VkCommandBufferLevel level,
-            uint32_t count
+    std::vector<::VkCommandBuffer> VkCommandPool::allocateCommandBuffers(
+        ::VkDevice device,
+        ::VkCommandPool commandPool,
+        const VkCommandBufferLevel level,
+        const uint32_t count
     ) {
         std::vector<::VkCommandBuffer> commandBuffers{count};
 
-        VkCommandBufferAllocateInfo info{
-                .sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO,
-                .commandPool = commandPool,
-                .level = level,
-                .commandBufferCount = count
+        const VkCommandBufferAllocateInfo info{
+            .sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO,
+            .commandPool = commandPool,
+            .level = level,
+            .commandBufferCount = count
         };
 
         checkVulkanResult(
-                vkAllocateCommandBuffers(device, &info, commandBuffers.data()),
-                "Failed to create command buffers"
+            vkAllocateCommandBuffers(device, &info, commandBuffers.data()),
+            "Failed to create command buffers"
         );
 
         return commandBuffers;
     }
 
     std::vector<VkCommandBuffer>
-    VkCommandPool::allocateCommandBuffers(VkCommandBuffer::Level level, uint32_t count) {
+    VkCommandPool::allocate(VkCommandBuffer::Level level, const uint32_t count) {
         if (count == 0)
             throw std::runtime_error("Must allocate at least one command buffer");
 
-        auto b = allocateCommandBuffers(
-                device,
-                commandPool,
-                static_cast<VkCommandBufferLevel>(level),
-                count
+        const auto b = allocateCommandBuffers(
+            device,
+            commandPool,
+            static_cast<VkCommandBufferLevel>(level),
+            count
         );
 
         std::vector<VkCommandBuffer> buffers;
         buffers.reserve(count);
 
-        for (auto &buffer: b)
+        for (auto& buffer : b)
             buffers.emplace_back(device, commandPool, buffer);
 
         return buffers;
     }
 
-    VkCommandBuffer VkCommandPool::allocateCommandBuffer(VkCommandBuffer::Level level) {
+    VkCommandBuffer VkCommandPool::allocate(VkCommandBuffer::Level level) {
         return {
+            device,
+            commandPool,
+            allocateCommandBuffers(
                 device,
                 commandPool,
-                allocateCommandBuffers(
-                        device,
-                        commandPool,
-                        static_cast<VkCommandBufferLevel>(level),
-                        1
-                )[0]
+                static_cast<VkCommandBufferLevel>(level),
+                1
+            )[0]
         };
+    }
+
+    void VkCommandPool::reset() const {
+        checkVulkanResult(
+            vkResetCommandPool(device, commandPool, 0),
+            "Failed to reset command pool"
+        );
     }
 }

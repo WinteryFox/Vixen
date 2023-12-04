@@ -100,7 +100,7 @@ namespace Vixen::Vk {
         size_t destinationOffset
     ) {
         device->getTransferCommandPool()
-              ->allocateCommandBuffer(VkCommandBuffer::Level::PRIMARY)
+              ->allocate(VkCommandBuffer::Level::PRIMARY)
               .record(
                   VkCommandBuffer::Usage::SINGLE,
                   [this, &destination, &destinationOffset](auto commandBuffer) {
