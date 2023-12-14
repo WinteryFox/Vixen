@@ -12,12 +12,12 @@ namespace Vixen::Vk {
         const uint8_t mipLevels
     ) : device(device),
         allocation(VK_NULL_HANDLE),
-        image(VK_NULL_HANDLE),
         width(width),
         height(height),
-        format(format),
-        usageFlags(usageFlags),
         layout(VK_IMAGE_LAYOUT_UNDEFINED),
+        usageFlags(usageFlags),
+        image(VK_NULL_HANDLE),
+        format(format),
         mipLevels(mipLevels) {
         const VkImageCreateInfo imageCreateInfo{
             .sType = VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO,
@@ -34,7 +34,7 @@ namespace Vixen::Vk {
             .arrayLayers = 1,
             .samples = samples,
             .tiling = tiling,
-            .usage = usageFlags,
+            .usage = usageFlags | VK_IMAGE_USAGE_TRANSFER_SRC_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT,
             .sharingMode = VK_SHARING_MODE_EXCLUSIVE,
             .queueFamilyIndexCount = 0,
             .pQueueFamilyIndices = nullptr,
@@ -101,50 +101,38 @@ namespace Vixen::Vk {
         if (!bitmap)
             error("Failed to load image from file \"{}\"", path);
 
-        const auto& converted = FreeImage_ConvertTo32Bits(bitmap);
-        if (!converted)
-            error("Failed to convert image to 32 bits");
+        return from(device, bitmap);
+    }
 
-        const auto& width = FreeImage_GetWidth(converted);
-        const auto& height = FreeImage_GetHeight(converted);
-        const auto& bitsPerPixel = FreeImage_GetBPP(converted);
-        const auto& pixels = FreeImage_GetBits(converted);
+    VkImage VkImage::from(const std::shared_ptr<Device>& device, const std::string& format, const std::byte* data,
+                          const uint32_t size) {
+        // TODO: Add some way to detect the format
+        const auto& memory = FreeImage_OpenMemory((BYTE*)data, size);
+        if (!memory)
+            error("Failed to open image from memory");
 
-        const VkDeviceSize size = width * height * (bitsPerPixel / 8);
+        const auto& bitmap = FreeImage_LoadFromMemory(FreeImage_GetFIFFromFormat(format.c_str()), memory, 0);
+        if (!bitmap)
+            throw std::runtime_error("Failed to load image from memory");
 
-        auto staging = VkBuffer(device, Buffer::Usage::UNIFORM | Buffer::Usage::TRANSFER_SRC, size);
-        staging.write(reinterpret_cast<char*>(pixels), size, 0);
+        return from(device, bitmap);
+    }
 
-        FreeImage_Unload(converted);
-        FreeImage_Unload(bitmap);
-
-        FreeImage_DeInitialise();
-
-        VkFormat f;
-        switch (bitsPerPixel) {
-        case 24:
-            f = VK_FORMAT_R8G8B8_SRGB;
-            break;
-        case 32:
-            f = VK_FORMAT_R8G8B8A8_SRGB;
-            break;
-        default:
-            throw std::runtime_error("Failed to determine format");
-        }
-
+    VkImage VkImage::from(const std::shared_ptr<Device>& device, const VkBuffer& buffer, const uint32_t width,
+                          const uint32_t height, const VkFormat format) {
         auto image = VkImage(
             device,
             width,
             height,
             VK_SAMPLE_COUNT_1_BIT,
-            f,
+            format,
             VK_IMAGE_TILING_OPTIMAL,
             VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_SAMPLED_BIT,
             static_cast<uint32_t>(std::floor(std::log2(std::max(width, height)))) + 1
         );
 
         image.transition(VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL);
-        image.copyFrom(staging);
+        image.copyFrom(buffer);
         image.transition(VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
 
         return image;
@@ -256,6 +244,42 @@ namespace Vixen::Vk {
 
     uint8_t VkImage::getMipLevels() const {
         return mipLevels;
+    }
+
+    VkImage VkImage::from(const std::shared_ptr<Device>& device, FIBITMAP* bitmap) {
+        const auto& converted = FreeImage_ConvertTo32Bits(bitmap);
+        if (!converted)
+            error("Failed to convert image to 32 bits");
+
+        const auto& width = FreeImage_GetWidth(converted);
+        const auto& height = FreeImage_GetHeight(converted);
+        const auto& bitsPerPixel = FreeImage_GetBPP(converted);
+        const auto& pixels = FreeImage_GetBits(converted);
+
+        const VkDeviceSize size = width * height * (bitsPerPixel / 8);
+
+        auto staging = VkBuffer(device, Buffer::Usage::UNIFORM | Buffer::Usage::TRANSFER_SRC, size);
+        staging.write(reinterpret_cast<char*>(pixels), size, 0);
+
+        FreeImage_Unload(converted);
+        FreeImage_Unload(bitmap);
+
+        FreeImage_DeInitialise();
+
+        VkFormat f;
+        // TODO: This will need a better implementation to detect the exact format later
+        switch (bitsPerPixel) {
+        case 24:
+            f = VK_FORMAT_B8G8R8_SRGB;
+            break;
+        case 32:
+            f = VK_FORMAT_B8G8R8A8_SRGB;
+            break;
+        default:
+            throw std::runtime_error("Failed to determine format");
+        }
+
+        return from(device, staging, width, height, f);
     }
 
     VkFormat VkImage::getFormat() const {

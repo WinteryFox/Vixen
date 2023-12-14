@@ -82,15 +82,19 @@ int main() {
     Assimp::Importer importer;
     const auto& scene = importer.ReadFile("../../src/engine/vk/test/vikingroom.glb",
                                           aiProcessPreset_TargetRealtime_Fast);
-    if (nullptr == scene)
+    if (!scene)
         throw std::runtime_error("Failed to load model from file");
 
     const auto& mesh = scene->mMeshes[0];
+    const auto& hasColors = mesh->HasVertexColors(0);
+    const auto& hasUvs = mesh->HasTextureCoords(0);
+
     std::vector<Vertex> vertices(mesh->mNumVertices);
     for (uint32_t i = 0; i < mesh->mNumVertices; i++) {
         const auto& vertex = mesh->mVertices[i];
-        const auto& color = mesh->HasVertexColors(i) ? *mesh->mColors[i] : aiColor4D{1.0f, 1.0f, 1.0f, 1.0f};
-        const auto& uv = mesh->HasTextureCoords(i) ? *mesh->mTextureCoords[i] : aiVector3D{0.0f, 0.0f, 0.0f};
+        // TODO: Instead of storing default values for each vertex where a color or UV is missing, we should compact this down to save memory
+        const auto& color = hasColors ? mesh->mColors[0][i] : aiColor4D{1.0f, 1.0f, 1.0f, 1.0f};
+        const auto& uv = hasUvs ? mesh->mTextureCoords[0][i] : aiVector3D{1.0f, 1.0f, 1.0f};
 
         vertices[i] = Vertex{
             .position = {vertex.x, vertex.y, vertex.z},
@@ -101,7 +105,7 @@ int main() {
 
     std::vector<uint32_t> indices(mesh->mNumFaces * 3);
     for (uint32_t i = 0; i < mesh->mNumFaces; i++) {
-        const auto &face = mesh->mFaces[i];
+        const auto& face = mesh->mFaces[i];
         if (face.mNumIndices != 3) {
             spdlog::warn("Skipping face with {} indices", face.mNumIndices);
             continue;
@@ -110,6 +114,27 @@ int main() {
         indices[i * 3] = face.mIndices[0];
         indices[i * 3 + 1] = face.mIndices[1];
         indices[i * 3 + 2] = face.mIndices[2];
+    }
+
+    aiString path;
+    scene->mMaterials[mesh->mMaterialIndex]->GetTexture(aiTextureType_DIFFUSE, 0, &path);
+
+    const auto& texture = scene->GetEmbeddedTexture(path.C_Str());
+    assert(texture != nullptr && "Texture is nullptr");
+
+    std::shared_ptr<Vixen::Vk::VkImage> image;
+    if (texture->mHeight != 0) {
+        image = nullptr; // TODO
+    }
+    else {
+        image = std::make_shared<Vixen::Vk::VkImage>(
+            Vixen::Vk::VkImage::from(
+                vixen.device,
+                texture->achFormatHint,
+                reinterpret_cast<const std::byte*>(texture->pcData),
+                texture->mWidth
+            )
+        );
     }
 
     const auto buffer = Vixen::Vk::VkBuffer::stage(
@@ -162,8 +187,8 @@ int main() {
     auto mvp = Vixen::Vk::VkDescriptorSet(vixen.device, descriptorPool, *program.getDescriptorSetLayout());
     mvp.updateUniformBuffer(0, uniformBuffer, 0, uniformBuffer.getSize());
 
-    auto image = std::make_shared<Vixen::Vk::VkImage>(
-        Vixen::Vk::VkImage::from(vixen.device, "../../src/engine/vk/test/texture.jpg"));
+    auto testImage = std::make_shared<Vixen::Vk::VkImage>(
+        Vixen::Vk::VkImage::from(vixen.device, std::string("../../src/engine/vk/test/texture.jpg")));
     auto view = Vixen::Vk::VkImageView(image, VK_IMAGE_ASPECT_COLOR_BIT);
     auto sampler = Vixen::Vk::VkSampler(vixen.device);
 
@@ -185,8 +210,8 @@ int main() {
         const double& now = glfwGetTime();
         double deltaTime = now - lastFrame;
         lastFrame = now;
-        ubo.model = rotate(ubo.model, static_cast<float>(deltaTime) * glm::radians(90.0f),
-                           glm::vec3(0.0f, 0.0f, 1.0f));
+        ubo.model = rotate(glm::mat4(1.0f), /*static_cast<float>(deltaTime) **/ glm::radians(90.0f),
+                           glm::vec3(1.0f, 0.0f, 0.0f));
         ubo.view = camera.view();
         ubo.projection = camera.perspective(
             static_cast<float>(vixen.swapchain.getExtent().width) /

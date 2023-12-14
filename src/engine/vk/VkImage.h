@@ -48,6 +48,11 @@ namespace Vixen::Vk {
 
         static VkImage from(const std::shared_ptr<Device>& device, const std::string& path);
 
+        static VkImage from(const std::shared_ptr<Device>& device, const std::string& format, const std::byte* data, uint32_t size);
+
+        static VkImage from(const std::shared_ptr<Device>& device, const VkBuffer& buffer, uint32_t width,
+                            uint32_t height, VkFormat format);
+
         void transition(VkImageLayout newLayout);
 
         void copyFrom(const VkBuffer& buffer);
@@ -63,5 +68,8 @@ namespace Vixen::Vk {
         [[nodiscard]] const std::shared_ptr<Device>& getDevice() const;
 
         [[nodiscard]] uint8_t getMipLevels() const;
+
+    private:
+        static VkImage from(const std::shared_ptr<Device>& device, FIBITMAP* bitmap);
     };
 }
