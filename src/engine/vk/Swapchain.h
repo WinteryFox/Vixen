@@ -2,7 +2,6 @@
 
 #include <memory>
 #include "Device.h"
-#include "VkFence.h"
 #include "VkSemaphore.h"
 
 namespace Vixen::Vk {

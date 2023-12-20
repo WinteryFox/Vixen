@@ -12,7 +12,7 @@ namespace Vixen::Vk {
     class VkRenderer {
         std::shared_ptr<Device> device;
 
-        Swapchain& swapchain;
+        std::shared_ptr<Swapchain> swapchain;
 
         std::unique_ptr<VkPipelineLayout> pipelineLayout;
 
@@ -32,9 +32,8 @@ namespace Vixen::Vk {
 
     public:
         VkRenderer(
-            const std::shared_ptr<Vk::Device>& device,
-            Swapchain& swapchain,
-            const std::shared_ptr<Vk::VkPipeline>& pipeline
+            const std::shared_ptr<VkPipeline>& pipeline,
+            const std::shared_ptr<Swapchain>& swapchain
         );
 
         VkRenderer(const VkRenderer&) = delete;

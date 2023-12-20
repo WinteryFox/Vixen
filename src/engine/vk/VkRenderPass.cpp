@@ -3,12 +3,11 @@
 namespace Vixen::Vk {
     VkRenderPass::VkRenderPass(
         const std::shared_ptr<Device>& device,
-        const VkShaderProgram& program,
-        const Swapchain& swapchain
+        const VkFormat format
     ) : device(device),
         renderPass(VK_NULL_HANDLE) {
         attachments.emplace_back(VkAttachmentDescription{
-            .format = swapchain.getFormat().format,
+            .format = format,
             .samples = VK_SAMPLE_COUNT_1_BIT,
             .loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR,
             .storeOp = VK_ATTACHMENT_STORE_OP_STORE,

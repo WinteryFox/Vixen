@@ -5,14 +5,15 @@
 #include <glm/gtc/quaternion.hpp>
 
 namespace Vixen {
+    // TODO: Ideally, the camera should be quaternion based and not euler-angles based.
     class Camera {
     public:
         explicit Camera(
             glm::vec3 position = {},
-            float fieldOfView = 114.0f,
+            glm::vec3 rotation = {M_PI, 0.0f, 0.0f},
+            float fieldOfView = 90.0f,
             float nearPlane = 0.1f,
-            float farPlane = 1000.0f,
-            glm::vec3 clearColor = {0.0f, 0.0f, 0.0f}
+            float farPlane = 1000.0f
         );
 
         [[nodiscard]] glm::mat4 view() const;
@@ -21,20 +22,15 @@ namespace Vixen {
 
         [[nodiscard]] const glm::vec3& getPosition() const;
 
-        //        [[nodiscard]] const glm::quat &getRotation() const;
-
         [[nodiscard]] glm::vec3 getEulerRotation() const;
 
         [[nodiscard]] float getNearPlane() const;
 
         [[nodiscard]] float getFarPlane() const;
 
-        [[nodiscard]] const glm::vec3& getClearColor() const;
-
     private:
         glm::vec3 position;
 
-        //glm::quat rotation;
         glm::vec3 rotation;
 
         float fieldOfView;
@@ -42,7 +38,5 @@ namespace Vixen {
         float nearPlane;
 
         float farPlane;
-
-        glm::vec3 clearColor;
     };
 }

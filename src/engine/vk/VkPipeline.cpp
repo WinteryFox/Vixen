@@ -3,13 +3,12 @@
 namespace Vixen::Vk {
     VkPipeline::VkPipeline(
         const std::shared_ptr<Device>& device,
-        const Swapchain& swapchain,
         const VkShaderProgram& program,
         const Config& config
     ) : device(device),
         program(program),
         config(config),
-        renderPass(device, program, swapchain),
+        renderPass(device, config.format),
         pipelineLayout(device, program) {
         std::vector<VkPipelineShaderStageCreateInfo> stages;
         stages.emplace_back(program.getVertex()->createInfo());
@@ -173,15 +172,11 @@ namespace Vixen::Vk {
         bind(commandBuffer, VK_PIPELINE_BIND_POINT_RAY_TRACING_KHR);
     }
 
-    const VkShaderProgram& VkPipeline::getProgram() const {
-        return program;
-    }
+    const VkShaderProgram& VkPipeline::getProgram() const { return program; }
 
-    const VkRenderPass& VkPipeline::getRenderPass() const {
-        return renderPass;
-    }
+    const VkRenderPass& VkPipeline::getRenderPass() const { return renderPass; }
 
-    const VkPipeline::Config& VkPipeline::getConfig() const {
-        return config;
-    }
+    const VkPipeline::Config& VkPipeline::getConfig() const { return config; }
+
+    std::shared_ptr<Device> VkPipeline::getDevice() const { return device; }
 }

@@ -2,10 +2,9 @@
 
 namespace Vixen::Vk {
     VkRenderer::VkRenderer(
-        const std::shared_ptr<Vk::Device>& device,
-        Swapchain& swapchain,
-        const std::shared_ptr<Vk::VkPipeline>& pipeline
-    ) : device(device),
+        const std::shared_ptr<VkPipeline>& pipeline,
+        const std::shared_ptr<Swapchain>& swapchain
+    ) : device(pipeline->getDevice()),
         swapchain(swapchain),
         pipeline(pipeline),
         pipelineLayout(std::make_unique<VkPipelineLayout>(device, pipeline->getProgram())),
@@ -18,10 +17,10 @@ namespace Vixen::Vk {
         renderCommandBuffers(
             renderCommandPool->allocate(
                 VkCommandBuffer::Level::PRIMARY,
-                swapchain.getImageCount()
+                swapchain->getImageCount()
             )
         ) {
-        const auto imageCount = swapchain.getImageCount();
+        const auto imageCount = swapchain->getImageCount();
         renderFinishedSemaphores.reserve(imageCount);
         for (size_t i = 0; i < imageCount; i++)
             renderFinishedSemaphores.emplace_back(device);
@@ -39,7 +38,7 @@ namespace Vixen::Vk {
         uint32_t indexCount,
         const std::vector<::VkDescriptorSet>& descriptorSets
     ) {
-        if (const auto state = swapchain.acquireImage(
+        if (const auto state = swapchain->acquireImage(
             std::numeric_limits<uint64_t>::max(),
             [this, &buffer, &vertexCount, &indexCount, &descriptorSets](
             const auto& currentFrame,
@@ -62,7 +61,7 @@ namespace Vixen::Vk {
                     signalSemaphores
                 );
 
-                swapchain.present(imageIndex, signalSemaphores);
+                swapchain->present(imageIndex, signalSemaphores);
             }
         ); state == Swapchain::State::OUT_OF_DATE) {
             device->waitIdle();
@@ -71,7 +70,7 @@ namespace Vixen::Vk {
             depthImageViews.clear();
             depthImages.clear();
 
-            swapchain.invalidate();
+            swapchain->invalidate();
 
             createFramebuffers();
         }
@@ -114,7 +113,7 @@ namespace Vixen::Vk {
                             .x = 0,
                             .y = 0
                         },
-                        .extent = swapchain.getExtent(),
+                        .extent = swapchain->getExtent(),
                     },
                     .clearValueCount = static_cast<uint32_t>(clearValues.size()),
                     .pClearValues = clearValues.data()
@@ -127,8 +126,8 @@ namespace Vixen::Vk {
                 const VkViewport viewport{
                     .x = 0.0f,
                     .y = 0.0f,
-                    .width = static_cast<float>(swapchain.getExtent().width),
-                    .height = static_cast<float>(swapchain.getExtent().height),
+                    .width = static_cast<float>(swapchain->getExtent().width),
+                    .height = static_cast<float>(swapchain->getExtent().height),
                     .minDepth = 0.0f,
                     .maxDepth = 1.0f,
                 };
@@ -136,7 +135,7 @@ namespace Vixen::Vk {
 
                 const VkRect2D scissor{
                     .offset = {0, 0},
-                    .extent = swapchain.getExtent(),
+                    .extent = swapchain->getExtent(),
                 };
                 vkCmdSetScissor(commandBuffer, 0, 1, &scissor);
 
@@ -180,7 +179,7 @@ namespace Vixen::Vk {
     }
 
     void VkRenderer::createFramebuffers() {
-        const auto& imageCount = swapchain.getImageCount();
+        const auto& imageCount = swapchain->getImageCount();
 
         depthImages.reserve(imageCount);
         depthImageViews.reserve(imageCount);
@@ -189,8 +188,8 @@ namespace Vixen::Vk {
             depthImages.push_back(
                 std::make_shared<VkImage>(
                     device,
-                    swapchain.getExtent().width,
-                    swapchain.getExtent().height,
+                    swapchain->getExtent().width,
+                    swapchain->getExtent().height,
                     VK_SAMPLE_COUNT_1_BIT,
                     VK_FORMAT_D32_SFLOAT,
                     VK_IMAGE_TILING_OPTIMAL,
@@ -209,10 +208,10 @@ namespace Vixen::Vk {
             framebuffers.emplace_back(
                 device,
                 pipeline->getRenderPass(),
-                swapchain.getExtent().width,
-                swapchain.getExtent().height,
+                swapchain->getExtent().width,
+                swapchain->getExtent().height,
                 std::vector{
-                    swapchain.getImageViews()[i],
+                    swapchain->getImageViews()[i],
                     depthImageViews[i]->getImageView()
                 }
             );

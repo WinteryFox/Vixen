@@ -1,14 +1,13 @@
-#include <GLFW/glfw3.h>
 #include "Window.h"
 
 namespace Vixen {
     Window::Window(
-            const std::string &title,
-            const uint32_t &width,
-            const uint32_t &height,
-            bool transparentFrameBuffer
+        const std::string& title,
+        const uint32_t& width,
+        const uint32_t& height,
+        const bool transparentFrameBuffer
     ) : window(nullptr) {
-        glfwSetErrorCallback([](int code, const char *message) {
+        glfwSetErrorCallback([](int code, const char* message) {
             spdlog::error("[GLFW] {} ({})", message, code);
         });
 
@@ -17,21 +16,21 @@ namespace Vixen {
 
         int count;
         auto primary = glfwGetPrimaryMonitor();
-        auto glfwMonitors = glfwGetMonitors(&count);
+        const auto glfwMonitors = glfwGetMonitors(&count);
 
         monitor = glfwGetPrimaryMonitor(); // TODO
         for (int i = 0; i < count; i++) {
-            const auto &m = glfwMonitors[i];
-            const auto &mode = glfwGetVideoMode(m);
+            const auto& m = glfwMonitors[i];
+            const auto& mode = glfwGetVideoMode(m);
             monitors[m] = Monitor{
-                    std::string(glfwGetMonitorName(m)),
-                    mode->width,
-                    mode->height,
-                    mode->refreshRate,
-                    mode->blueBits,
-                    mode->redBits,
-                    mode->greenBits,
-                    primary == m
+                std::string(glfwGetMonitorName(m)),
+                mode->width,
+                mode->height,
+                mode->refreshRate,
+                mode->blueBits,
+                mode->redBits,
+                mode->greenBits,
+                primary == m
             };
         }
 
@@ -52,7 +51,7 @@ namespace Vixen {
 
         glfwSetWindowUserPointer(window, this);
         glfwSetFramebufferSizeCallback(window, [](auto w, auto width, auto height) {
-            auto wind = static_cast<Window *>(glfwGetWindowUserPointer(w));
+            auto wind = static_cast<Window*>(glfwGetWindowUserPointer(w));
             wind->framebufferSizeChanged = true;
         });
     }
@@ -62,6 +61,11 @@ namespace Vixen {
         glfwDestroyWindow(window);
         glfwTerminate();
     }
+
+    GLFWwindow* Window::getWindow() const { return window; }
+
+    bool Window::isFramebufferSizeChanged() const { return framebufferSizeChanged; }
+
 
     bool Window::shouldClose() const {
         return glfwWindowShouldClose(window) == GLFW_TRUE;
@@ -104,17 +108,17 @@ namespace Vixen {
     void Window::center() const {
         uint32_t w;
         uint32_t h;
-        glfwGetWindowSize(window, reinterpret_cast<int *>(&w), reinterpret_cast<int *>(&h));
+        glfwGetWindowSize(window, reinterpret_cast<int*>(&w), reinterpret_cast<int*>(&h));
 
         const auto mode = glfwGetVideoMode(monitor);
 
         uint32_t x;
         uint32_t y;
-        glfwGetMonitorPos(monitor, reinterpret_cast<int *>(&x), reinterpret_cast<int *>(&y));
+        glfwGetMonitorPos(monitor, reinterpret_cast<int*>(&x), reinterpret_cast<int*>(&y));
         glfwSetWindowPos(
-                window,
-                static_cast<int>(x) + mode->width / 2 - w / 2,
-                static_cast<int>(y) + mode->height / 2 - h / 2
+            window,
+            static_cast<int>(x) + mode->width / 2 - w / 2,
+            static_cast<int>(y) + mode->height / 2 - h / 2
         );
     }
 
@@ -122,22 +126,22 @@ namespace Vixen {
         if (monitor == nullptr)
             return nullptr;
 
-        const auto &primary = glfwGetPrimaryMonitor();
-        const auto &mode = glfwGetVideoMode(monitor);
+        const auto& primary = glfwGetPrimaryMonitor();
+        const auto& mode = glfwGetVideoMode(monitor);
 
         return std::make_unique<Monitor>(Monitor{
-                std::string(glfwGetMonitorName(monitor)),
-                mode->width,
-                mode->height,
-                mode->refreshRate,
-                mode->blueBits,
-                mode->redBits,
-                mode->greenBits,
-                primary == monitor
+            std::string(glfwGetMonitorName(monitor)),
+            mode->width,
+            mode->height,
+            mode->refreshRate,
+            mode->blueBits,
+            mode->redBits,
+            mode->greenBits,
+            primary == monitor
         });
     }
 
-    std::unordered_map<GLFWmonitor *, Monitor> Window::getMonitors() const {
+    std::unordered_map<GLFWmonitor*, Monitor> Window::getMonitors() const {
         return monitors;
     }
 
@@ -147,7 +151,7 @@ namespace Vixen {
         int x;
         int y;
         int refreshRate;
-        GLFWmonitor *m;
+        GLFWmonitor* m;
 
         if (mode == Mode::FULLSCREEN) {
             auto videoMode = glfwGetVideoMode(monitor);
@@ -158,14 +162,16 @@ namespace Vixen {
 
             glfwSetWindowAttrib(window, GLFW_DECORATED, false);
             glfwSetWindowAttrib(window, GLFW_FLOATING, true);
-        } else if (mode == Mode::BORDERLESS_FULLSCREEN) {
+        }
+        else if (mode == Mode::BORDERLESS_FULLSCREEN) {
             auto videoMode = glfwGetVideoMode(monitor);
             w = videoMode->width;
             h = videoMode->height;
 
             glfwSetWindowAttrib(window, GLFW_DECORATED, false);
             glfwSetWindowAttrib(window, GLFW_FLOATING, true);
-        } else {
+        }
+        else {
             glfwGetWindowPos(window, &x, &y);
             glfwGetWindowSize(window, &w, &h);
             glfwSetWindowAttrib(window, GLFW_DECORATED, true);
@@ -175,7 +181,7 @@ namespace Vixen {
         glfwSetWindowMonitor(window, m, x, y, w, h, refreshRate);
     }
 
-    void Window::getFramebufferSize(int &width, int &height) {
+    void Window::getFramebufferSize(int& width, int& height) {
         glfwGetFramebufferSize(window, &width, &height);
     }
 

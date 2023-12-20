@@ -5,8 +5,9 @@ layout(location = 1) in vec2 uv;
 
 layout(location = 0) out vec4 color;
 
-layout(binding = 1) uniform sampler2D albedo;
+layout(binding = 1) uniform sampler2D diffuse;
 
 void main() {
-    color = texture(albedo, uv) * vec4(vertex_color, 1.0);
+    color = vec4(vertex_color, 1.0);
+    color = texture(diffuse, uv);
 }

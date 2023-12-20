@@ -63,21 +63,22 @@ int main() {
                                   .size = sizeof(glm::vec2),
                                   .offset = offsetof(Vertex, uv)
                               })
-                              .compileFromFile(vixen.device, "../../src/editor/shaders/triangle.vert");
+                              .compileFromFile(vixen.getDevice(), "../../src/editor/shaders/triangle.vert");
     const auto fragment = Vixen::Vk::VkShaderModule::Builder(Vixen::ShaderModule::Stage::FRAGMENT)
-        .compileFromFile(vixen.device, "../../src/editor/shaders/triangle.frag");
+        .compileFromFile(vixen.getDevice(), "../../src/editor/shaders/triangle.frag");
     const auto program = Vixen::Vk::VkShaderProgram(vertexShader, fragment);
 
     int width;
     int height;
-    vixen.window.getFramebufferSize(width, height);
+    vixen.getWindow()->getFramebufferSize(width, height);
 
     auto pipeline = Vixen::Vk::VkPipeline::Builder()
                     .setWidth(width)
                     .setHeight(height)
-                    .build(vixen.device, vixen.swapchain, program);
+                    .setFormat(vixen.getSwapchain()->getFormat().format)
+                    .build(vixen.getDevice(), program);
 
-    auto renderer = std::make_unique<Vixen::Vk::VkRenderer>(vixen.device, vixen.swapchain, pipeline);
+    auto renderer = std::make_unique<Vixen::Vk::VkRenderer>(pipeline, vixen.getSwapchain());
 
     Assimp::Importer importer;
     const auto& scene = importer.ReadFile("../../src/engine/vk/test/vikingroom.glb",
@@ -124,12 +125,13 @@ int main() {
 
     std::shared_ptr<Vixen::Vk::VkImage> image;
     if (texture->mHeight != 0) {
-        image = nullptr; // TODO
+        // TODO: Not implemented
+        throw std::runtime_error("Not implemented");
     }
     else {
         image = std::make_shared<Vixen::Vk::VkImage>(
             Vixen::Vk::VkImage::from(
-                vixen.device,
+                vixen.getDevice(),
                 texture->achFormatHint,
                 reinterpret_cast<const std::byte*>(texture->pcData),
                 texture->mWidth
@@ -138,7 +140,7 @@ int main() {
     }
 
     const auto buffer = Vixen::Vk::VkBuffer::stage(
-        vixen.device,
+        vixen.getDevice(),
         Vixen::Buffer::Usage::VERTEX |
         Vixen::Buffer::Usage::INDEX,
         vertices.size() * sizeof(Vertex) +
@@ -158,7 +160,7 @@ int main() {
         }
     );
 
-    auto camera = Vixen::Camera(glm::vec3{1.0f, 1.0f, 1.0f});
+    auto camera = Vixen::Camera(glm::vec3{0.0f, 0.0f, 0.0f});
 
     const std::vector<VkDescriptorPoolSize> sizes{
         {
@@ -172,27 +174,27 @@ int main() {
     };
 
     auto uniformBuffer = Vixen::Vk::VkBuffer(
-        vixen.device,
+        vixen.getDevice(),
         Vixen::Buffer::Usage::UNIFORM,
         sizeof(UniformBufferObject)
     );
 
     UniformBufferObject ubo{
-        glm::rotate(glm::mat4(1.0f), glm::radians(90.0f), glm::vec3(0.0f, 0.0f, 1.0f)),
+        glm::mat4(1.0f),
         camera.view(),
         camera.perspective(static_cast<float>(width) / static_cast<float>(height))
     };
+    ubo.model = translate(ubo.model, {0.0f, -0.5f, -1.5f});
+    //ubo.model = rotate(ubo.model, glm::radians(45.0f), {1.0f, 0.0f, 1.0f});
+    ubo.model = rotate(ubo.model, glm::radians(225.0f), {0.0f, 1.0f, 0.0f});
+    //ubo.model = rotate(ubo.model, glm::radians(45.0f), {0.0f, 0.0f, 1.0f});
 
-    auto descriptorPool = std::make_shared<Vixen::Vk::VkDescriptorPool>(vixen.device, sizes, 1);
-    auto mvp = Vixen::Vk::VkDescriptorSet(vixen.device, descriptorPool, *program.getDescriptorSetLayout());
+    auto descriptorPool = std::make_shared<Vixen::Vk::VkDescriptorPool>(vixen.getDevice(), sizes, 1);
+    auto mvp = Vixen::Vk::VkDescriptorSet(vixen.getDevice(), descriptorPool, *program.getDescriptorSetLayout());
     mvp.updateUniformBuffer(0, uniformBuffer, 0, uniformBuffer.getSize());
 
-    auto testImage = std::make_shared<Vixen::Vk::VkImage>(
-        Vixen::Vk::VkImage::from(vixen.device, std::string("../../src/engine/vk/test/texture.jpg")));
     auto view = Vixen::Vk::VkImageView(image, VK_IMAGE_ASPECT_COLOR_BIT);
-    auto sampler = Vixen::Vk::VkSampler(vixen.device);
-
-    //auto albedo = Vixen::Vk::VkDescriptorSet(vixen.device, descriptorPool, *program.getDescriptorSetLayout());
+    auto sampler = Vixen::Vk::VkSampler(vixen.getDevice());
     mvp.updateCombinedImageSampler(1, sampler, view);
 
     const std::vector descriptorSets = {mvp.getSet()};
@@ -200,22 +202,21 @@ int main() {
     double old = glfwGetTime();
     double lastFrame = old;
     uint32_t fps = 0;
-    while (!vixen.window.shouldClose()) {
-        if (vixen.window.update()) {
-            vixen.swapchain.invalidate();
+    while (!vixen.getWindow()->shouldClose()) {
+        if (vixen.getWindow()->update()) {
+            vixen.getSwapchain()->invalidate();
             // TODO: Recreating the entire renderer is probably overkill, need a better way to recreate framebuffers on resize triggered from window
-            renderer = std::make_unique<Vixen::Vk::VkRenderer>(vixen.device, vixen.swapchain, pipeline);
+            renderer = std::make_unique<Vixen::Vk::VkRenderer>(pipeline, vixen.getSwapchain());
         }
 
         const double& now = glfwGetTime();
         double deltaTime = now - lastFrame;
         lastFrame = now;
-        ubo.model = rotate(glm::mat4(1.0f), /*static_cast<float>(deltaTime) **/ glm::radians(90.0f),
-                           glm::vec3(1.0f, 0.0f, 0.0f));
         ubo.view = camera.view();
+        const auto& extent = vixen.getSwapchain()->getExtent();
         ubo.projection = camera.perspective(
-            static_cast<float>(vixen.swapchain.getExtent().width) /
-            static_cast<float>(vixen.swapchain.getExtent().height)
+            static_cast<float>(extent.width) /
+            static_cast<float>(extent.height)
         );
         uniformBuffer.write(reinterpret_cast<const char*>(&ubo), sizeof(UniformBufferObject), 0);
 
@@ -229,7 +230,7 @@ int main() {
         }
     }
 
-    vixen.device->waitIdle();
+    vixen.getDevice()->waitIdle();
 
     return EXIT_SUCCESS;
 }

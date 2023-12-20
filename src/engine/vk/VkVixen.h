@@ -9,12 +9,11 @@
 
 namespace Vixen::Vk {
     class VkVixen : public Vixen {
-    public:
-        const std::vector<const char *> deviceExtensions = {
-                VK_KHR_SWAPCHAIN_EXTENSION_NAME
+        const std::vector<const char*> deviceExtensions = {
+            VK_KHR_SWAPCHAIN_EXTENSION_NAME
         };
 
-        VkWindow window;
+        std::shared_ptr<VkWindow> window;
 
         Instance instance;
 
@@ -22,12 +21,25 @@ namespace Vixen::Vk {
 
         std::shared_ptr<Device> device;
 
-        Swapchain swapchain;
+        std::shared_ptr<Swapchain> swapchain;
 
-        VkVixen(const std::string &appTitle, glm::vec3 appVersion);
+    public:
+        VkVixen(const std::string& appTitle, glm::vec3 appVersion);
 
-        VkVixen(const VkVixen &) = delete;
+        VkVixen(const VkVixen&) = delete;
 
-        VkVixen &operator=(const VkVixen &) = delete;
+        VkVixen& operator=(const VkVixen&) = delete;
+
+        [[nodiscard]] std::vector<const char*> getDeviceExtensions() const;
+
+        [[nodiscard]] std::shared_ptr<VkWindow> getWindow() const;
+
+        [[nodiscard]] Instance getInstance() const;
+
+        [[nodiscard]] VkSurfaceKHR getSurface() const;
+
+        [[nodiscard]] std::shared_ptr<Device> getDevice() const;
+
+        [[nodiscard]] std::shared_ptr<Swapchain> getSwapchain() const;
     };
 }

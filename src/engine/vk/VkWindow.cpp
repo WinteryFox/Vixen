@@ -5,12 +5,10 @@ namespace Vixen::Vk {
             const std::string &title,
             const uint32_t &width,
             const uint32_t &height,
-            bool transparentFrameBuffer
-    ) : Vixen::Window(title, width, height, transparentFrameBuffer) {
+            const bool transparentFrameBuffer
+    ) : Window(title, width, height, transparentFrameBuffer) {
         spdlog::trace("Creating new Vulkan window");
         if (!glfwVulkanSupported()) {
-            glfwDestroyWindow(window);
-            glfwTerminate();
             spdlog::error("Vulkan is not supported on this device");
             throw std::runtime_error("Vulkan is not supported on this device");
         }
@@ -28,9 +26,11 @@ namespace Vixen::Vk {
     VkSurfaceKHR VkWindow::createSurface(VkInstance instance) const {
         VkSurfaceKHR surface = VK_NULL_HANDLE;
         checkVulkanResult(
-                glfwCreateWindowSurface(instance, window, nullptr, &surface),
+                glfwCreateWindowSurface(instance, getWindow(), nullptr, &surface),
                 "Failed to create Vulkan BaseWindow surface"
         );
         return surface;
     }
+
+    std::vector<const char*> VkWindow::getRequiredExtensions() const { return requiredExtensions; }
 }

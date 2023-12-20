@@ -1,7 +1,7 @@
 project("Vixen Engine")
 
+find_package(GLFW3 3.3 REQUIRED)
 pkg_check_modules(GLM REQUIRED IMPORTED_TARGET glm)
-pkg_check_modules(GLFW REQUIRED IMPORTED_TARGET glfw3)
 pkg_check_modules(ASSIMP REQUIRED IMPORTED_TARGET assimp)
 pkg_check_modules(SPDLOG REQUIRED IMPORTED_TARGET spdlog)
 
@@ -14,13 +14,15 @@ set(
         Camera.cpp
 )
 
-link_libraries(
+add_library(Vixen STATIC ${SOURCES})
+target_link_libraries(
+        Vixen
+        PUBLIC
+        glfw
         PkgConfig::GLM
-        PkgConfig::GLFW
         PkgConfig::ASSIMP
         PkgConfig::SPDLOG
 )
-add_library(Vixen STATIC ${SOURCES})
 
 if (ENABLE_VULKAN)
     add_subdirectory(vk)

@@ -17,8 +17,7 @@ namespace Vixen::Vk {
     public:
         VkRenderPass(
                 const std::shared_ptr<Device> &device,
-                const VkShaderProgram &program,
-                const Swapchain &swapchain
+                VkFormat format
         );
 
         VkRenderPass(VkRenderPass& other) = delete;

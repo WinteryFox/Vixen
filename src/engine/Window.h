@@ -1,12 +1,20 @@
 #pragma once
 
-#include <GLFW/glfw3.h>
 #include <string>
+#include <GLFW/glfw3.h>
 #include <spdlog/spdlog.h>
 #include "Monitor.h"
 
 namespace Vixen {
     class Window {
+        GLFWmonitor* monitor;
+
+        GLFWwindow* window;
+
+        std::unordered_map<GLFWmonitor*, Monitor> monitors;
+
+        bool framebufferSizeChanged = false;
+
     public:
         enum class Mode {
             FULLSCREEN,
@@ -14,22 +22,22 @@ namespace Vixen {
             WINDOWED,
         };
 
-    protected:
-        GLFWmonitor *monitor;
-
-        GLFWwindow *window;
-
-        std::unordered_map<GLFWmonitor *, Monitor> monitors;
-
-    public:
         Window(
-                const std::string &title,
-                const uint32_t &width,
-                const uint32_t &height,
-                bool transparentFrameBuffer
+            const std::string& title,
+            const uint32_t& width,
+            const uint32_t& height,
+            bool transparentFrameBuffer
         );
 
+        Window(const Window&) = delete;
+
+        Window& operator=(const Window&) = delete;
+
         ~Window();
+
+        [[nodiscard]] GLFWwindow* getWindow() const;
+
+        [[nodiscard]] bool isFramebufferSizeChanged() const;
 
         /**
          * Has the current window been requested to close?
@@ -60,11 +68,8 @@ namespace Vixen {
 
         std::unique_ptr<Monitor> getMonitor() const;
 
-        std::unordered_map<GLFWmonitor *, Monitor> getMonitors() const;
+        std::unordered_map<GLFWmonitor*, Monitor> getMonitors() const;
 
-        void getFramebufferSize(int &width, int &height);
-
-    private:
-        bool framebufferSizeChanged = false;
+        void getFramebufferSize(int& width, int& height);
     };
 }
