@@ -3,34 +3,30 @@
 #include "Vulkan.h"
 
 namespace Vixen::Vk {
+    class Device;
+
     class VkFence {
-        ::VkDevice device;
+        std::shared_ptr<Device> device;
 
         ::VkFence fence;
 
     public:
-        VkFence(::VkDevice device, bool createSignaled);
+        VkFence(const std::shared_ptr<Device>& device, bool createSignaled);
 
-        VkFence(const VkFence &) = delete;
+        VkFence(const VkFence&) = delete;
 
-        VkFence(VkFence &&o) noexcept;
+        VkFence& operator=(const VkFence&) = delete;
 
-        VkFence &operator=(const VkFence &) = delete;
+        VkFence(VkFence&& other) noexcept;
+
+        VkFence& operator=(VkFence&& other) noexcept;
 
         ~VkFence();
 
-        template<typename R, typename F>
-        R wait(uint64_t timeout, const F &lambda) {
-            auto result = vkWaitForFences(device, 1, &fence, VK_TRUE, timeout);
+        void wait(uint64_t timeout = std::numeric_limits<uint64_t>::max()) const;
 
-            if (result == VK_TIMEOUT)
-                spdlog::warn("Waiting on fence timed out");
-            else
-                checkVulkanResult(result, "Fence was signaled with an error");
+        void reset() const;
 
-            return lambda(fence);
-        }
-
-        void reset();
+        [[nodiscard]] ::VkFence getFence() const;
     };
 }

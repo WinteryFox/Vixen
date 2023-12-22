@@ -1,6 +1,7 @@
 #pragma once
 
 #include <cstdint>
+#include <functional>
 
 namespace Vixen {
     /**
@@ -24,14 +25,14 @@ namespace Vixen {
          * @param dataSize The size of the data.
          * @param offset The offset within this buffer to start writing from.
          */
-        virtual void write(const char* data, std::size_t dataSize, std::size_t offset) = 0;
+        virtual void write(const std::byte* data, std::size_t dataSize, std::size_t offset) = 0;
 
         [[nodiscard]] std::size_t getSize() const;
 
         [[nodiscard]] Usage getBufferUsage() const;
 
     private:
-        virtual char* map() = 0;
+        virtual std::byte* map() = 0;
 
         virtual void unmap() = 0;
 

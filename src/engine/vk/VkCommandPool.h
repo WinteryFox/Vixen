@@ -1,9 +1,10 @@
 #pragma once
 
+#include "Device.h"
 #include "VkCommandBuffer.h"
 
 namespace Vixen::Vk {
-    class VkCommandPool {
+    class VkCommandPool : public std::enable_shared_from_this<VkCommandPool> {
     public:
         enum class Usage {
             GRAPHICS,
@@ -11,7 +12,7 @@ namespace Vixen::Vk {
         };
 
     private:
-        ::VkDevice device;
+        std::shared_ptr<Device> device;
 
         ::VkCommandPool commandPool;
 
@@ -23,7 +24,8 @@ namespace Vixen::Vk {
         );
 
     public:
-        VkCommandPool(::VkDevice device, uint32_t queueFamilyIndex, Usage usage, bool createReset);
+        VkCommandPool(const std::shared_ptr<Device>& device, uint32_t queueFamilyIndex, Usage usage,
+                      bool createReset);
 
         VkCommandPool(const VkCommandPool&) = delete;
 
@@ -31,7 +33,7 @@ namespace Vixen::Vk {
 
         VkCommandPool(VkCommandPool&& other) noexcept;
 
-        VkCommandPool const& operator=(VkCommandPool&& other) noexcept;
+        VkCommandPool& operator=(VkCommandPool&& other) noexcept;
 
         ~VkCommandPool();
 
@@ -40,5 +42,9 @@ namespace Vixen::Vk {
         VkCommandBuffer allocate(VkCommandBuffer::Level level);
 
         void reset() const;
+
+        [[nodiscard]] std::shared_ptr<Device> getDevice() const;
+
+        [[nodiscard]] ::VkCommandPool getCommandPool() const;
     };
 }

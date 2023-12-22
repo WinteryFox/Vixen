@@ -1,8 +1,12 @@
 #pragma once
 
+#include "VkBuffer.h"
 #include "VkFence.h"
+#include "VkImage.h"
 
 namespace Vixen::Vk {
+    class VkCommandPool;
+
     class VkCommandBuffer {
     public:
         enum class Level {
@@ -17,58 +21,57 @@ namespace Vixen::Vk {
         };
 
     private:
-        VkDevice device;
-
-        VkCommandPool commandPool;
+        std::shared_ptr<VkCommandPool> commandPool;
 
         ::VkCommandBuffer commandBuffer;
 
         VkFence fence;
 
     public:
-        VkCommandBuffer(VkDevice device, VkCommandPool commandPool, ::VkCommandBuffer commandBuffer);
+        VkCommandBuffer(const std::shared_ptr<VkCommandPool>& commandPool, ::VkCommandBuffer commandBuffer);
 
-        VkCommandBuffer(VkCommandBuffer &) = delete;
+        VkCommandBuffer(const VkCommandBuffer&) = delete;
 
-        VkCommandBuffer &operator=(VkCommandBuffer &) = delete;
+        VkCommandBuffer& operator=(const VkCommandBuffer&) = delete;
 
-        VkCommandBuffer(VkCommandBuffer &&o) noexcept = default;
+        VkCommandBuffer(VkCommandBuffer&& other) noexcept;
+
+        VkCommandBuffer& operator=(VkCommandBuffer&& other) noexcept;
 
         ~VkCommandBuffer();
 
-        template<typename F>
-        VkCommandBuffer &record(Usage usage, F commands) {
-            VkCommandBufferBeginInfo info{
-                    .sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO,
-                    .flags = static_cast<VkCommandBufferUsageFlags>(usage)
-            };
-
+        template <typename F>
+        VkCommandBuffer& record(Usage usage, F commands) {
             reset();
 
-            checkVulkanResult(
-                    vkBeginCommandBuffer(commandBuffer, &info),
-                    "Failed to begin command buffer"
-            );
+            begin(usage);
 
             commands(commandBuffer);
 
-            checkVulkanResult(
-                    vkEndCommandBuffer(commandBuffer),
-                    "Failed to end command buffer"
-            );
+            end();
 
             return *this;
         }
 
-        VkCommandBuffer &wait();
+        VkCommandBuffer& wait();
 
-        VkCommandBuffer &reset();
+        VkCommandBuffer& reset();
 
-        VkCommandBuffer &submit(
-                ::VkQueue queue,
-                const std::vector<::VkSemaphore> &waitSemaphores,
-                const std::vector<::VkPipelineStageFlags> &waitMasks,
-                const std::vector<::VkSemaphore> &signalSemaphores
+        VkCommandBuffer& begin(Usage usage);
+
+        VkCommandBuffer& end();
+
+        VkCommandBuffer& copyBuffer(const VkBuffer& source, const VkBuffer& destination);
+
+        VkCommandBuffer& copyImage(const VkImage& source, const VkImage& destination);
+
+        VkCommandBuffer& copyBufferToImage(const VkBuffer& source, const VkImage& destination);
+
+        void submit(
+            ::VkQueue queue,
+            const std::vector<::VkSemaphore>& waitSemaphores,
+            const std::vector<::VkPipelineStageFlags>& waitMasks,
+            const std::vector<::VkSemaphore>& signalSemaphores
         );
     };
 }

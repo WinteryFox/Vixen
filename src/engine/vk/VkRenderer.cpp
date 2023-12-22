@@ -6,10 +6,10 @@ namespace Vixen::Vk {
         const std::shared_ptr<Swapchain>& swapchain
     ) : device(pipeline->getDevice()),
         swapchain(swapchain),
-        pipeline(pipeline),
         pipelineLayout(std::make_unique<VkPipelineLayout>(device, pipeline->getProgram())),
+        pipeline(pipeline),
         renderCommandPool(std::make_shared<VkCommandPool>(
-            device->getDevice(),
+            device,
             device->getGraphicsQueueFamily().index,
             VkCommandPool::Usage::GRAPHICS,
             true

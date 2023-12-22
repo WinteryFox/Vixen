@@ -71,7 +71,7 @@ namespace Vixen::Vk {
           format(other.format),
           mipLevels(other.mipLevels) {}
 
-    VkImage const& VkImage::operator=(VkImage&& other) noexcept {
+    VkImage& VkImage::operator=(VkImage&& other) noexcept {
         std::swap(device, other.device);
         std::swap(allocation, other.allocation);
         std::swap(width, other.width);
@@ -90,6 +90,10 @@ namespace Vixen::Vk {
             vmaDestroyImage(device->getAllocator(), image, allocation);
     }
 
+    void VkImage::upload(const VkBuffer& data) {
+        // TODO: Implement this and also reimplement transitioning image layout
+    }
+
     VkImage VkImage::from(const std::shared_ptr<Device>& device, const std::string& path) {
         FreeImage_Initialise();
 
@@ -104,10 +108,10 @@ namespace Vixen::Vk {
         return from(device, bitmap);
     }
 
-    VkImage VkImage::from(const std::shared_ptr<Device>& device, const std::string& format, const std::byte* data,
+    VkImage VkImage::from(const std::shared_ptr<Device>& device, const std::string& format, std::byte* data,
                           const uint32_t size) {
         // TODO: Add some way to detect the format
-        const auto& memory = FreeImage_OpenMemory((BYTE*)data, size);
+        const auto &memory = FreeImage_OpenMemory(reinterpret_cast<BYTE*>(data), size);
         if (!memory)
             error("Failed to open image from memory");
 
@@ -131,108 +135,17 @@ namespace Vixen::Vk {
             static_cast<uint32_t>(std::floor(std::log2(std::max(width, height)))) + 1
         );
 
-        image.transition(VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL);
-        image.copyFrom(buffer);
-        image.transition(VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
+        // TODO
+        // image.transition(VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL);
+        // image.copyFrom(buffer);
+        // image.transition(VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
 
         return image;
     }
 
-    void VkImage::transition(const VkImageLayout newLayout) {
-        VkImageMemoryBarrier barrier{};
-        barrier.sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER;
-        barrier.oldLayout = layout;
-        barrier.newLayout = newLayout;
-        barrier.srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
-        barrier.dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
-        barrier.image = image;
-        barrier.subresourceRange.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT; // TODO: This looks sus too
-        barrier.subresourceRange.baseMipLevel = 0;
-        barrier.subresourceRange.levelCount = mipLevels;
-        barrier.subresourceRange.baseArrayLayer = 0;
-        barrier.subresourceRange.layerCount = 1;
-        barrier.srcAccessMask = 0;
-        barrier.dstAccessMask = 0;
+    uint32_t VkImage::getWidth() const { return width; }
 
-        VkPipelineStageFlags source;
-        VkPipelineStageFlags destination;
-
-        if (layout == VK_IMAGE_LAYOUT_UNDEFINED && newLayout == VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL) {
-            barrier.srcAccessMask = 0;
-            barrier.dstAccessMask = VK_ACCESS_TRANSFER_WRITE_BIT;
-
-            source = VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT;
-            destination = VK_PIPELINE_STAGE_TRANSFER_BIT;
-        }
-        else if (layout == VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL &&
-            newLayout == VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL) {
-            barrier.srcAccessMask = VK_ACCESS_TRANSFER_WRITE_BIT;
-            barrier.dstAccessMask = VK_ACCESS_SHADER_READ_BIT;
-
-            source = VK_PIPELINE_STAGE_TRANSFER_BIT;
-            destination = VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT;
-        }
-        else {
-            throw std::runtime_error("Unsupported transition layout");
-        }
-
-        device->getTransferCommandPool()
-              ->allocate(VkCommandBuffer::Level::PRIMARY)
-              .record(
-                  VkCommandBuffer::Usage::SINGLE,
-                  [this, &source, &destination, &barrier](auto commandBuffer) {
-                      vkCmdPipelineBarrier(
-                          commandBuffer,
-                          source,
-                          destination,
-                          0,
-                          0,
-                          nullptr,
-                          0,
-                          nullptr,
-                          1,
-                          &barrier
-                      );
-                  }
-              )
-              .submit(device->getTransferQueue(), {}, {}, {});
-
-        layout = newLayout;
-    }
-
-    void VkImage::copyFrom(VkBuffer const& buffer) {
-        VkBufferImageCopy region{
-            .bufferOffset = 0,
-            .bufferRowLength = 0,
-            .bufferImageHeight = 0,
-            .imageSubresource{
-                .aspectMask = VK_IMAGE_ASPECT_COLOR_BIT,
-                .mipLevel = 0,
-                .baseArrayLayer = 0,
-                .layerCount = 1,
-            },
-            .imageOffset{
-                .x = 0,
-                .y = 0,
-                .z = 0
-            },
-            .imageExtent{
-                .width = width,
-                .height = height,
-                .depth = 1
-            }
-        };
-
-        device->getTransferCommandPool()
-              ->allocate(VkCommandBuffer::Level::PRIMARY)
-              .record(
-                  VkCommandBuffer::Usage::SINGLE,
-                  [this, &buffer, &region](const auto& commandBuffer) {
-                      vkCmdCopyBufferToImage(commandBuffer, buffer.getBuffer(), image, layout, 1, &region);
-                  }
-              )
-              .submit(device->getTransferQueue(), {}, {}, {});
-    }
+    uint32_t VkImage::getHeight() const { return height; }
 
     ::VkImage VkImage::getImage() const {
         return image;
@@ -259,7 +172,7 @@ namespace Vixen::Vk {
         const VkDeviceSize size = width * height * (bitsPerPixel / 8);
 
         auto staging = VkBuffer(device, Buffer::Usage::UNIFORM | Buffer::Usage::TRANSFER_SRC, size);
-        staging.write(reinterpret_cast<char*>(pixels), size, 0);
+        staging.write(reinterpret_cast<std::byte*>(pixels), size, 0);
 
         FreeImage_Unload(converted);
         FreeImage_Unload(bitmap);

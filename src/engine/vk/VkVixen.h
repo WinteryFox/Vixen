@@ -1,11 +1,11 @@
 #pragma once
 
-#include "../Vixen.h"
-#include "VkWindow.h"
-#include "Instance.h"
 #include "Device.h"
+#include "Instance.h"
 #include "Swapchain.h"
 #include "VkShaderModule.h"
+#include "VkWindow.h"
+#include "../Vixen.h"
 
 namespace Vixen::Vk {
     class VkVixen : public Vixen {

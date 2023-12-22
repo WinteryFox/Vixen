@@ -1,5 +1,7 @@
 #include "VkBuffer.h"
 
+#include "Device.h"
+
 namespace Vixen::Vk {
     VkBuffer::VkBuffer(const std::shared_ptr<Device>& device, const Usage bufferUsage, const size_t& size)
         : Buffer(bufferUsage, size),
@@ -82,63 +84,27 @@ namespace Vixen::Vk {
         vmaDestroyBuffer(device->getAllocator(), buffer, allocation);
     }
 
-    void VkBuffer::write(const char* d, const size_t dataSize, const size_t offset) {
-        if (!data)
+    void VkBuffer::write(const std::byte* data, const size_t dataSize, const size_t offset) {
+        if (!this->data)
             throw std::runtime_error("This buffer is not mapped and thus not writable");
         if (offset + dataSize > size)
             throw std::runtime_error("Buffer overflow");
 
-        memcpy(data + offset, d, dataSize);
+        memcpy(this->data + offset, data, dataSize);
     }
 
     ::VkBuffer VkBuffer::getBuffer() const {
         return buffer;
     }
 
-    void VkBuffer::transfer(
-        VkBuffer& destination,
-        size_t destinationOffset
-    ) {
-        device->getTransferCommandPool()
-              ->allocate(VkCommandBuffer::Level::PRIMARY)
-              .record(
-                  VkCommandBuffer::Usage::SINGLE,
-                  [this, &destination, &destinationOffset](auto commandBuffer) {
-                      VkBufferCopy region{
-                          .srcOffset = 0,
-                          .dstOffset = destinationOffset,
-                          .size = size,
-                      };
-
-                      vkCmdCopyBuffer(commandBuffer, buffer, destination.getBuffer(), 1, &region);
-                  }
-              )
-              .submit(device->getTransferQueue(), {}, {}, {});
-    }
-
-    VkBuffer VkBuffer::stage(
-        const std::shared_ptr<Device>& device,
-        const Usage usage,
-        const size_t size,
-        const char* data
-    ) {
-        auto source = VkBuffer(device, usage | Usage::TRANSFER_SRC, size);
-        auto destination = VkBuffer(device, usage | Usage::TRANSFER_DST, size);
-
-        source.write(data, size, 0);
-        source.transfer(destination, 0);
-
-        return destination;
-    }
-
-    char* VkBuffer::map() {
+    std::byte* VkBuffer::map() {
         void* data;
         checkVulkanResult(
             vmaMapMemory(device->getAllocator(), allocation, &data),
             "Failed to map buffer"
         );
 
-        return static_cast<char*>(data);
+        return static_cast<std::byte*>(data);
     }
 
     void VkBuffer::unmap() {

@@ -75,7 +75,7 @@ target_link_libraries(
         freeimage
 )
 
-target_compile_definitions(VkVixen PRIVATE -DVK_NO_PROTOTYPES)
+target_compile_definitions(VkVixen PUBLIC -DVK_NO_PROTOTYPES)
 
 find_package(glslang QUIET)
 if (${glslang_FOUND})

@@ -9,11 +9,12 @@
 #include <assimp/Importer.hpp>
 #include <assimp/postprocess.h>
 #include <assimp/scene.h>
-#include "VkVixen.h"
-#include "VkPipeline.h"
-#include "VkRenderer.h"
+#include "VkBuffer.h"
 #include "VkDescriptorPool.h"
 #include "VkDescriptorSet.h"
+#include "VkPipeline.h"
+#include "VkRenderer.h"
+#include "VkVixen.h"
 #include "../../Camera.h"
 
 struct Vertex {
@@ -133,32 +134,47 @@ int main() {
             Vixen::Vk::VkImage::from(
                 vixen.getDevice(),
                 texture->achFormatHint,
-                reinterpret_cast<const std::byte*>(texture->pcData),
+                reinterpret_cast<std::byte*>(texture->pcData),
                 texture->mWidth
             )
         );
     }
 
-    const auto buffer = Vixen::Vk::VkBuffer::stage(
+    auto stagingBuffer = Vixen::Vk::VkBuffer(
         vixen.getDevice(),
         Vixen::Buffer::Usage::VERTEX |
-        Vixen::Buffer::Usage::INDEX,
+        Vixen::Buffer::Usage::INDEX |
+        Vixen::Buffer::Usage::TRANSFER_SRC,
         vertices.size() * sizeof(Vertex) +
-        indices.size() * sizeof(uint32_t),
-        [&vertices, &indices](const auto& data) {
-            memcpy(
-                data,
-                vertices.data(),
-                sizeof(Vertex) * vertices.size()
-            );
-
-            memcpy(
-                static_cast<Vertex*>(data) + vertices.size(),
-                indices.data(),
-                sizeof(uint32_t) * indices.size()
-            );
-        }
+        indices.size() * sizeof(uint32_t)
     );
+    const auto& buffer = Vixen::Vk::VkBuffer(
+        vixen.getDevice(),
+        Vixen::Buffer::Usage::VERTEX |
+        Vixen::Buffer::Usage::INDEX |
+        Vixen::Buffer::Usage::TRANSFER_DST,
+        vertices.size() * sizeof(Vertex) +
+        indices.size() * sizeof(uint32_t)
+    );
+
+    stagingBuffer.write(
+        reinterpret_cast<std::byte*>(vertices.data()),
+        vertices.size() * sizeof(vertices[0]),
+        0
+    );
+    stagingBuffer.write(
+        reinterpret_cast<std::byte*>(indices.data()),
+        indices.size() * sizeof(indices[0]),
+        vertices.size() * sizeof(vertices[0])
+    );
+
+    vixen.getDevice()
+         ->getTransferCommandPool()
+         ->allocate(Vixen::Vk::VkCommandBuffer::Level::PRIMARY)
+         .begin(Vixen::Vk::VkCommandBuffer::Usage::SINGLE)
+         .copyBuffer(stagingBuffer, buffer)
+         .end()
+         .submit(vixen.getDevice()->getTransferQueue(), {}, {}, {});
 
     auto camera = Vixen::Camera(glm::vec3{0.0f, 0.0f, 0.0f});
 
@@ -213,12 +229,12 @@ int main() {
         double deltaTime = now - lastFrame;
         lastFrame = now;
         ubo.view = camera.view();
-        const auto& extent = vixen.getSwapchain()->getExtent();
+        const auto& [width, height] = vixen.getSwapchain()->getExtent();
         ubo.projection = camera.perspective(
-            static_cast<float>(extent.width) /
-            static_cast<float>(extent.height)
+            static_cast<float>(width) /
+            static_cast<float>(height)
         );
-        uniformBuffer.write(reinterpret_cast<const char*>(&ubo), sizeof(UniformBufferObject), 0);
+        uniformBuffer.write(reinterpret_cast<std::byte*>(&ubo), sizeof(UniformBufferObject), 0);
 
         renderer->render(buffer, vertices.size(), indices.size(), descriptorSets);
 

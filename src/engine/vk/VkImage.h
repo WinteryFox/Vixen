@@ -42,20 +42,23 @@ namespace Vixen::Vk {
 
         VkImage(VkImage&& other) noexcept;
 
-        VkImage const& operator=(VkImage&& other) noexcept;
+        VkImage& operator=(VkImage&& other) noexcept;
 
         ~VkImage();
 
+        void upload(const VkBuffer& data);
+
         static VkImage from(const std::shared_ptr<Device>& device, const std::string& path);
 
-        static VkImage from(const std::shared_ptr<Device>& device, const std::string& format, const std::byte* data, uint32_t size);
+        static VkImage from(const std::shared_ptr<Device>& device, const std::string& format, std::byte* data,
+                            uint32_t size);
 
         static VkImage from(const std::shared_ptr<Device>& device, const VkBuffer& buffer, uint32_t width,
                             uint32_t height, VkFormat format);
 
-        void transition(VkImageLayout newLayout);
+        [[nodiscard]] uint32_t getWidth() const;
 
-        void copyFrom(const VkBuffer& buffer);
+        [[nodiscard]] uint32_t getHeight() const;
 
         [[nodiscard]] VkFormat getFormat() const;
 

@@ -6,6 +6,7 @@
 #include "VkFramebuffer.h"
 #include "VkSemaphore.h"
 #include "VkBuffer.h"
+#include "VkCommandPool.h"
 #include "VkDescriptorSet.h"
 
 namespace Vixen::Vk {

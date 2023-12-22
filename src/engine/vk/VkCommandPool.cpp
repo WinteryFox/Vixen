@@ -2,7 +2,7 @@
 
 namespace Vixen::Vk {
     VkCommandPool::VkCommandPool(
-        ::VkDevice device,
+        const std::shared_ptr<Device>& device,
         const uint32_t queueFamilyIndex,
         const Usage usage,
         const bool createReset
@@ -29,16 +29,16 @@ namespace Vixen::Vk {
         };
 
         checkVulkanResult(
-            vkCreateCommandPool(device, &info, nullptr, &commandPool),
+            vkCreateCommandPool(device->getDevice(), &info, nullptr, &commandPool),
             "Failed to create command pool"
         );
     }
 
     VkCommandPool::VkCommandPool(VkCommandPool&& other) noexcept
-        : device(other.device),
-          commandPool(other.commandPool) {}
+        : device(std::exchange(other.device, nullptr)),
+          commandPool(std::exchange(other.commandPool, nullptr)) {}
 
-    VkCommandPool const& VkCommandPool::operator=(VkCommandPool&& other) noexcept {
+    VkCommandPool& VkCommandPool::operator=(VkCommandPool&& other) noexcept {
         std::swap(device, other.device);
         std::swap(commandPool, other.commandPool);
 
@@ -46,7 +46,7 @@ namespace Vixen::Vk {
     }
 
     VkCommandPool::~VkCommandPool() {
-        vkDestroyCommandPool(device, commandPool, nullptr);
+        vkDestroyCommandPool(device->getDevice(), commandPool, nullptr);
     }
 
     std::vector<::VkCommandBuffer> VkCommandPool::allocateCommandBuffers(
@@ -77,8 +77,8 @@ namespace Vixen::Vk {
         if (count == 0)
             throw std::runtime_error("Must allocate at least one command buffer");
 
-        const auto b = allocateCommandBuffers(
-            device,
+        const auto& b = allocateCommandBuffers(
+            device->getDevice(),
             commandPool,
             static_cast<VkCommandBufferLevel>(level),
             count
@@ -88,17 +88,16 @@ namespace Vixen::Vk {
         buffers.reserve(count);
 
         for (auto& buffer : b)
-            buffers.emplace_back(device, commandPool, buffer);
+            buffers.emplace_back(shared_from_this(), buffer);
 
         return buffers;
     }
 
     VkCommandBuffer VkCommandPool::allocate(VkCommandBuffer::Level level) {
         return {
-            device,
-            commandPool,
+            shared_from_this(),
             allocateCommandBuffers(
-                device,
+                device->getDevice(),
                 commandPool,
                 static_cast<VkCommandBufferLevel>(level),
                 1
@@ -108,8 +107,12 @@ namespace Vixen::Vk {
 
     void VkCommandPool::reset() const {
         checkVulkanResult(
-            vkResetCommandPool(device, commandPool, 0),
+            vkResetCommandPool(device->getDevice(), commandPool, 0),
             "Failed to reset command pool"
         );
     }
+
+    std::shared_ptr<Device> VkCommandPool::getDevice() const { return device; }
+
+    ::VkCommandPool VkCommandPool::getCommandPool() const { return commandPool; }
 }
