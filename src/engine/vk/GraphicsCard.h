@@ -1,6 +1,5 @@
 #pragma once
 
-#include <optional>
 #include <map>
 #include <algorithm>
 
@@ -59,7 +58,7 @@ namespace Vixen::Vk {
             layers = getSupportedLayers(device);
         }
 
-        std::vector<QueueFamily> getQueueFamilyWithFlags(VkQueueFlags flags) {
+        [[nodiscard]] std::vector<QueueFamily> getQueueFamilyWithFlags(const VkQueueFlags flags) const {
             std::vector<QueueFamily> families{};
             for (auto queue: queueFamilies)
                 if (queue.hasFlags(flags))
@@ -68,7 +67,7 @@ namespace Vixen::Vk {
             return families;
         }
 
-        std::vector<QueueFamily> getSurfaceSupportedQueues(VkSurfaceKHR surface) {
+        std::vector<QueueFamily> getSurfaceSupportedQueues(VkSurfaceKHR surface) const {
             std::vector<QueueFamily> families{};
             for (auto queue: queueFamilies)
                 if (queue.hasSurfaceSupport(device, surface))

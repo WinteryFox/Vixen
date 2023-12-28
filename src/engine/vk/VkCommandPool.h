@@ -2,16 +2,11 @@
 
 #include "Device.h"
 #include "VkCommandBuffer.h"
+#include "../CommandBuffer.h"
+#include "../CommandPool.h"
 
 namespace Vixen::Vk {
     class VkCommandPool : public std::enable_shared_from_this<VkCommandPool> {
-    public:
-        enum class Usage {
-            GRAPHICS,
-            TRANSIENT
-        };
-
-    private:
         std::shared_ptr<Device> device;
 
         ::VkCommandPool commandPool;
@@ -24,7 +19,7 @@ namespace Vixen::Vk {
         );
 
     public:
-        VkCommandPool(const std::shared_ptr<Device>& device, uint32_t queueFamilyIndex, Usage usage,
+        VkCommandPool(const std::shared_ptr<Device>& device, uint32_t queueFamilyIndex, CommandPoolUsage usage,
                       bool createReset);
 
         VkCommandPool(const VkCommandPool&) = delete;
@@ -37,9 +32,9 @@ namespace Vixen::Vk {
 
         ~VkCommandPool();
 
-        std::vector<VkCommandBuffer> allocate(VkCommandBuffer::Level level, uint32_t count);
+        std::vector<VkCommandBuffer> allocate(CommandBufferLevel level, uint32_t count);
 
-        VkCommandBuffer allocate(VkCommandBuffer::Level level);
+        VkCommandBuffer allocate(CommandBufferLevel level);
 
         void reset() const;
 

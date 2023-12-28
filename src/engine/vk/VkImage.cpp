@@ -91,7 +91,21 @@ namespace Vixen::Vk {
     }
 
     void VkImage::upload(const VkBuffer& data) {
-        // TODO: Implement this and also reimplement transitioning image layout
+        const auto& cmd = device->getTransferCommandPool()
+                                ->allocate(CommandBufferLevel::PRIMARY);
+
+        cmd.begin(CommandBufferUsage::SINGLE);
+
+        cmd.transitionImage(*this, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL);
+        layout = VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL;
+
+        cmd.copyBufferToImage(data, *this);
+
+        cmd.transitionImage(*this, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
+        layout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
+
+        cmd.end();
+        cmd.submit(device->getTransferQueue(), {}, {}, {});
     }
 
     VkImage VkImage::from(const std::shared_ptr<Device>& device, const std::string& path) {
@@ -111,7 +125,7 @@ namespace Vixen::Vk {
     VkImage VkImage::from(const std::shared_ptr<Device>& device, const std::string& format, std::byte* data,
                           const uint32_t size) {
         // TODO: Add some way to detect the format
-        const auto &memory = FreeImage_OpenMemory(reinterpret_cast<BYTE*>(data), size);
+        const auto& memory = FreeImage_OpenMemory(reinterpret_cast<BYTE*>(data), size);
         if (!memory)
             error("Failed to open image from memory");
 
@@ -137,7 +151,7 @@ namespace Vixen::Vk {
 
         // TODO
         // image.transition(VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL);
-        // image.copyFrom(buffer);
+        image.upload(buffer);
         // image.transition(VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
 
         return image;

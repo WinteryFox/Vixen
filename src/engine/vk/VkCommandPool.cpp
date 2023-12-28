@@ -1,19 +1,21 @@
 #include "VkCommandPool.h"
 
+#include "../CommandPool.h"
+
 namespace Vixen::Vk {
     VkCommandPool::VkCommandPool(
         const std::shared_ptr<Device>& device,
         const uint32_t queueFamilyIndex,
-        const Usage usage,
+        const CommandPoolUsage usage,
         const bool createReset
     ) : device(device),
         commandPool(VK_NULL_HANDLE) {
         VkCommandPoolCreateFlags flags = 0;
 
         switch (usage) {
-        case Usage::GRAPHICS:
+        case CommandPoolUsage::GRAPHICS:
             break;
-        case Usage::TRANSIENT:
+        case CommandPoolUsage::TRANSIENT:
             flags = VK_COMMAND_POOL_CREATE_TRANSIENT_BIT;
             break;
         }
@@ -73,7 +75,7 @@ namespace Vixen::Vk {
     }
 
     std::vector<VkCommandBuffer>
-    VkCommandPool::allocate(VkCommandBuffer::Level level, const uint32_t count) {
+    VkCommandPool::allocate(CommandBufferLevel level, const uint32_t count) {
         if (count == 0)
             throw std::runtime_error("Must allocate at least one command buffer");
 
@@ -93,7 +95,7 @@ namespace Vixen::Vk {
         return buffers;
     }
 
-    VkCommandBuffer VkCommandPool::allocate(VkCommandBuffer::Level level) {
+    VkCommandBuffer VkCommandPool::allocate(CommandBufferLevel level) {
         return {
             shared_from_this(),
             allocateCommandBuffers(

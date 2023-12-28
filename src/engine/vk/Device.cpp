@@ -13,7 +13,8 @@ namespace Vixen::Vk {
     ) : gpu(gpu),
         device(VK_NULL_HANDLE),
         allocator(VK_NULL_HANDLE),
-        surface(surface) {
+        surface(surface),
+        transferCommandPool(nullptr) {
         graphicsQueueFamily = gpu.getQueueFamilyWithFlags(VK_QUEUE_GRAPHICS_BIT)[0];
         presentQueueFamily = gpu.getSurfaceSupportedQueues(surface)[0];
         transferQueueFamily = gpu.getQueueFamilyWithFlags(VK_QUEUE_TRANSFER_BIT)[0];
@@ -100,18 +101,42 @@ namespace Vixen::Vk {
         presentQueue = getQueueHandle(presentQueueFamily.index, 0);
 
         transferQueue = getQueueHandle(transferQueueFamily.index, 0);
-        transferCommandPool = std::make_shared<VkCommandPool>(
-            shared_from_this(),
-            transferQueueFamily.index,
-            VkCommandPool::Usage::TRANSIENT,
-            true
-        );
+    }
+
+    Device::Device(Device&& other) noexcept
+        : gpu(std::move(other.gpu)),
+          device(other.device),
+          allocator(other.allocator),
+          surface(other.surface),
+          graphicsQueueFamily(other.graphicsQueueFamily),
+          graphicsQueue(other.graphicsQueue),
+          presentQueueFamily(other.presentQueueFamily),
+          presentQueue(other.presentQueue),
+          transferQueueFamily(other.transferQueueFamily),
+          transferQueue(other.transferQueue),
+          transferCommandPool(other.transferCommandPool) {}
+
+    Device& Device::operator=(Device&& other) noexcept {
+        std::swap(gpu, other.gpu);
+        std::swap(device, other.device);
+        std::swap(allocator, other.allocator);
+        std::swap(surface, other.surface);
+        std::swap(graphicsQueueFamily, other.graphicsQueueFamily);
+        std::swap(graphicsQueue, other.graphicsQueue);
+        std::swap(presentQueueFamily, other.presentQueueFamily);
+        std::swap(presentQueue, other.presentQueue);
+        std::swap(transferQueueFamily, other.presentQueueFamily);
+        std::swap(transferQueue, other.transferQueue);
+        std::swap(transferCommandPool, other.transferCommandPool);
+
+        return *this;
     }
 
     Device::~Device() {
         waitIdle();
         graphicsQueue = nullptr;
         presentQueue = nullptr;
+        transferCommandPool = nullptr;
         vmaDestroyAllocator(allocator);
         vkDestroyDevice(device, nullptr);
     }
@@ -147,7 +172,21 @@ namespace Vixen::Vk {
 
     VkQueue Device::getPresentQueue() const { return presentQueue; }
 
-    std::shared_ptr<VkCommandPool> Device::getTransferCommandPool() const { return transferCommandPool; }
+    std::shared_ptr<VkCommandPool> Device::getTransferCommandPool() {
+        if (!transferCommandPool)
+            transferCommandPool = allocateCommandPool(CommandPoolUsage::TRANSIENT, true);
+
+        return transferCommandPool;
+    }
 
     VmaAllocator Device::getAllocator() const { return allocator; }
+
+    std::shared_ptr<VkCommandPool> Device::allocateCommandPool(const CommandPoolUsage usage, const bool createReset) {
+        return std::make_shared<VkCommandPool>(
+            shared_from_this(),
+            transferQueueFamily.index,
+            usage,
+            createReset
+        );
+    }
 }

@@ -4,6 +4,10 @@
 #include "Instance.h"
 #include "VkCommandPool.h"
 
+namespace Vixen {
+    enum class CommandPoolUsage;
+}
+
 namespace Vixen::Vk {
     class Device : public std::enable_shared_from_this<Device> {
         GraphicsCard gpu;
@@ -36,6 +40,14 @@ namespace Vixen::Vk {
             VkSurfaceKHR surface
         );
 
+        Device(const Device&) = delete;
+
+        Device& operator=(const Device&) = delete;
+
+        Device(Device&& other) noexcept;
+
+        Device& operator=(Device&& other) noexcept;
+
         ~Device();
 
         void waitIdle() const;
@@ -58,10 +70,12 @@ namespace Vixen::Vk {
 
         [[nodiscard]] VkQueue getPresentQueue() const;
 
-        [[nodiscard]] std::shared_ptr<VkCommandPool> getTransferCommandPool() const;
+        [[nodiscard]] std::shared_ptr<VkCommandPool> getTransferCommandPool();
 
         [[nodiscard]] VkQueue getQueueHandle(uint32_t queueFamilyIndex, uint32_t queueIndex = 0) const;
 
         [[nodiscard]] VmaAllocator getAllocator() const;
+
+        std::shared_ptr<VkCommandPool> allocateCommandPool(CommandPoolUsage usage, bool createReset);
     };
 }

@@ -168,13 +168,13 @@ int main() {
         vertices.size() * sizeof(vertices[0])
     );
 
-    vixen.getDevice()
-         ->getTransferCommandPool()
-         ->allocate(Vixen::Vk::VkCommandBuffer::Level::PRIMARY)
-         .begin(Vixen::Vk::VkCommandBuffer::Usage::SINGLE)
-         .copyBuffer(stagingBuffer, buffer)
-         .end()
-         .submit(vixen.getDevice()->getTransferQueue(), {}, {}, {});
+    const auto& cmd = vixen.getDevice()
+                           ->getTransferCommandPool()
+                           ->allocate(Vixen::CommandBufferLevel::PRIMARY);
+    cmd.begin(Vixen::CommandBufferUsage::SINGLE);
+    cmd.copyBuffer(stagingBuffer, buffer);
+    cmd.end();
+    cmd.submit(vixen.getDevice()->getTransferQueue(), {}, {}, {});
 
     auto camera = Vixen::Camera(glm::vec3{0.0f, 0.0f, 0.0f});
 

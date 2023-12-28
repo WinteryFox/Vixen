@@ -3,24 +3,12 @@
 #include "VkBuffer.h"
 #include "VkFence.h"
 #include "VkImage.h"
+#include "../CommandBuffer.h"
 
 namespace Vixen::Vk {
     class VkCommandPool;
 
     class VkCommandBuffer {
-    public:
-        enum class Level {
-            PRIMARY = VK_COMMAND_BUFFER_LEVEL_PRIMARY,
-            SECONDARY = VK_COMMAND_BUFFER_LEVEL_SECONDARY
-        };
-
-        enum class Usage {
-            SINGLE = VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT,
-            SIMULTANEOUS = VK_COMMAND_BUFFER_USAGE_SIMULTANEOUS_USE_BIT,
-            RENDER_PASS_CONTINUE = VK_COMMAND_BUFFER_USAGE_RENDER_PASS_CONTINUE_BIT
-        };
-
-    private:
         std::shared_ptr<VkCommandPool> commandPool;
 
         ::VkCommandBuffer commandBuffer;
@@ -41,7 +29,7 @@ namespace Vixen::Vk {
         ~VkCommandBuffer();
 
         template <typename F>
-        VkCommandBuffer& record(Usage usage, F commands) {
+        VkCommandBuffer& record(CommandBufferUsage usage, F commands) {
             reset();
 
             begin(usage);
@@ -53,25 +41,27 @@ namespace Vixen::Vk {
             return *this;
         }
 
-        VkCommandBuffer& wait();
+        void wait() const;
 
-        VkCommandBuffer& reset();
+        void reset() const;
 
-        VkCommandBuffer& begin(Usage usage);
+        void begin(CommandBufferUsage usage) const;
 
-        VkCommandBuffer& end();
-
-        VkCommandBuffer& copyBuffer(const VkBuffer& source, const VkBuffer& destination);
-
-        VkCommandBuffer& copyImage(const VkImage& source, const VkImage& destination);
-
-        VkCommandBuffer& copyBufferToImage(const VkBuffer& source, const VkImage& destination);
+        void end() const;
 
         void submit(
             ::VkQueue queue,
             const std::vector<::VkSemaphore>& waitSemaphores,
             const std::vector<::VkPipelineStageFlags>& waitMasks,
             const std::vector<::VkSemaphore>& signalSemaphores
-        );
+        ) const;
+
+        void copyBuffer(const VkBuffer& source, const VkBuffer& destination) const;
+
+        void copyImage(const VkImage& source, const VkImage& destination) const;
+
+        void copyBufferToImage(const VkBuffer& source, const VkImage& destination) const;
+
+        void transitionImage(const VkImage& image, VkImageLayout layout) const;
     };
 }

@@ -12,6 +12,8 @@ set(
         Window.cpp
         Buffer.cpp
         Camera.cpp
+        CommandBuffer.h
+        CommandPool.h
 )
 
 add_library(Vixen STATIC ${SOURCES})

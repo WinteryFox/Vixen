@@ -11,12 +11,12 @@ namespace Vixen::Vk {
         renderCommandPool(std::make_shared<VkCommandPool>(
             device,
             device->getGraphicsQueueFamily().index,
-            VkCommandPool::Usage::GRAPHICS,
+            CommandPoolUsage::GRAPHICS,
             true
         )),
         renderCommandBuffers(
             renderCommandPool->allocate(
-                VkCommandBuffer::Level::PRIMARY,
+                CommandBufferLevel::PRIMARY,
                 swapchain->getImageCount()
             )
         ) {
@@ -49,16 +49,13 @@ namespace Vixen::Vk {
 
                 prepare(commandBuffer, framebuffers[imageIndex], buffer, vertexCount, indexCount, descriptorSets);
 
-                std::vector<::VkSemaphore> waitSemaphores = {imageAvailableSemaphore.getSemaphore()};
-                std::vector<::VkSemaphore> signalSemaphores = {
-                    renderFinishedSemaphores[currentFrame].getSemaphore()
-                };
+                std::vector<::VkSemaphore> signalSemaphores = {renderFinishedSemaphores[currentFrame].getSemaphore()};
 
                 commandBuffer.submit(
                     device->getGraphicsQueue(),
-                    waitSemaphores,
+                    {imageAvailableSemaphore.getSemaphore()},
                     {VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT},
-                    signalSemaphores
+                    {renderFinishedSemaphores[currentFrame].getSemaphore()}
                 );
 
                 swapchain->present(imageIndex, signalSemaphores);
@@ -85,7 +82,7 @@ namespace Vixen::Vk {
         const std::vector<::VkDescriptorSet>& descriptorSets
     ) const {
         commandBuffer.record(
-            VkCommandBuffer::Usage::SIMULTANEOUS,
+            CommandBufferUsage::SIMULTANEOUS,
             [this, &framebuffer, &buffer, &vertexCount, &indexCount, &descriptorSets](::VkCommandBuffer commandBuffer) {
                 std::vector<VkClearValue> clearValues{
                     {

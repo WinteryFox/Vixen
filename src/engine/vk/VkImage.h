@@ -6,6 +6,8 @@
 
 namespace Vixen::Vk {
     class VkImage {
+        friend class VkCommandBuffer;
+
         std::shared_ptr<Device> device;
 
         VmaAllocation allocation;
