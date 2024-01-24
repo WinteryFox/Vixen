@@ -45,7 +45,6 @@ namespace Vixen::Vk {
                 {
                     .binding = binding,
                     .stride = static_cast<uint32_t>(stride),
-                    // TODO: Allow specification of input rate
                     .inputRate = r
                 }
             );
@@ -60,6 +59,9 @@ namespace Vixen::Vk {
                 break;
             case 3 * sizeof(float):
                 format = VK_FORMAT_R32G32B32_SFLOAT;
+                break;
+            case 4 * sizeof(float):
+                format = VK_FORMAT_R32G32B32A32_SFLOAT;
                 break;
             default:
                 throw std::runtime_error("Unsupported input format");
@@ -106,7 +108,7 @@ namespace Vixen::Vk {
             }
         };
 
-        VkGraphicsPipelineCreateInfo pipelineInfo{
+        const VkGraphicsPipelineCreateInfo pipelineInfo{
             .sType = VK_STRUCTURE_TYPE_GRAPHICS_PIPELINE_CREATE_INFO,
             .stageCount = static_cast<uint32_t>(stages.size()),
             .pStages = stages.data(),

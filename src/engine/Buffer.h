@@ -1,59 +1,21 @@
 #pragma once
 
 #include <cstdint>
-#include <functional>
 
 namespace Vixen {
-    /**
-     * A persistently mapped, coherent, synchronized, host or server data buffer.
-     */
-    class Buffer {
-    public:
-        enum class Usage : std::uint32_t {
-            VERTEX = 1 << 0,
-            INDEX = 1 << 1,
-            UNIFORM = 1 << 2,
-            TRANSFER_DST = 1 << 3,
-            TRANSFER_SRC = 1 << 4,
-        };
-
-        virtual ~Buffer() = default;
-
-        /**
-         * Map the buffer, write to it and unmap the buffer from host memory.
-         * @param data A pointer pointing to the start of the data.
-         * @param dataSize The size of the data.
-         * @param offset The offset within this buffer to start writing from.
-         */
-        virtual void write(const std::byte* data, std::size_t dataSize, std::size_t offset) = 0;
-
-        [[nodiscard]] std::size_t getSize() const;
-
-        [[nodiscard]] Usage getBufferUsage() const;
-
-    private:
-        virtual std::byte* map() = 0;
-
-        virtual void unmap() = 0;
-
-    protected:
-        const Usage bufferUsage;
-
-        const std::size_t size;
-
-        /**
-         * Create a new buffer. Where the allocation is made is determined by the allocation usage.
-         * @param bufferUsage Specifies how the buffer will be used and what data it will hold.
-         * @param size The size of this buffer measured in bytes.
-         */
-        Buffer(Usage bufferUsage, const std::size_t& size);
+    enum class BufferUsage : std::uint32_t {
+        VERTEX = 1 << 0,
+        INDEX = 1 << 1,
+        UNIFORM = 1 << 2,
+        COPY_SOURCE = 1 << 3,
+        COPY_DESTINATION = 1 << 4
     };
 
-    inline Buffer::Usage operator|(Buffer::Usage a, Buffer::Usage b) {
-        return static_cast<Buffer::Usage>(static_cast<std::uint32_t>(a) | static_cast<std::uint32_t>(b));
+    inline BufferUsage operator|(BufferUsage a, BufferUsage b) {
+        return static_cast<BufferUsage>(static_cast<std::uint32_t>(a) | static_cast<std::uint32_t>(b));
     }
 
-    inline bool operator&(Buffer::Usage a, Buffer::Usage b) {
+    inline bool operator&(BufferUsage a, BufferUsage b) {
         return static_cast<std::uint32_t>(a) & static_cast<std::uint32_t>(b);
     }
 }

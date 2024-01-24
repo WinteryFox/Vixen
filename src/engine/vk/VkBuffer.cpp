@@ -3,33 +3,48 @@
 #include "Device.h"
 
 namespace Vixen::Vk {
-    VkBuffer::VkBuffer(const std::shared_ptr<Device>& device, const Usage bufferUsage, const size_t& size)
-        : Buffer(bufferUsage, size),
-          device(device),
-          allocation(VK_NULL_HANDLE),
-          buffer(VK_NULL_HANDLE),
-          data(nullptr) {
+    VkBuffer::VkBuffer(): count(0), stride(0), allocation(nullptr), buffer(nullptr), allocationInfo(), usage() {}
+
+    VkBuffer::VkBuffer(
+        const std::shared_ptr<Device>& device,
+        const BufferUsage usage,
+        const uint32_t count,
+        const uint32_t stride
+    ) : device(device),
+        count(count),
+        stride(stride),
+        allocation(nullptr),
+        buffer(VK_NULL_HANDLE),
+        allocationInfo(),
+        usage(usage) {
+        if (count <= 0)
+            error("Count cannot be equal to or less than 0");
+        if (stride <= 0)
+            error("Stride cannot be equal to or less than 0");
+
         VmaAllocationCreateFlags allocationFlags = 0;
         VkBufferUsageFlags bufferUsageFlags = 0;
         VkMemoryPropertyFlags requiredFlags = 0;
 
-        if (bufferUsage & Usage::VERTEX)
+        if (usage & BufferUsage::VERTEX)
             bufferUsageFlags |= VK_BUFFER_USAGE_VERTEX_BUFFER_BIT;
 
-        if (bufferUsage & Usage::INDEX)
+        if (usage & BufferUsage::INDEX)
             bufferUsageFlags |= VK_BUFFER_USAGE_INDEX_BUFFER_BIT;
 
-        if (bufferUsage & Usage::TRANSFER_DST) {
-            bufferUsageFlags |= VK_BUFFER_USAGE_TRANSFER_DST_BIT;
-        }
-
-        if (bufferUsage & Usage::TRANSFER_SRC) {
-            allocationFlags |= VMA_ALLOCATION_CREATE_HOST_ACCESS_SEQUENTIAL_WRITE_BIT;
+        if (usage & BufferUsage::COPY_SOURCE) {
+            allocationFlags |= VMA_ALLOCATION_CREATE_MAPPED_BIT |
+                VMA_ALLOCATION_CREATE_HOST_ACCESS_SEQUENTIAL_WRITE_BIT;
             bufferUsageFlags |= VK_BUFFER_USAGE_TRANSFER_SRC_BIT;
         }
 
-        if (bufferUsage & Usage::UNIFORM) {
-            allocationFlags |= VMA_ALLOCATION_CREATE_HOST_ACCESS_SEQUENTIAL_WRITE_BIT;
+        if (usage & BufferUsage::COPY_DESTINATION) {
+            bufferUsageFlags |= VK_BUFFER_USAGE_TRANSFER_DST_BIT;
+        }
+
+        if (usage & BufferUsage::UNIFORM) {
+            allocationFlags |= VMA_ALLOCATION_CREATE_MAPPED_BIT |
+                VMA_ALLOCATION_CREATE_HOST_ACCESS_SEQUENTIAL_WRITE_BIT;
             bufferUsageFlags |= VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT;
             requiredFlags |= VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT;
         }
@@ -38,7 +53,7 @@ namespace Vixen::Vk {
             .sType = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO,
             .pNext = nullptr,
             .flags = 0,
-            .size = size,
+            .size = count * stride,
             .usage = bufferUsageFlags,
             .sharingMode = VK_SHARING_MODE_EXCLUSIVE,
             .queueFamilyIndexCount = 0,
@@ -46,7 +61,6 @@ namespace Vixen::Vk {
         };
 
         const VmaAllocationCreateInfo allocationCreateInfo = {
-            // TODO: Only add this flag if necessary (e.g. staging buffer)
             .flags = allocationFlags,
             .usage = VMA_MEMORY_USAGE_AUTO,
             .requiredFlags = requiredFlags,
@@ -64,51 +78,47 @@ namespace Vixen::Vk {
                 &allocationCreateInfo,
                 &buffer,
                 &allocation,
-                nullptr
+                &allocationInfo
             ),
-            "Failed to create Vk buffer"
+            "Failed to create buffer"
         );
-
-        if (allocationFlags & VMA_ALLOCATION_CREATE_HOST_ACCESS_SEQUENTIAL_WRITE_BIT)
-            data = map();
     }
 
-    VkBuffer::VkBuffer(VkBuffer&& o) noexcept
-        : Buffer(o.bufferUsage, o.size),
-          allocation(std::exchange(o.allocation, nullptr)),
-          buffer(std::exchange(o.buffer, nullptr)),
-          data(std::exchange(o.data, nullptr)) {}
+    VkBuffer::VkBuffer(VkBuffer&& other) noexcept
+        : device(std::exchange(other.device, nullptr)),
+          count(other.count),
+          stride(other.stride),
+          allocation(std::exchange(other.allocation, nullptr)),
+          buffer(std::exchange(other.buffer, nullptr)),
+          allocationInfo(other.allocationInfo),
+          usage(other.usage) {}
+
+    VkBuffer& VkBuffer::operator=(VkBuffer&& other) noexcept {
+        std::swap(device, other.device);
+        std::swap(count, other.count);
+        std::swap(stride, other.stride);
+        std::swap(allocation, other.allocation);
+        std::swap(buffer, other.buffer);
+        std::swap(allocationInfo, other.allocationInfo);
+        std::swap(usage, other.usage);
+
+        return *this;
+    }
 
     VkBuffer::~VkBuffer() {
-        unmap();
-        vmaDestroyBuffer(device->getAllocator(), buffer, allocation);
+        if (device != nullptr)
+            vmaDestroyBuffer(device->getAllocator(), buffer, allocation);
     }
 
-    void VkBuffer::write(const std::byte* data, const size_t dataSize, const size_t offset) {
-        if (!this->data)
-            throw std::runtime_error("This buffer is not mapped and thus not writable");
-        if (offset + dataSize > size)
-            throw std::runtime_error("Buffer overflow");
-
-        memcpy(this->data + offset, data, dataSize);
+    void VkBuffer::setData(const std::byte* data) const {
+        memcpy(allocationInfo.pMappedData, data, allocationInfo.size);
     }
 
-    ::VkBuffer VkBuffer::getBuffer() const {
-        return buffer;
-    }
+    ::VkBuffer VkBuffer::getBuffer() const { return buffer; }
 
-    std::byte* VkBuffer::map() {
-        void* data;
-        checkVulkanResult(
-            vmaMapMemory(device->getAllocator(), allocation, &data),
-            "Failed to map buffer"
-        );
+    std::size_t VkBuffer::getSize() const { return allocationInfo.size; }
 
-        return static_cast<std::byte*>(data);
-    }
+    uint32_t VkBuffer::getCount() const { return count; }
 
-    void VkBuffer::unmap() {
-        if (data)
-            vmaUnmapMemory(device->getAllocator(), allocation);
-    }
+    uint32_t VkBuffer::getStride() const { return stride; }
 }

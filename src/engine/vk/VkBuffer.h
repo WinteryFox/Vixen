@@ -9,33 +9,44 @@
 namespace Vixen::Vk {
     class Device;
 
-    class VkBuffer final : public Buffer {
+    class VkBuffer {
         std::shared_ptr<Device> device;
+
+        uint32_t count;
+
+        uint32_t stride;
 
         VmaAllocation allocation;
 
         ::VkBuffer buffer;
 
-        std::byte* data;
+        VmaAllocationInfo allocationInfo;
+
+        BufferUsage usage;
 
     public:
-        VkBuffer(const std::shared_ptr<Device>& device, Usage bufferUsage, const size_t& size);
+        VkBuffer();
+
+        VkBuffer(const std::shared_ptr<Device>& device, BufferUsage usage, uint32_t count, uint32_t stride);
 
         VkBuffer(const VkBuffer&) = delete;
 
         VkBuffer& operator=(const VkBuffer&) = delete;
 
-        VkBuffer(VkBuffer&& o) noexcept;
+        VkBuffer(VkBuffer&& other) noexcept;
 
-        ~VkBuffer() override;
+        VkBuffer& operator=(VkBuffer&& other) noexcept;
 
-        void write(const std::byte* data, size_t dataSize, size_t offset) override;
+        ~VkBuffer();
+
+        void setData(const std::byte* data) const;
 
         [[nodiscard]] ::VkBuffer getBuffer() const;
 
-    private:
-        std::byte* map() override;
+        [[nodiscard]] std::size_t getSize() const;
 
-        void unmap() override;
+        [[nodiscard]] uint32_t getCount() const;
+
+        [[nodiscard]] uint32_t getStride() const;
     };
 }

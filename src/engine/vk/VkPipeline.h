@@ -84,6 +84,7 @@ namespace Vixen::Vk {
             Builder() {
                 config.inputAssemblyInfo = {
                     .sType = VK_STRUCTURE_TYPE_PIPELINE_INPUT_ASSEMBLY_STATE_CREATE_INFO,
+                    // TODO: These shouldn't be hardcoded, the mesh class has an option for this.
                     .topology = VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST,
                     .primitiveRestartEnable = VK_FALSE
                 };

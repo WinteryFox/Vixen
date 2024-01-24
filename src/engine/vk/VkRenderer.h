@@ -1,13 +1,13 @@
 #pragma once
 
 #include "Device.h"
-#include "VkPipeline.h"
-#include "VkPipelineLayout.h"
-#include "VkFramebuffer.h"
-#include "VkSemaphore.h"
 #include "VkBuffer.h"
 #include "VkCommandPool.h"
-#include "VkDescriptorSet.h"
+#include "VkFramebuffer.h"
+#include "VkMesh.h"
+#include "VkPipeline.h"
+#include "VkPipelineLayout.h"
+#include "VkSemaphore.h"
 
 namespace Vixen::Vk {
     class VkRenderer {
@@ -44,10 +44,8 @@ namespace Vixen::Vk {
         ~VkRenderer();
 
         void render(
-            const VkBuffer& buffer,
-            uint32_t vertexCount,
-            uint32_t indexCount,
-            const std::vector<::VkDescriptorSet> &descriptorSets
+            const VkMesh &mesh,
+            const std::vector<::VkDescriptorSet>& descriptorSets
         );
 
     private:
@@ -56,10 +54,8 @@ namespace Vixen::Vk {
         void prepare(
             VkCommandBuffer& commandBuffer,
             VkFramebuffer& framebuffer,
-            const VkBuffer& buffer,
-            uint32_t vertexCount,
-            uint32_t indexCount,
-            const std::vector<::VkDescriptorSet> &descriptorSets
+            const VkMesh &mesh,
+            const std::vector<::VkDescriptorSet>& descriptorSets
         ) const;
     };
 }

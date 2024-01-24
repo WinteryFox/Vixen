@@ -61,6 +61,8 @@ add_library(
         VkDescriptorSet.h
         VkSampler.cpp
         VkSampler.h
+        VkMesh.cpp
+        VkMesh.h
 )
 target_link_libraries(
         VkVixen

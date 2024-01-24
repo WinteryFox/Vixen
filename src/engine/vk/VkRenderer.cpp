@@ -1,5 +1,7 @@
 #include "VkRenderer.h"
 
+#include "../IndexFormat.h"
+
 namespace Vixen::Vk {
     VkRenderer::VkRenderer(
         const std::shared_ptr<VkPipeline>& pipeline,
@@ -33,21 +35,19 @@ namespace Vixen::Vk {
     }
 
     void VkRenderer::render(
-        const VkBuffer& buffer,
-        uint32_t vertexCount,
-        uint32_t indexCount,
+        const VkMesh& mesh,
         const std::vector<::VkDescriptorSet>& descriptorSets
     ) {
         if (const auto state = swapchain->acquireImage(
             std::numeric_limits<uint64_t>::max(),
-            [this, &buffer, &vertexCount, &indexCount, &descriptorSets](
+            [this, &mesh, &descriptorSets](
             const auto& currentFrame,
             const auto& imageIndex,
             const auto& imageAvailableSemaphore
         ) {
                 auto& commandBuffer = renderCommandBuffers[currentFrame];
 
-                prepare(commandBuffer, framebuffers[imageIndex], buffer, vertexCount, indexCount, descriptorSets);
+                prepare(commandBuffer, framebuffers[imageIndex], mesh, descriptorSets);
 
                 std::vector<::VkSemaphore> signalSemaphores = {renderFinishedSemaphores[currentFrame].getSemaphore()};
 
@@ -76,14 +76,12 @@ namespace Vixen::Vk {
     void VkRenderer::prepare(
         VkCommandBuffer& commandBuffer,
         VkFramebuffer& framebuffer,
-        const VkBuffer& buffer,
-        uint32_t vertexCount,
-        uint32_t indexCount,
+        const VkMesh& mesh,
         const std::vector<::VkDescriptorSet>& descriptorSets
     ) const {
         commandBuffer.record(
             CommandBufferUsage::SIMULTANEOUS,
-            [this, &framebuffer, &buffer, &vertexCount, &indexCount, &descriptorSets](::VkCommandBuffer commandBuffer) {
+            [this, &framebuffer, &mesh, &descriptorSets](::VkCommandBuffer commandBuffer) {
                 std::vector<VkClearValue> clearValues{
                     {
                         .color = {
@@ -136,7 +134,7 @@ namespace Vixen::Vk {
                 };
                 vkCmdSetScissor(commandBuffer, 0, 1, &scissor);
 
-                const ::VkBuffer vertexBuffers[1]{buffer.getBuffer()};
+                const ::VkBuffer vertexBuffers[1]{mesh.getVertexBuffer().getBuffer()};
                 // TODO: Hardcoded buffer offset should probably automatically be determined somehow
                 constexpr VkDeviceSize offsets[] = {0};
 
@@ -150,10 +148,10 @@ namespace Vixen::Vk {
 
                 vkCmdBindIndexBuffer(
                     commandBuffer,
-                    buffer.getBuffer(),
+                    mesh.getIndexBuffer().getBuffer(),
                     // TODO: Remove hardcoded offset
-                    vertexCount * 32,
-                    VK_INDEX_TYPE_UINT32
+                    0,
+                    mesh.getIndexFormat() == IndexFormat::UNSIGNED_INT_16 ? VK_INDEX_TYPE_UINT16 : VK_INDEX_TYPE_UINT32
                 );
 
                 vkCmdBindDescriptorSets(
@@ -168,7 +166,7 @@ namespace Vixen::Vk {
                 );
 
                 // TODO: Hardcoded buffer offset should probably automatically be determined somehow
-                vkCmdDrawIndexed(commandBuffer, indexCount, 1, 0, 0, 0);
+                vkCmdDrawIndexed(commandBuffer, mesh.getIndexCount(), 1, 0, 0, 0);
 
                 vkCmdEndRenderPass(commandBuffer);
             }

@@ -10,10 +10,12 @@ add_definitions(-DGLFW_INCLUDE_NONE)
 set(
         SOURCES
         Window.cpp
-        Buffer.cpp
         Camera.cpp
         CommandBuffer.h
         CommandPool.h
+        IndexFormat.h
+        PrimitiveTopology.h
+        VertexAttribute.h
 )
 
 add_library(Vixen STATIC ${SOURCES})

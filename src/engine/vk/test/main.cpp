@@ -16,12 +16,7 @@
 #include "VkRenderer.h"
 #include "VkVixen.h"
 #include "../../Camera.h"
-
-struct Vertex {
-    glm::vec3 position;
-    glm::vec3 color;
-    glm::vec2 uv;
-};
+#include "../../PrimitiveTopology.h"
 
 struct UniformBufferObject {
     glm::mat4 model;
@@ -43,26 +38,26 @@ int main() {
     const auto vertexShader = Vixen::Vk::VkShaderModule::Builder(Vixen::ShaderModule::Stage::VERTEX)
                               .addBinding({
                                   .binding = 0,
-                                  .stride = sizeof(Vertex),
+                                  .stride = sizeof(Vixen::Vk::Vertex),
                                   .rate = Vixen::Vk::VkShaderModule::Rate::VERTEX
                               })
                               .addInput({
                                   .binding = 0,
                                   .location = 0,
                                   .size = sizeof(glm::vec3),
-                                  .offset = offsetof(Vertex, position)
+                                  .offset = offsetof(Vixen::Vk::Vertex, position)
                               })
                               .addInput({
                                   .binding = 0,
                                   .location = 1,
-                                  .size = sizeof(glm::vec3),
-                                  .offset = offsetof(Vertex, color)
+                                  .size = sizeof(glm::vec4),
+                                  .offset = offsetof(Vixen::Vk::Vertex, color)
                               })
                               .addInput({
                                   .binding = 0,
                                   .location = 2,
                                   .size = sizeof(glm::vec2),
-                                  .offset = offsetof(Vertex, uv)
+                                  .offset = offsetof(Vixen::Vk::Vertex, uv)
                               })
                               .compileFromFile(vixen.getDevice(), "../../src/editor/shaders/triangle.vert");
     const auto fragment = Vixen::Vk::VkShaderModule::Builder(Vixen::ShaderModule::Stage::FRAGMENT)
@@ -87,27 +82,27 @@ int main() {
     if (!scene)
         throw std::runtime_error("Failed to load model from file");
 
-    const auto& mesh = scene->mMeshes[0];
-    const auto& hasColors = mesh->HasVertexColors(0);
-    const auto& hasUvs = mesh->HasTextureCoords(0);
+    const auto& aiMesh = scene->mMeshes[0];
+    const auto& hasColors = aiMesh->HasVertexColors(0);
+    const auto& hasUvs = aiMesh->HasTextureCoords(0);
 
-    std::vector<Vertex> vertices(mesh->mNumVertices);
-    for (uint32_t i = 0; i < mesh->mNumVertices; i++) {
-        const auto& vertex = mesh->mVertices[i];
+    std::vector<Vixen::Vk::Vertex> vertices(aiMesh->mNumVertices);
+    for (uint32_t i = 0; i < aiMesh->mNumVertices; i++) {
+        const auto& vertex = aiMesh->mVertices[i];
         // TODO: Instead of storing default values for each vertex where a color or UV is missing, we should compact this down to save memory
-        const auto& color = hasColors ? mesh->mColors[0][i] : aiColor4D{1.0f, 1.0f, 1.0f, 1.0f};
-        const auto& uv = hasUvs ? mesh->mTextureCoords[0][i] : aiVector3D{1.0f, 1.0f, 1.0f};
+        const auto& color = hasColors ? aiMesh->mColors[0][i] : aiColor4D{1.0f, 1.0f, 1.0f, 1.0f};
+        const auto& uv = hasUvs ? aiMesh->mTextureCoords[0][i] : aiVector3D{1.0f, 1.0f, 1.0f};
 
-        vertices[i] = Vertex{
+        vertices[i] = Vixen::Vk::Vertex{
             .position = {vertex.x, vertex.y, vertex.z},
-            .color = {color.r, color.g, color.b},
+            .color = {color.r, color.g, color.b, color.a},
             .uv = {uv.x, uv.y}
         };
     }
 
-    std::vector<uint32_t> indices(mesh->mNumFaces * 3);
-    for (uint32_t i = 0; i < mesh->mNumFaces; i++) {
-        const auto& face = mesh->mFaces[i];
+    std::vector<uint32_t> indices(aiMesh->mNumFaces * 3);
+    for (uint32_t i = 0; i < aiMesh->mNumFaces; i++) {
+        const auto& face = aiMesh->mFaces[i];
         if (face.mNumIndices != 3) {
             spdlog::warn("Skipping face with {} indices", face.mNumIndices);
             continue;
@@ -119,7 +114,7 @@ int main() {
     }
 
     aiString path;
-    scene->mMaterials[mesh->mMaterialIndex]->GetTexture(aiTextureType_DIFFUSE, 0, &path);
+    scene->mMaterials[aiMesh->mMaterialIndex]->GetTexture(aiTextureType_DIFFUSE, 0, &path);
 
     const auto& texture = scene->GetEmbeddedTexture(path.C_Str());
     assert(texture != nullptr && "Texture is nullptr");
@@ -140,41 +135,9 @@ int main() {
         );
     }
 
-    auto stagingBuffer = Vixen::Vk::VkBuffer(
-        vixen.getDevice(),
-        Vixen::Buffer::Usage::VERTEX |
-        Vixen::Buffer::Usage::INDEX |
-        Vixen::Buffer::Usage::TRANSFER_SRC,
-        vertices.size() * sizeof(Vertex) +
-        indices.size() * sizeof(uint32_t)
-    );
-    const auto& buffer = Vixen::Vk::VkBuffer(
-        vixen.getDevice(),
-        Vixen::Buffer::Usage::VERTEX |
-        Vixen::Buffer::Usage::INDEX |
-        Vixen::Buffer::Usage::TRANSFER_DST,
-        vertices.size() * sizeof(Vertex) +
-        indices.size() * sizeof(uint32_t)
-    );
-
-    stagingBuffer.write(
-        reinterpret_cast<std::byte*>(vertices.data()),
-        vertices.size() * sizeof(vertices[0]),
-        0
-    );
-    stagingBuffer.write(
-        reinterpret_cast<std::byte*>(indices.data()),
-        indices.size() * sizeof(indices[0]),
-        vertices.size() * sizeof(vertices[0])
-    );
-
-    const auto& cmd = vixen.getDevice()
-                           ->getTransferCommandPool()
-                           ->allocate(Vixen::CommandBufferLevel::PRIMARY);
-    cmd.begin(Vixen::CommandBufferUsage::SINGLE);
-    cmd.copyBuffer(stagingBuffer, buffer);
-    cmd.end();
-    cmd.submit(vixen.getDevice()->getTransferQueue(), {}, {}, {});
+    auto mesh = Vixen::Vk::VkMesh(vixen.getDevice());
+    mesh.setVertices(vertices);
+    mesh.setIndices(indices, Vixen::PrimitiveTopology::TRIANGLE_LIST);
 
     auto camera = Vixen::Camera(glm::vec3{0.0f, 0.0f, 0.0f});
 
@@ -191,7 +154,8 @@ int main() {
 
     auto uniformBuffer = Vixen::Vk::VkBuffer(
         vixen.getDevice(),
-        Vixen::Buffer::Usage::UNIFORM,
+        Vixen::BufferUsage::UNIFORM,
+        1,
         sizeof(UniformBufferObject)
     );
 
@@ -234,9 +198,9 @@ int main() {
             static_cast<float>(width) /
             static_cast<float>(height)
         );
-        uniformBuffer.write(reinterpret_cast<std::byte*>(&ubo), sizeof(UniformBufferObject), 0);
+        uniformBuffer.setData(reinterpret_cast<const std::byte*>(&ubo));
 
-        renderer->render(buffer, vertices.size(), indices.size(), descriptorSets);
+        renderer->render(mesh, descriptorSets);
 
         fps++;
         if (now - old >= 1) {

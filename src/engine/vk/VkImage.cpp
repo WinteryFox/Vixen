@@ -94,7 +94,7 @@ namespace Vixen::Vk {
         const auto& cmd = device->getTransferCommandPool()
                                 ->allocate(CommandBufferLevel::PRIMARY);
 
-        cmd.begin(CommandBufferUsage::SINGLE);
+        cmd.begin(CommandBufferUsage::ONCE);
 
         cmd.transitionImage(*this, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL);
         layout = VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL;
@@ -148,11 +148,7 @@ namespace Vixen::Vk {
             VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_SAMPLED_BIT,
             static_cast<uint32_t>(std::floor(std::log2(std::max(width, height)))) + 1
         );
-
-        // TODO
-        // image.transition(VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL);
         image.upload(buffer);
-        // image.transition(VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
 
         return image;
     }
@@ -183,10 +179,13 @@ namespace Vixen::Vk {
         const auto& bitsPerPixel = FreeImage_GetBPP(converted);
         const auto& pixels = FreeImage_GetBits(converted);
 
-        const VkDeviceSize size = width * height * (bitsPerPixel / 8);
-
-        auto staging = VkBuffer(device, Buffer::Usage::UNIFORM | Buffer::Usage::TRANSFER_SRC, size);
-        staging.write(reinterpret_cast<std::byte*>(pixels), size, 0);
+        const auto& staging = VkBuffer(
+            device,
+            BufferUsage::UNIFORM | BufferUsage::COPY_SOURCE,
+            width * height,
+            bitsPerPixel / 8
+        );
+        staging.setData(reinterpret_cast<std::byte*>(pixels));
 
         FreeImage_Unload(converted);
         FreeImage_Unload(bitmap);

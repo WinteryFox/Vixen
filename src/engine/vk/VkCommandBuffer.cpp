@@ -51,7 +51,7 @@ namespace Vixen::Vk {
         };
 
         switch (usage) {
-        case CommandBufferUsage::SINGLE:
+        case CommandBufferUsage::ONCE:
             info.flags = VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT;
             break;
         case CommandBufferUsage::SIMULTANEOUS:
