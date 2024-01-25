@@ -112,12 +112,16 @@ namespace Vixen::Vk {
         FreeImage_Initialise();
 
         const auto& format = FreeImage_GetFileType(path.c_str(), static_cast<int>(path.length()));
-        if (format == FIF_UNKNOWN)
-            error("Failed to determine image format, possibly unsupported format?");
+        if (format == FIF_UNKNOWN) {
+            error(R"(Failed to determine image format for file "{}", is the relative path correct? Possibly unsupported format?)", path);
+            throw std::runtime_error("Failed to determine image format for file");
+        }
 
         const auto& bitmap = FreeImage_Load(format, path.c_str(), 0);
-        if (!bitmap)
-            error("Failed to load image from file \"{}\"", path);
+        if (!bitmap) {
+            spdlog::error("Failed to load image from file \"{}\"", path);
+            throw std::runtime_error("Failed to load image from file");
+        }
 
         return from(device, bitmap);
     }
@@ -126,13 +130,18 @@ namespace Vixen::Vk {
                           const uint32_t size) {
         // TODO: Add some way to detect the format
         const auto& memory = FreeImage_OpenMemory(reinterpret_cast<BYTE*>(data), size);
-        if (!memory)
-            error("Failed to open image from memory");
+        if (!memory) {
+            spdlog::error("Failed to open memory for image");
+            throw std::runtime_error("Failed to open memory for image");
+        }
 
         const auto& bitmap = FreeImage_LoadFromMemory(FreeImage_GetFIFFromFormat(format.c_str()), memory, 0);
-        if (!bitmap)
-            throw std::runtime_error("Failed to load image from memory");
+        if (!bitmap) {
+            spdlog::error("Failed to load bitmap from memory");
+            throw std::runtime_error("Failed to load bitmap from memory");
+        }
 
+        // TODO: FreeImage_CloseMemory(memory);
         return from(device, bitmap);
     }
 

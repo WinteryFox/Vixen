@@ -5,6 +5,7 @@
 #endif
 
 #include <cstdlib>
+#include <filesystem>
 #include <string>
 #include <assimp/Importer.hpp>
 #include <assimp/postprocess.h>
@@ -76,9 +77,11 @@ int main() {
 
     auto renderer = std::make_unique<Vixen::Vk::VkRenderer>(pipeline, vixen.getSwapchain());
 
+    const std::string& file = "../../src/engine/vk/test/vikingroom.glb";
+    const std::string& path = std::filesystem::path(file).remove_filename().string();
+
     Assimp::Importer importer;
-    const auto& scene = importer.ReadFile("../../src/engine/vk/test/vikingroom.glb",
-                                          aiProcessPreset_TargetRealtime_Fast);
+    const auto& scene = importer.ReadFile(file, aiProcessPreset_TargetRealtime_Fast);
     if (!scene)
         throw std::runtime_error("Failed to load model from file");
 
@@ -113,16 +116,20 @@ int main() {
         indices[i * 3 + 2] = face.mIndices[2];
     }
 
-    aiString path;
-    scene->mMaterials[aiMesh->mMaterialIndex]->GetTexture(aiTextureType_DIFFUSE, 0, &path);
-
-    const auto& texture = scene->GetEmbeddedTexture(path.C_Str());
-    assert(texture != nullptr && "Texture is nullptr");
+    aiString imagePath;
+    const auto& material = scene->mMaterials[aiMesh->mMaterialIndex];
+    assert(material != nullptr && "Material is nullptr");
+    material->GetTexture(aiTextureType_DIFFUSE, 0, &imagePath);
+    const auto& texture = scene->GetEmbeddedTexture(imagePath.C_Str());
 
     std::shared_ptr<Vixen::Vk::VkImage> image;
-    if (texture->mHeight != 0) {
-        // TODO: Not implemented
-        throw std::runtime_error("Not implemented");
+    if (texture == nullptr) {
+        image = std::make_shared<Vixen::Vk::VkImage>(
+            Vixen::Vk::VkImage::from(
+                vixen.getDevice(),
+                path + imagePath.C_Str()
+            )
+        );
     }
     else {
         image = std::make_shared<Vixen::Vk::VkImage>(
