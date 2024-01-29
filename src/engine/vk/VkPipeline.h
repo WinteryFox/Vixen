@@ -3,7 +3,6 @@
 #include "Device.h"
 #include "VkShaderProgram.h"
 #include "VkPipelineLayout.h"
-#include "VkRenderPass.h"
 
 // TODO: This should really be abstracted so that we can later more easily create different pipelines
 namespace Vixen::Vk {
@@ -18,7 +17,8 @@ namespace Vixen::Vk {
             VkPipelineColorBlendAttachmentState colorBlendAttachment{};
             VkPipelineDepthStencilStateCreateInfo depthStencilInfo{};
             uint32_t subpass = 0;
-            VkFormat format = VK_FORMAT_UNDEFINED;
+            VkFormat colorFormat = VK_FORMAT_UNDEFINED;
+            VkFormat depthFormat = VK_FORMAT_UNDEFINED;
         };
 
     protected:
@@ -27,8 +27,6 @@ namespace Vixen::Vk {
         VkShaderProgram program;
 
         Config config;
-
-        VkRenderPass renderPass;
 
         VkPipelineLayout pipelineLayout;
 
@@ -47,7 +45,7 @@ namespace Vixen::Vk {
 
         VkPipeline(VkPipeline&& other) noexcept;
 
-        VkPipeline const& operator=(VkPipeline&& other) noexcept;
+        VkPipeline& operator=(VkPipeline&& other) noexcept;
 
         ~VkPipeline();
 
@@ -60,8 +58,6 @@ namespace Vixen::Vk {
         void bindRayTracing(::VkCommandBuffer commandBuffer) const;
 
         [[nodiscard]] const VkShaderProgram& getProgram() const;
-
-        [[nodiscard]] const VkRenderPass& getRenderPass() const;
 
         [[nodiscard]] const Config& getConfig() const;
 
@@ -148,33 +144,38 @@ namespace Vixen::Vk {
                 return *this;
             }
 
-            Builder& setInputAssembly(VkPipelineInputAssemblyStateCreateInfo info) {
+            Builder& setInputAssembly(const VkPipelineInputAssemblyStateCreateInfo& info) {
                 config.inputAssemblyInfo = info;
                 return *this;
             }
 
-            Builder& setRasterization(VkPipelineRasterizationStateCreateInfo info) {
+            Builder& setRasterization(const VkPipelineRasterizationStateCreateInfo& info) {
                 config.rasterizationInfo = info;
                 return *this;
             }
 
-            Builder& setMultisample(VkPipelineMultisampleStateCreateInfo info) {
+            Builder& setMultisample(const VkPipelineMultisampleStateCreateInfo& info) {
                 config.multisampleInfo = info;
                 return *this;
             }
 
-            Builder& setColorBlend(VkPipelineColorBlendAttachmentState info) {
+            Builder& setColorBlend(const VkPipelineColorBlendAttachmentState& info) {
                 config.colorBlendAttachment = info;
                 return *this;
             }
 
-            Builder& setDepthStencil(VkPipelineDepthStencilStateCreateInfo info) {
+            Builder& setDepthStencil(const VkPipelineDepthStencilStateCreateInfo& info) {
                 config.depthStencilInfo = info;
                 return *this;
             }
 
-            Builder& setFormat(const VkFormat format) {
-                config.format = format;
+            Builder& setColorFormat(const VkFormat &format) {
+                config.colorFormat = format;
+                return *this;
+            }
+
+            Builder& setDepthFormat(const VkFormat &format) {
+                config.depthFormat = format;
                 return *this;
             }
 

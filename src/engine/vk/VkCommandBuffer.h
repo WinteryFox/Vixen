@@ -3,7 +3,10 @@
 #include "VkBuffer.h"
 #include "VkFence.h"
 #include "VkImage.h"
+#include "VkMesh.h"
+#include "../AttachmentInfo.h"
 #include "../CommandBuffer.h"
+#include "../Rectangle.h"
 
 namespace Vixen::Vk {
     class VkCommandPool;
@@ -29,16 +32,8 @@ namespace Vixen::Vk {
         ~VkCommandBuffer();
 
         template <typename F>
-        VkCommandBuffer& record(CommandBufferUsage usage, F commands) {
-            reset();
-
-            begin(usage);
-
+        void record(F commands) const {
             commands(commandBuffer);
-
-            end();
-
-            return *this;
         }
 
         void wait() const;
@@ -55,6 +50,22 @@ namespace Vixen::Vk {
             const std::vector<::VkPipelineStageFlags>& waitMasks,
             const std::vector<::VkSemaphore>& signalSemaphores
         ) const;
+
+        void beginRenderPass(
+            uint32_t width,
+            uint32_t height,
+            uint8_t samples,
+            const std::vector<AttachmentInfo>& attachments,
+            const VkImageView &depthAttachment
+        ) const;
+
+        void endRenderPass() const;
+
+        void setViewport(Rectangle rectangle) const;
+
+        void setScissor(Rectangle rectangle) const;
+
+        void drawMesh(const VkMesh& mesh) const;
 
         void copyBuffer(const VkBuffer& source, const VkBuffer& destination) const;
 

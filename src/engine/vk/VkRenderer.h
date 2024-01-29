@@ -1,15 +1,15 @@
 #pragma once
 
 #include "Device.h"
-#include "VkBuffer.h"
 #include "VkCommandPool.h"
-#include "VkFramebuffer.h"
 #include "VkMesh.h"
 #include "VkPipeline.h"
 #include "VkPipelineLayout.h"
 #include "VkSemaphore.h"
 
 namespace Vixen::Vk {
+    class Swapchain;
+
     class VkRenderer {
         std::shared_ptr<Device> device;
 
@@ -22,12 +22,6 @@ namespace Vixen::Vk {
         std::shared_ptr<VkCommandPool> renderCommandPool;
 
         std::vector<VkCommandBuffer> renderCommandBuffers;
-
-        std::vector<std::shared_ptr<VkImage>> depthImages;
-
-        std::vector<std::unique_ptr<VkImageView>> depthImageViews;
-
-        std::vector<VkFramebuffer> framebuffers;
 
         std::vector<VkSemaphore> renderFinishedSemaphores;
 
@@ -44,17 +38,15 @@ namespace Vixen::Vk {
         ~VkRenderer();
 
         void render(
-            const VkMesh &mesh,
+            const VkMesh& mesh,
             const std::vector<::VkDescriptorSet>& descriptorSets
         );
 
     private:
-        void createFramebuffers();
-
         void prepare(
-            VkCommandBuffer& commandBuffer,
-            VkFramebuffer& framebuffer,
-            const VkMesh &mesh,
+            uint32_t imageIndex,
+            const VkCommandBuffer& commandBuffer,
+            const VkMesh& mesh,
             const std::vector<::VkDescriptorSet>& descriptorSets
         ) const;
     };

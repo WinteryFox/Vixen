@@ -2,10 +2,42 @@
 
 #include <memory>
 #include "Device.h"
+#include "VkImage.h"
+#include "VkImageView.h"
 #include "VkSemaphore.h"
 
 namespace Vixen::Vk {
     class Swapchain {
+        std::shared_ptr<Device> device;
+
+        uint32_t currentFrame;
+
+        uint32_t imageCount;
+
+        VkSurfaceFormatKHR format;
+
+        VkSwapchainKHR swapchain;
+
+        std::vector<std::shared_ptr<VkImage>> colorImages;
+
+        std::vector<VkImageView> colorImageViews;
+
+        std::vector<std::shared_ptr<VkImage>> depthImages;
+
+        std::vector<VkImageView> depthImageViews;
+
+        VkExtent2D extent{};
+
+        std::vector<VkSemaphore> imageAvailableSemaphores;
+
+        static VkSurfaceFormatKHR determineSurfaceFormat(const std::vector<VkSurfaceFormatKHR>& available);
+
+        static VkPresentModeKHR determinePresentMode(const std::vector<VkPresentModeKHR>& available);
+
+        void create();
+
+        void destroy();
+
     public:
         enum class State {
             OK,
@@ -13,7 +45,7 @@ namespace Vixen::Vk {
             OUT_OF_DATE
         };
 
-        Swapchain(const std::shared_ptr<Device> &device, uint32_t framesInFlight);
+        Swapchain(const std::shared_ptr<Device>& device, uint32_t framesInFlight);
 
         ~Swapchain();
 
@@ -24,18 +56,18 @@ namespace Vixen::Vk {
          * @return Returns true when the swapchain is out-of-date, indicating the need to recreate the swapchain,
          * otherwise false.
          */
-        template<typename F>
-        State acquireImage(uint64_t timeout, const F &lambda) {
-            auto &imageAvailableSemaphore = imageAvailableSemaphores[currentFrame];
+        template <typename F>
+        State acquireImage(uint64_t timeout, const F& lambda) {
+            auto& imageAvailableSemaphore = imageAvailableSemaphores[currentFrame];
 
             uint32_t imageIndex;
             auto result = vkAcquireNextImageKHR(
-                    device->getDevice(),
-                    swapchain,
-                    timeout,
-                    imageAvailableSemaphore.getSemaphore(),
-                    VK_NULL_HANDLE,
-                    &imageIndex
+                device->getDevice(),
+                swapchain,
+                timeout,
+                imageAvailableSemaphore.getSemaphore(),
+                VK_NULL_HANDLE,
+                &imageIndex
             );
 
             if (result == VK_ERROR_OUT_OF_DATE_KHR) {
@@ -49,56 +81,37 @@ namespace Vixen::Vk {
 
             switch (result) {
                 using
-                enum State;
+                    enum State;
 
-                case VK_SUCCESS:
-                    return OK;
-                case VK_SUBOPTIMAL_KHR:
-                    spdlog::warn("Suboptimal swapchain state");
-                    return SUBOPTIMAL;
-                default:
-                    checkVulkanResult(result, "Failed to acquire swapchain image");
-                    return OUT_OF_DATE;
+            case VK_SUCCESS:
+                return OK;
+            case VK_SUBOPTIMAL_KHR:
+                spdlog::warn("Suboptimal swapchain state");
+                return SUBOPTIMAL;
+            default:
+                checkVulkanResult(result, "Failed to acquire swapchain image");
+                return OUT_OF_DATE;
             }
         }
 
-        [[nodiscard]] const VkSurfaceFormatKHR &getFormat() const;
+        [[nodiscard]] const VkSurfaceFormatKHR& getColorFormat() const;
 
-        [[nodiscard]] const VkExtent2D &getExtent() const;
+        [[nodiscard]] VkFormat getDepthFormat() const;
+
+        [[nodiscard]] const VkExtent2D& getExtent() const;
 
         [[nodiscard]] uint32_t getImageCount() const;
 
-        [[nodiscard]] const std::vector<::VkImageView> &getImageViews() const;
+        [[nodiscard]] const std::vector<std::shared_ptr<VkImage>>& getColorImages() const;
 
-        void present(uint32_t imageIndex, const std::vector<::VkSemaphore> &waitSemaphores);
+        [[nodiscard]] const std::vector<VkImageView>& getColorImageViews() const;
+
+        [[nodiscard]] const std::vector<std::shared_ptr<VkImage>>& getDepthImages() const;
+
+        [[nodiscard]] const std::vector<VkImageView>& getDepthImageViews() const;
+
+        void present(uint32_t imageIndex, const std::vector<::VkSemaphore>& waitSemaphores);
 
         void invalidate();
-
-    private:
-        std::shared_ptr<Device> device;
-
-        uint32_t currentFrame;
-
-        uint32_t imageCount;
-
-        VkSurfaceFormatKHR format;
-
-        VkSwapchainKHR swapchain;
-
-        std::vector<::VkImage> images;
-
-        std::vector<::VkImageView> imageViews;
-
-        VkExtent2D extent{};
-
-        std::vector<VkSemaphore> imageAvailableSemaphores;
-
-        static VkSurfaceFormatKHR determineSurfaceFormat(const std::vector<VkSurfaceFormatKHR> &available);
-
-        static VkPresentModeKHR determinePresentMode(const std::vector<VkPresentModeKHR> &available);
-
-        void create();
-
-        void destroy();
     };
 }

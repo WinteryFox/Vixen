@@ -9,13 +9,15 @@ namespace Vixen::Vk {
         ::VkImageView imageView;
 
     public:
-        VkImageView(const std::shared_ptr<VkImage> &image, VkImageAspectFlags aspectFlags);
+        VkImageView(const std::shared_ptr<VkImage>& image, VkImageAspectFlags aspectFlags);
 
-        VkImageView(const VkImageView &) = delete;
+        VkImageView(const VkImageView&) = delete;
 
-//        VkImageView(VkImageView &&o) noexcept;
+        VkImageView& operator=(const VkImageView&) = delete;
 
-        VkImageView &operator=(const VkImageView &) = delete;
+        VkImageView(VkImageView&& o) noexcept;
+
+        VkImageView& operator=(VkImageView&& o) noexcept;
 
         ~VkImageView();
 

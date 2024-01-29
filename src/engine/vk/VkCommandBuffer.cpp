@@ -1,6 +1,7 @@
 #include "VkCommandBuffer.h"
 
 #include "VkCommandPool.h"
+#include "../IndexFormat.h"
 
 namespace Vixen::Vk {
     VkCommandBuffer::VkCommandBuffer(
@@ -104,6 +105,145 @@ namespace Vixen::Vk {
         );
     }
 
+    void VkCommandBuffer::beginRenderPass(
+        const uint32_t width,
+        const uint32_t height,
+        const uint8_t samples,
+        const std::vector<AttachmentInfo>& attachments,
+        const VkImageView& depthAttachment
+    ) const {
+        std::vector<VkRenderingAttachmentInfo> vkAttachments{attachments.size()};
+        for (auto i = 0; i < attachments.size(); i++) {
+            auto [loadAction, storeAction, layout, loadStoreTarget, resolveTarget, clearColor, clearDepth, clearStencil]
+                = attachments[i];
+
+            vkAttachments[i] = {
+                .sType = VK_STRUCTURE_TYPE_RENDERING_ATTACHMENT_INFO,
+                .pNext = nullptr,
+                .imageView = loadStoreTarget,
+                .imageLayout = layout,
+                .resolveMode = storeAction == StoreAction::Resolve ||
+                               storeAction == StoreAction::StoreAndResolve
+                                   ? VK_RESOLVE_MODE_AVERAGE_BIT
+                                   : VK_RESOLVE_MODE_NONE,
+                .resolveImageView = resolveTarget,
+                .resolveImageLayout = layout,
+                .loadOp = toVkLoadAction(loadAction),
+                .storeOp = toVkStoreAction(storeAction),
+                .clearValue = {
+                    .color = {
+                        clearColor.r,
+                        clearColor.g,
+                        clearColor.b,
+                        clearColor.a
+                    },
+                }
+            };
+        }
+
+        VkRenderingAttachmentInfo depthAttachmentInfo{
+            .sType = VK_STRUCTURE_TYPE_RENDERING_ATTACHMENT_INFO,
+            .pNext = nullptr,
+            .imageView = depthAttachment,
+            .imageLayout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL,
+            .resolveMode = VK_RESOLVE_MODE_NONE,
+            .resolveImageView = nullptr,
+            .resolveImageLayout = VK_IMAGE_LAYOUT_UNDEFINED,
+            .loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR,
+            .storeOp = VK_ATTACHMENT_STORE_OP_STORE,
+            .clearValue = {
+                .depthStencil = {
+                    1.0f,
+                    0
+                }
+            }
+        };
+
+        const VkRenderingInfo renderingInfo{
+            .sType = VK_STRUCTURE_TYPE_RENDERING_INFO,
+            .pNext = nullptr,
+            .flags = 0,
+            .renderArea = {
+                .offset = {
+                    .x = 0,
+                    .y = 0
+                },
+                .extent = {
+                    .width = width,
+                    .height = height
+                }
+            },
+            .layerCount = 1,
+            .viewMask = 0,
+            .colorAttachmentCount = static_cast<uint32_t>(vkAttachments.size()),
+            .pColorAttachments = vkAttachments.data(),
+            .pDepthAttachment = &depthAttachmentInfo,
+            .pStencilAttachment = &depthAttachmentInfo
+        };
+
+        vkCmdBeginRendering(commandBuffer, &renderingInfo);
+    }
+
+    void VkCommandBuffer::endRenderPass() const {
+        vkCmdEndRendering(commandBuffer);
+    }
+
+    void VkCommandBuffer::setViewport(const Rectangle rectangle) const {
+        const VkViewport viewport{
+            .x = rectangle.x,
+            .y = rectangle.y,
+            .width = rectangle.width,
+            .height = rectangle.height,
+            .minDepth = 0.0f,
+            .maxDepth = 1.0f
+        };
+
+        vkCmdSetViewport(commandBuffer, 0, 1, &viewport);
+    }
+
+    void VkCommandBuffer::setScissor(const Rectangle rectangle) const {
+        const VkRect2D rect{
+            .offset = {
+                .x = static_cast<int32_t>(rectangle.x),
+                .y = static_cast<int32_t>(rectangle.y)
+            },
+            .extent = {
+                .width = static_cast<uint32_t>(rectangle.width),
+                .height = static_cast<uint32_t>(rectangle.height)
+            }
+        };
+
+        vkCmdSetScissor(commandBuffer, 0, 1, &rect);
+    }
+
+    void VkCommandBuffer::drawMesh(const VkMesh& mesh) const {
+        const auto& vertexBuffer = mesh.getVertexBuffer().getBuffer();
+        constexpr std::array<VkDeviceSize, 1> offsets{0};
+        vkCmdBindVertexBuffers(
+            commandBuffer,
+            0,
+            1,
+            &vertexBuffer,
+            offsets.data()
+        );
+
+        vkCmdBindIndexBuffer(
+            commandBuffer,
+            mesh.getIndexBuffer().getBuffer(),
+            0,
+            mesh.getIndexFormat() == IndexFormat::UNSIGNED_INT_16 ? VK_INDEX_TYPE_UINT16 : VK_INDEX_TYPE_UINT32
+        );
+
+        vkCmdDrawIndexed(
+            commandBuffer,
+            mesh.getIndexCount(),
+            1,
+            0,
+            0,
+            0
+        );
+    }
+
     void VkCommandBuffer::copyBuffer(const VkBuffer& source, const VkBuffer& destination) const {
         const VkBufferCopy region{
             .srcOffset = 0,
@@ -153,7 +293,11 @@ namespace Vixen::Vk {
             .dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED,
             .image = image.getImage(),
             .subresourceRange = {
-                .aspectMask = VK_IMAGE_ASPECT_COLOR_BIT,
+                .aspectMask = static_cast<VkImageAspectFlags>(
+                    isDepthFormat(image.getFormat())
+                        ? VK_IMAGE_ASPECT_DEPTH_BIT | VK_IMAGE_ASPECT_STENCIL_BIT
+                        : VK_IMAGE_ASPECT_COLOR_BIT
+                ),
                 .baseMipLevel = 0,
                 .levelCount = image.getMipLevels(),
                 .baseArrayLayer = 0,
@@ -171,18 +315,33 @@ namespace Vixen::Vk {
 
             sourceFlags = VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT;
             destinationFlags = VK_PIPELINE_STAGE_TRANSFER_BIT;
-        }
-        else if (image.getLayout() == VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL &&
+        } else if (image.getLayout() == VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL &&
             layout == VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL) {
             barrier.srcAccessMask = VK_ACCESS_TRANSFER_WRITE_BIT;
             barrier.dstAccessMask = VK_ACCESS_SHADER_READ_BIT;
 
             sourceFlags = VK_PIPELINE_STAGE_TRANSFER_BIT;
             destinationFlags = VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT;
-        }
-        else {
+        } else if (layout == VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL) {
+            barrier.srcAccessMask = 0;
+            barrier.dstAccessMask = VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT;
+
+            sourceFlags = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT;
+            destinationFlags = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT;
+        } else if (layout == VK_IMAGE_LAYOUT_PRESENT_SRC_KHR) {
+            barrier.srcAccessMask = VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT;
+            barrier.dstAccessMask = 0;
+
+            sourceFlags = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT;
+            destinationFlags = VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT;
+        } else if (layout == VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL) {
+            barrier.srcAccessMask = 0;
+            barrier.dstAccessMask = VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_WRITE_BIT;
+
+            sourceFlags = VK_PIPELINE_STAGE_EARLY_FRAGMENT_TESTS_BIT | VK_PIPELINE_STAGE_LATE_FRAGMENT_TESTS_BIT;
+            destinationFlags = VK_PIPELINE_STAGE_EARLY_FRAGMENT_TESTS_BIT | VK_PIPELINE_STAGE_LATE_FRAGMENT_TESTS_BIT;
+        } else
             throw std::runtime_error("Unsupported transition layout");
-        }
 
         vkCmdPipelineBarrier(
             commandBuffer,

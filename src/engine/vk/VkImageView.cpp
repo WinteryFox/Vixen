@@ -21,9 +21,16 @@ namespace Vixen::Vk {
         );
     }
 
-    //    VkImageView::VkImageView(VkImageView &&o) noexcept
-    //            : image(o.image),
-    //              imageView(std::exchange(o.imageView, VK_NULL_HANDLE)) {}
+    VkImageView::VkImageView(VkImageView&& o) noexcept
+        : image(std::exchange(o.image, nullptr)),
+          imageView(std::exchange(o.imageView, nullptr)) {}
+
+    VkImageView& VkImageView::operator=(VkImageView&& o) noexcept {
+        std::swap(image, o.image);
+        std::swap(imageView, o.imageView);
+
+        return *this;
+    }
 
     VkImageView::~VkImageView() {
         vkDestroyImageView(

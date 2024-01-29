@@ -21,7 +21,9 @@
 
 struct UniformBufferObject {
     glm::mat4 model;
+
     glm::mat4 view;
+
     glm::mat4 projection;
 };
 
@@ -72,12 +74,13 @@ int main() {
     auto pipeline = Vixen::Vk::VkPipeline::Builder()
                     .setWidth(width)
                     .setHeight(height)
-                    .setFormat(vixen.getSwapchain()->getFormat().format)
+                    .setColorFormat(vixen.getSwapchain()->getColorFormat().format)
+                    .setDepthFormat(vixen.getSwapchain()->getDepthFormat())
                     .build(vixen.getDevice(), program);
 
     auto renderer = std::make_unique<Vixen::Vk::VkRenderer>(pipeline, vixen.getSwapchain());
 
-    const std::string& file = "../../src/engine/vk/test/vikingroom.glb";
+    const std::string& file = "../../src/engine/vk/test/NewSponza_Main_glTF_002.gltf";
     const std::string& path = std::filesystem::path(file).remove_filename().string();
 
     Assimp::Importer importer;
@@ -130,8 +133,7 @@ int main() {
                 path + imagePath.C_Str()
             )
         );
-    }
-    else {
+    } else {
         image = std::make_shared<Vixen::Vk::VkImage>(
             Vixen::Vk::VkImage::from(
                 vixen.getDevice(),
@@ -172,9 +174,7 @@ int main() {
         camera.perspective(static_cast<float>(width) / static_cast<float>(height))
     };
     ubo.model = translate(ubo.model, {0.0f, -0.5f, -1.5f});
-    //ubo.model = rotate(ubo.model, glm::radians(45.0f), {1.0f, 0.0f, 1.0f});
     ubo.model = rotate(ubo.model, glm::radians(225.0f), {0.0f, 1.0f, 0.0f});
-    //ubo.model = rotate(ubo.model, glm::radians(45.0f), {0.0f, 0.0f, 1.0f});
 
     auto descriptorPool = std::make_shared<Vixen::Vk::VkDescriptorPool>(vixen.getDevice(), sizes, 1);
     auto mvp = Vixen::Vk::VkDescriptorSet(vixen.getDevice(), descriptorPool, *program.getDescriptorSetLayout());

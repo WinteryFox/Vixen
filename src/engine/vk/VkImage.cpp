@@ -44,6 +44,11 @@ namespace Vixen::Vk {
         constexpr VmaAllocationCreateInfo allocationCreateInfo = {
             .flags = VMA_ALLOCATION_CREATE_DEDICATED_MEMORY_BIT,
             .usage = VMA_MEMORY_USAGE_AUTO,
+            .requiredFlags = 0,
+            .preferredFlags = 0,
+            .memoryTypeBits = 0,
+            .pool = nullptr,
+            .pUserData = nullptr,
             .priority = 1.0f
         };
 
@@ -59,6 +64,24 @@ namespace Vixen::Vk {
             "Failed to create image"
         );
     }
+
+    VkImage::VkImage(
+        const std::shared_ptr<Device>& device,
+        ::VkImage image,
+        const uint32_t width,
+        const uint32_t height,
+        const VkFormat format,
+        const VkImageUsageFlags usageFlags,
+        const uint8_t mipLevels
+    ) : device(device),
+        image(image),
+        allocation(VK_NULL_HANDLE),
+        width(width),
+        height(height),
+        layout(VK_IMAGE_LAYOUT_UNDEFINED),
+        format(format),
+        usageFlags(usageFlags),
+        mipLevels(mipLevels) {}
 
     VkImage::VkImage(VkImage&& other) noexcept
         : device(std::exchange(other.device, nullptr)),
@@ -113,7 +136,9 @@ namespace Vixen::Vk {
 
         const auto& format = FreeImage_GetFileType(path.c_str(), static_cast<int>(path.length()));
         if (format == FIF_UNKNOWN) {
-            error(R"(Failed to determine image format for file "{}", is the relative path correct? Possibly unsupported format?)", path);
+            error(
+                R"(Failed to determine image format for file "{}", is the relative path correct? Possibly unsupported format?)",
+                path);
             throw std::runtime_error("Failed to determine image format for file");
         }
 

@@ -16,6 +16,10 @@ set(
         IndexFormat.h
         PrimitiveTopology.h
         VertexAttribute.h
+        AttachmentInfo.h
+        LoadAction.h
+        StoreAction.h
+        Rectangle.h
 )
 
 add_library(Vixen STATIC ${SOURCES})

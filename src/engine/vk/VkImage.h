@@ -38,6 +38,16 @@ namespace Vixen::Vk {
             uint8_t mipLevels
         );
 
+        VkImage(
+            const std::shared_ptr<Device>& device,
+            ::VkImage image,
+            uint32_t width,
+            uint32_t height,
+            VkFormat format,
+            VkImageUsageFlags usageFlags,
+            uint8_t mipLevels
+        );
+
         VkImage(VkImage& other) = delete;
 
         VkImage& operator=(const VkImage& other) = delete;

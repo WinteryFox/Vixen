@@ -37,16 +37,12 @@ add_library(
         VkRenderer.h
         VkPipelineLayout.cpp
         VkPipelineLayout.h
-        VkRenderPass.cpp
-        VkRenderPass.h
         VkCommandBuffer.cpp
         VkCommandBuffer.h
         VkCommandPool.cpp
         VkCommandPool.h
         VkFence.cpp
         VkFence.h
-        VkFramebuffer.cpp
-        VkFramebuffer.h
         VkImage.cpp
         VkImage.h
         VkImageView.cpp

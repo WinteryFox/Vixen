@@ -8,7 +8,6 @@ namespace Vixen::Vk {
     ) : device(device),
         program(program),
         config(config),
-        renderPass(device, config.format),
         pipelineLayout(device, program) {
         std::vector<VkPipelineShaderStageCreateInfo> stages;
         stages.emplace_back(program.getVertex()->createInfo());
@@ -108,8 +107,19 @@ namespace Vixen::Vk {
             }
         };
 
-        const VkGraphicsPipelineCreateInfo pipelineInfo{
+        const VkPipelineRenderingCreateInfo renderingCreateInfo{
+            .sType = VK_STRUCTURE_TYPE_PIPELINE_RENDERING_CREATE_INFO,
+            .pNext = nullptr,
+            .viewMask = 0,
+            .colorAttachmentCount = 1,
+            .pColorAttachmentFormats = &config.colorFormat,
+            .depthAttachmentFormat = config.depthFormat,
+            .stencilAttachmentFormat = config.depthFormat
+        };
+
+        const VkGraphicsPipelineCreateInfo pipelineCreateInfo{
             .sType = VK_STRUCTURE_TYPE_GRAPHICS_PIPELINE_CREATE_INFO,
+            .pNext = &renderingCreateInfo,
             .stageCount = static_cast<uint32_t>(stages.size()),
             .pStages = stages.data(),
             .pVertexInputState = &vertexInputInfo,
@@ -122,15 +132,15 @@ namespace Vixen::Vk {
             .pDynamicState = &dynamicStateInfo,
 
             .layout = pipelineLayout.getLayout(),
-            .renderPass = renderPass.getRenderPass(),
+            .renderPass = VK_NULL_HANDLE,
             .subpass = config.subpass,
 
             .basePipelineHandle = VK_NULL_HANDLE,
-            .basePipelineIndex = -1,
+            .basePipelineIndex = -1
         };
 
         checkVulkanResult(
-            vkCreateGraphicsPipelines(device->getDevice(), VK_NULL_HANDLE, 1, &pipelineInfo, nullptr, &pipeline),
+            vkCreateGraphicsPipelines(device->getDevice(), VK_NULL_HANDLE, 1, &pipelineCreateInfo, nullptr, &pipeline),
             "Failed to create Vulkan pipeline"
         );
     }
@@ -139,15 +149,13 @@ namespace Vixen::Vk {
         : device(std::move(other.device)),
           program(std::move(other.program)),
           config(other.config),
-          renderPass(std::move(other.renderPass)),
           pipelineLayout(std::move(other.pipelineLayout)),
           pipeline(std::exchange(other.pipeline, nullptr)) {}
 
-    VkPipeline const& VkPipeline::operator=(VkPipeline&& other) noexcept {
+    VkPipeline& VkPipeline::operator=(VkPipeline&& other) noexcept {
         std::swap(device, other.device);
         std::swap(program, other.program);
         std::swap(config, other.config);
-        std::swap(renderPass, other.renderPass);
         std::swap(pipelineLayout, other.pipelineLayout);
         std::swap(pipeline, other.pipeline);
 
@@ -175,8 +183,6 @@ namespace Vixen::Vk {
     }
 
     const VkShaderProgram& VkPipeline::getProgram() const { return program; }
-
-    const VkRenderPass& VkPipeline::getRenderPass() const { return renderPass; }
 
     const VkPipeline::Config& VkPipeline::getConfig() const { return config; }
 

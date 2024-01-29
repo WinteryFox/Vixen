@@ -1,6 +1,6 @@
 #include "VkRenderer.h"
 
-#include "../IndexFormat.h"
+#include "Swapchain.h"
 
 namespace Vixen::Vk {
     VkRenderer::VkRenderer(
@@ -26,8 +26,6 @@ namespace Vixen::Vk {
         renderFinishedSemaphores.reserve(imageCount);
         for (size_t i = 0; i < imageCount; i++)
             renderFinishedSemaphores.emplace_back(device);
-
-        createFramebuffers();
     }
 
     VkRenderer::~VkRenderer() {
@@ -47,7 +45,7 @@ namespace Vixen::Vk {
         ) {
                 auto& commandBuffer = renderCommandBuffers[currentFrame];
 
-                prepare(commandBuffer, framebuffers[imageIndex], mesh, descriptorSets);
+                prepare(imageIndex, commandBuffer, mesh, descriptorSets);
 
                 std::vector<::VkSemaphore> signalSemaphores = {renderFinishedSemaphores[currentFrame].getSemaphore()};
 
@@ -63,153 +61,85 @@ namespace Vixen::Vk {
         ); state == Swapchain::State::OUT_OF_DATE) {
             device->waitIdle();
 
-            framebuffers.clear();
-            depthImageViews.clear();
-            depthImages.clear();
-
             swapchain->invalidate();
-
-            createFramebuffers();
         }
     }
 
     void VkRenderer::prepare(
-        VkCommandBuffer& commandBuffer,
-        VkFramebuffer& framebuffer,
+        const uint32_t imageIndex,
+        const VkCommandBuffer& commandBuffer,
         const VkMesh& mesh,
         const std::vector<::VkDescriptorSet>& descriptorSets
     ) const {
-        commandBuffer.record(
-            CommandBufferUsage::SIMULTANEOUS,
-            [this, &framebuffer, &mesh, &descriptorSets](::VkCommandBuffer commandBuffer) {
-                std::vector<VkClearValue> clearValues{
-                    {
-                        .color = {
-                            0.0f,
-                            0.0f,
-                            0.0f,
-                            1.0f
-                        }
-                    },
-                    {
-                        .depthStencil = {
-                            1.0f,
-                            0
-                        }
-                    }
-                };
+        const auto& [width, height] = swapchain->getExtent();
 
-                const VkRenderPassBeginInfo renderPassInfo{
-                    .sType = VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO,
-                    .renderPass = pipeline->getRenderPass().getRenderPass(),
-                    .framebuffer = framebuffer.getFramebuffer(),
-                    .renderArea = {
-                        .offset = {
-                            .x = 0,
-                            .y = 0
-                        },
-                        .extent = swapchain->getExtent(),
-                    },
-                    .clearValueCount = static_cast<uint32_t>(clearValues.size()),
-                    .pClearValues = clearValues.data()
-                };
+        commandBuffer.wait();
+        commandBuffer.reset();
 
-                vkCmdBeginRenderPass(commandBuffer, &renderPassInfo, VK_SUBPASS_CONTENTS_INLINE);
+        commandBuffer.begin(CommandBufferUsage::SIMULTANEOUS);
 
-                pipeline->bindGraphics(commandBuffer);
-
-                const VkViewport viewport{
-                    .x = 0.0f,
-                    .y = 0.0f,
-                    .width = static_cast<float>(swapchain->getExtent().width),
-                    .height = static_cast<float>(swapchain->getExtent().height),
-                    .minDepth = 0.0f,
-                    .maxDepth = 1.0f,
-                };
-                vkCmdSetViewport(commandBuffer, 0, 1, &viewport);
-
-                const VkRect2D scissor{
-                    .offset = {0, 0},
-                    .extent = swapchain->getExtent(),
-                };
-                vkCmdSetScissor(commandBuffer, 0, 1, &scissor);
-
-                const ::VkBuffer vertexBuffers[1]{mesh.getVertexBuffer().getBuffer()};
-                // TODO: Hardcoded buffer offset should probably automatically be determined somehow
-                constexpr VkDeviceSize offsets[] = {0};
-
-                vkCmdBindVertexBuffers(
-                    commandBuffer,
-                    0,
-                    1,
-                    vertexBuffers,
-                    offsets
-                );
-
-                vkCmdBindIndexBuffer(
-                    commandBuffer,
-                    mesh.getIndexBuffer().getBuffer(),
-                    // TODO: Remove hardcoded offset
-                    0,
-                    mesh.getIndexFormat() == IndexFormat::UNSIGNED_INT_16 ? VK_INDEX_TYPE_UINT16 : VK_INDEX_TYPE_UINT32
-                );
-
-                vkCmdBindDescriptorSets(
-                    commandBuffer,
-                    VK_PIPELINE_BIND_POINT_GRAPHICS,
-                    pipelineLayout->getLayout(),
-                    0,
-                    descriptorSets.size(),
-                    descriptorSets.data(),
-                    0,
-                    nullptr
-                );
-
-                // TODO: Hardcoded buffer offset should probably automatically be determined somehow
-                vkCmdDrawIndexed(commandBuffer, mesh.getIndexCount(), 1, 0, 0, 0);
-
-                vkCmdEndRenderPass(commandBuffer);
-            }
+        commandBuffer.transitionImage(
+            *swapchain->getColorImages()[imageIndex],
+            VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL
         );
-    }
+        commandBuffer.transitionImage(
+            *swapchain->getDepthImages()[imageIndex],
+            VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL
+        );
 
-    void VkRenderer::createFramebuffers() {
-        const auto& imageCount = swapchain->getImageCount();
-
-        depthImages.reserve(imageCount);
-        depthImageViews.reserve(imageCount);
-        framebuffers.reserve(imageCount);
-        for (size_t i = 0; i < imageCount; i++) {
-            depthImages.push_back(
-                std::make_shared<VkImage>(
-                    device,
-                    swapchain->getExtent().width,
-                    swapchain->getExtent().height,
-                    VK_SAMPLE_COUNT_1_BIT,
-                    VK_FORMAT_D32_SFLOAT,
-                    VK_IMAGE_TILING_OPTIMAL,
-                    VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT,
-                    1
-                )
-            );
-
-            depthImageViews.emplace_back(
-                std::make_unique<VkImageView>(
-                    depthImages[i],
-                    VK_IMAGE_ASPECT_DEPTH_BIT
-                )
-            );
-
-            framebuffers.emplace_back(
-                device,
-                pipeline->getRenderPass(),
-                swapchain->getExtent().width,
-                swapchain->getExtent().height,
-                std::vector{
-                    swapchain->getImageViews()[i],
-                    depthImageViews[i]->getImageView()
+        commandBuffer.beginRenderPass(
+            width,
+            height,
+            1,
+            {
+                {
+                    .loadAction = LoadAction::Clear,
+                    .storeAction = StoreAction::Store,
+                    .layout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL,
+                    .loadStoreTarget = swapchain->getColorImageViews()[imageIndex].getImageView(),
+                    .resolveTarget = nullptr,
+                    .clearColor = {0.0f, 0.0f, 0.0f, 0.0f},
+                    .clearDepth = 0.0f,
+                    .clearStencil = 0
                 }
+            },
+            swapchain->getDepthImageViews()[imageIndex].getImageView()
+        );
+
+        // TODO: Make material system, which will automatically bind the pipeline and descriptor sets
+        commandBuffer.record([&descriptorSets, this](const auto& cmd) {
+            pipeline->bindGraphics(cmd);
+
+            vkCmdBindDescriptorSets(
+                cmd,
+                VK_PIPELINE_BIND_POINT_GRAPHICS,
+                pipelineLayout->getLayout(),
+                0,
+                descriptorSets.size(),
+                descriptorSets.data(),
+                0,
+                nullptr
             );
-        }
+        });
+
+        const Rectangle& rectangle{
+            .x = 0,
+            .y = 0,
+            .width = static_cast<float>(width),
+            .height = static_cast<float>(height)
+        };
+        commandBuffer.setViewport(rectangle);
+        commandBuffer.setScissor(rectangle);
+
+        commandBuffer.drawMesh(mesh);
+
+        commandBuffer.endRenderPass();
+
+        commandBuffer.transitionImage(
+            *swapchain->getColorImages()[imageIndex],
+            VK_IMAGE_LAYOUT_PRESENT_SRC_KHR
+        );
+
+        commandBuffer.end();
     }
 }

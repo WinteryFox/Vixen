@@ -39,13 +39,24 @@ namespace Vixen::Vk {
 
         VkPhysicalDeviceFeatures deviceFeatures{};
 
-        VkDeviceCreateInfo deviceInfo{};
-        deviceInfo.sType = VK_STRUCTURE_TYPE_DEVICE_CREATE_INFO;
-        deviceInfo.queueCreateInfoCount = queueInfos.size();
-        deviceInfo.pQueueCreateInfos = queueInfos.data();
-        deviceInfo.pEnabledFeatures = &deviceFeatures;
-        deviceInfo.enabledExtensionCount = extensions.size();
-        deviceInfo.ppEnabledExtensionNames = extensions.data();
+        VkPhysicalDeviceDynamicRenderingFeatures dynamicRenderingFeatures{
+            .sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_DYNAMIC_RENDERING_FEATURES,
+            .pNext = nullptr,
+            .dynamicRendering = VK_TRUE
+        };
+
+        VkDeviceCreateInfo deviceInfo{
+            .sType = VK_STRUCTURE_TYPE_DEVICE_CREATE_INFO,
+            .pNext = &dynamicRenderingFeatures,
+            .flags = 0,
+            .queueCreateInfoCount = static_cast<uint32_t>(queueInfos.size()),
+            .pQueueCreateInfos = queueInfos.data(),
+            .enabledLayerCount = 0,
+            .ppEnabledLayerNames = nullptr,
+            .enabledExtensionCount = static_cast<uint32_t>(extensions.size()),
+            .ppEnabledExtensionNames = extensions.data(),
+            .pEnabledFeatures = &deviceFeatures
+        };
 
         spdlog::info(
             "Creating new Vulkan device using GPU \"{}\" Vulkan {}",
