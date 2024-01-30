@@ -80,7 +80,7 @@ int main() {
 
     auto renderer = std::make_unique<Vixen::Vk::VkRenderer>(pipeline, vixen.getSwapchain());
 
-    const std::string& file = "../../src/engine/vk/test/NewSponza_Main_glTF_002.gltf";
+    const std::string& file = "../../src/engine/vk/test/models/sponza/Sponza.gltf";
     const std::string& path = std::filesystem::path(file).remove_filename().string();
 
     Assimp::Importer importer;
