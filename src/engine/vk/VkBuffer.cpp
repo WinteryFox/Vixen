@@ -111,7 +111,7 @@ namespace Vixen::Vk {
     }
 
     void VkBuffer::setData(const std::byte* data) const {
-        memcpy(allocationInfo.pMappedData, data, allocationInfo.size);
+        memcpy(allocationInfo.pMappedData, data, getSize());
     }
 
     ::VkBuffer VkBuffer::getBuffer() const { return buffer; }
