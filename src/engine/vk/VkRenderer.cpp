@@ -53,7 +53,7 @@ namespace Vixen::Vk {
                     device->getGraphicsQueue(),
                     {imageAvailableSemaphore.getSemaphore()},
                     {VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT},
-                    {renderFinishedSemaphores[currentFrame].getSemaphore()}
+                    signalSemaphores
                 );
 
                 swapchain->present(imageIndex, signalSemaphores);

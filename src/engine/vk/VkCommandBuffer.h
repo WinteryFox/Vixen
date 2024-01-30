@@ -73,6 +73,6 @@ namespace Vixen::Vk {
 
         void copyBufferToImage(const VkBuffer& source, const VkImage& destination) const;
 
-        void transitionImage(const VkImage& image, VkImageLayout layout) const;
+        void transitionImage(VkImage& image, VkImageLayout layout) const;
     };
 }

@@ -281,7 +281,7 @@ namespace Vixen::Vk {
                                &region);
     }
 
-    void VkCommandBuffer::transitionImage(const VkImage& image, const VkImageLayout layout) const {
+    void VkCommandBuffer::transitionImage(VkImage& image, const VkImageLayout layout) const {
         VkImageMemoryBarrier barrier{
             .sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER,
             .pNext = nullptr,
@@ -355,6 +355,9 @@ namespace Vixen::Vk {
             1,
             &barrier
         );
+
+        // TODO: I hate this, but I'm not sure how else to solve this.
+        image.layout = layout;
     }
 
     void VkCommandBuffer::copyImage(const VkImage& source, const VkImage& destination) const {
