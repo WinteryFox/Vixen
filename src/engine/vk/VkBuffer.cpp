@@ -116,7 +116,7 @@ namespace Vixen::Vk {
 
     ::VkBuffer VkBuffer::getBuffer() const { return buffer; }
 
-    std::size_t VkBuffer::getSize() const { return allocationInfo.size; }
+    std::size_t VkBuffer::getSize() const { return count * stride; }
 
     uint32_t VkBuffer::getCount() const { return count; }
 
