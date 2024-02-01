@@ -88,40 +88,51 @@ int main() {
     if (!scene)
         throw std::runtime_error("Failed to load model from file");
 
-    const auto& aiMesh = scene->mMeshes[0];
-    const auto& hasColors = aiMesh->HasVertexColors(0);
-    const auto& hasUvs = aiMesh->HasTextureCoords(0);
+    std::vector<Vixen::Vk::VkMesh> meshes{};
+    meshes.reserve(scene->mNumMeshes);
 
-    std::vector<Vixen::Vk::Vertex> vertices(aiMesh->mNumVertices);
-    for (uint32_t i = 0; i < aiMesh->mNumVertices; i++) {
-        const auto& vertex = aiMesh->mVertices[i];
-        // TODO: Instead of storing default values for each vertex where a color or UV is missing, we should compact this down to save memory
-        const auto& color = hasColors ? aiMesh->mColors[0][i] : aiColor4D{1.0f, 1.0f, 1.0f, 1.0f};
-        const auto& uv = hasUvs ? aiMesh->mTextureCoords[0][i] : aiVector3D{1.0f, 1.0f, 1.0f};
+    for (auto i = 0; i < scene->mNumMeshes; i++) {
+        const auto& aiMesh = scene->mMeshes[i];
+        const auto& hasColors = aiMesh->HasVertexColors(0);
+        const auto& hasUvs = aiMesh->HasTextureCoords(0);
 
-        vertices[i] = Vixen::Vk::Vertex{
-            .position = {vertex.x, vertex.y, vertex.z},
-            .color = {color.r, color.g, color.b, color.a},
-            .uv = {uv.x, uv.y}
-        };
-    }
+        std::vector<Vixen::Vk::Vertex> vertices(aiMesh->mNumVertices);
+        for (uint32_t i = 0; i < aiMesh->mNumVertices; i++) {
+            const auto& vertex = aiMesh->mVertices[i];
+            // TODO: Instead of storing default values for each vertex where a color or UV is missing, we should compact this down to save memory
+            const auto& color = hasColors ? aiMesh->mColors[0][i] : aiColor4D{1.0F, 1.0F, 1.0F, 1.0F};
+            const auto& textureCoord = hasUvs ? aiMesh->mTextureCoords[0][i] : aiVector3D{1.0F, 1.0F, 1.0F};
 
-    std::vector<uint32_t> indices(aiMesh->mNumFaces * 3);
-    for (uint32_t i = 0; i < aiMesh->mNumFaces; i++) {
-        const auto& face = aiMesh->mFaces[i];
-        if (face.mNumIndices != 3) {
-            spdlog::warn("Skipping face with {} indices", face.mNumIndices);
-            continue;
+            vertices[i] = Vixen::Vk::Vertex{
+                .position = {vertex.x, vertex.y, vertex.z},
+                .color = {color.r, color.g, color.b, color.a},
+                .uv = {textureCoord.x, textureCoord.y}
+            };
         }
 
-        indices[i * 3] = face.mIndices[0];
-        indices[i * 3 + 1] = face.mIndices[1];
-        indices[i * 3 + 2] = face.mIndices[2];
+        std::vector<uint32_t> indices(aiMesh->mNumFaces * 3);
+        for (uint32_t i = 0; i < aiMesh->mNumFaces; i++) {
+            const auto& face = aiMesh->mFaces[i];
+            if (face.mNumIndices != 3) {
+                spdlog::warn("Skipping face with {} indices", face.mNumIndices);
+                continue;
+            }
+
+            indices[i * 3] = face.mIndices[0];
+            indices[i * 3 + 1] = face.mIndices[1];
+            indices[i * 3 + 2] = face.mIndices[2];
+        }
+
+        meshes.emplace_back(vixen.getDevice());
+        meshes[i].setVertices(vertices);
+        meshes[i].setIndices(indices, Vixen::PrimitiveTopology::TRIANGLE_LIST);
     }
 
     aiString imagePath;
-    const auto& material = scene->mMaterials[aiMesh->mMaterialIndex];
-    assert(material != nullptr && "Material is nullptr");
+    const auto& material = scene->mMaterials[scene->mMeshes[0]->mMaterialIndex];
+    if (material == nullptr)
+        throw std::runtime_error("Material is nullptr");
+
     material->GetTexture(aiTextureType_DIFFUSE, 0, &imagePath);
     const auto& texture = scene->GetEmbeddedTexture(imagePath.C_Str());
 
@@ -144,20 +155,16 @@ int main() {
         );
     }
 
-    auto mesh = Vixen::Vk::VkMesh(vixen.getDevice());
-    mesh.setVertices(vertices);
-    mesh.setIndices(indices, Vixen::PrimitiveTopology::TRIANGLE_LIST);
-
     auto camera = Vixen::Camera(glm::vec3{0.0f, 0.0f, 0.0f});
 
     const std::vector<VkDescriptorPoolSize> sizes{
         {
             .type = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER,
-            .descriptorCount = 1
+            .descriptorCount = 256
         },
         {
             .type = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER,
-            .descriptorCount = 1
+            .descriptorCount = 256
         }
     };
 
@@ -169,12 +176,12 @@ int main() {
     );
 
     UniformBufferObject ubo{
-        glm::mat4(1.0f),
+        glm::mat4(1.0F),
         camera.view(),
         camera.perspective(static_cast<float>(width) / static_cast<float>(height))
     };
-    ubo.model = translate(ubo.model, {0.0f, -0.5f, -1.5f});
-    ubo.model = rotate(ubo.model, glm::radians(225.0f), {0.0f, 1.0f, 0.0f});
+    ubo.model = translate(ubo.model, {0.0F, -0.5F, -1.5F});
+    ubo.model = rotate(ubo.model, glm::radians(225.0F), {0.0F, 1.0F, 0.0F});
 
     auto descriptorPool = std::make_shared<Vixen::Vk::VkDescriptorPool>(vixen.getDevice(), sizes, 1);
     auto mvp = Vixen::Vk::VkDescriptorSet(vixen.getDevice(), descriptorPool, *program.getDescriptorSetLayout());
@@ -207,7 +214,7 @@ int main() {
         );
         uniformBuffer.setData(reinterpret_cast<const std::byte*>(&ubo));
 
-        renderer->render(mesh, descriptorSets);
+        renderer->render(meshes, descriptorSets);
 
         fps++;
         if (now - old >= 1) {

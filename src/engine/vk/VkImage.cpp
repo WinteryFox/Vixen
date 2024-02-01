@@ -120,12 +120,8 @@ namespace Vixen::Vk {
         cmd.begin(CommandBufferUsage::ONCE);
 
         cmd.transitionImage(*this, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL);
-        layout = VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL;
-
         cmd.copyBufferToImage(data, *this);
-
         cmd.transitionImage(*this, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
-        layout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
 
         cmd.end();
         cmd.submit(device->getTransferQueue(), {}, {}, {});

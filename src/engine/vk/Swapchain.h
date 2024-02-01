@@ -57,11 +57,11 @@ namespace Vixen::Vk {
          * otherwise false.
          */
         template <typename F>
-        State acquireImage(uint64_t timeout, const F& lambda) {
+        State acquireImage(const uint64_t timeout, const F& lambda) {
             auto& imageAvailableSemaphore = imageAvailableSemaphores[currentFrame];
 
             uint32_t imageIndex;
-            auto result = vkAcquireNextImageKHR(
+            const auto& result = vkAcquireNextImageKHR(
                 device->getDevice(),
                 swapchain,
                 timeout,
@@ -80,8 +80,7 @@ namespace Vixen::Vk {
             currentFrame = (currentFrame + 1) % imageCount;
 
             switch (result) {
-                using
-                    enum State;
+                using enum State;
 
             case VK_SUCCESS:
                 return OK;

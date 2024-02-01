@@ -1,8 +1,8 @@
 project("Vixen Engine")
 
 find_package(GLFW3 3.3 REQUIRED)
+find_package(assimp REQUIRED)
 pkg_check_modules(GLM REQUIRED IMPORTED_TARGET glm)
-pkg_check_modules(ASSIMP REQUIRED IMPORTED_TARGET assimp)
 pkg_check_modules(SPDLOG REQUIRED IMPORTED_TARGET spdlog)
 
 add_definitions(-DGLFW_INCLUDE_NONE)
@@ -27,8 +27,8 @@ target_link_libraries(
         Vixen
         PUBLIC
         glfw
+        assimp::assimp
         PkgConfig::GLM
-        PkgConfig::ASSIMP
         PkgConfig::SPDLOG
 )
 

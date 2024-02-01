@@ -38,7 +38,7 @@ namespace Vixen::Vk {
         ~VkRenderer();
 
         void render(
-            const VkMesh& mesh,
+            const std::vector<VkMesh>& meshes,
             const std::vector<::VkDescriptorSet>& descriptorSets
         );
 
@@ -46,7 +46,7 @@ namespace Vixen::Vk {
         void prepare(
             uint32_t imageIndex,
             const VkCommandBuffer& commandBuffer,
-            const VkMesh& mesh,
+            const std::vector<VkMesh>& meshes,
             const std::vector<::VkDescriptorSet>& descriptorSets
         ) const;
     };

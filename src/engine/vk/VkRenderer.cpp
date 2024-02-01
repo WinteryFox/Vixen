@@ -33,19 +33,19 @@ namespace Vixen::Vk {
     }
 
     void VkRenderer::render(
-        const VkMesh& mesh,
+        const std::vector<VkMesh>& meshes,
         const std::vector<::VkDescriptorSet>& descriptorSets
     ) {
         if (const auto state = swapchain->acquireImage(
             std::numeric_limits<uint64_t>::max(),
-            [this, &mesh, &descriptorSets](
+            [this, &meshes, &descriptorSets](
             const auto& currentFrame,
             const auto& imageIndex,
             const auto& imageAvailableSemaphore
         ) {
                 auto& commandBuffer = renderCommandBuffers[currentFrame];
 
-                prepare(imageIndex, commandBuffer, mesh, descriptorSets);
+                prepare(imageIndex, commandBuffer, meshes, descriptorSets);
 
                 std::vector<::VkSemaphore> signalSemaphores = {renderFinishedSemaphores[currentFrame].getSemaphore()};
 
@@ -68,7 +68,7 @@ namespace Vixen::Vk {
     void VkRenderer::prepare(
         const uint32_t imageIndex,
         const VkCommandBuffer& commandBuffer,
-        const VkMesh& mesh,
+        const std::vector<VkMesh>& meshes,
         const std::vector<::VkDescriptorSet>& descriptorSets
     ) const {
         const auto& [width, height] = swapchain->getExtent();
@@ -98,8 +98,8 @@ namespace Vixen::Vk {
                     .layout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL,
                     .loadStoreTarget = swapchain->getColorImageViews()[imageIndex].getImageView(),
                     .resolveTarget = nullptr,
-                    .clearColor = {0.0f, 0.0f, 0.0f, 0.0f},
-                    .clearDepth = 0.0f,
+                    .clearColor = {0.0F, 0.0F, 0.0F, 0.0F},
+                    .clearDepth = 0.0F,
                     .clearStencil = 0
                 }
             },
@@ -122,7 +122,7 @@ namespace Vixen::Vk {
             );
         });
 
-        const Rectangle& rectangle{
+        const Rectangle rectangle{
             .x = 0,
             .y = 0,
             .width = static_cast<float>(width),
@@ -131,7 +131,9 @@ namespace Vixen::Vk {
         commandBuffer.setViewport(rectangle);
         commandBuffer.setScissor(rectangle);
 
-        commandBuffer.drawMesh(mesh);
+        for (const auto& mesh : meshes) {
+            commandBuffer.drawMesh(mesh);
+        }
 
         commandBuffer.endRenderPass();
 
