@@ -36,6 +36,7 @@ namespace Vixen::Vk {
         const std::vector<VkMesh>& meshes,
         const std::vector<::VkDescriptorSet>& descriptorSets
     ) {
+        renderCommandBuffers[swapchain->getCurrentFrame()].wait();
         if (const auto state = swapchain->acquireImage(
             std::numeric_limits<uint64_t>::max(),
             [this, &meshes, &descriptorSets](
@@ -73,9 +74,7 @@ namespace Vixen::Vk {
     ) const {
         const auto& [width, height] = swapchain->getExtent();
 
-        commandBuffer.wait();
         commandBuffer.reset();
-
         commandBuffer.begin(CommandBufferUsage::SIMULTANEOUS);
 
         commandBuffer.transitionImage(

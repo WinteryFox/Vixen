@@ -109,6 +109,8 @@ namespace Vixen::Vk {
 
         [[nodiscard]] const std::vector<VkImageView>& getDepthImageViews() const;
 
+        [[nodiscard]] uint32_t getCurrentFrame() const;
+
         void present(uint32_t imageIndex, const std::vector<::VkSemaphore>& waitSemaphores);
 
         void invalidate();

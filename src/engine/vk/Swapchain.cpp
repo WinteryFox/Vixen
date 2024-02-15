@@ -66,6 +66,8 @@ namespace Vixen::Vk {
 
     const std::vector<VkImageView>& Swapchain::getDepthImageViews() const { return depthImageViews; }
 
+    uint32_t Swapchain::getCurrentFrame() const { return currentFrame; }
+
     void Swapchain::present(uint32_t imageIndex, const std::vector<::VkSemaphore>& waitSemaphores) {
         const VkPresentInfoKHR presentInfo{
             .sType = VK_STRUCTURE_TYPE_PRESENT_INFO_KHR,
