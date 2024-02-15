@@ -18,11 +18,10 @@ namespace Vixen::Vk {
         if (available.empty())
             throw std::runtime_error("Failed to find suitable surface format");
 
-        for (const auto& format : available) {
+        for (const auto& format : available)
             if (format.format == VK_FORMAT_B8G8R8A8_SRGB &&
                 format.colorSpace == VK_COLOR_SPACE_SRGB_NONLINEAR_KHR)
                 return format;
-        }
 
         return available[0];
     }

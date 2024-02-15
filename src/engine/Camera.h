@@ -1,5 +1,6 @@
 #pragma once
 
+#include <GLFW/glfw3.h>
 #include <glm/glm.hpp>
 #include <glm/gtc/matrix_transform.hpp>
 #include <glm/gtc/quaternion.hpp>
@@ -16,6 +17,8 @@ namespace Vixen {
             float farPlane = 1000.0f
         );
 
+        void update(GLFWwindow* window, double deltaTime);
+
         [[nodiscard]] glm::mat4 view() const;
 
         [[nodiscard]] glm::mat4 perspective(float aspectRatio) const;
@@ -29,6 +32,10 @@ namespace Vixen {
         [[nodiscard]] float getFarPlane() const;
 
     private:
+        double lastX;
+
+        double lastY;
+
         glm::vec3 position;
 
         glm::vec3 rotation;

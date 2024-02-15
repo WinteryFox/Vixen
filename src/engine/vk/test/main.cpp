@@ -205,6 +205,8 @@ int main() {
 
         const double& now = glfwGetTime();
         double deltaTime = now - lastFrame;
+        camera.update(vixen.getWindow()->getWindow(), deltaTime);
+
         lastFrame = now;
         ubo.view = camera.view();
         const auto& [width, height] = vixen.getSwapchain()->getExtent();

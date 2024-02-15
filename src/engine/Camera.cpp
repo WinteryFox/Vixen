@@ -1,5 +1,7 @@
 #include "Camera.h"
 
+#include <cmath>
+
 namespace Vixen {
     Camera::Camera(
         const glm::vec3 position,
@@ -7,11 +9,61 @@ namespace Vixen {
         const float fieldOfView,
         const float nearPlane,
         const float farPlane
-    ) : position(position),
+    ) : lastX(0),
+        lastY(0),
+        position(position),
         rotation(rotation),
         fieldOfView(fieldOfView),
         nearPlane(nearPlane),
         farPlane(farPlane) {}
+
+    void Camera::update(GLFWwindow* window, const double deltaTime) {
+        double currentX = 0;
+        double currentY = 0;
+        glfwGetCursorPos(window, &currentX, &currentY);
+
+        const double xOffset = currentX - lastX;
+        const double yOffset = currentY - lastY;
+        lastX = currentX;
+        lastY = currentY;
+
+        constexpr double sensitivity = 1.0F;
+        rotation.y += static_cast<float>(sensitivity * xOffset * deltaTime);
+        rotation.x += static_cast<float>(sensitivity * yOffset * deltaTime);
+
+        const auto& direction = normalize(glm::vec3(
+             std::cos(rotation.x) * std::sin(rotation.y),
+             std::sin(rotation.x),
+             std::cos(rotation.x) * std::cos(rotation.y)
+         ));
+        const auto& right = normalize(glm::vec3(
+            sin(rotation.y - M_PI / 2.0f),
+            0.0f,
+            cos(rotation.y - M_PI / 2.0f)
+        ));
+
+        auto advance = glm::vec3(0.0f);
+
+        constexpr float speed = 100.0f;
+        if (glfwGetKey(window, GLFW_KEY_W) == GLFW_PRESS)
+            advance += direction * speed;
+        if (glfwGetKey(window, GLFW_KEY_S) == GLFW_PRESS)
+            advance -= direction * speed;
+        if (glfwGetKey(window, GLFW_KEY_D) == GLFW_PRESS)
+            advance += right * speed;
+        if (glfwGetKey(window, GLFW_KEY_A) == GLFW_PRESS)
+            advance -= right * speed;
+        if (glfwGetKey(window, GLFW_KEY_SPACE))
+            advance += glm::vec3(0, 1, 0) * speed;
+        if (glfwGetKey(window, GLFW_KEY_LEFT_SHIFT))
+            advance -= glm::vec3(0, 1, 0) * speed;
+        if (glfwGetKey(window, GLFW_KEY_ESCAPE))
+            glfwSetWindowShouldClose(window, GLFW_TRUE);
+
+        advance *= deltaTime;
+        position += advance;
+    }
+
 
     /**
      * \brief Calculates the view matrix for this camera.
@@ -19,9 +71,9 @@ namespace Vixen {
      */
     glm::mat4 Camera::view() const {
         const auto& direction = normalize(glm::vec3(
-            cos(rotation.x) * sin(rotation.y),
-            sin(rotation.y),
-            cos(rotation.x) * cos(rotation.y)
+            std::cos(rotation.x) * std::sin(rotation.y),
+            std::sin(rotation.x),
+            std::cos(rotation.x) * std::cos(rotation.y)
         ));
         const auto& right = normalize(glm::vec3(
             sin(rotation.y - M_PI / 2.0f),
