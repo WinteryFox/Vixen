@@ -97,13 +97,13 @@ int main() {
         const auto& hasUvs = aiMesh->HasTextureCoords(0);
 
         std::vector<Vixen::Vk::Vertex> vertices(aiMesh->mNumVertices);
-        for (uint32_t i = 0; i < aiMesh->mNumVertices; i++) {
-            const auto& vertex = aiMesh->mVertices[i];
+        for (uint32_t j = 0; j < aiMesh->mNumVertices; j++) {
+            const auto& vertex = aiMesh->mVertices[j];
             // TODO: Instead of storing default values for each vertex where a color or UV is missing, we should compact this down to save memory
-            const auto& color = hasColors ? aiMesh->mColors[0][i] : aiColor4D{1.0F, 1.0F, 1.0F, 1.0F};
-            const auto& textureCoord = hasUvs ? aiMesh->mTextureCoords[0][i] : aiVector3D{1.0F, 1.0F, 1.0F};
+            const auto& color = hasColors ? aiMesh->mColors[0][j] : aiColor4D{1.0F, 1.0F, 1.0F, 1.0F};
+            const auto& textureCoord = hasUvs ? aiMesh->mTextureCoords[0][j] : aiVector3D{1.0F, 1.0F, 1.0F};
 
-            vertices[i] = Vixen::Vk::Vertex{
+            vertices[j] = Vixen::Vk::Vertex{
                 .position = {vertex.x, vertex.y, vertex.z},
                 .color = {color.r, color.g, color.b, color.a},
                 .uv = {textureCoord.x, textureCoord.y}
@@ -111,16 +111,16 @@ int main() {
         }
 
         std::vector<uint32_t> indices(aiMesh->mNumFaces * 3);
-        for (uint32_t i = 0; i < aiMesh->mNumFaces; i++) {
-            const auto& face = aiMesh->mFaces[i];
+        for (uint32_t j = 0; j < aiMesh->mNumFaces; j++) {
+            const auto& face = aiMesh->mFaces[j];
             if (face.mNumIndices != 3) {
                 spdlog::warn("Skipping face with {} indices", face.mNumIndices);
                 continue;
             }
 
-            indices[i * 3] = face.mIndices[0];
-            indices[i * 3 + 1] = face.mIndices[1];
-            indices[i * 3 + 2] = face.mIndices[2];
+            indices[j * 3] = face.mIndices[0];
+            indices[j * 3 + 1] = face.mIndices[1];
+            indices[j * 3 + 2] = face.mIndices[2];
         }
 
         meshes.emplace_back(vixen.getDevice());
