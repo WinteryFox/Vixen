@@ -33,14 +33,14 @@ namespace Vixen::Vk {
 
         ~VkDescriptorSet();
 
-        void updateUniformBuffer(
+        void writeUniformBuffer(
             uint32_t binding,
             const VkBuffer& buffer,
             uint32_t offset,
             uint32_t size
         ) const;
 
-        void updateCombinedImageSampler(
+        void writeCombinedImageSampler(
             uint32_t binding,
             const VkSampler &sampler,
             const VkImageView &view

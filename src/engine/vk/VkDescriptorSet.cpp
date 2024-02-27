@@ -57,7 +57,7 @@ namespace Vixen::Vk {
             );
     }
 
-    void VkDescriptorSet::updateUniformBuffer(
+    void VkDescriptorSet::writeUniformBuffer(
         const uint32_t binding,
         const VkBuffer& buffer,
         const uint32_t offset,
@@ -88,7 +88,7 @@ namespace Vixen::Vk {
         vkUpdateDescriptorSets(device->getDevice(), 1, &write, 0, nullptr);
     }
 
-    void VkDescriptorSet::updateCombinedImageSampler(
+    void VkDescriptorSet::writeCombinedImageSampler(
         const uint32_t binding,
         const VkSampler& sampler,
         const VkImageView& view

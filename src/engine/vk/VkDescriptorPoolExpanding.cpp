@@ -95,6 +95,9 @@ namespace Vixen::Vk {
         }
 
         readyPools.push_back(pool);
+
+        spdlog::trace("Allocated new descriptor set from pool");
+
         return descriptorSet;
     }
 }
