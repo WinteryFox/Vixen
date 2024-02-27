@@ -11,7 +11,7 @@
 #include <assimp/postprocess.h>
 #include <assimp/scene.h>
 #include "VkBuffer.h"
-#include "VkDescriptorPool.h"
+#include "VkDescriptorPoolExpanding.h"
 #include "VkDescriptorSet.h"
 #include "VkPipeline.h"
 #include "VkRenderer.h"
@@ -180,18 +180,24 @@ int main() {
         camera.view(),
         camera.perspective(static_cast<float>(width) / static_cast<float>(height))
     };
-    ubo.model = translate(ubo.model, {0.0F, -0.5F, -1.5F});
-    ubo.model = rotate(ubo.model, glm::radians(225.0F), {0.0F, 1.0F, 0.0F});
+    ubo.model = scale(ubo.model, {0.1F, 0.1F, 0.1F});
 
-    auto descriptorPool = std::make_shared<Vixen::Vk::VkDescriptorPool>(vixen.getDevice(), sizes, 1);
-    auto mvp = Vixen::Vk::VkDescriptorSet(vixen.getDevice(), descriptorPool, *program.getDescriptorSetLayout());
-    mvp.updateUniformBuffer(0, uniformBuffer, 0, uniformBuffer.getSize());
+    std::vector<Vixen::Vk::VkDescriptorPoolExpanding::PoolSizeRatio> ratios = {
+        { VK_DESCRIPTOR_TYPE_STORAGE_IMAGE, 3 },
+        { VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, 3 },
+        { VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, 3 },
+        { VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, 4 },
+    };
+    auto descriptorPool = std::make_shared<Vixen::Vk::VkDescriptorPoolExpanding>(vixen.getDevice(), 1000, ratios);
+    //auto mvp = Vixen::Vk::VkDescriptorSet(vixen.getDevice(), descriptorPool, *program.getDescriptorSetLayout());
+    auto mvp = descriptorPool->allocate(*program.getDescriptorSetLayout());
+    mvp->updateUniformBuffer(0, uniformBuffer, 0, uniformBuffer.getSize());
 
     auto view = Vixen::Vk::VkImageView(image, VK_IMAGE_ASPECT_COLOR_BIT);
     auto sampler = Vixen::Vk::VkSampler(vixen.getDevice());
-    mvp.updateCombinedImageSampler(1, sampler, view);
+    mvp->updateCombinedImageSampler(1, sampler, view);
 
-    const std::vector descriptorSets = {mvp.getSet()};
+    const std::vector descriptorSets = {mvp->getSet()};
 
     double old = glfwGetTime();
     double lastFrame = old;

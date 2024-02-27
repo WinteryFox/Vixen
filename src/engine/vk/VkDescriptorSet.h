@@ -1,23 +1,25 @@
 #pragma once
 
 #include "Device.h"
-#include "VkDescriptorPool.h"
 #include "VkBuffer.h"
-#include "VkSampler.h"
 #include "VkImageView.h"
+#include "VkSampler.h"
 
 namespace Vixen::Vk {
+    class VkDescriptorSetLayout;
+    class VkDescriptorPoolFixed;
+
     class VkDescriptorSet {
         ::VkDescriptorSet set;
 
         std::shared_ptr<Device> device;
 
-        std::shared_ptr<VkDescriptorPool> pool;
+        std::shared_ptr<const VkDescriptorPoolFixed> pool;
 
     public:
         VkDescriptorSet(
             const std::shared_ptr<Device>& device,
-            const std::shared_ptr<VkDescriptorPool>& pool,
+            const std::shared_ptr<const VkDescriptorPoolFixed>& pool,
             const VkDescriptorSetLayout& layout
         );
 
@@ -25,9 +27,9 @@ namespace Vixen::Vk {
 
         VkDescriptorSet& operator=(const VkDescriptorSet& other) = delete;
 
-        VkDescriptorSet(VkDescriptorSet&& fp) noexcept;
+        VkDescriptorSet(VkDescriptorSet&& other) noexcept;
 
-        VkDescriptorSet const& operator=(VkDescriptorSet&& fp) noexcept;
+        VkDescriptorSet& operator=(VkDescriptorSet&& other) noexcept;
 
         ~VkDescriptorSet();
 

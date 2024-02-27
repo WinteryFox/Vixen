@@ -44,7 +44,7 @@ namespace Vixen {
 
         auto advance = glm::vec3(0.0f);
 
-        constexpr float speed = 100.0f;
+        constexpr float speed = 10.0f;
         if (glfwGetKey(window, GLFW_KEY_W) == GLFW_PRESS)
             advance += direction * speed;
         if (glfwGetKey(window, GLFW_KEY_S) == GLFW_PRESS)

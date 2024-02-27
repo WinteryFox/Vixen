@@ -49,8 +49,8 @@ add_library(
         VkImageView.h
         VkSemaphore.cpp
         VkSemaphore.h
-        VkDescriptorPool.cpp
-        VkDescriptorPool.h
+        VkDescriptorPoolFixed.cpp
+        VkDescriptorPoolFixed.h
         VkDescriptorSetLayout.cpp
         VkDescriptorSetLayout.h
         VkDescriptorSet.cpp
@@ -59,6 +59,10 @@ add_library(
         VkSampler.h
         VkMesh.cpp
         VkMesh.h
+        Material.h
+        VkDescriptorPoolExpanding.cpp
+        VkDescriptorPoolExpanding.h
+        exception/OutOfPoolMemoryException.h
 )
 target_link_libraries(
         VkVixen

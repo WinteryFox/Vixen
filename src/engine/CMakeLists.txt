@@ -7,8 +7,9 @@ pkg_check_modules(SPDLOG REQUIRED IMPORTED_TARGET spdlog)
 
 add_definitions(-DGLFW_INCLUDE_NONE)
 
-set(
-        SOURCES
+add_library(
+        Vixen
+        STATIC
         Window.cpp
         Camera.cpp
         CommandBuffer.h
@@ -20,9 +21,8 @@ set(
         LoadAction.h
         StoreAction.h
         Rectangle.h
+        VkDescriptorPool.h
 )
-
-add_library(Vixen STATIC ${SOURCES})
 target_link_libraries(
         Vixen
         PUBLIC

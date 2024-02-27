@@ -1,9 +1,13 @@
 #include "VkDescriptorSet.h"
 
+#include "VkDescriptorPoolFixed.h"
+#include "VkDescriptorSetLayout.h"
+#include "exception/OutOfPoolMemoryException.h"
+
 namespace Vixen::Vk {
     VkDescriptorSet::VkDescriptorSet(
         const std::shared_ptr<Device>& device,
-        const std::shared_ptr<VkDescriptorPool>& pool,
+        const std::shared_ptr<const VkDescriptorPoolFixed>& pool,
         const VkDescriptorSetLayout& layout
     ) : set(VK_NULL_HANDLE),
         device(device),
@@ -17,30 +21,40 @@ namespace Vixen::Vk {
             .pSetLayouts = &l
         };
 
-        checkVulkanResult(
-            vkAllocateDescriptorSets(device->getDevice(), &info, &set),
-            "Failed to allocate descriptor set"
-        );
+        switch (const auto& result = vkAllocateDescriptorSets(device->getDevice(), &info, &set)) {
+        case VK_ERROR_OUT_OF_POOL_MEMORY:
+            throw OutOfPoolMemoryException("Descriptor pool is out of memory");
+        case VK_ERROR_FRAGMENTED_POOL:
+            // TODO: We should probably attempt to defragment the pool here instead of just erroring
+            throw OutOfPoolMemoryException("Descriptor pool is fragmented");
+        default:
+            checkVulkanResult(
+                result,
+                "Failed to allocate descriptor set"
+            );
+            break;
+        }
     }
 
-    VkDescriptorSet::VkDescriptorSet(VkDescriptorSet&& fp) noexcept
-        : set(std::exchange(fp.set, nullptr)),
-          device(std::move(device)),
-          pool(std::move(pool)) {}
+    VkDescriptorSet::VkDescriptorSet(VkDescriptorSet&& other) noexcept
+        : set(std::exchange(other.set, nullptr)),
+          device(std::move(other.device)),
+          pool(std::move(other.pool)) {}
 
-    VkDescriptorSet const& VkDescriptorSet::operator=(VkDescriptorSet&& fp) noexcept {
-        std::swap(fp.set, set);
-        std::swap(fp.device, device);
-        std::swap(fp.pool, pool);
+    VkDescriptorSet& VkDescriptorSet::operator=(VkDescriptorSet&& other) noexcept {
+        std::swap(other.set, set);
+        std::swap(other.device, device);
+        std::swap(other.pool, pool);
 
         return *this;
     }
 
     VkDescriptorSet::~VkDescriptorSet() {
-        checkVulkanResult(
-            vkFreeDescriptorSets(device->getDevice(), pool->getPool(), 1, &set),
-            "Failed to free descriptor set"
-        );
+        if (set != VK_NULL_HANDLE)
+            checkVulkanResult(
+                vkFreeDescriptorSets(device->getDevice(), pool->getPool(), 1, &set),
+                "Failed to free descriptor set"
+            );
     }
 
     void VkDescriptorSet::updateUniformBuffer(
