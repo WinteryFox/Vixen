@@ -1,8 +1,8 @@
 #pragma once
 
-#include "VkBuffer.h"
 #include "VkFence.h"
 #include "VkImage.h"
+#include "VkImageView.h"
 #include "VkMesh.h"
 #include "../AttachmentInfo.h"
 #include "../CommandBuffer.h"
@@ -56,7 +56,7 @@ namespace Vixen::Vk {
             uint32_t height,
             uint8_t samples,
             const std::vector<AttachmentInfo>& attachments,
-            const VkImageView &depthAttachment
+            const VkImageView& depthAttachment
         ) const;
 
         void endRenderPass() const;
@@ -65,7 +65,7 @@ namespace Vixen::Vk {
 
         void setScissor(Rectangle rectangle) const;
 
-        void drawMesh(const VkMesh& mesh) const;
+        void drawMesh(const glm::mat4& modelMatrix, const VkMesh& mesh) const;
 
         void copyBuffer(const VkBuffer& source, const VkBuffer& destination) const;
 

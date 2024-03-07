@@ -9,6 +9,8 @@ namespace Vixen {
 }
 
 namespace Vixen::Vk {
+    struct Material;
+
     struct Vertex {
         glm::vec3 position;
         glm::vec4 color;
@@ -34,6 +36,8 @@ namespace Vixen::Vk {
 
         PrimitiveTopology topology;
 
+        std::shared_ptr<const Material> material;
+
     public:
         explicit VkMesh(const std::shared_ptr<Device>& device);
 
@@ -49,11 +53,15 @@ namespace Vixen::Vk {
 
         const VkBuffer& getIndexBuffer() const;
 
+        std::shared_ptr<const Material> getMaterial() const;
+
         void setIndices(const std::vector<uint16_t>& indices, PrimitiveTopology topology);
 
         void setIndices(const std::vector<uint32_t>& indices, PrimitiveTopology topology);
 
         void setVertices(const std::vector<Vertex>& vertices);
+
+        void setMaterial(const std::shared_ptr<const Material> &material);
 
     private:
         void upload(const VkBuffer& destination, const std::byte* data) const;

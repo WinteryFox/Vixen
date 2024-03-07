@@ -55,8 +55,10 @@ namespace Vixen {
             advance -= right * speed;
         if (glfwGetKey(window, GLFW_KEY_SPACE))
             advance += glm::vec3(0, 1, 0) * speed;
-        if (glfwGetKey(window, GLFW_KEY_LEFT_SHIFT))
+        if (glfwGetKey(window, GLFW_KEY_LEFT_CONTROL))
             advance -= glm::vec3(0, 1, 0) * speed;
+        if (glfwGetKey(window, GLFW_KEY_LEFT_SHIFT))
+            advance *= 2.0f;
         if (glfwGetKey(window, GLFW_KEY_ESCAPE))
             glfwSetWindowShouldClose(window, GLFW_TRUE);
 

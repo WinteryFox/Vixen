@@ -63,6 +63,8 @@ namespace Vixen::Vk {
 
         [[nodiscard]] std::shared_ptr<Device> getDevice() const;
 
+        [[nodiscard]] const VkPipelineLayout& getLayout() const;
+
         class Builder {
             Config config{
                 .viewport = {

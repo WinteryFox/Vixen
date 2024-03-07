@@ -59,10 +59,12 @@ add_library(
         VkSampler.h
         VkMesh.cpp
         VkMesh.h
-        Material.h
         VkDescriptorPoolExpanding.cpp
         VkDescriptorPoolExpanding.h
         exception/OutOfPoolMemoryException.h
+        material/MaterialPipeline.h
+        material/Material.h
+        material/MaterialPass.h
 )
 target_link_libraries(
         VkVixen

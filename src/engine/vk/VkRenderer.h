@@ -37,17 +37,13 @@ namespace Vixen::Vk {
 
         ~VkRenderer();
 
-        void render(
-            const std::vector<VkMesh>& meshes,
-            const std::vector<::VkDescriptorSet>& descriptorSets
-        );
+        void render(const std::vector<VkMesh>& meshes);
 
     private:
         void prepare(
             uint32_t imageIndex,
             const VkCommandBuffer& commandBuffer,
-            const std::vector<VkMesh>& meshes,
-            const std::vector<::VkDescriptorSet>& descriptorSets
+            const std::vector<VkMesh>& meshes
         ) const;
     };
 }

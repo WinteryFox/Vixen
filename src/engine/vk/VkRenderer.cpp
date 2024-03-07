@@ -32,21 +32,18 @@ namespace Vixen::Vk {
         device->waitIdle();
     }
 
-    void VkRenderer::render(
-        const std::vector<VkMesh>& meshes,
-        const std::vector<::VkDescriptorSet>& descriptorSets
-    ) {
+    void VkRenderer::render(const std::vector<VkMesh>& meshes) {
         renderCommandBuffers[swapchain->getCurrentFrame()].wait();
         if (const auto state = swapchain->acquireImage(
             std::numeric_limits<uint64_t>::max(),
-            [this, &meshes, &descriptorSets](
+            [this, &meshes](
             const auto& currentFrame,
             const auto& imageIndex,
             const auto& imageAvailableSemaphore
         ) {
                 auto& commandBuffer = renderCommandBuffers[currentFrame];
 
-                prepare(imageIndex, commandBuffer, meshes, descriptorSets);
+                prepare(imageIndex, commandBuffer, meshes);
 
                 std::vector<::VkSemaphore> signalSemaphores = {renderFinishedSemaphores[currentFrame].getSemaphore()};
 
@@ -69,8 +66,7 @@ namespace Vixen::Vk {
     void VkRenderer::prepare(
         const uint32_t imageIndex,
         const VkCommandBuffer& commandBuffer,
-        const std::vector<VkMesh>& meshes,
-        const std::vector<::VkDescriptorSet>& descriptorSets
+        const std::vector<VkMesh>& meshes
     ) const {
         const auto& [width, height] = swapchain->getExtent();
 
@@ -102,24 +98,8 @@ namespace Vixen::Vk {
                     .clearStencil = 0
                 }
             },
-            swapchain->getDepthImageViews()[imageIndex].getImageView()
+            swapchain->getDepthImageViews()[imageIndex]
         );
-
-        // TODO: Make material system, which will automatically bind the pipeline and descriptor sets
-        commandBuffer.record([&descriptorSets, this](const auto& cmd) {
-            pipeline->bindGraphics(cmd);
-
-            vkCmdBindDescriptorSets(
-                cmd,
-                VK_PIPELINE_BIND_POINT_GRAPHICS,
-                pipelineLayout->getLayout(),
-                0,
-                descriptorSets.size(),
-                descriptorSets.data(),
-                0,
-                nullptr
-            );
-        });
 
         const Rectangle rectangle{
             .x = 0,
@@ -131,7 +111,7 @@ namespace Vixen::Vk {
         commandBuffer.setScissor(rectangle);
 
         for (const auto& mesh : meshes) {
-            commandBuffer.drawMesh(mesh);
+            commandBuffer.drawMesh(glm::mat4(1.0), mesh);
         }
 
         commandBuffer.endRenderPass();

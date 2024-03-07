@@ -2,6 +2,7 @@
 
 #include "VkCommandPool.h"
 #include "../IndexFormat.h"
+#include "material/Material.h"
 
 namespace Vixen::Vk {
     VkCommandBuffer::VkCommandBuffer(
@@ -144,7 +145,7 @@ namespace Vixen::Vk {
         VkRenderingAttachmentInfo depthAttachmentInfo{
             .sType = VK_STRUCTURE_TYPE_RENDERING_ATTACHMENT_INFO,
             .pNext = nullptr,
-            .imageView = depthAttachment,
+            .imageView = depthAttachment.getImageView(),
             .imageLayout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL,
             .resolveMode = VK_RESOLVE_MODE_NONE,
             .resolveImageView = nullptr,
@@ -216,9 +217,9 @@ namespace Vixen::Vk {
         vkCmdSetScissor(commandBuffer, 0, 1, &rect);
     }
 
-    void VkCommandBuffer::drawMesh(const VkMesh& mesh) const {
+    void VkCommandBuffer::drawMesh(const glm::mat4& modelMatrix, const VkMesh& mesh) const {
         const auto& vertexBuffer = mesh.getVertexBuffer().getBuffer();
-        constexpr std::array<VkDeviceSize, 1> offsets{0};
+        constexpr std::array<VkDeviceSize, 1> offsets{};
         vkCmdBindVertexBuffers(
             commandBuffer,
             0,
@@ -231,7 +232,23 @@ namespace Vixen::Vk {
             commandBuffer,
             mesh.getIndexBuffer().getBuffer(),
             0,
-            mesh.getIndexFormat() == IndexFormat::UNSIGNED_INT_16 ? VK_INDEX_TYPE_UINT16 : VK_INDEX_TYPE_UINT32
+            mesh.getIndexFormat() == IndexFormat::UNSIGNED_INT_16
+                ? VK_INDEX_TYPE_UINT16
+                : VK_INDEX_TYPE_UINT32
+        );
+
+        mesh.getMaterial()->pipeline->bindGraphics(commandBuffer);
+
+        const auto& set = mesh.getMaterial()->descriptorSet->getSet();
+        vkCmdBindDescriptorSets(
+            commandBuffer,
+            VK_PIPELINE_BIND_POINT_GRAPHICS,
+            mesh.getMaterial()->pipeline->getLayout().getLayout(),
+            0,
+            1,
+            &set,
+            0,
+            nullptr
         );
 
         vkCmdDrawIndexed(

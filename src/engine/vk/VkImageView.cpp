@@ -1,5 +1,7 @@
 #include "VkImageView.h"
 
+#include "Device.h"
+
 namespace Vixen::Vk {
     VkImageView::VkImageView(const std::shared_ptr<VkImage>& image, const VkImageAspectFlags aspectFlags)
         : image(image),

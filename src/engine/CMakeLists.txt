@@ -21,7 +21,6 @@ add_library(
         LoadAction.h
         StoreAction.h
         Rectangle.h
-        VkDescriptorPool.h
 )
 target_link_libraries(
         Vixen

@@ -1,5 +1,7 @@
 #include "VkImage.h"
 
+#include "Device.h"
+
 namespace Vixen::Vk {
     VkImage::VkImage(
         const std::shared_ptr<Device>& device,

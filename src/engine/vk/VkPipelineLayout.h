@@ -17,7 +17,7 @@ namespace Vixen::Vk {
 
         VkPipelineLayout(VkPipelineLayout&& fp) noexcept;
 
-        VkPipelineLayout const& operator=(VkPipelineLayout&& fp) noexcept;
+        VkPipelineLayout& operator=(VkPipelineLayout&& fp) noexcept;
 
         ~VkPipelineLayout();
 

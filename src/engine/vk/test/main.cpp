@@ -18,6 +18,7 @@
 #include "VkVixen.h"
 #include "../../Camera.h"
 #include "../../PrimitiveTopology.h"
+#include "material/Material.h"
 
 struct UniformBufferObject {
     glm::mat4 model;
@@ -38,7 +39,7 @@ int main() {
 
     auto vixen = Vixen::Vk::VkVixen("Vixen Vulkan Test", {1, 0, 0});
 
-    const auto vertexShader = Vixen::Vk::VkShaderModule::Builder(Vixen::ShaderModule::Stage::VERTEX)
+    const auto vertexShader = Vixen::Vk::VkShaderModule::Builder(Vixen::Vk::VkShaderModule::Stage::VERTEX)
                               .addBinding({
                                   .binding = 0,
                                   .stride = sizeof(Vixen::Vk::Vertex),
@@ -63,7 +64,7 @@ int main() {
                                   .offset = offsetof(Vixen::Vk::Vertex, uv)
                               })
                               .compileFromFile(vixen.getDevice(), "../../src/editor/shaders/triangle.vert");
-    const auto fragment = Vixen::Vk::VkShaderModule::Builder(Vixen::ShaderModule::Stage::FRAGMENT)
+    const auto fragment = Vixen::Vk::VkShaderModule::Builder(Vixen::Vk::VkShaderModule::Stage::FRAGMENT)
         .compileFromFile(vixen.getDevice(), "../../src/editor/shaders/triangle.frag");
     const auto program = Vixen::Vk::VkShaderProgram(vertexShader, fragment);
 
@@ -82,6 +83,32 @@ int main() {
 
     const std::string& file = "../../src/engine/vk/test/models/sponza/Sponza.gltf";
     const std::string& path = std::filesystem::path(file).remove_filename().string();
+
+    std::vector<Vixen::Vk::VkDescriptorPoolExpanding::PoolSizeRatio> ratios = {
+        {VK_DESCRIPTOR_TYPE_STORAGE_IMAGE, 3},
+        {VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, 3},
+        {VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, 3},
+        {VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, 4},
+    };
+    auto descriptorPool = std::make_shared<Vixen::Vk::VkDescriptorPoolExpanding>(vixen.getDevice(), 1000, ratios);
+
+    auto sampler = Vixen::Vk::VkSampler(vixen.getDevice());
+
+    auto camera = Vixen::Camera(glm::vec3{0.0f, 0.0f, 0.0f});
+
+    auto uniformBuffer = Vixen::Vk::VkBuffer(
+        vixen.getDevice(),
+        Vixen::BufferUsage::UNIFORM,
+        1,
+        sizeof(UniformBufferObject)
+    );
+
+    UniformBufferObject ubo{
+        glm::mat4(1.0F),
+        camera.view(),
+        camera.perspective(static_cast<float>(width) / static_cast<float>(height))
+    };
+    ubo.model = scale(ubo.model, {0.1F, 0.1F, 0.1F});
 
     Assimp::Importer importer;
     const auto& scene = importer.ReadFile(file, aiProcessPreset_TargetRealtime_Fast);
@@ -123,81 +150,52 @@ int main() {
             indices[j * 3 + 2] = face.mIndices[2];
         }
 
+        aiString imagePath;
+        const auto& aiMaterial = scene->mMaterials[scene->mMeshes[i]->mMaterialIndex];
+        if (aiMaterial == nullptr)
+            throw std::runtime_error("Material is nullptr");
+
+        aiMaterial->GetTexture(aiTextureType_DIFFUSE, 0, &imagePath);
+        const auto& texture = scene->GetEmbeddedTexture(imagePath.C_Str());
+
+        std::shared_ptr<Vixen::Vk::VkImage> image;
+        if (texture == nullptr) {
+            image = std::make_shared<Vixen::Vk::VkImage>(
+                Vixen::Vk::VkImage::from(
+                    vixen.getDevice(),
+                    path + imagePath.C_Str()
+                )
+            );
+        } else {
+            image = std::make_shared<Vixen::Vk::VkImage>(
+                Vixen::Vk::VkImage::from(
+                    vixen.getDevice(),
+                    texture->achFormatHint,
+                    reinterpret_cast<std::byte*>(texture->pcData),
+                    texture->mWidth
+                )
+            );
+        }
+
+        auto descriptor = descriptorPool->allocate(*program.getDescriptorSetLayout());
+        descriptor->writeUniformBuffer(0, uniformBuffer, 0, uniformBuffer.getSize());
+
+        auto imageView = std::make_shared<Vixen::Vk::VkImageView>(image, VK_IMAGE_ASPECT_COLOR_BIT);
+        descriptor->writeCombinedImageSampler(1, sampler, *imageView);
+
+        auto material = std::make_shared<Vixen::Vk::Material>(
+            pipeline,
+            image,
+            imageView,
+            descriptor,
+            Vixen::Vk::MaterialPass::Opaque
+        );
+
         meshes.emplace_back(vixen.getDevice());
         meshes[i].setVertices(vertices);
         meshes[i].setIndices(indices, Vixen::PrimitiveTopology::TRIANGLE_LIST);
+        meshes[i].setMaterial(material);
     }
-
-    aiString imagePath;
-    const auto& material = scene->mMaterials[scene->mMeshes[0]->mMaterialIndex];
-    if (material == nullptr)
-        throw std::runtime_error("Material is nullptr");
-
-    material->GetTexture(aiTextureType_DIFFUSE, 0, &imagePath);
-    const auto& texture = scene->GetEmbeddedTexture(imagePath.C_Str());
-
-    std::shared_ptr<Vixen::Vk::VkImage> image;
-    if (texture == nullptr) {
-        image = std::make_shared<Vixen::Vk::VkImage>(
-            Vixen::Vk::VkImage::from(
-                vixen.getDevice(),
-                path + imagePath.C_Str()
-            )
-        );
-    } else {
-        image = std::make_shared<Vixen::Vk::VkImage>(
-            Vixen::Vk::VkImage::from(
-                vixen.getDevice(),
-                texture->achFormatHint,
-                reinterpret_cast<std::byte*>(texture->pcData),
-                texture->mWidth
-            )
-        );
-    }
-
-    auto camera = Vixen::Camera(glm::vec3{0.0f, 0.0f, 0.0f});
-
-    const std::vector<VkDescriptorPoolSize> sizes{
-        {
-            .type = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER,
-            .descriptorCount = 256
-        },
-        {
-            .type = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER,
-            .descriptorCount = 256
-        }
-    };
-
-    auto uniformBuffer = Vixen::Vk::VkBuffer(
-        vixen.getDevice(),
-        Vixen::BufferUsage::UNIFORM,
-        1,
-        sizeof(UniformBufferObject)
-    );
-
-    UniformBufferObject ubo{
-        glm::mat4(1.0F),
-        camera.view(),
-        camera.perspective(static_cast<float>(width) / static_cast<float>(height))
-    };
-    ubo.model = scale(ubo.model, {0.1F, 0.1F, 0.1F});
-
-    std::vector<Vixen::Vk::VkDescriptorPoolExpanding::PoolSizeRatio> ratios = {
-        {VK_DESCRIPTOR_TYPE_STORAGE_IMAGE, 3},
-        {VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, 3},
-        {VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, 3},
-        {VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, 4},
-    };
-    auto descriptorPool = std::make_shared<Vixen::Vk::VkDescriptorPoolExpanding>(vixen.getDevice(), 1000, ratios);
-
-    auto mvp = descriptorPool->allocate(*program.getDescriptorSetLayout());
-    mvp->writeUniformBuffer(0, uniformBuffer, 0, uniformBuffer.getSize());
-
-    auto view = Vixen::Vk::VkImageView(image, VK_IMAGE_ASPECT_COLOR_BIT);
-    auto sampler = Vixen::Vk::VkSampler(vixen.getDevice());
-    mvp->writeCombinedImageSampler(1, sampler, view);
-
-    const std::vector descriptorSets = {mvp->getSet()};
 
     double old = glfwGetTime();
     double lastFrame = old;
@@ -222,7 +220,7 @@ int main() {
         );
         uniformBuffer.setData(reinterpret_cast<const std::byte*>(&ubo));
 
-        renderer->render(meshes, descriptorSets);
+        renderer->render(meshes);
 
         fps++;
         if (now - old >= 1) {

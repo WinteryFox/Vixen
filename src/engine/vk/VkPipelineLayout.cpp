@@ -25,7 +25,7 @@ namespace Vixen::Vk {
         : device(std::move(device)),
           layout(std::exchange(fp.layout, nullptr)) {}
 
-    VkPipelineLayout const& VkPipelineLayout::operator=(VkPipelineLayout&& fp) noexcept {
+    VkPipelineLayout& VkPipelineLayout::operator=(VkPipelineLayout&& fp) noexcept {
         std::swap(device, fp.device);
         std::swap(layout, fp.layout);
 

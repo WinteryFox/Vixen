@@ -1,7 +1,6 @@
 #pragma once
 
 #include <FreeImagePlus.h>
-#include "Device.h"
 #include "VkBuffer.h"
 
 namespace Vixen::Vk {

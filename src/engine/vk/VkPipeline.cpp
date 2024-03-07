@@ -187,4 +187,6 @@ namespace Vixen::Vk {
     const VkPipeline::Config& VkPipeline::getConfig() const { return config; }
 
     std::shared_ptr<Device> VkPipeline::getDevice() const { return device; }
+
+    const VkPipelineLayout& VkPipeline::getLayout() const { return pipelineLayout; }
 }

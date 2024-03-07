@@ -82,16 +82,16 @@ namespace Vixen::Vk {
         fullPools.clear();
     }
 
-    std::unique_ptr<VkDescriptorSet> VkDescriptorPoolExpanding::allocate(const VkDescriptorSetLayout& layout) {
+    std::shared_ptr<VkDescriptorSet> VkDescriptorPoolExpanding::allocate(const VkDescriptorSetLayout& layout) {
         auto pool = getPool();
-        std::unique_ptr<VkDescriptorSet> descriptorSet;
+        std::shared_ptr<VkDescriptorSet> descriptorSet;
 
         try {
-            descriptorSet = std::make_unique<VkDescriptorSet>(pool->allocate(layout));
+            descriptorSet = std::make_shared<VkDescriptorSet>(pool->allocate(layout));
         } catch (const OutOfPoolMemoryException&) {
             fullPools.push_back(pool);
             pool = getPool();
-            descriptorSet = std::make_unique<VkDescriptorSet>(pool->allocate(layout));
+            descriptorSet = std::make_shared<VkDescriptorSet>(pool->allocate(layout));
         }
 
         readyPools.push_back(pool);

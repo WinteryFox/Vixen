@@ -1,19 +1,19 @@
 #pragma once
 
 #include <volk.h>
-#include <spdlog/spdlog.h>
 #include <glm/glm.hpp>
+#include <spdlog/spdlog.h>
 #include <vulkan/vk_enum_string_helper.h>
 
 #include "../LoadAction.h"
-#include "../Util.h"
 #include "../ShaderModule.h"
 #include "../StoreAction.h"
+#include "../Util.h"
 
 #ifdef DEBUG
 
-#include <spdlog/sinks/stdout_color_sinks.h>
 #include <fmt/color.h>
+#include <spdlog/sinks/stdout_color_sinks.h>
 
 #endif
 
@@ -85,6 +85,8 @@ namespace Vixen::Vk {
             return VK_SHADER_STAGE_VERTEX_BIT;
         case ShaderModule::Stage::FRAGMENT:
             return VK_SHADER_STAGE_FRAGMENT_BIT;
+        default:
+            throw std::runtime_error("Unknown shader stage");
         }
 
         return VK_SHADER_STAGE_FLAG_BITS_MAX_ENUM;

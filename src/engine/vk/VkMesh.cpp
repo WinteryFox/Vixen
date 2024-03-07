@@ -53,6 +53,10 @@ namespace Vixen::Vk {
         upload(vertexBuffer, reinterpret_cast<const std::byte*>(vertices.data()));
     }
 
+    void VkMesh::setMaterial(const std::shared_ptr<const Material>& material) {
+        this->material = material;
+    }
+
     void VkMesh::upload(const VkBuffer& destination, const std::byte* data) const {
         const auto& stagingBuffer = VkBuffer(device, BufferUsage::COPY_SOURCE, destination.getCount(),
                                              destination.getStride());
@@ -75,4 +79,6 @@ namespace Vixen::Vk {
     const VkBuffer& VkMesh::getVertexBuffer() const { return vertexBuffer; }
 
     const VkBuffer& VkMesh::getIndexBuffer() const { return indexBuffer; }
+
+    std::shared_ptr<const Material> VkMesh::getMaterial() const { return material; }
 }

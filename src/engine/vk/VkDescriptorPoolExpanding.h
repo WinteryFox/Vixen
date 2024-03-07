@@ -53,6 +53,6 @@ namespace Vixen::Vk {
 
         void reset();
 
-        std::unique_ptr<VkDescriptorSet> allocate(const VkDescriptorSetLayout& layout);
+        std::shared_ptr<VkDescriptorSet> allocate(const VkDescriptorSetLayout& layout);
     };
 }
