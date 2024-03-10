@@ -39,11 +39,11 @@ int main() {
 
     auto vixen = Vixen::Vk::VkVixen("Vixen Vulkan Test", {1, 0, 0});
 
-    const auto vertexShader = Vixen::Vk::VkShaderModule::Builder(Vixen::Vk::VkShaderModule::Stage::VERTEX)
+    const auto vertexShader = Vixen::Vk::VkShaderModule::Builder(Vixen::Vk::VkShaderModule::Stage::Vertex)
                               .addBinding({
                                   .binding = 0,
                                   .stride = sizeof(Vixen::Vk::Vertex),
-                                  .rate = Vixen::Vk::VkShaderModule::Rate::VERTEX
+                                  .rate = Vixen::Vk::VkShaderModule::Rate::Vertex
                               })
                               .addInput({
                                   .binding = 0,
@@ -64,7 +64,7 @@ int main() {
                                   .offset = offsetof(Vixen::Vk::Vertex, uv)
                               })
                               .compileFromFile(vixen.getDevice(), "../../src/editor/shaders/triangle.vert");
-    const auto fragment = Vixen::Vk::VkShaderModule::Builder(Vixen::Vk::VkShaderModule::Stage::FRAGMENT)
+    const auto fragment = Vixen::Vk::VkShaderModule::Builder(Vixen::Vk::VkShaderModule::Stage::Fragment)
         .compileFromFile(vixen.getDevice(), "../../src/editor/shaders/triangle.frag");
     const auto program = Vixen::Vk::VkShaderProgram(vertexShader, fragment);
 
@@ -98,7 +98,7 @@ int main() {
 
     auto uniformBuffer = Vixen::Vk::VkBuffer(
         vixen.getDevice(),
-        Vixen::BufferUsage::UNIFORM,
+        Vixen::BufferUsage::Uniform,
         1,
         sizeof(UniformBufferObject)
     );
@@ -193,7 +193,7 @@ int main() {
 
         meshes.emplace_back(vixen.getDevice());
         meshes[i].setVertices(vertices);
-        meshes[i].setIndices(indices, Vixen::PrimitiveTopology::TRIANGLE_LIST);
+        meshes[i].setIndices(indices, Vixen::PrimitiveTopology::TriangleList);
         meshes[i].setMaterial(material);
     }
 

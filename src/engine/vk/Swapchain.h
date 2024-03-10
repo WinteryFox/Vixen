@@ -42,9 +42,9 @@ namespace Vixen::Vk {
 
     public:
         enum class State {
-            OK,
-            SUBOPTIMAL,
-            OUT_OF_DATE
+            Ok,
+            Suboptimal,
+            OutOfDate
         };
 
         Swapchain(const std::shared_ptr<Device>& device, uint32_t framesInFlight);
@@ -74,7 +74,7 @@ namespace Vixen::Vk {
 
             if (result == VK_ERROR_OUT_OF_DATE_KHR) {
                 spdlog::debug("Swapchain is outdated");
-                return State::OUT_OF_DATE;
+                return State::OutOfDate;
             }
 
             lambda(currentFrame, imageIndex, imageAvailableSemaphore);
@@ -85,13 +85,13 @@ namespace Vixen::Vk {
                 using enum State;
 
             case VK_SUCCESS:
-                return OK;
+                return Ok;
             case VK_SUBOPTIMAL_KHR:
                 spdlog::warn("Suboptimal swapchain state");
-                return SUBOPTIMAL;
+                return Suboptimal;
             default:
                 checkVulkanResult(result, "Failed to acquire swapchain image");
-                return OUT_OF_DATE;
+                return OutOfDate;
             }
         }
 

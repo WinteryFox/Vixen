@@ -30,10 +30,10 @@ namespace Vixen::Vk {
         for (const auto& [binding, stride, rate] : vertexModule->getBindings()) {
             VkVertexInputRate r;
             switch (rate) {
-            case ShaderModule::Rate::VERTEX:
+            case ShaderModule::Rate::Vertex:
                 r = VK_VERTEX_INPUT_RATE_VERTEX;
                 break;
-            case ShaderModule::Rate::INSTANCE:
+            case ShaderModule::Rate::Instance:
                 r = VK_VERTEX_INPUT_RATE_INSTANCE;
                 break;
             default:

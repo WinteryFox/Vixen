@@ -53,14 +53,11 @@ namespace Vixen::Vk {
         };
 
         switch (usage) {
-        case CommandBufferUsage::ONCE:
+        case CommandBufferUsage::Once:
             info.flags = VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT;
             break;
-        case CommandBufferUsage::SIMULTANEOUS:
+        case CommandBufferUsage::Simultanious:
             info.flags = VK_COMMAND_BUFFER_USAGE_SIMULTANEOUS_USE_BIT;
-            break;
-        case CommandBufferUsage::RENDER_PASS_CONTINUE:
-            info.flags = VK_COMMAND_BUFFER_USAGE_RENDER_PASS_CONTINUE_BIT;
             break;
         }
 
@@ -232,7 +229,7 @@ namespace Vixen::Vk {
             commandBuffer,
             mesh.getIndexBuffer().getBuffer(),
             0,
-            mesh.getIndexFormat() == IndexFormat::UNSIGNED_INT_16
+            mesh.getIndexFormat() == IndexFormat::UnsignedInt16
                 ? VK_INDEX_TYPE_UINT16
                 : VK_INDEX_TYPE_UINT32
         );

@@ -17,12 +17,12 @@ namespace Vixen::Vk {
     }
 
     void VkMesh::setIndices(const std::vector<uint16_t>& indices, const PrimitiveTopology topology) {
-        this->indexFormat = IndexFormat::UNSIGNED_INT_16;
+        this->indexFormat = IndexFormat::UnsignedInt16;
         this->topology = topology;
         this->indexCount = indices.size();
         indexBuffer = VkBuffer(
             device,
-            BufferUsage::INDEX | BufferUsage::COPY_DESTINATION,
+            BufferUsage::Index | BufferUsage::CopyDestination,
             indexCount,
             sizeof(uint16_t)
         );
@@ -30,12 +30,12 @@ namespace Vixen::Vk {
     }
 
     void VkMesh::setIndices(const std::vector<uint32_t>& indices, PrimitiveTopology topology) {
-        this->indexFormat = IndexFormat::UNSIGNED_INT_32;
+        this->indexFormat = IndexFormat::UnsignedInt32;
         this->topology = topology;
         this->indexCount = indices.size();
         indexBuffer = VkBuffer(
             device,
-            BufferUsage::INDEX | BufferUsage::COPY_DESTINATION,
+            BufferUsage::Index | BufferUsage::CopyDestination,
             indexCount,
             sizeof(uint32_t)
         );
@@ -46,7 +46,7 @@ namespace Vixen::Vk {
         this->vertexCount = vertices.size();
         vertexBuffer = VkBuffer(
             device,
-            BufferUsage::VERTEX | BufferUsage::COPY_DESTINATION,
+            BufferUsage::Vertex | BufferUsage::CopyDestination,
             vertexCount,
             sizeof(Vertex)
         );
@@ -58,13 +58,13 @@ namespace Vixen::Vk {
     }
 
     void VkMesh::upload(const VkBuffer& destination, const std::byte* data) const {
-        const auto& stagingBuffer = VkBuffer(device, BufferUsage::COPY_SOURCE, destination.getCount(),
+        const auto& stagingBuffer = VkBuffer(device, BufferUsage::CopySource, destination.getCount(),
                                              destination.getStride());
         stagingBuffer.setData(data);
 
         const auto& cmd = device->getTransferCommandPool()
-                                ->allocate(CommandBufferLevel::PRIMARY);
-        cmd.begin(CommandBufferUsage::ONCE);
+                                ->allocate(CommandBufferLevel::Primary);
+        cmd.begin(CommandBufferUsage::Once);
         cmd.copyBuffer(stagingBuffer, destination);
         cmd.end();
         cmd.submit(device->getTransferQueue(), {}, {}, {});

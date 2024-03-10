@@ -2,7 +2,7 @@
 
 namespace Vixen {
     enum class CommandPoolUsage {
-        GRAPHICS,
-        TRANSIENT
+        Graphics,
+        Transient
     };
 }

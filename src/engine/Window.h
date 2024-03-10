@@ -17,9 +17,9 @@ namespace Vixen {
 
     public:
         enum class Mode {
-            FULLSCREEN,
-            BORDERLESS_FULLSCREEN,
-            WINDOWED,
+            Fullscreen,
+            BorderlessFullscreen,
+            Windowed,
         };
 
         Window(
@@ -70,6 +70,6 @@ namespace Vixen {
 
         std::unordered_map<GLFWmonitor*, Monitor> getMonitors() const;
 
-        void getFramebufferSize(int& width, int& height);
+        void getFramebufferSize(int& width, int& height) const;
     };
 }

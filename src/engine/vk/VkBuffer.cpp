@@ -26,23 +26,23 @@ namespace Vixen::Vk {
         VkBufferUsageFlags bufferUsageFlags = 0;
         VkMemoryPropertyFlags requiredFlags = 0;
 
-        if (usage & BufferUsage::VERTEX)
+        if (usage & BufferUsage::Vertex)
             bufferUsageFlags |= VK_BUFFER_USAGE_VERTEX_BUFFER_BIT;
 
-        if (usage & BufferUsage::INDEX)
+        if (usage & BufferUsage::Index)
             bufferUsageFlags |= VK_BUFFER_USAGE_INDEX_BUFFER_BIT;
 
-        if (usage & BufferUsage::COPY_SOURCE) {
+        if (usage & BufferUsage::CopySource) {
             allocationFlags |= VMA_ALLOCATION_CREATE_MAPPED_BIT |
                 VMA_ALLOCATION_CREATE_HOST_ACCESS_SEQUENTIAL_WRITE_BIT;
             bufferUsageFlags |= VK_BUFFER_USAGE_TRANSFER_SRC_BIT;
         }
 
-        if (usage & BufferUsage::COPY_DESTINATION) {
+        if (usage & BufferUsage::CopyDestination) {
             bufferUsageFlags |= VK_BUFFER_USAGE_TRANSFER_DST_BIT;
         }
 
-        if (usage & BufferUsage::UNIFORM) {
+        if (usage & BufferUsage::Uniform) {
             allocationFlags |= VMA_ALLOCATION_CREATE_MAPPED_BIT |
                 VMA_ALLOCATION_CREATE_HOST_ACCESS_SEQUENTIAL_WRITE_BIT;
             bufferUsageFlags |= VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT;

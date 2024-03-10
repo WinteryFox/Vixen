@@ -10,13 +10,13 @@ namespace Vixen {
     class ShaderModule {
     public:
         enum class Stage {
-            VERTEX,
-            FRAGMENT,
+            Vertex,
+            Fragment
         };
 
         enum class Rate {
-            VERTEX,
-            INSTANCE
+            Vertex,
+            Instance
         };
 
         struct Binding {
@@ -34,8 +34,8 @@ namespace Vixen {
 
         struct Uniform {
             enum class Type {
-                BUFFER,
-                SAMPLER
+                Buffer,
+                Sampler
             };
 
             Stage stage;

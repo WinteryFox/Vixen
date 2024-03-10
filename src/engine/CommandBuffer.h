@@ -7,14 +7,13 @@ namespace Vixen {
     }
 
     enum class CommandBufferLevel {
-        PRIMARY,
-        SECONDARY
+        Primary,
+        Secondary
     };
 
     enum class CommandBufferUsage {
-        ONCE,
-        SIMULTANEOUS,
-        RENDER_PASS_CONTINUE
+        Once,
+        Simultanious
     };
 
     class CommandBuffer {

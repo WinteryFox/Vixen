@@ -186,7 +186,7 @@ namespace Vixen::Vk {
 
     std::shared_ptr<VkCommandPool> Device::getTransferCommandPool() {
         if (!transferCommandPool)
-            transferCommandPool = allocateCommandPool(CommandPoolUsage::TRANSIENT, true);
+            transferCommandPool = allocateCommandPool(CommandPoolUsage::Transient, true);
 
         return transferCommandPool;
     }

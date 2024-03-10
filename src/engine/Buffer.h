@@ -4,11 +4,11 @@
 
 namespace Vixen {
     enum class BufferUsage : std::uint32_t {
-        VERTEX = 1 << 0,
-        INDEX = 1 << 1,
-        UNIFORM = 1 << 2,
-        COPY_SOURCE = 1 << 3,
-        COPY_DESTINATION = 1 << 4
+        Vertex = 1 << 0,
+        Index = 1 << 1,
+        Uniform = 1 << 2,
+        CopySource = 1 << 3,
+        CopyDestination = 1 << 4
     };
 
     inline BufferUsage operator|(BufferUsage a, BufferUsage b) {

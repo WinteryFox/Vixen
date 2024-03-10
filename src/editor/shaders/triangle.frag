@@ -9,4 +9,7 @@ layout(binding = 1) uniform sampler2D diffuse;
 
 void main() {
     color = vertex_color * texture(diffuse, uv);
+    if (color.a < 0.5) {
+        discard;
+    }
 }

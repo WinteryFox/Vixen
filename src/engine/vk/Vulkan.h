@@ -81,9 +81,9 @@ namespace Vixen::Vk {
 
     static VkShaderStageFlagBits getVulkanShaderStage(const ShaderModule::Stage stage) {
         switch (stage) {
-        case ShaderModule::Stage::VERTEX:
+        case ShaderModule::Stage::Vertex:
             return VK_SHADER_STAGE_VERTEX_BIT;
-        case ShaderModule::Stage::FRAGMENT:
+        case ShaderModule::Stage::Fragment:
             return VK_SHADER_STAGE_FRAGMENT_BIT;
         default:
             throw std::runtime_error("Unknown shader stage");

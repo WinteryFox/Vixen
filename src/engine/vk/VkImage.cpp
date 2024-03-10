@@ -117,9 +117,9 @@ namespace Vixen::Vk {
 
     void VkImage::upload(const VkBuffer& data) {
         const auto& cmd = device->getTransferCommandPool()
-                                ->allocate(CommandBufferLevel::PRIMARY);
+                                ->allocate(CommandBufferLevel::Primary);
 
-        cmd.begin(CommandBufferUsage::ONCE);
+        cmd.begin(CommandBufferUsage::Once);
 
         cmd.transitionImage(*this, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL);
         cmd.copyBufferToImage(data, *this);
@@ -213,7 +213,7 @@ namespace Vixen::Vk {
 
         const auto& staging = VkBuffer(
             device,
-            BufferUsage::UNIFORM | BufferUsage::COPY_SOURCE,
+            BufferUsage::Uniform | BufferUsage::CopySource,
             width * height,
             bitsPerPixel / 8
         );

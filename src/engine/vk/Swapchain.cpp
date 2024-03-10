@@ -69,8 +69,8 @@ namespace Vixen::Vk {
     uint32_t Swapchain::getCurrentFrame() const { return currentFrame; }
 
     void Swapchain::present(uint32_t imageIndex, const std::vector<::VkSemaphore>& waitSemaphores) {
-        const auto& commandBuffer = device->getTransferCommandPool()->allocate(CommandBufferLevel::PRIMARY);
-        commandBuffer.begin(CommandBufferUsage::ONCE);
+        const auto& commandBuffer = device->getTransferCommandPool()->allocate(CommandBufferLevel::Primary);
+        commandBuffer.begin(CommandBufferUsage::Once);
         commandBuffer.transitionImage(*images[imageIndex], VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL);
         commandBuffer.record([this, &imageIndex](const auto& cmd) {
             VkImageMemoryBarrier barrier{

@@ -145,16 +145,19 @@ namespace Vixen {
         return monitors;
     }
 
-    void Window::setWindowedMode(Mode mode) const {
+    void Window::setWindowedMode(const Mode mode) const {
         int w;
         int h;
         int x;
         int y;
-        int refreshRate;
-        GLFWmonitor* m;
+        int refreshRate = 0;
+        GLFWmonitor* m = nullptr;
 
-        if (mode == Mode::FULLSCREEN) {
-            auto videoMode = glfwGetVideoMode(monitor);
+        const auto& videoMode = glfwGetVideoMode(monitor);
+
+        switch (mode) {
+        case Mode::Fullscreen:
+        case Mode::BorderlessFullscreen:
             m = monitor;
             refreshRate = videoMode->refreshRate;
             w = videoMode->width;
@@ -162,26 +165,20 @@ namespace Vixen {
 
             glfwSetWindowAttrib(window, GLFW_DECORATED, false);
             glfwSetWindowAttrib(window, GLFW_FLOATING, true);
-        }
-        else if (mode == Mode::BORDERLESS_FULLSCREEN) {
-            auto videoMode = glfwGetVideoMode(monitor);
-            w = videoMode->width;
-            h = videoMode->height;
+            break;
 
-            glfwSetWindowAttrib(window, GLFW_DECORATED, false);
-            glfwSetWindowAttrib(window, GLFW_FLOATING, true);
-        }
-        else {
+        case Mode::Windowed:
             glfwGetWindowPos(window, &x, &y);
             glfwGetWindowSize(window, &w, &h);
             glfwSetWindowAttrib(window, GLFW_DECORATED, true);
             glfwSetWindowAttrib(window, GLFW_FLOATING, false);
+            break;
         }
 
         glfwSetWindowMonitor(window, m, x, y, w, h, refreshRate);
     }
 
-    void Window::getFramebufferSize(int& width, int& height) {
+    void Window::getFramebufferSize(int& width, int& height) const {
         glfwGetFramebufferSize(window, &width, &height);
     }
 

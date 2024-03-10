@@ -94,10 +94,10 @@ namespace Vixen::Vk {
             std::shared_ptr<VkShaderModule> compile(const std::shared_ptr<Device>& d, const std::vector<char>& source) {
                 EShLanguage s;
                 switch (stage) {
-                case Stage::VERTEX:
+                case Stage::Vertex:
                     s = EShLangVertex;
                     break;
-                case Stage::FRAGMENT:
+                case Stage::Fragment:
                     s = EShLangFragment;
                     break;
                 default:
@@ -170,7 +170,7 @@ namespace Vixen::Vk {
                     uniforms.push_back({
                         .stage = stage,
                         .binding = binding,
-                        .type = Uniform::Type::BUFFER
+                        .type = Uniform::Type::Buffer
                     });
                 }
 
@@ -180,7 +180,7 @@ namespace Vixen::Vk {
                     uniforms.push_back({
                         .stage = stage,
                         .binding = binding,
-                        .type = Uniform::Type::SAMPLER
+                        .type = Uniform::Type::Sampler
                     });
                 }
 

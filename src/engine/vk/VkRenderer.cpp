@@ -13,12 +13,12 @@ namespace Vixen::Vk {
         renderCommandPool(std::make_shared<VkCommandPool>(
             device,
             device->getGraphicsQueueFamily().index,
-            CommandPoolUsage::GRAPHICS,
+            CommandPoolUsage::Graphics,
             true
         )),
         renderCommandBuffers(
             renderCommandPool->allocate(
-                CommandBufferLevel::PRIMARY,
+                CommandBufferLevel::Primary,
                 swapchain->getImageCount()
             )
         ) {
@@ -56,7 +56,7 @@ namespace Vixen::Vk {
 
                 swapchain->present(imageIndex, signalSemaphores);
             }
-        ); state == Swapchain::State::OUT_OF_DATE) {
+        ); state == Swapchain::State::OutOfDate) {
             device->waitIdle();
 
             swapchain->invalidate();
@@ -71,7 +71,7 @@ namespace Vixen::Vk {
         const auto& [width, height] = swapchain->getExtent();
 
         commandBuffer.reset();
-        commandBuffer.begin(CommandBufferUsage::SIMULTANEOUS);
+        commandBuffer.begin(CommandBufferUsage::Simultanious);
 
         commandBuffer.beginRenderPass(
             width,

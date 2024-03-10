@@ -13,9 +13,9 @@ namespace Vixen::Vk {
         VkCommandPoolCreateFlags flags = 0;
 
         switch (usage) {
-        case CommandPoolUsage::GRAPHICS:
+        case CommandPoolUsage::Graphics:
             break;
-        case CommandPoolUsage::TRANSIENT:
+        case CommandPoolUsage::Transient:
             flags = VK_COMMAND_POOL_CREATE_TRANSIENT_BIT;
             break;
         }

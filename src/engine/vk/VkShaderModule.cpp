@@ -49,10 +49,10 @@ namespace Vixen::Vk {
         for (const auto& uniformBuffer : uniformBuffers) {
             VkDescriptorType type;
             switch (uniformBuffer.type) {
-            case Uniform::Type::BUFFER:
+            case Uniform::Type::Buffer:
                 type = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
                 break;
-            case Uniform::Type::SAMPLER:
+            case Uniform::Type::Sampler:
                 type = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
                 break;
             default:
