@@ -6,11 +6,12 @@
 
 namespace Vixen::Vk {
     Device::Device(
-        const Instance& instance,
+        const std::shared_ptr<Instance>& instance,
         const std::vector<const char*>& extensions,
         GraphicsCard gpu,
         VkSurfaceKHR surface
-    ) : gpu(gpu),
+    ) : instance(instance),
+        gpu(gpu),
         device(VK_NULL_HANDLE),
         allocator(VK_NULL_HANDLE),
         surface(surface),
@@ -102,7 +103,7 @@ namespace Vixen::Vk {
             .physicalDevice = gpu.device,
             .device = device,
             .pVulkanFunctions = &vulkanFunctions,
-            .instance = instance.instance,
+            .instance = instance->instance,
             .vulkanApiVersion = VK_API_VERSION_1_3,
         };
         vmaCreateAllocator(&allocatorInfo, &allocator);

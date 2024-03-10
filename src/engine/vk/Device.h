@@ -10,6 +10,8 @@ namespace Vixen {
 
 namespace Vixen::Vk {
     class Device : public std::enable_shared_from_this<Device> {
+        std::shared_ptr<Instance> instance;
+
         GraphicsCard gpu;
 
         ::VkDevice device;
@@ -34,7 +36,7 @@ namespace Vixen::Vk {
 
     public:
         Device(
-            const Instance& instance,
+            const std::shared_ptr<Instance>& instance,
             const std::vector<const char*>& extensions,
             GraphicsCard gpu,
             VkSurfaceKHR surface

@@ -15,7 +15,7 @@ namespace Vixen::Vk {
 
         std::shared_ptr<VkWindow> window;
 
-        Instance instance;
+        std::shared_ptr<Instance> instance;
 
         VkSurfaceKHR surface;
 
@@ -34,7 +34,7 @@ namespace Vixen::Vk {
 
         [[nodiscard]] std::shared_ptr<VkWindow> getWindow() const;
 
-        [[nodiscard]] Instance getInstance() const;
+        [[nodiscard]] std::shared_ptr<Instance> getInstance() const;
 
         [[nodiscard]] VkSurfaceKHR getSurface() const;
 

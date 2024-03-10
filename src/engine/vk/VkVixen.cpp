@@ -4,12 +4,12 @@ namespace Vixen::Vk {
     VkVixen::VkVixen(const std::string& appTitle, glm::vec3 appVersion)
         : Vixen(appTitle, appVersion),
           window(std::make_unique<VkWindow>(appTitle, 640, 480, false)),
-          instance(Instance(appTitle, appVersion, window->getRequiredExtensions())),
-          surface(instance.surfaceForWindow(*window)),
+          instance(std::make_shared<Instance>(appTitle, appVersion, window->getRequiredExtensions())),
+          surface(instance->surfaceForWindow(*window)),
           device(std::make_shared<Device>(
               instance,
               deviceExtensions,
-              instance.findOptimalGraphicsCard(surface, deviceExtensions),
+              instance->findOptimalGraphicsCard(surface, deviceExtensions),
               surface
           )),
           swapchain(std::make_shared<Swapchain>(device, 3)) {
@@ -21,7 +21,7 @@ namespace Vixen::Vk {
 
     std::shared_ptr<VkWindow> VkVixen::getWindow() const { return window; }
 
-    Instance VkVixen::getInstance() const { return instance; }
+    std::shared_ptr<Instance> VkVixen::getInstance() const { return instance; }
 
     VkSurfaceKHR VkVixen::getSurface() const { return surface; }
 
