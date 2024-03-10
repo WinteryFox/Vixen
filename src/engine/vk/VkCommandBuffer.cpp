@@ -325,40 +325,50 @@ namespace Vixen::Vk {
         VkPipelineStageFlags sourceFlags;
         VkPipelineStageFlags destinationFlags;
 
-        if (image.getLayout() == VK_IMAGE_LAYOUT_UNDEFINED &&
-            layout == VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL) {
-            barrier.srcAccessMask = 0;
-            barrier.dstAccessMask = VK_ACCESS_TRANSFER_WRITE_BIT;
-
+        switch (image.getLayout()) {
+        case VK_IMAGE_LAYOUT_UNDEFINED:
+            barrier.srcAccessMask = VK_ACCESS_NONE;
             sourceFlags = VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT;
-            destinationFlags = VK_PIPELINE_STAGE_TRANSFER_BIT;
-        } else if (image.getLayout() == VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL &&
-            layout == VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL) {
-            barrier.srcAccessMask = VK_ACCESS_TRANSFER_WRITE_BIT;
-            barrier.dstAccessMask = VK_ACCESS_SHADER_READ_BIT;
-
+            break;
+        case VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL:
+            barrier.srcAccessMask = VK_ACCESS_TRANSFER_READ_BIT;
             sourceFlags = VK_PIPELINE_STAGE_TRANSFER_BIT;
-            destinationFlags = VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT;
-        } else if (layout == VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL) {
-            barrier.srcAccessMask = 0;
-            barrier.dstAccessMask = VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT;
-
-            sourceFlags = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT;
-            destinationFlags = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT;
-        } else if (layout == VK_IMAGE_LAYOUT_PRESENT_SRC_KHR) {
+            break;
+        case VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL:
+            barrier.srcAccessMask = VK_ACCESS_TRANSFER_WRITE_BIT;
+            sourceFlags = VK_PIPELINE_STAGE_TRANSFER_BIT;
+            break;
+        case VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL:
             barrier.srcAccessMask = VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT;
-            barrier.dstAccessMask = 0;
-
             sourceFlags = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT;
-            destinationFlags = VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT;
-        } else if (layout == VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL) {
-            barrier.srcAccessMask = 0;
-            barrier.dstAccessMask = VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_WRITE_BIT;
+            break;
+        default:
+            spdlog::error("Unsupported source layout {} for image transition", string_VkImageLayout(image.getLayout()));
+            throw std::runtime_error("Unsupported source layout for image transition");
+        }
 
-            sourceFlags = VK_PIPELINE_STAGE_EARLY_FRAGMENT_TESTS_BIT | VK_PIPELINE_STAGE_LATE_FRAGMENT_TESTS_BIT;
-            destinationFlags = VK_PIPELINE_STAGE_EARLY_FRAGMENT_TESTS_BIT | VK_PIPELINE_STAGE_LATE_FRAGMENT_TESTS_BIT;
-        } else
-            throw std::runtime_error("Unsupported transition layout");
+        switch (layout) {
+        case VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL:
+            barrier.dstAccessMask = VK_ACCESS_TRANSFER_READ_BIT;
+            destinationFlags = VK_PIPELINE_STAGE_TRANSFER_BIT;
+            break;
+        case VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL:
+            barrier.dstAccessMask = VK_ACCESS_TRANSFER_WRITE_BIT;
+            destinationFlags = VK_PIPELINE_STAGE_TRANSFER_BIT;
+            break;
+        case VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL:
+            barrier.dstAccessMask = VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT;
+            destinationFlags = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT;
+            break;
+        case VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL:
+            barrier.dstAccessMask = VK_ACCESS_SHADER_READ_BIT;
+        // TODO: Dodgy flag, do we only read images in the fragment shader? Probably not.
+            destinationFlags = VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT;
+            break;
+        default:
+            spdlog::error("Unsupported destination layout {} for image transition", string_VkImageLayout(layout));
+            throw std::runtime_error("Unsupported destination layout for image transition");
+        }
 
         vkCmdPipelineBarrier(
             commandBuffer,

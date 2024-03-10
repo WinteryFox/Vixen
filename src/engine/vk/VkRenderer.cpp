@@ -73,15 +73,6 @@ namespace Vixen::Vk {
         commandBuffer.reset();
         commandBuffer.begin(CommandBufferUsage::SIMULTANEOUS);
 
-        commandBuffer.transitionImage(
-            *swapchain->getColorImages()[imageIndex],
-            VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL
-        );
-        commandBuffer.transitionImage(
-            *swapchain->getDepthImages()[imageIndex],
-            VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL
-        );
-
         commandBuffer.beginRenderPass(
             width,
             height,
@@ -91,7 +82,7 @@ namespace Vixen::Vk {
                     .loadAction = LoadAction::Clear,
                     .storeAction = StoreAction::Store,
                     .layout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL,
-                    .loadStoreTarget = swapchain->getColorImageViews()[imageIndex].getImageView(),
+                    .loadStoreTarget = swapchain->getImageViews()[imageIndex].getImageView(),
                     .resolveTarget = nullptr,
                     .clearColor = {0.0F, 0.0F, 0.0F, 0.0F},
                     .clearDepth = 0.0F,
@@ -115,11 +106,6 @@ namespace Vixen::Vk {
         }
 
         commandBuffer.endRenderPass();
-
-        commandBuffer.transitionImage(
-            *swapchain->getColorImages()[imageIndex],
-            VK_IMAGE_LAYOUT_PRESENT_SRC_KHR
-        );
 
         commandBuffer.end();
     }

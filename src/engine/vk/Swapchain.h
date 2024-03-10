@@ -18,9 +18,11 @@ namespace Vixen::Vk {
 
         VkSwapchainKHR swapchain;
 
-        std::vector<std::shared_ptr<VkImage>> colorImages;
+        std::vector<::VkImage> internalImages;
 
-        std::vector<VkImageView> colorImageViews;
+        std::vector<std::shared_ptr<VkImage>> images;
+
+        std::vector<VkImageView> imageViews;
 
         std::vector<std::shared_ptr<VkImage>> depthImages;
 
@@ -101,9 +103,9 @@ namespace Vixen::Vk {
 
         [[nodiscard]] uint32_t getImageCount() const;
 
-        [[nodiscard]] const std::vector<std::shared_ptr<VkImage>>& getColorImages() const;
+        [[nodiscard]] const std::vector<std::shared_ptr<VkImage>>& getImages() const;
 
-        [[nodiscard]] const std::vector<VkImageView>& getColorImageViews() const;
+        [[nodiscard]] const std::vector<VkImageView>& getImageViews() const;
 
         [[nodiscard]] const std::vector<std::shared_ptr<VkImage>>& getDepthImages() const;
 

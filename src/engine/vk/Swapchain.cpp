@@ -58,9 +58,9 @@ namespace Vixen::Vk {
         return imageCount;
     }
 
-    const std::vector<std::shared_ptr<VkImage>>& Swapchain::getColorImages() const { return colorImages; }
+    const std::vector<std::shared_ptr<VkImage>>& Swapchain::getImages() const { return images; }
 
-    const std::vector<VkImageView>& Swapchain::getColorImageViews() const { return colorImageViews; }
+    const std::vector<VkImageView>& Swapchain::getImageViews() const { return imageViews; }
 
     const std::vector<std::shared_ptr<VkImage>>& Swapchain::getDepthImages() const { return depthImages; }
 
@@ -69,6 +69,104 @@ namespace Vixen::Vk {
     uint32_t Swapchain::getCurrentFrame() const { return currentFrame; }
 
     void Swapchain::present(uint32_t imageIndex, const std::vector<::VkSemaphore>& waitSemaphores) {
+        const auto& commandBuffer = device->getTransferCommandPool()->allocate(CommandBufferLevel::PRIMARY);
+        commandBuffer.begin(CommandBufferUsage::ONCE);
+        commandBuffer.transitionImage(*images[imageIndex], VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL);
+        commandBuffer.record([this, &imageIndex](const auto& cmd) {
+            VkImageMemoryBarrier barrier{
+                .sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER,
+                .pNext = nullptr,
+                .srcAccessMask = VK_ACCESS_NONE,
+                .dstAccessMask = VK_ACCESS_TRANSFER_WRITE_BIT,
+                .oldLayout = VK_IMAGE_LAYOUT_UNDEFINED,
+                .newLayout = VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
+                .srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED,
+                .dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED,
+                .image = internalImages[imageIndex],
+                .subresourceRange = {
+                    .aspectMask = VK_IMAGE_ASPECT_COLOR_BIT,
+                    .baseMipLevel = 0,
+                    .levelCount = 1,
+                    .baseArrayLayer = 0,
+                    .layerCount = 1
+                }
+            };
+
+            vkCmdPipelineBarrier(
+                cmd,
+                VK_PIPELINE_STAGE_TRANSFER_BIT,
+                VK_PIPELINE_STAGE_TRANSFER_BIT,
+                0,
+                0,
+                nullptr,
+                0,
+                nullptr,
+                1,
+                &barrier
+            );
+
+            const VkImageCopy region{
+                .srcSubresource = {
+                    .aspectMask = VK_IMAGE_ASPECT_COLOR_BIT,
+                    .mipLevel = 0,
+                    .baseArrayLayer = 0,
+                    .layerCount = 1
+                },
+                .srcOffset = {
+                    .x = 0,
+                    .y = 0,
+                    .z = 0
+                },
+                .dstSubresource = {
+                    .aspectMask = VK_IMAGE_ASPECT_COLOR_BIT,
+                    .mipLevel = 0,
+                    .baseArrayLayer = 0,
+                    .layerCount = 1
+                },
+                .dstOffset = {
+                    .x = 0,
+                    .y = 0,
+                    .z = 0
+                },
+                .extent = {
+                    .width = extent.width,
+                    .height = extent.height,
+                    .depth = 1
+                }
+            };
+
+            vkCmdCopyImage(
+                cmd,
+                images[imageIndex]->getImage(),
+                images[imageIndex]->getLayout(),
+                internalImages[imageIndex],
+                barrier.newLayout,
+                1,
+                &region
+            );
+
+            barrier.oldLayout = barrier.newLayout;
+            barrier.newLayout = VK_IMAGE_LAYOUT_PRESENT_SRC_KHR;
+            barrier.srcAccessMask = VK_ACCESS_NONE;
+            barrier.dstAccessMask = VK_ACCESS_NONE;
+
+            vkCmdPipelineBarrier(
+                cmd,
+                VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT,
+                VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT,
+                0,
+                0,
+                nullptr,
+                0,
+                nullptr,
+                1,
+                &barrier
+            );
+        });
+        commandBuffer.transitionImage(*images[imageIndex], VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL);
+        commandBuffer.end();
+        commandBuffer.submit(device->getTransferQueue(), {}, {}, {});
+
         const VkPresentInfoKHR presentInfo{
             .sType = VK_STRUCTURE_TYPE_PRESENT_INFO_KHR,
 
@@ -92,10 +190,10 @@ namespace Vixen::Vk {
     }
 
     void Swapchain::create() {
-        const auto surface = device->getSurface();
-        const auto capabilities = device->getGpu().getSurfaceCapabilities(device->getSurface());
+        const auto& surface = device->getSurface();
+        const auto& capabilities = device->getGpu().getSurfaceCapabilities(device->getSurface());
 
-        const VkPresentModeKHR presentMode = determinePresentMode(device->getGpu().getPresentModes(surface));
+        const auto& presentMode = determinePresentMode(device->getGpu().getPresentModes(surface));
         extent = capabilities.currentExtent;
 
         spdlog::trace("Selected present mode {} and image format {} and color space {}",
@@ -110,7 +208,7 @@ namespace Vixen::Vk {
             .imageColorSpace = format.colorSpace,
             .imageExtent = extent,
             .imageArrayLayers = 1,
-            .imageUsage = VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT,
+            .imageUsage = VK_IMAGE_USAGE_TRANSFER_DST_BIT,
             .preTransform = capabilities.currentTransform,
             .compositeAlpha = VK_COMPOSITE_ALPHA_OPAQUE_BIT_KHR,
             .presentMode = presentMode,
@@ -138,30 +236,30 @@ namespace Vixen::Vk {
             "Failed to create swapchain"
         );
 
-        std::vector<::VkImage> swapchainImages;
         vkGetSwapchainImagesKHR(device->getDevice(), swapchain, &imageCount, nullptr);
-        swapchainImages.resize(imageCount);
-        vkGetSwapchainImagesKHR(device->getDevice(), swapchain, &imageCount, swapchainImages.data());
+        internalImages.resize(imageCount);
+        vkGetSwapchainImagesKHR(device->getDevice(), swapchain, &imageCount, internalImages.data());
 
-        colorImages.reserve(imageCount);
-        colorImageViews.reserve(imageCount);
+        images.reserve(imageCount);
+        imageViews.reserve(imageCount);
         depthImages.reserve(imageCount);
         depthImageViews.reserve(imageCount);
         imageAvailableSemaphores.reserve(imageCount);
         for (auto i = 0; i < imageCount; i++) {
-            colorImages.emplace_back(
+            images.emplace_back(
                 std::make_shared<VkImage>(
                     device,
-                    swapchainImages[i],
                     extent.width,
                     extent.height,
+                    VK_SAMPLE_COUNT_1_BIT,
                     format.format,
-                    VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT,
+                    VK_IMAGE_TILING_OPTIMAL,
+                    VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT | VK_IMAGE_USAGE_TRANSFER_SRC_BIT,
                     1
                 )
             );
-            colorImageViews.emplace_back(
-                colorImages[i],
+            imageViews.emplace_back(
+                images[i],
                 VK_IMAGE_ASPECT_COLOR_BIT
             );
 
@@ -196,8 +294,9 @@ namespace Vixen::Vk {
     void Swapchain::destroy() {
         depthImageViews.clear();
         depthImages.clear();
-        colorImageViews.clear();
-        colorImages.clear();
+        internalImages.clear();
+        imageViews.clear();
+        images.clear();
         imageAvailableSemaphores.clear();
         vkDestroySwapchainKHR(device->getDevice(), swapchain, nullptr);
     }

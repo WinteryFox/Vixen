@@ -32,10 +32,10 @@ namespace Vixen {
         rotation.x += static_cast<float>(sensitivity * yOffset * deltaTime);
 
         const auto& direction = normalize(glm::vec3(
-             std::cos(rotation.x) * std::sin(rotation.y),
-             std::sin(rotation.x),
-             std::cos(rotation.x) * std::cos(rotation.y)
-         ));
+            std::cos(rotation.x) * std::sin(rotation.y),
+            std::sin(rotation.x),
+            std::cos(rotation.x) * std::cos(rotation.y)
+        ));
         const auto& right = normalize(glm::vec3(
             sin(rotation.y - M_PI / 2.0f),
             0.0f,
@@ -53,11 +53,11 @@ namespace Vixen {
             advance += right * speed;
         if (glfwGetKey(window, GLFW_KEY_A) == GLFW_PRESS)
             advance -= right * speed;
-        if (glfwGetKey(window, GLFW_KEY_SPACE))
+        if (glfwGetKey(window, GLFW_KEY_SPACE) == GLFW_PRESS)
             advance += glm::vec3(0, 1, 0) * speed;
-        if (glfwGetKey(window, GLFW_KEY_LEFT_CONTROL))
+        if (glfwGetKey(window, GLFW_KEY_LEFT_CONTROL) == GLFW_PRESS)
             advance -= glm::vec3(0, 1, 0) * speed;
-        if (glfwGetKey(window, GLFW_KEY_LEFT_SHIFT))
+        if (glfwGetKey(window, GLFW_KEY_LEFT_SHIFT) == GLFW_PRESS)
             advance *= 2.0f;
         if (glfwGetKey(window, GLFW_KEY_ESCAPE))
             glfwSetWindowShouldClose(window, GLFW_TRUE);
