@@ -35,6 +35,7 @@ int main() {
 
 #ifdef DEBUG
     spdlog::set_level(spdlog::level::trace);
+    spdlog::set_pattern("%Y-%m-%d %T.%e %^%7l%$ %P --- [%t] %1v");
 #endif
 
     auto vixen = Vixen::Vk::VkVixen("Vixen Vulkan Test", {1, 0, 0});
