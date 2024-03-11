@@ -34,7 +34,3 @@ target_link_libraries(
 if (ENABLE_VULKAN)
     add_subdirectory(vk)
 endif ()
-
-if (ENABLE_OPENGL)
-    add_subdirectory(gl)
-endif ()
