@@ -19,19 +19,19 @@ namespace Vixen::Vk {
         VkFence fence;
 
     public:
-        VkCommandBuffer(const std::shared_ptr<VkCommandPool>& commandPool, ::VkCommandBuffer commandBuffer);
+        VkCommandBuffer(const std::shared_ptr<VkCommandPool> &commandPool, ::VkCommandBuffer commandBuffer);
 
-        VkCommandBuffer(const VkCommandBuffer&) = delete;
+        VkCommandBuffer(const VkCommandBuffer &) = delete;
 
-        VkCommandBuffer& operator=(const VkCommandBuffer&) = delete;
+        VkCommandBuffer &operator=(const VkCommandBuffer &) = delete;
 
-        VkCommandBuffer(VkCommandBuffer&& other) noexcept;
+        VkCommandBuffer(VkCommandBuffer &&other) noexcept;
 
-        VkCommandBuffer& operator=(VkCommandBuffer&& other) noexcept;
+        VkCommandBuffer &operator=(VkCommandBuffer &&other) noexcept;
 
         ~VkCommandBuffer();
 
-        template <typename F>
+        template<typename F>
         void record(F commands) const {
             commands(commandBuffer);
         }
@@ -46,17 +46,17 @@ namespace Vixen::Vk {
 
         void submit(
             ::VkQueue queue,
-            const std::vector<::VkSemaphore>& waitSemaphores,
-            const std::vector<::VkPipelineStageFlags>& waitMasks,
-            const std::vector<::VkSemaphore>& signalSemaphores
+            const std::vector<::VkSemaphore> &waitSemaphores,
+            const std::vector<::VkPipelineStageFlags> &waitMasks,
+            const std::vector<::VkSemaphore> &signalSemaphores
         ) const;
 
         void beginRenderPass(
             uint32_t width,
             uint32_t height,
             uint8_t samples,
-            const std::vector<AttachmentInfo>& attachments,
-            const VkImageView& depthAttachment
+            const std::vector<AttachmentInfo> &attachments,
+            const VkImageView &depthAttachment
         ) const;
 
         void endRenderPass() const;
@@ -65,14 +65,16 @@ namespace Vixen::Vk {
 
         void setScissor(Rectangle rectangle) const;
 
-        void drawMesh(const glm::mat4& modelMatrix, const VkMesh& mesh) const;
+        void drawMesh(const glm::mat4 &modelMatrix, const VkMesh &mesh) const;
 
-        void copyBuffer(const VkBuffer& source, const VkBuffer& destination) const;
+        void copyBuffer(const VkBuffer &source, const VkBuffer &destination) const;
 
-        void copyImage(const VkImage& source, const VkImage& destination) const;
+        void copyBufferToImage(const VkBuffer &source, const VkImage &destination) const;
 
-        void copyBufferToImage(const VkBuffer& source, const VkImage& destination) const;
+        void copyImage(const VkImage &source, const VkImage &destination) const;
 
-        void transitionImage(VkImage& image, VkImageLayout layout) const;
+        void transitionImage(VkImage &image, VkImageLayout layout) const;
+
+        void blitImage(VkImage &source, const VkImage &destination) const;
     };
 }

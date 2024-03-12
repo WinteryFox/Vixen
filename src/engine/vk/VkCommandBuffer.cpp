@@ -6,18 +6,20 @@
 
 namespace Vixen::Vk {
     VkCommandBuffer::VkCommandBuffer(
-        const std::shared_ptr<VkCommandPool>& commandPool,
+        const std::shared_ptr<VkCommandPool> &commandPool,
         ::VkCommandBuffer commandBuffer
     ) : commandPool(commandPool),
         commandBuffer(commandBuffer),
-        fence(commandPool->getDevice(), true) {}
+        fence(commandPool->getDevice(), true) {
+    }
 
-    VkCommandBuffer::VkCommandBuffer(VkCommandBuffer&& other) noexcept
+    VkCommandBuffer::VkCommandBuffer(VkCommandBuffer &&other) noexcept
         : commandPool(std::exchange(other.commandPool, nullptr)),
           commandBuffer(std::exchange(other.commandBuffer, nullptr)),
-          fence(std::move(other.fence)) {}
+          fence(std::move(other.fence)) {
+    }
 
-    VkCommandBuffer& VkCommandBuffer::operator=(VkCommandBuffer&& other) noexcept {
+    VkCommandBuffer &VkCommandBuffer::operator=(VkCommandBuffer &&other) noexcept {
         std::swap(commandPool, other.commandPool);
         std::swap(commandBuffer, other.commandBuffer);
         std::swap(fence, other.fence);
@@ -53,12 +55,12 @@ namespace Vixen::Vk {
         };
 
         switch (usage) {
-        case CommandBufferUsage::Once:
-            info.flags = VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT;
-            break;
-        case CommandBufferUsage::Simultanious:
-            info.flags = VK_COMMAND_BUFFER_USAGE_SIMULTANEOUS_USE_BIT;
-            break;
+            case CommandBufferUsage::Once:
+                info.flags = VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT;
+                break;
+            case CommandBufferUsage::Simultanious:
+                info.flags = VK_COMMAND_BUFFER_USAGE_SIMULTANEOUS_USE_BIT;
+                break;
         }
 
         checkVulkanResult(
@@ -76,9 +78,9 @@ namespace Vixen::Vk {
 
     void VkCommandBuffer::submit(
         ::VkQueue queue,
-        const std::vector<::VkSemaphore>& waitSemaphores,
-        const std::vector<::VkPipelineStageFlags>& waitMasks,
-        const std::vector<::VkSemaphore>& signalSemaphores
+        const std::vector<::VkSemaphore> &waitSemaphores,
+        const std::vector<::VkPipelineStageFlags> &waitMasks,
+        const std::vector<::VkSemaphore> &signalSemaphores
     ) const {
         fence.wait();
         fence.reset();
@@ -107,13 +109,13 @@ namespace Vixen::Vk {
         const uint32_t width,
         const uint32_t height,
         const uint8_t samples,
-        const std::vector<AttachmentInfo>& attachments,
-        const VkImageView& depthAttachment
+        const std::vector<AttachmentInfo> &attachments,
+        const VkImageView &depthAttachment
     ) const {
         std::vector<VkRenderingAttachmentInfo> vkAttachments{attachments.size()};
         for (auto i = 0; i < attachments.size(); i++) {
             auto [loadAction, storeAction, layout, loadStoreTarget, resolveTarget, clearColor, clearDepth, clearStencil]
-                = attachments[i];
+                    = attachments[i];
 
             vkAttachments[i] = {
                 .sType = VK_STRUCTURE_TYPE_RENDERING_ATTACHMENT_INFO,
@@ -214,8 +216,8 @@ namespace Vixen::Vk {
         vkCmdSetScissor(commandBuffer, 0, 1, &rect);
     }
 
-    void VkCommandBuffer::drawMesh(const glm::mat4& modelMatrix, const VkMesh& mesh) const {
-        const auto& vertexBuffer = mesh.getVertexBuffer().getBuffer();
+    void VkCommandBuffer::drawMesh(const glm::mat4 &modelMatrix, const VkMesh &mesh) const {
+        const auto &vertexBuffer = mesh.getVertexBuffer().getBuffer();
         constexpr std::array<VkDeviceSize, 1> offsets{};
         vkCmdBindVertexBuffers(
             commandBuffer,
@@ -236,7 +238,7 @@ namespace Vixen::Vk {
 
         mesh.getMaterial()->pipeline->bindGraphics(commandBuffer);
 
-        const auto& set = mesh.getMaterial()->descriptorSet->getSet();
+        const auto &set = mesh.getMaterial()->descriptorSet->getSet();
         vkCmdBindDescriptorSets(
             commandBuffer,
             VK_PIPELINE_BIND_POINT_GRAPHICS,
@@ -258,7 +260,7 @@ namespace Vixen::Vk {
         );
     }
 
-    void VkCommandBuffer::copyBuffer(const VkBuffer& source, const VkBuffer& destination) const {
+    void VkCommandBuffer::copyBuffer(const VkBuffer &source, const VkBuffer &destination) const {
         const VkBufferCopy region{
             .srcOffset = 0,
             .dstOffset = 0,
@@ -268,7 +270,7 @@ namespace Vixen::Vk {
         vkCmdCopyBuffer(commandBuffer, source.getBuffer(), destination.getBuffer(), 1, &region);
     }
 
-    void VkCommandBuffer::copyBufferToImage(const VkBuffer& source, const VkImage& destination) const {
+    void VkCommandBuffer::copyBufferToImage(const VkBuffer &source, const VkImage &destination) const {
         const VkBufferImageCopy region{
             .bufferOffset = 0,
             .bufferRowLength = 0,
@@ -295,7 +297,7 @@ namespace Vixen::Vk {
                                &region);
     }
 
-    void VkCommandBuffer::transitionImage(VkImage& image, const VkImageLayout layout) const {
+    void VkCommandBuffer::transitionImage(VkImage &image, const VkImageLayout layout) const {
         VkImageMemoryBarrier barrier{
             .sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER,
             .pNext = nullptr,
@@ -323,48 +325,49 @@ namespace Vixen::Vk {
         VkPipelineStageFlags destinationFlags;
 
         switch (image.getLayout()) {
-        case VK_IMAGE_LAYOUT_UNDEFINED:
-            barrier.srcAccessMask = VK_ACCESS_NONE;
-            sourceFlags = VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT;
-            break;
-        case VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL:
-            barrier.srcAccessMask = VK_ACCESS_TRANSFER_READ_BIT;
-            sourceFlags = VK_PIPELINE_STAGE_TRANSFER_BIT;
-            break;
-        case VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL:
-            barrier.srcAccessMask = VK_ACCESS_TRANSFER_WRITE_BIT;
-            sourceFlags = VK_PIPELINE_STAGE_TRANSFER_BIT;
-            break;
-        case VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL:
-            barrier.srcAccessMask = VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT;
-            sourceFlags = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT;
-            break;
-        default:
-            spdlog::error("Unsupported source layout {} for image transition", string_VkImageLayout(image.getLayout()));
-            throw std::runtime_error("Unsupported source layout for image transition");
+            case VK_IMAGE_LAYOUT_UNDEFINED:
+                barrier.srcAccessMask = VK_ACCESS_NONE;
+                sourceFlags = VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT;
+                break;
+            case VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL:
+                barrier.srcAccessMask = VK_ACCESS_TRANSFER_READ_BIT;
+                sourceFlags = VK_PIPELINE_STAGE_TRANSFER_BIT;
+                break;
+            case VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL:
+                barrier.srcAccessMask = VK_ACCESS_TRANSFER_WRITE_BIT;
+                sourceFlags = VK_PIPELINE_STAGE_TRANSFER_BIT;
+                break;
+            case VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL:
+                barrier.srcAccessMask = VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT;
+                sourceFlags = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT;
+                break;
+            default:
+                spdlog::error("Unsupported source layout {} for image transition",
+                              string_VkImageLayout(image.getLayout()));
+                throw std::runtime_error("Unsupported source layout for image transition");
         }
 
         switch (layout) {
-        case VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL:
-            barrier.dstAccessMask = VK_ACCESS_TRANSFER_READ_BIT;
-            destinationFlags = VK_PIPELINE_STAGE_TRANSFER_BIT;
-            break;
-        case VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL:
-            barrier.dstAccessMask = VK_ACCESS_TRANSFER_WRITE_BIT;
-            destinationFlags = VK_PIPELINE_STAGE_TRANSFER_BIT;
-            break;
-        case VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL:
-            barrier.dstAccessMask = VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT;
-            destinationFlags = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT;
-            break;
-        case VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL:
-            barrier.dstAccessMask = VK_ACCESS_SHADER_READ_BIT;
-        // TODO: Dodgy flag, do we only read images in the fragment shader? Probably not.
-            destinationFlags = VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT;
-            break;
-        default:
-            spdlog::error("Unsupported destination layout {} for image transition", string_VkImageLayout(layout));
-            throw std::runtime_error("Unsupported destination layout for image transition");
+            case VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL:
+                barrier.dstAccessMask = VK_ACCESS_TRANSFER_READ_BIT;
+                destinationFlags = VK_PIPELINE_STAGE_TRANSFER_BIT;
+                break;
+            case VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL:
+                barrier.dstAccessMask = VK_ACCESS_TRANSFER_WRITE_BIT;
+                destinationFlags = VK_PIPELINE_STAGE_TRANSFER_BIT;
+                break;
+            case VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL:
+                barrier.dstAccessMask = VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT;
+                destinationFlags = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT;
+                break;
+            case VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL:
+                barrier.dstAccessMask = VK_ACCESS_SHADER_READ_BIT;
+            // TODO: Dodgy flag, do we only read images in the fragment shader? Probably not.
+                destinationFlags = VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT;
+                break;
+            default:
+                spdlog::error("Unsupported destination layout {} for image transition", string_VkImageLayout(layout));
+                throw std::runtime_error("Unsupported destination layout for image transition");
         }
 
         vkCmdPipelineBarrier(
@@ -384,30 +387,112 @@ namespace Vixen::Vk {
         image.layout = layout;
     }
 
-    void VkCommandBuffer::copyImage(const VkImage& source, const VkImage& destination) const {
-        const VkImageCopy region{
-            .srcSubresource = {
-                .aspectMask = VK_IMAGE_ASPECT_COLOR_BIT,
-                .mipLevel = 0,
-                .baseArrayLayer = 0,
-                .layerCount = 1,
-            },
-            .srcOffset = 0,
-            .dstSubresource = {
-                .aspectMask = VK_IMAGE_ASPECT_COLOR_BIT,
-                .mipLevel = 0,
-                .baseArrayLayer = 0,
-                .layerCount = 1,
-            },
-            .dstOffset = 0,
-            .extent = {
-                .width = source.getWidth(),
-                .height = source.getHeight(),
-                .depth = 1
-            }
-        };
+    void VkCommandBuffer::blitImage(VkImage &source, const VkImage &destination) const {
+        if (!commandPool->getDevice()->getGpu().getFormatProperties(source.getFormat()).optimalTilingFeatures &
+            VK_FORMAT_FEATURE_BLIT_SRC_BIT)
+            throw std::runtime_error("Source image format does not support blitting");
+        if (!commandPool->getDevice()->getGpu().getFormatProperties(destination.getFormat()).optimalTilingFeatures &
+            VK_FORMAT_FEATURE_BLIT_DST_BIT)
+            throw std::runtime_error("Destination image format does not support blitting");
 
-        vkCmdCopyImage(commandBuffer, source.getImage(), source.getLayout(), destination.getImage(),
-                       destination.getLayout(), 1, &region);
+        transitionImage(source, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL);
+
+        for (uint32_t i = 0; i < destination.getMipLevels(); i++) {
+            const VkImageBlit region{
+                .srcSubresource = {
+                    .aspectMask = VK_IMAGE_ASPECT_COLOR_BIT,
+                    .mipLevel = i,
+                    .baseArrayLayer = 0,
+                    .layerCount = 1
+                },
+                .srcOffsets = {
+                    {
+                        .x = 0,
+                        .y = 0,
+                        .z = 0
+                    },
+                    {
+                        .x = static_cast<int32_t>(source.getWidth() >> i - 1),
+                        .y = static_cast<int32_t>(source.getHeight() >> i - 1),
+                        .z = 1
+                    }
+                },
+                .dstSubresource = {
+                    .aspectMask = VK_IMAGE_ASPECT_COLOR_BIT,
+                    .mipLevel = i + 1,
+                    .baseArrayLayer = 0,
+                    .layerCount = 1
+                },
+                .dstOffsets = {
+                    {
+                        .x = 0,
+                        .y = 0,
+                        .z = 0
+                    },
+                    {
+                        .x = static_cast<int32_t>(destination.getWidth() >> i),
+                        .y = static_cast<int32_t>(destination.getHeight() >> i),
+                        .z = 1
+                    }
+                }
+            };
+
+            vkCmdBlitImage(
+                commandBuffer,
+                source.getImage(),
+                source.getLayout(),
+                destination.getImage(),
+                destination.getLayout(),
+                1,
+                &region,
+                VK_FILTER_LINEAR
+            );
+        }
+    }
+
+    void VkCommandBuffer::copyImage(const VkImage &source, const VkImage &destination) const {
+        std::vector<VkImageCopy> regions{source.getMipLevels()};
+
+        for (uint32_t i = 0; i < regions.size(); i++) {
+            regions[i] = {
+                .srcSubresource = {
+                    .aspectMask = VK_IMAGE_ASPECT_COLOR_BIT,
+                    .mipLevel = i,
+                    .baseArrayLayer = 0,
+                    .layerCount = 1,
+                },
+                .srcOffset = {
+                    .x = 0,
+                    .y = 0,
+                    .z = 0
+                },
+                .dstSubresource = {
+                    .aspectMask = VK_IMAGE_ASPECT_COLOR_BIT,
+                    .mipLevel = i,
+                    .baseArrayLayer = 0,
+                    .layerCount = 1,
+                },
+                .dstOffset = {
+                    .x = 0,
+                    .y = 0,
+                    .z = 0
+                },
+                .extent = {
+                    .width = source.getWidth(),
+                    .height = source.getHeight(),
+                    .depth = 1
+                }
+            };
+        }
+
+        vkCmdCopyImage(
+            commandBuffer,
+            source.getImage(),
+            source.getLayout(),
+            destination.getImage(),
+            destination.getLayout(),
+            regions.size(),
+            regions.data()
+        );
     }
 }

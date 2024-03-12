@@ -178,7 +178,7 @@ namespace Vixen::Vk {
             format,
             VK_IMAGE_TILING_OPTIMAL,
             VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_SAMPLED_BIT,
-            static_cast<uint32_t>(std::floor(std::log2(std::max(width, height)))) + 1
+            static_cast<uint32_t>(floor(log2(std::max(width, height))) + 1)
         );
         image.upload(buffer);
 
