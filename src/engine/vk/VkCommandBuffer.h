@@ -73,8 +73,9 @@ namespace Vixen::Vk {
 
         void copyImage(const VkImage &source, const VkImage &destination) const;
 
-        void transitionImage(VkImage &image, VkImageLayout layout) const;
+        void transitionImage(VkImage &image, VkImageLayout oldLayout, VkImageLayout newLayout, uint32_t baseMipLevel,
+                             uint32_t mipLevels) const;
 
-        void blitImage(VkImage &source, const VkImage &destination) const;
+        void blitImage(const VkImage &source, VkImage &destination) const;
     };
 }

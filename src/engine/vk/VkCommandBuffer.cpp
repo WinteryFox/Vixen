@@ -10,14 +10,12 @@ namespace Vixen::Vk {
         ::VkCommandBuffer commandBuffer
     ) : commandPool(commandPool),
         commandBuffer(commandBuffer),
-        fence(commandPool->getDevice(), true) {
-    }
+        fence(commandPool->getDevice(), true) {}
 
     VkCommandBuffer::VkCommandBuffer(VkCommandBuffer &&other) noexcept
         : commandPool(std::exchange(other.commandPool, nullptr)),
           commandBuffer(std::exchange(other.commandBuffer, nullptr)),
-          fence(std::move(other.fence)) {
-    }
+          fence(std::move(other.fence)) {}
 
     VkCommandBuffer &VkCommandBuffer::operator=(VkCommandBuffer &&other) noexcept {
         std::swap(commandPool, other.commandPool);
@@ -293,18 +291,24 @@ namespace Vixen::Vk {
             }
         };
 
-        vkCmdCopyBufferToImage(commandBuffer, source.getBuffer(), destination.getImage(), destination.getLayout(), 1,
-                               &region);
+        vkCmdCopyBufferToImage(commandBuffer, source.getBuffer(), destination.getImage(),
+                               VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, 1, &region);
     }
 
-    void VkCommandBuffer::transitionImage(VkImage &image, const VkImageLayout layout) const {
+    void VkCommandBuffer::transitionImage(
+        VkImage &image,
+        const VkImageLayout oldLayout,
+        const VkImageLayout newLayout,
+        const uint32_t baseMipLevel,
+        const uint32_t mipLevels
+    ) const {
         VkImageMemoryBarrier barrier{
             .sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER,
             .pNext = nullptr,
             .srcAccessMask = VK_ACCESS_NONE,
             .dstAccessMask = VK_ACCESS_NONE,
-            .oldLayout = image.getLayout(),
-            .newLayout = layout,
+            .oldLayout = oldLayout,
+            .newLayout = newLayout,
             .srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED,
             .dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED,
             .image = image.getImage(),
@@ -314,8 +318,8 @@ namespace Vixen::Vk {
                         ? VK_IMAGE_ASPECT_DEPTH_BIT | VK_IMAGE_ASPECT_STENCIL_BIT
                         : VK_IMAGE_ASPECT_COLOR_BIT
                 ),
-                .baseMipLevel = 0,
-                .levelCount = image.getMipLevels(),
+                .baseMipLevel = baseMipLevel,
+                .levelCount = mipLevels,
                 .baseArrayLayer = 0,
                 .layerCount = 1
             }
@@ -324,7 +328,7 @@ namespace Vixen::Vk {
         VkPipelineStageFlags sourceFlags;
         VkPipelineStageFlags destinationFlags;
 
-        switch (image.getLayout()) {
+        switch (oldLayout) {
             case VK_IMAGE_LAYOUT_UNDEFINED:
                 barrier.srcAccessMask = VK_ACCESS_NONE;
                 sourceFlags = VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT;
@@ -341,13 +345,17 @@ namespace Vixen::Vk {
                 barrier.srcAccessMask = VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT;
                 sourceFlags = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT;
                 break;
+            case VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL:
+                barrier.srcAccessMask = VK_ACCESS_SHADER_READ_BIT;
+                sourceFlags = VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT;
+                break;
             default:
                 spdlog::error("Unsupported source layout {} for image transition",
-                              string_VkImageLayout(image.getLayout()));
+                              string_VkImageLayout(oldLayout));
                 throw std::runtime_error("Unsupported source layout for image transition");
         }
 
-        switch (layout) {
+        switch (newLayout) {
             case VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL:
                 barrier.dstAccessMask = VK_ACCESS_TRANSFER_READ_BIT;
                 destinationFlags = VK_PIPELINE_STAGE_TRANSFER_BIT;
@@ -366,7 +374,8 @@ namespace Vixen::Vk {
                 destinationFlags = VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT;
                 break;
             default:
-                spdlog::error("Unsupported destination layout {} for image transition", string_VkImageLayout(layout));
+                spdlog::error("Unsupported destination layout {} for image transition",
+                              string_VkImageLayout(newLayout));
                 throw std::runtime_error("Unsupported destination layout for image transition");
         }
 
@@ -382,12 +391,9 @@ namespace Vixen::Vk {
             1,
             &barrier
         );
-
-        // TODO: I hate this, but I'm not sure how else to solve this.
-        image.layout = layout;
     }
 
-    void VkCommandBuffer::blitImage(VkImage &source, const VkImage &destination) const {
+    void VkCommandBuffer::blitImage(const VkImage &source, VkImage &destination) const {
         if (!commandPool->getDevice()->getGpu().getFormatProperties(source.getFormat()).optimalTilingFeatures &
             VK_FORMAT_FEATURE_BLIT_SRC_BIT)
             throw std::runtime_error("Source image format does not support blitting");
@@ -395,13 +401,14 @@ namespace Vixen::Vk {
             VK_FORMAT_FEATURE_BLIT_DST_BIT)
             throw std::runtime_error("Destination image format does not support blitting");
 
-        transitionImage(source, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL);
+        for (uint32_t i = 1; i < destination.getMipLevels(); i++) {
+            transitionImage(destination, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, i,
+                            1);
 
-        for (uint32_t i = 0; i < destination.getMipLevels(); i++) {
             const VkImageBlit region{
                 .srcSubresource = {
                     .aspectMask = VK_IMAGE_ASPECT_COLOR_BIT,
-                    .mipLevel = i,
+                    .mipLevel = i - 1,
                     .baseArrayLayer = 0,
                     .layerCount = 1
                 },
@@ -419,7 +426,7 @@ namespace Vixen::Vk {
                 },
                 .dstSubresource = {
                     .aspectMask = VK_IMAGE_ASPECT_COLOR_BIT,
-                    .mipLevel = i + 1,
+                    .mipLevel = i,
                     .baseArrayLayer = 0,
                     .layerCount = 1
                 },
@@ -440,16 +447,20 @@ namespace Vixen::Vk {
             vkCmdBlitImage(
                 commandBuffer,
                 source.getImage(),
-                source.getLayout(),
+                VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL,
                 destination.getImage(),
-                destination.getLayout(),
+                VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
                 1,
                 &region,
                 VK_FILTER_LINEAR
             );
+
+            transitionImage(destination, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL, i,
+                            1);
         }
     }
 
+    // TODO: Not sure how to handle the different regions with mip-maps
     void VkCommandBuffer::copyImage(const VkImage &source, const VkImage &destination) const {
         std::vector<VkImageCopy> regions{source.getMipLevels()};
 
@@ -488,9 +499,9 @@ namespace Vixen::Vk {
         vkCmdCopyImage(
             commandBuffer,
             source.getImage(),
-            source.getLayout(),
+            VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL,
             destination.getImage(),
-            destination.getLayout(),
+            VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
             regions.size(),
             regions.data()
         );

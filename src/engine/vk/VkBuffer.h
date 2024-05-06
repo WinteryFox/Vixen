@@ -1,7 +1,7 @@
 #pragma once
 
 #include <memory>
-#include <vk_mem_alloc.h>
+#include <vma/vk_mem_alloc.h>
 
 #include "Vulkan.h"
 #include "../Buffer.h"

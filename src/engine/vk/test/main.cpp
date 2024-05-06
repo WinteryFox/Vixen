@@ -93,8 +93,6 @@ int main() {
     };
     auto descriptorPool = std::make_shared<Vixen::Vk::VkDescriptorPoolExpanding>(vixen.getDevice(), 1000, ratios);
 
-    auto sampler = Vixen::Vk::VkSampler(vixen.getDevice());
-
     auto camera = Vixen::Camera(glm::vec3{0.0f, 0.0f, 0.0f});
 
     auto uniformBuffer = Vixen::Vk::VkBuffer(
@@ -182,7 +180,7 @@ int main() {
         descriptor->writeUniformBuffer(0, uniformBuffer, 0, uniformBuffer.getSize());
 
         auto imageView = std::make_shared<Vixen::Vk::VkImageView>(image, VK_IMAGE_ASPECT_COLOR_BIT);
-        descriptor->writeCombinedImageSampler(1, sampler, *imageView);
+        descriptor->writeCombinedImageSampler(1, *imageView);
 
         auto material = std::make_shared<Vixen::Vk::Material>(
             pipeline,

@@ -3,9 +3,10 @@
 #include "Device.h"
 
 namespace Vixen::Vk {
-    VkImageView::VkImageView(const std::shared_ptr<VkImage>& image, const VkImageAspectFlags aspectFlags)
+    VkImageView::VkImageView(const std::shared_ptr<VkImage> &image, const VkImageAspectFlags aspectFlags)
         : image(image),
-          imageView(VK_NULL_HANDLE) {
+          imageView(VK_NULL_HANDLE),
+          sampler(VK_NULL_HANDLE) {
         VkImageViewCreateInfo imageViewCreateInfo{};
         imageViewCreateInfo.sType = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO;
         imageViewCreateInfo.image = image->getImage();
@@ -21,20 +22,58 @@ namespace Vixen::Vk {
             vkCreateImageView(image->getDevice()->getDevice(), &imageViewCreateInfo, nullptr, &imageView),
             "Failed to create image view"
         );
+
+        const VkSamplerCreateInfo samplerCreateInfo{
+            .sType = VK_STRUCTURE_TYPE_SAMPLER_CREATE_INFO,
+            .pNext = nullptr,
+            .flags = 0,
+            .magFilter = VK_FILTER_LINEAR,
+            .minFilter = VK_FILTER_LINEAR,
+            .mipmapMode = VK_SAMPLER_MIPMAP_MODE_LINEAR,
+            .addressModeU = VK_SAMPLER_ADDRESS_MODE_REPEAT,
+            .addressModeV = VK_SAMPLER_ADDRESS_MODE_REPEAT,
+            .addressModeW = VK_SAMPLER_ADDRESS_MODE_REPEAT,
+            .mipLodBias = 0.0f,
+            .anisotropyEnable = VK_FALSE,
+            .maxAnisotropy = 1,
+            .compareEnable = VK_FALSE,
+            .compareOp = VK_COMPARE_OP_ALWAYS,
+            .minLod = 0.0f,
+            .maxLod = static_cast<float>(image->getMipLevels()),
+            .borderColor = VK_BORDER_COLOR_INT_OPAQUE_BLACK,
+            .unnormalizedCoordinates = VK_FALSE
+        };
+        checkVulkanResult(
+            vkCreateSampler(
+                image->getDevice()->getDevice(),
+                &samplerCreateInfo,
+                nullptr,
+                &sampler
+            ),
+            "Failed to create sampler"
+        );
     }
 
-    VkImageView::VkImageView(VkImageView&& o) noexcept
+    VkImageView::VkImageView(VkImageView &&o) noexcept
         : image(std::exchange(o.image, nullptr)),
-          imageView(std::exchange(o.imageView, nullptr)) {}
+          imageView(std::exchange(o.imageView, nullptr)),
+          sampler(std::exchange(o.sampler, nullptr)) {}
 
-    VkImageView& VkImageView::operator=(VkImageView&& o) noexcept {
+    VkImageView &VkImageView::operator=(VkImageView &&o) noexcept {
         std::swap(image, o.image);
         std::swap(imageView, o.imageView);
+        std::swap(sampler, o.sampler);
 
         return *this;
     }
 
     VkImageView::~VkImageView() {
+        vkDestroySampler(
+            image->getDevice()->getDevice(),
+            sampler,
+            nullptr
+        );
+
         vkDestroyImageView(
             image->getDevice()->getDevice(),
             imageView,
@@ -42,11 +81,9 @@ namespace Vixen::Vk {
         );
     }
 
-    ::VkImageView VkImageView::getImageView() const {
-        return imageView;
-    }
+    ::VkImageView VkImageView::getImageView() const { return imageView; }
 
-    std::shared_ptr<VkImage> VkImageView::getImage() const {
-        return image;
-    }
+    const VkSampler &VkImageView::getSampler() const { return sampler; }
+
+    std::shared_ptr<VkImage> VkImageView::getImage() const { return image; }
 }

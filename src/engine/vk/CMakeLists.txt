@@ -1,20 +1,8 @@
 project("Vixen Engine Vk")
 
-find_package(Vulkan 1.3 REQUIRED)
+find_package(Vulkan 1.3 REQUIRED OPTIONAL_COMPONENTS volk)
 
 find_package(spirv_cross_reflect REQUIRED)
-
-FetchContent_Declare(
-        vma
-        GIT_REPOSITORY https://github.com/GPUOpen-LibrariesAndSDKs/VulkanMemoryAllocator
-        GIT_TAG 2f382df218d7e8516dee3b3caccb819a62b571a2
-)
-FetchContent_Declare(
-        volk
-        GIT_REPOSITORY https://github.com/zeux/volk
-        GIT_TAG 914ea7426fda7949258647561c0416b6d0b72ea5
-)
-FetchContent_MakeAvailable(VMA volk)
 
 add_library(
         VkVixen
@@ -55,8 +43,6 @@ add_library(
         VkDescriptorSetLayout.h
         VkDescriptorSet.cpp
         VkDescriptorSet.h
-        VkSampler.cpp
-        VkSampler.h
         VkMesh.cpp
         VkMesh.h
         VkDescriptorPoolExpanding.cpp
@@ -71,8 +57,6 @@ target_link_libraries(
         PUBLIC
         Vixen
         Vulkan::Headers
-        volk
-        GPUOpen::VulkanMemoryAllocator
         spirv-cross-core
         spirv-cross-glsl
         spirv-cross-reflect
@@ -107,6 +91,12 @@ else ()
             PkgConfig::SPIRV
     )
 endif ()
+
+message("Using volk included with Vulkan SDK")
+target_link_libraries(VkVixen PRIVATE Vulkan::volk)
+
+find_path(VMA_PATH NAMES vk_mem_alloc.h HINTS ${Vulkan_INCLUDE_DIRS} PATH_SUFFIXES vma)
+target_include_directories(VkVixen PRIVATE ${VMA_PATH})
 
 if (ENABLE_TESTS)
     add_executable(vktest test/main.cpp)
