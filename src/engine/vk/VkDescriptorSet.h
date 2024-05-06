@@ -3,7 +3,6 @@
 #include "Device.h"
 #include "VkBuffer.h"
 #include "VkImageView.h"
-#include "VkSampler.h"
 
 namespace Vixen::Vk {
     class VkDescriptorSetLayout;
@@ -42,7 +41,6 @@ namespace Vixen::Vk {
 
         void writeCombinedImageSampler(
             uint32_t binding,
-            const VkSampler &sampler,
             const VkImageView &view
         ) const;
 

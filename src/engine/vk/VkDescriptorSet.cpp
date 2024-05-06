@@ -90,13 +90,12 @@ namespace Vixen::Vk {
 
     void VkDescriptorSet::writeCombinedImageSampler(
         const uint32_t binding,
-        const VkSampler& sampler,
         const VkImageView& view
     ) const {
         const VkDescriptorImageInfo imageInfo{
-            .sampler = sampler.getSampler(),
+            .sampler = view.getSampler(),
             .imageView = view.getImageView(),
-            .imageLayout = view.getImage()->getLayout()
+            .imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL
         };
 
         const VkWriteDescriptorSet write{

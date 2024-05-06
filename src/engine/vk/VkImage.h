@@ -15,8 +15,6 @@ namespace Vixen::Vk {
 
         uint32_t height;
 
-        VkImageLayout layout;
-
         VkImageUsageFlags usageFlags;
 
         ::VkImage image;
@@ -34,7 +32,8 @@ namespace Vixen::Vk {
             VkFormat format,
             VkImageTiling tiling,
             VkImageUsageFlags usageFlags,
-            uint8_t mipLevels
+            uint8_t mipLevels,
+            VkImageLayout initialLayout
         );
 
         VkImage(
@@ -72,8 +71,6 @@ namespace Vixen::Vk {
         [[nodiscard]] uint32_t getHeight() const;
 
         [[nodiscard]] VkFormat getFormat() const;
-
-        [[nodiscard]] VkImageLayout getLayout() const;
 
         [[nodiscard]] VkImageUsageFlags getUsageFlags() const;
 

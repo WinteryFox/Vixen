@@ -16,8 +16,8 @@ namespace Vixen::Vk {
         bool hasSurfaceSupport(VkPhysicalDevice device, VkSurfaceKHR surface) const {
             VkBool32 support = VK_FALSE;
             checkVulkanResult(
-                    vkGetPhysicalDeviceSurfaceSupportKHR(device, index, surface, &support),
-                    "Failed to query surface support"
+                vkGetPhysicalDeviceSurfaceSupportKHR(device, index, surface, &support),
+                "Failed to query surface support"
             );
             return support;
         }
@@ -49,8 +49,8 @@ namespace Vixen::Vk {
             queueFamilies.resize(queueFamilyCount);
             for (uint32_t x = 0; x < queueFamilyCount; x++) {
                 queueFamilies[x] = QueueFamily{
-                        .index = x,
-                        .properties = qf[x]
+                    .index = x,
+                    .properties = qf[x]
                 };
             }
 
@@ -112,11 +112,11 @@ namespace Vixen::Vk {
 
         [[nodiscard]] bool isExtensionSupported(const std::string &extension) const {
             return std::ranges::find_if(
-                    extensions,
-                    [extension](VkExtensionProperties props) {
-                        return extension == props.extensionName;
-                    }
-            ) != std::end(extensions);
+                       extensions,
+                       [extension](const VkExtensionProperties &props) {
+                           return extension == props.extensionName;
+                       }
+                   ) != std::end(extensions);
         }
 
         [[nodiscard]] bool supportsExtensions(const std::vector<const char *> &requestedExtensions) const {
@@ -138,11 +138,11 @@ namespace Vixen::Vk {
 
         [[nodiscard]] bool isLayerSupported(const std::string &layer) const {
             return std::ranges::find_if(
-                    layers,
-                    [layer](VkLayerProperties props) {
-                        return layer == props.layerName;
-                    }
-            ) != std::end(layers);
+                       layers,
+                       [layer](const VkLayerProperties &props) {
+                           return layer == props.layerName;
+                       }
+                   ) != std::end(layers);
         }
 
         [[nodiscard]] VkFormat
@@ -172,6 +172,13 @@ namespace Vixen::Vk {
             if (counts & VK_SAMPLE_COUNT_2_BIT) { return VK_SAMPLE_COUNT_2_BIT; }
 
             return VK_SAMPLE_COUNT_1_BIT;
+        }
+
+        [[nodiscard]] VkFormatProperties getFormatProperties(const VkFormat format) const {
+            VkFormatProperties properties;
+            vkGetPhysicalDeviceFormatProperties(device, format, &properties);
+
+            return properties;
         }
     };
 }
