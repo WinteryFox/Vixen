@@ -260,7 +260,7 @@ namespace Vixen::Vk {
                     VK_IMAGE_TILING_OPTIMAL,
                     VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT | VK_IMAGE_USAGE_TRANSFER_SRC_BIT,
                     1,
-                    VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL
+                    VK_IMAGE_LAYOUT_UNDEFINED
                 )
             );
             imageViews.emplace_back(
@@ -295,6 +295,13 @@ namespace Vixen::Vk {
 
             imageAvailableSemaphores.emplace_back(device);
         }
+
+        const auto &cmd = device->getTransferCommandPool()->allocate(CommandBufferLevel::Primary);
+        cmd.begin(CommandBufferUsage::Once);
+        for (const auto &image: images)
+            cmd.transitionImage(*image, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL, 0, 1);
+        cmd.end();
+        cmd.submit(device->getPresentQueue(), {}, {}, {});
     }
 
     void Swapchain::destroy() {
