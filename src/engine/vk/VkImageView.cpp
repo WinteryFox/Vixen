@@ -3,8 +3,10 @@
 #include "Device.h"
 
 namespace Vixen::Vk {
-    VkImageView::VkImageView(const std::shared_ptr<VkImage> &image, const VkImageAspectFlags aspectFlags)
-        : image(image),
+    VkImageView::VkImageView(const std::shared_ptr<Device> &device, const std::shared_ptr<VkImage> &image,
+                             const VkImageAspectFlags aspectFlags)
+        : device(device),
+          image(image),
           imageView(VK_NULL_HANDLE),
           sampler(VK_NULL_HANDLE) {
         VkImageViewCreateInfo imageViewCreateInfo{};
@@ -55,11 +57,13 @@ namespace Vixen::Vk {
     }
 
     VkImageView::VkImageView(VkImageView &&o) noexcept
-        : image(std::exchange(o.image, nullptr)),
+        : device(std::exchange(o.device, nullptr)),
+          image(std::exchange(o.image, nullptr)),
           imageView(std::exchange(o.imageView, nullptr)),
           sampler(std::exchange(o.sampler, nullptr)) {}
 
     VkImageView &VkImageView::operator=(VkImageView &&o) noexcept {
+        std::swap(device, o.device);
         std::swap(image, o.image);
         std::swap(imageView, o.imageView);
         std::swap(sampler, o.sampler);
@@ -68,14 +72,17 @@ namespace Vixen::Vk {
     }
 
     VkImageView::~VkImageView() {
+        if (device == nullptr)
+            return;
+
         vkDestroySampler(
-            image->getDevice()->getDevice(),
+            device->getDevice(),
             sampler,
             nullptr
         );
 
         vkDestroyImageView(
-            image->getDevice()->getDevice(),
+            device->getDevice(),
             imageView,
             nullptr
         );

@@ -26,6 +26,9 @@ namespace Vixen::Vk {
     }
 
     VkCommandBuffer::~VkCommandBuffer() {
+        if (commandPool == nullptr)
+            return;
+
         fence.wait();
         vkFreeCommandBuffers(
             commandPool->getDevice()->getDevice(),

@@ -3,6 +3,7 @@
 #include <vma/vk_mem_alloc.h>
 #include "Instance.h"
 #include "VkCommandPool.h"
+#include "DeletionQueue.h"
 
 namespace Vixen {
     enum class CommandPoolUsage;
@@ -15,6 +16,8 @@ namespace Vixen::Vk {
         GraphicsCard gpu;
 
         ::VkDevice device;
+
+        DeletionQueue deletionQueue;
 
         VmaAllocator allocator;
 

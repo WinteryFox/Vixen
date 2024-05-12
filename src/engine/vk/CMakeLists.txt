@@ -51,6 +51,9 @@ add_library(
         material/MaterialPipeline.h
         material/Material.h
         material/MaterialPass.h
+        DeletionQueue.h
+        DeletionQueue.cpp
+        Disposable.h
 )
 target_link_libraries(
         VkVixen

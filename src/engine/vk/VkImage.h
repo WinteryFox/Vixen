@@ -1,10 +1,12 @@
 #pragma once
 
 #include <FreeImagePlus.h>
+
+#include "Disposable.h"
 #include "VkBuffer.h"
 
 namespace Vixen::Vk {
-    class VkImage {
+    class VkImage final : public Disposable {
         friend class VkCommandBuffer;
 
         std::shared_ptr<Device> device;
@@ -54,7 +56,9 @@ namespace Vixen::Vk {
 
         VkImage& operator=(VkImage&& other) noexcept;
 
-        ~VkImage();
+        ~VkImage() override = default;
+
+        void dispose() const override;
 
         void upload(const VkBuffer& data);
 

@@ -7,6 +7,28 @@
 #include "VkSemaphore.h"
 
 namespace Vixen::Vk {
+    struct FrameData {
+        std::shared_ptr<Device> device;
+
+        std::shared_ptr<VkImage> colorTarget;
+
+        std::shared_ptr<VkImageView> colorImageView;
+
+        std::shared_ptr<VkImage> depthTarget;
+
+        std::shared_ptr<VkImageView> depthImageView;
+
+        std::shared_ptr<VkCommandPool> commandPool;
+
+        VkCommandBuffer commandBuffer;
+
+        DeletionQueue deletionQueue;
+
+        VkSemaphore imageAvailableSemaphore;
+
+        VkSemaphore renderFinishedSemaphore;
+    };
+
     class Swapchain {
         std::shared_ptr<Device> device;
 
@@ -20,21 +42,13 @@ namespace Vixen::Vk {
 
         std::vector<::VkImage> internalImages;
 
-        std::vector<std::shared_ptr<VkImage>> images;
-
-        std::vector<VkImageView> imageViews;
-
-        std::vector<std::shared_ptr<VkImage>> depthImages;
-
-        std::vector<VkImageView> depthImageViews;
+        std::vector<FrameData> frames;
 
         VkExtent2D extent{};
 
-        std::vector<VkSemaphore> imageAvailableSemaphores;
+        static VkSurfaceFormatKHR determineSurfaceFormat(const std::vector<VkSurfaceFormatKHR> &available);
 
-        static VkSurfaceFormatKHR determineSurfaceFormat(const std::vector<VkSurfaceFormatKHR>& available);
-
-        static VkPresentModeKHR determinePresentMode(const std::vector<VkPresentModeKHR>& available);
+        static VkPresentModeKHR determinePresentMode(const std::vector<VkPresentModeKHR> &available);
 
         void create();
 
@@ -47,7 +61,16 @@ namespace Vixen::Vk {
             OutOfDate
         };
 
-        Swapchain(const std::shared_ptr<Device>& device, uint32_t framesInFlight);
+        Swapchain(const std::shared_ptr<Device> &device, uint32_t framesInFlight);
+
+        Swapchain(const Swapchain &) = delete;
+
+        Swapchain &operator=(const Swapchain &) = delete;
+
+        // TODO: Implement these
+        Swapchain(Swapchain &&other) noexcept = delete;
+
+        Swapchain &operator=(Swapchain &&other) noexcept = delete;
 
         ~Swapchain();
 
@@ -58,16 +81,16 @@ namespace Vixen::Vk {
          * @return Returns true when the swapchain is out-of-date, indicating the need to recreate the swapchain,
          * otherwise false.
          */
-        template <typename F>
-        State acquireImage(const uint64_t timeout, const F& lambda) {
-            auto& imageAvailableSemaphore = imageAvailableSemaphores[currentFrame];
+        template<typename F>
+        State acquireImage(const uint64_t timeout, const F &lambda) {
+            const auto &frame = frames[currentFrame];
 
             uint32_t imageIndex;
-            const auto& result = vkAcquireNextImageKHR(
+            const auto &result = vkAcquireNextImageKHR(
                 device->getDevice(),
                 swapchain,
                 timeout,
-                imageAvailableSemaphore.getSemaphore(),
+                frame.imageAvailableSemaphore.getSemaphore(),
                 VK_NULL_HANDLE,
                 &imageIndex
             );
@@ -77,43 +100,35 @@ namespace Vixen::Vk {
                 return State::OutOfDate;
             }
 
-            lambda(currentFrame, imageIndex, imageAvailableSemaphore);
-
-            currentFrame = (currentFrame + 1) % imageCount;
+            lambda(frame);
 
             switch (result) {
-                using enum State;
+                    using enum State;
 
-            case VK_SUCCESS:
-                return Ok;
-            case VK_SUBOPTIMAL_KHR:
-                spdlog::warn("Suboptimal swapchain state");
-                return Suboptimal;
-            default:
-                checkVulkanResult(result, "Failed to acquire swapchain image");
-                return OutOfDate;
+                case VK_SUCCESS:
+                    return Ok;
+                case VK_SUBOPTIMAL_KHR:
+                    spdlog::warn("Suboptimal swapchain state");
+                    return Suboptimal;
+                default:
+                    checkVulkanResult(result, "Failed to acquire swapchain image");
+                    return OutOfDate;
             }
         }
 
-        [[nodiscard]] const VkSurfaceFormatKHR& getColorFormat() const;
+        [[nodiscard]] const VkSurfaceFormatKHR &getColorFormat() const;
 
         [[nodiscard]] VkFormat getDepthFormat() const;
 
-        [[nodiscard]] const VkExtent2D& getExtent() const;
+        [[nodiscard]] const VkExtent2D &getExtent() const;
 
         [[nodiscard]] uint32_t getImageCount() const;
 
-        [[nodiscard]] const std::vector<std::shared_ptr<VkImage>>& getImages() const;
-
-        [[nodiscard]] const std::vector<VkImageView>& getImageViews() const;
-
-        [[nodiscard]] const std::vector<std::shared_ptr<VkImage>>& getDepthImages() const;
-
-        [[nodiscard]] const std::vector<VkImageView>& getDepthImageViews() const;
+        [[nodiscard]] const std::vector<FrameData> &getFrames() const;
 
         [[nodiscard]] uint32_t getCurrentFrame() const;
 
-        void present(uint32_t imageIndex, const std::vector<::VkSemaphore>& waitSemaphores);
+        void present(const std::vector<::VkSemaphore> &waitSemaphores);
 
         void invalidate();
     };

@@ -4,6 +4,8 @@
 
 namespace Vixen::Vk {
     class VkImageView {
+        std::shared_ptr<Device> device;
+
         std::shared_ptr<VkImage> image;
 
         ::VkImageView imageView;
@@ -11,7 +13,8 @@ namespace Vixen::Vk {
         VkSampler sampler;
 
     public:
-        VkImageView(const std::shared_ptr<VkImage> &image, VkImageAspectFlags aspectFlags);
+        VkImageView(const std::shared_ptr<Device> &device, const std::shared_ptr<VkImage> &image,
+                    VkImageAspectFlags aspectFlags);
 
         VkImageView(const VkImageView &) = delete;
 

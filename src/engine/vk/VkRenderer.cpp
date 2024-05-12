@@ -4,57 +4,35 @@
 
 namespace Vixen::Vk {
     VkRenderer::VkRenderer(
-        const std::shared_ptr<VkPipeline>& pipeline,
-        const std::shared_ptr<Swapchain>& swapchain
+        const std::shared_ptr<VkPipeline> &pipeline,
+        const std::shared_ptr<Swapchain> &swapchain
     ) : device(pipeline->getDevice()),
         swapchain(swapchain),
         pipelineLayout(std::make_unique<VkPipelineLayout>(device, pipeline->getProgram())),
-        pipeline(pipeline),
-        renderCommandPool(std::make_shared<VkCommandPool>(
-            device,
-            device->getGraphicsQueueFamily().index,
-            CommandPoolUsage::Graphics,
-            true
-        )),
-        renderCommandBuffers(
-            renderCommandPool->allocate(
-                CommandBufferLevel::Primary,
-                swapchain->getImageCount()
-            )
-        ) {
-        const auto imageCount = swapchain->getImageCount();
-        renderFinishedSemaphores.reserve(imageCount);
-        for (size_t i = 0; i < imageCount; i++)
-            renderFinishedSemaphores.emplace_back(device);
-    }
+        pipeline(pipeline) {}
 
     VkRenderer::~VkRenderer() {
         device->waitIdle();
     }
 
-    void VkRenderer::render(const std::vector<VkMesh>& meshes) {
-        renderCommandBuffers[swapchain->getCurrentFrame()].wait();
+    void VkRenderer::render(const std::vector<VkMesh> &meshes) {
         if (const auto state = swapchain->acquireImage(
             std::numeric_limits<uint64_t>::max(),
-            [this, &meshes](
-            const auto& currentFrame,
-            const auto& imageIndex,
-            const auto& imageAvailableSemaphore
-        ) {
-                auto& commandBuffer = renderCommandBuffers[currentFrame];
+            [this, &meshes](const FrameData &frame) {
+                prepare(frame, meshes);
 
-                prepare(imageIndex, commandBuffer, meshes);
+                const std::vector signalSemaphores = {frame.renderFinishedSemaphore.getSemaphore()};
 
-                std::vector<::VkSemaphore> signalSemaphores = {renderFinishedSemaphores[currentFrame].getSemaphore()};
-
-                commandBuffer.submit(
+                frame.commandBuffer.submit(
                     device->getGraphicsQueue(),
-                    {imageAvailableSemaphore.getSemaphore()},
+                    {frame.imageAvailableSemaphore.getSemaphore()},
                     {VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT},
                     signalSemaphores
                 );
 
-                swapchain->present(imageIndex, signalSemaphores);
+                swapchain->present(signalSemaphores);
+
+                cleanup();
             }
         ); state == Swapchain::State::OutOfDate) {
             device->waitIdle();
@@ -64,11 +42,11 @@ namespace Vixen::Vk {
     }
 
     void VkRenderer::prepare(
-        const uint32_t imageIndex,
-        const VkCommandBuffer& commandBuffer,
-        const std::vector<VkMesh>& meshes
+        const FrameData &frame,
+        const std::vector<VkMesh> &meshes
     ) const {
-        const auto& [width, height] = swapchain->getExtent();
+        const auto &[width, height] = swapchain->getExtent();
+        const auto &commandBuffer = frame.commandBuffer;
 
         commandBuffer.reset();
         commandBuffer.begin(CommandBufferUsage::Simultanious);
@@ -82,14 +60,14 @@ namespace Vixen::Vk {
                     .loadAction = LoadAction::Clear,
                     .storeAction = StoreAction::Store,
                     .layout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL,
-                    .loadStoreTarget = swapchain->getImageViews()[imageIndex].getImageView(),
+                    .loadStoreTarget = frame.colorImageView->getImageView(),
                     .resolveTarget = nullptr,
                     .clearColor = {0.0F, 0.0F, 0.0F, 0.0F},
                     .clearDepth = 0.0F,
                     .clearStencil = 0
                 }
             },
-            swapchain->getDepthImageViews()[imageIndex]
+            *frame.depthImageView
         );
 
         const Rectangle rectangle{
@@ -101,12 +79,16 @@ namespace Vixen::Vk {
         commandBuffer.setViewport(rectangle);
         commandBuffer.setScissor(rectangle);
 
-        for (const auto& mesh : meshes) {
+        for (const auto &mesh: meshes) {
             commandBuffer.drawMesh(glm::mat4(1.0), mesh);
         }
 
         commandBuffer.endRenderPass();
 
         commandBuffer.end();
+    }
+
+    void VkRenderer::cleanup() {
+        deletionQueue.flush();
     }
 }

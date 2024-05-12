@@ -179,7 +179,7 @@ int main() {
         auto descriptor = descriptorPool->allocate(*program.getDescriptorSetLayout());
         descriptor->writeUniformBuffer(0, uniformBuffer, 0, uniformBuffer.getSize());
 
-        auto imageView = std::make_shared<Vixen::Vk::VkImageView>(image, VK_IMAGE_ASPECT_COLOR_BIT);
+        auto imageView = std::make_shared<Vixen::Vk::VkImageView>(vixen.getDevice(), image, VK_IMAGE_ASPECT_COLOR_BIT);
         descriptor->writeCombinedImageSampler(1, *imageView);
 
         auto material = std::make_shared<Vixen::Vk::Material>(

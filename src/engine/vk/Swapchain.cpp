@@ -47,7 +47,7 @@ namespace Vixen::Vk {
     }
 
     VkFormat Swapchain::getDepthFormat() const {
-        return depthImages[0]->getFormat();
+        return frames[0].depthTarget->getFormat();
     }
 
     const VkExtent2D &Swapchain::getExtent() const {
@@ -58,23 +58,16 @@ namespace Vixen::Vk {
         return imageCount;
     }
 
-    const std::vector<std::shared_ptr<VkImage> > &Swapchain::getImages() const { return images; }
-
-    const std::vector<VkImageView> &Swapchain::getImageViews() const { return imageViews; }
-
-    const std::vector<std::shared_ptr<VkImage> > &Swapchain::getDepthImages() const { return depthImages; }
-
-    const std::vector<VkImageView> &Swapchain::getDepthImageViews() const { return depthImageViews; }
+    const std::vector<FrameData> &Swapchain::getFrames() const { return frames; }
 
     uint32_t Swapchain::getCurrentFrame() const { return currentFrame; }
 
-    void Swapchain::present(uint32_t imageIndex, const std::vector<::VkSemaphore> &waitSemaphores) {
+    void Swapchain::present(const std::vector<::VkSemaphore> &waitSemaphores) {
         const auto &commandBuffer = device->getTransferCommandPool()->allocate(CommandBufferLevel::Primary);
         commandBuffer.begin(CommandBufferUsage::Once);
-        commandBuffer.transitionImage(*images[imageIndex], VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL,
-                                      VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL, 0,
-                                      images[imageIndex]->getMipLevels());
-        commandBuffer.record([this, &imageIndex](const auto &cmd) {
+        commandBuffer.transitionImage(*frames[currentFrame].colorTarget, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL,
+                                      VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL, 0, 1);
+        commandBuffer.record([this](const auto &cmd) {
             VkImageMemoryBarrier barrier{
                 .sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER,
                 .pNext = nullptr,
@@ -84,7 +77,7 @@ namespace Vixen::Vk {
                 .newLayout = VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
                 .srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED,
                 .dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED,
-                .image = internalImages[imageIndex],
+                .image = internalImages[currentFrame],
                 .subresourceRange = {
                     .aspectMask = VK_IMAGE_ASPECT_COLOR_BIT,
                     .baseMipLevel = 0,
@@ -139,9 +132,9 @@ namespace Vixen::Vk {
 
             vkCmdCopyImage(
                 cmd,
-                images[imageIndex]->getImage(),
+                frames[currentFrame].colorTarget->getImage(),
                 VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL,
-                internalImages[imageIndex],
+                internalImages[currentFrame],
                 barrier.newLayout,
                 1,
                 &region
@@ -165,9 +158,8 @@ namespace Vixen::Vk {
                 &barrier
             );
         });
-        commandBuffer.transitionImage(*images[imageIndex], VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL,
-                                      VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL, 0,
-                                      images[imageIndex]->getMipLevels());
+        commandBuffer.transitionImage(*frames[currentFrame].colorTarget, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL,
+                                      VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL, 0, 1);
         commandBuffer.end();
         commandBuffer.submit(device->getTransferQueue(), {}, {}, {});
 
@@ -180,11 +172,13 @@ namespace Vixen::Vk {
             .swapchainCount = 1,
             .pSwapchains = &swapchain,
 
-            .pImageIndices = &imageIndex,
+            .pImageIndices = &currentFrame,
             .pResults = nullptr
         };
 
         vkQueuePresentKHR(device->getPresentQueue(), &presentInfo);
+
+        currentFrame = (currentFrame + 1) % imageCount;
     }
 
     void Swapchain::invalidate() {
@@ -244,73 +238,75 @@ namespace Vixen::Vk {
         internalImages.resize(imageCount);
         vkGetSwapchainImagesKHR(device->getDevice(), swapchain, &imageCount, internalImages.data());
 
-        images.reserve(imageCount);
-        imageViews.reserve(imageCount);
-        depthImages.reserve(imageCount);
-        depthImageViews.reserve(imageCount);
-        imageAvailableSemaphores.reserve(imageCount);
+        frames.reserve(imageCount);
         for (auto i = 0; i < imageCount; i++) {
-            images.emplace_back(
-                std::make_shared<VkImage>(
-                    device,
-                    extent.width,
-                    extent.height,
-                    VK_SAMPLE_COUNT_1_BIT,
-                    format.format,
-                    VK_IMAGE_TILING_OPTIMAL,
-                    VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT | VK_IMAGE_USAGE_TRANSFER_SRC_BIT,
-                    1,
-                    VK_IMAGE_LAYOUT_UNDEFINED
-                )
+            const auto &image = std::make_shared<VkImage>(
+                device,
+                extent.width,
+                extent.height,
+                VK_SAMPLE_COUNT_1_BIT,
+                format.format,
+                VK_IMAGE_TILING_OPTIMAL,
+                VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT | VK_IMAGE_USAGE_TRANSFER_SRC_BIT,
+                1,
+                VK_IMAGE_LAYOUT_UNDEFINED
             );
-            imageViews.emplace_back(
-                images[i],
-                VK_IMAGE_ASPECT_COLOR_BIT
+            const auto &commandPool = device->allocateCommandPool(CommandPoolUsage::Graphics, true);
+
+            const auto &depthTarget = std::make_shared<VkImage>(
+                device,
+                extent.width,
+                extent.height,
+                VK_SAMPLE_COUNT_1_BIT,
+                device->getGpu().pickFormat(
+                    {
+                        VK_FORMAT_D32_SFLOAT_S8_UINT,
+                        VK_FORMAT_D24_UNORM_S8_UINT
+                    },
+                    VK_IMAGE_TILING_OPTIMAL,
+                    VK_FORMAT_FEATURE_DEPTH_STENCIL_ATTACHMENT_BIT
+                ),
+                VK_IMAGE_TILING_OPTIMAL,
+                VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT,
+                1,
+                VK_IMAGE_LAYOUT_UNDEFINED
             );
 
-            depthImages.push_back(
-                std::make_shared<VkImage>(
+            frames.push_back(
+                {
                     device,
-                    extent.width,
-                    extent.height,
-                    VK_SAMPLE_COUNT_1_BIT,
-                    device->getGpu().pickFormat(
-                        {
-                            VK_FORMAT_D32_SFLOAT_S8_UINT,
-                            VK_FORMAT_D24_UNORM_S8_UINT
-                        },
-                        VK_IMAGE_TILING_OPTIMAL,
-                        VK_FORMAT_FEATURE_DEPTH_STENCIL_ATTACHMENT_BIT
+                    image,
+                    std::make_shared<VkImageView>(device, image, VK_IMAGE_ASPECT_COLOR_BIT),
+                    depthTarget,
+                    std::make_shared<VkImageView>(
+                        device,
+                        depthTarget,
+                        VK_IMAGE_ASPECT_DEPTH_BIT | VK_IMAGE_ASPECT_STENCIL_BIT
                     ),
-                    VK_IMAGE_TILING_OPTIMAL,
-                    VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT,
-                    1,
-                    VK_IMAGE_LAYOUT_UNDEFINED
-                )
+                    commandPool,
+                    commandPool->allocate(CommandBufferLevel::Primary),
+                    DeletionQueue(),
+                    VkSemaphore(device),
+                    VkSemaphore(device)
+                }
             );
-            depthImageViews.emplace_back(
-                depthImages[i],
-                VK_IMAGE_ASPECT_DEPTH_BIT | VK_IMAGE_ASPECT_STENCIL_BIT
-            );
-
-            imageAvailableSemaphores.emplace_back(device);
         }
 
         const auto &cmd = device->getTransferCommandPool()->allocate(CommandBufferLevel::Primary);
         cmd.begin(CommandBufferUsage::Once);
-        for (const auto &image: images)
-            cmd.transitionImage(*image, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL, 0, 1);
+        for (const auto &frame: frames)
+            cmd.transitionImage(*frame.colorTarget, VK_IMAGE_LAYOUT_UNDEFINED,
+                                VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL, 0,
+                                1);
         cmd.end();
         cmd.submit(device->getPresentQueue(), {}, {}, {});
     }
 
     void Swapchain::destroy() {
-        depthImageViews.clear();
-        depthImages.clear();
         internalImages.clear();
-        imageViews.clear();
-        images.clear();
-        imageAvailableSemaphores.clear();
+        for (const auto &frame: frames)
+            frame.colorTarget->dispose();
+        frames.clear();
         vkDestroySwapchainKHR(device->getDevice(), swapchain, nullptr);
     }
 }

@@ -1,17 +1,18 @@
 #pragma once
 
 #include "Device.h"
-#include "VkCommandPool.h"
 #include "VkMesh.h"
 #include "VkPipeline.h"
 #include "VkPipelineLayout.h"
-#include "VkSemaphore.h"
 
 namespace Vixen::Vk {
+    struct FrameData;
     class Swapchain;
 
     class VkRenderer {
         std::shared_ptr<Device> device;
+
+        DeletionQueue deletionQueue;
 
         std::shared_ptr<Swapchain> swapchain;
 
@@ -19,31 +20,26 @@ namespace Vixen::Vk {
 
         std::shared_ptr<VkPipeline> pipeline;
 
-        std::shared_ptr<VkCommandPool> renderCommandPool;
-
-        std::vector<VkCommandBuffer> renderCommandBuffers;
-
-        std::vector<VkSemaphore> renderFinishedSemaphores;
-
     public:
         VkRenderer(
-            const std::shared_ptr<VkPipeline>& pipeline,
-            const std::shared_ptr<Swapchain>& swapchain
+            const std::shared_ptr<VkPipeline> &pipeline,
+            const std::shared_ptr<Swapchain> &swapchain
         );
 
-        VkRenderer(const VkRenderer&) = delete;
+        VkRenderer(const VkRenderer &) = delete;
 
-        VkRenderer& operator=(const VkRenderer&) = delete;
+        VkRenderer &operator=(const VkRenderer &) = delete;
 
         ~VkRenderer();
 
-        void render(const std::vector<VkMesh>& meshes);
+        void render(const std::vector<VkMesh> &meshes);
 
     private:
         void prepare(
-            uint32_t imageIndex,
-            const VkCommandBuffer& commandBuffer,
-            const std::vector<VkMesh>& meshes
+            const FrameData &frame,
+            const std::vector<VkMesh> &meshes
         ) const;
+
+        void cleanup();
     };
 }

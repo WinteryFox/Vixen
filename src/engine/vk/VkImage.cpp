@@ -107,9 +107,8 @@ namespace Vixen::Vk {
         return *this;
     }
 
-    VkImage::~VkImage() {
-        if (device != nullptr)
-            vmaDestroyImage(device->getAllocator(), image, allocation);
+    void VkImage::dispose() const {
+        vmaDestroyImage(device->getAllocator(), image, allocation);
     }
 
     void VkImage::upload(const VkBuffer &data) {
