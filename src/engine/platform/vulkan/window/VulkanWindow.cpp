@@ -4,10 +4,10 @@
 
 namespace Vixen {
     VulkanWindow::VulkanWindow(
-            const std::string &title,
-            const uint32_t &width,
-            const uint32_t &height,
-            const bool transparentFrameBuffer
+        const std::string &title,
+        const uint32_t &width,
+        const uint32_t &height,
+        const bool transparentFrameBuffer
     ) : Window(title, width, height, transparentFrameBuffer) {
         spdlog::trace("Creating new Vulkan window");
         if (!glfwVulkanSupported()) {
@@ -28,11 +28,12 @@ namespace Vixen {
     VkSurfaceKHR VulkanWindow::createSurface(VkInstance instance) const {
         VkSurfaceKHR surface = VK_NULL_HANDLE;
         checkVulkanResult(
-                glfwCreateWindowSurface(instance, getWindow(), nullptr, &surface),
-                "Failed to create Vulkan BaseWindow surface"
+            glfwCreateWindowSurface(instance, getWindow(), nullptr, &surface),
+            "Failed to create Vulkan BaseWindow surface"
         );
+
         return surface;
     }
 
-    std::vector<const char*> VulkanWindow::getRequiredExtensions() const { return requiredExtensions; }
+    std::vector<const char *> VulkanWindow::getRequiredExtensions() const { return requiredExtensions; }
 }

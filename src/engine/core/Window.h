@@ -7,11 +7,11 @@
 
 namespace Vixen {
     class Window {
-        GLFWmonitor* monitor;
+        GLFWmonitor *monitor;
 
-        GLFWwindow* window;
+        GLFWwindow *window;
 
-        std::unordered_map<GLFWmonitor*, Monitor> monitors;
+        std::unordered_map<GLFWmonitor *, Monitor> monitors;
 
         bool framebufferSizeChanged = false;
 
@@ -23,19 +23,19 @@ namespace Vixen {
         };
 
         Window(
-            const std::string& title,
-            const uint32_t& width,
-            const uint32_t& height,
+            const std::string &title,
+            const uint32_t &width,
+            const uint32_t &height,
             bool transparentFrameBuffer
         );
 
-        Window(const Window&) = delete;
+        Window(const Window &) = delete;
 
-        Window& operator=(const Window&) = delete;
+        Window &operator=(const Window &) = delete;
 
-        ~Window();
+        virtual ~Window();
 
-        [[nodiscard]] GLFWwindow* getWindow() const;
+        [[nodiscard]] GLFWwindow *getWindow() const;
 
         [[nodiscard]] bool isFramebufferSizeChanged() const;
 
@@ -68,8 +68,8 @@ namespace Vixen {
 
         std::unique_ptr<Monitor> getMonitor() const;
 
-        std::unordered_map<GLFWmonitor*, Monitor> getMonitors() const;
+        std::unordered_map<GLFWmonitor *, Monitor> getMonitors() const;
 
-        void getFramebufferSize(int& width, int& height) const;
+        void getFramebufferSize(int &width, int &height) const;
     };
 }

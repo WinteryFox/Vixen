@@ -3,8 +3,6 @@
 #include <memory>
 #include <vma/vk_mem_alloc.h>
 
-#include "../Vulkan.h"
-
 namespace Vixen {
     enum class BufferUsage : std::uint32_t;
     class VulkanDevice;

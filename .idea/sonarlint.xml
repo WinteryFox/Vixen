@@ -3,6 +3,6 @@
   <component name="SonarLintProjectSettings">
     <option name="bindingEnabled" value="true" />
     <option name="projectKey" value="WinteryFox_Vixen" />
-    <option name="serverId" value="CLion Amy desktop" />
+    <option name="serverId" value="clion" />
   </component>
 </project>

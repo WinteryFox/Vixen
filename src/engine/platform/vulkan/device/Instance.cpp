@@ -2,9 +2,9 @@
 
 namespace Vixen {
     Instance::Instance(
-            const std::string &appName,
-            glm::vec3 appVersion,
-            const std::vector<const char *> &requiredExtensions
+        const std::string &appName,
+        glm::vec3 appVersion,
+        const std::vector<const char *> &requiredExtensions
     ) : instance(VK_NULL_HANDLE) {
         volkInitialize();
 
@@ -17,7 +17,7 @@ namespace Vixen {
         appInfo.apiVersion = VK_API_VERSION_1_3;
 
         std::vector<const char *> extensions(requiredExtensions);
-//        extensions.emplace_back(VK_KHR_PORTABILITY_ENUMERATION_EXTENSION_NAME);
+        //        extensions.emplace_back(VK_KHR_PORTABILITY_ENUMERATION_EXTENSION_NAME);
 
         std::vector<const char *> layers{};
 #ifdef DEBUG
@@ -36,18 +36,18 @@ namespace Vixen {
         instanceInfo.ppEnabledExtensionNames = extensions.data();
         instanceInfo.enabledLayerCount = layers.size();
         instanceInfo.ppEnabledLayerNames = layers.data();
-//        instanceInfo.flags |= VK_INSTANCE_CREATE_ENUMERATE_PORTABILITY_BIT_KHR;
+        //        instanceInfo.flags |= VK_INSTANCE_CREATE_ENUMERATE_PORTABILITY_BIT_KHR;
 
         spdlog::info(
-                "Creating new Vulkan instance for app \"{} ({})\" with extensions [{}] and layers [{}]",
-                appName,
-                getVersionString(appVersion),
-                fmt::join(extensions, ", "),
-                fmt::join(layers, ", ")
+            "Creating new Vulkan instance for app \"{} ({})\" with extensions [{}] and layers [{}]",
+            appName,
+            getVersionString(appVersion),
+            fmt::join(extensions, ", "),
+            fmt::join(layers, ", ")
         );
         checkVulkanResult(
-                vkCreateInstance(&instanceInfo, nullptr, &instance),
-                "Failed to create Vulkan instance"
+            vkCreateInstance(&instanceInfo, nullptr, &instance),
+            "Failed to create Vulkan instance"
         );
         volkLoadInstance(instance);
 
@@ -61,16 +61,16 @@ namespace Vixen {
                 VK_DEBUG_UTILS_MESSAGE_SEVERITY_ERROR_BIT_EXT;
         debugInfo.messageType = VK_DEBUG_UTILS_MESSAGE_TYPE_GENERAL_BIT_EXT |
                                 VK_DEBUG_UTILS_MESSAGE_TYPE_VALIDATION_BIT_EXT |
-                                VK_DEBUG_UTILS_MESSAGE_TYPE_PERFORMANCE_BIT_EXT;
-//                                VK_DEBUG_UTILS_MESSAGE_TYPE_DEVICE_ADDRESS_BINDING_BIT_EXT;
-        debugInfo.pfnUserCallback = vkDebugCallback;
+                                VK_DEBUG_UTILS_MESSAGE_TYPE_PERFORMANCE_BIT_EXT |
+                                VK_DEBUG_UTILS_MESSAGE_TYPE_DEVICE_ADDRESS_BINDING_BIT_EXT;
+        debugInfo.pfnUserCallback = reinterpret_cast<PFN_vkDebugUtilsMessengerCallbackEXT>(vkDebugCallback);
 
         vkCreateDebugUtilsMessengerEXT(instance, &debugInfo, nullptr, &debugMessenger);
 #endif
     }
 
     Instance::~Instance() {
-        for (auto surface: surfaces)
+        for (const auto &surface: surfaces)
             vkDestroySurfaceKHR(instance, surface, nullptr);
 
 #ifdef DEBUG
@@ -156,9 +156,9 @@ namespace Vixen {
         const auto extensions = getSupportedExtensions();
 
         return std::ranges::find_if(
-                extensions,
-                [extension](VkExtensionProperties props) { return extension == props.extensionName; }
-        ) != std::end(extensions);
+                   extensions,
+                   [extension](VkExtensionProperties props) { return extension == props.extensionName; }
+               ) != std::end(extensions);
     }
 
     std::vector<VkLayerProperties> Instance::getSupportedLayers() {
@@ -175,9 +175,9 @@ namespace Vixen {
         const auto layers = getSupportedLayers();
 
         return std::ranges::find_if(
-                layers,
-                [layer](VkLayerProperties props) { return layer == props.layerName; }
-        ) != std::end(layers);
+                   layers,
+                   [layer](VkLayerProperties props) { return layer == props.layerName; }
+               ) != std::end(layers);
     }
 
     /**

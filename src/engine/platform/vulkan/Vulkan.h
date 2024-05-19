@@ -96,7 +96,7 @@ namespace Vixen {
         const VkDebugUtilsMessageSeverityFlagBitsEXT messageSeverity,
         const VkDebugUtilsMessageTypeFlagsEXT messageType,
         const VkDebugUtilsMessengerCallbackDataEXT *pCallbackData,
-        [[maybe_unused]] void *pUserData
+        [[maybe_unused]] std::byte *pUserData
     ) {
         spdlog::level::level_enum level;
         switch (messageSeverity) {
