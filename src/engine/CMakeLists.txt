@@ -12,17 +12,18 @@ add_definitions(-DGLFW_INCLUDE_NONE)
 add_library(
         Vixen
         STATIC
-        Window.cpp
-        Camera.cpp
-        CommandBuffer.h
-        CommandPool.h
-        IndexFormat.h
-        PrimitiveTopology.h
-        VertexAttribute.h
-        AttachmentInfo.h
-        LoadAction.h
-        StoreAction.h
-        Rectangle.h
+        src/Window.cpp
+        src/Camera.cpp
+        src/CommandBuffer.h
+        src/CommandPoolUsage.h
+        src/IndexFormat.h
+        src/PrimitiveTopology.h
+        src/VertexAttribute.h
+        src/AttachmentInfo.h
+        src/LoadAction.h
+        src/StoreAction.h
+        src/Rectangle.h
+        src/BufferUsage.h
 )
 target_link_libraries(
         Vixen
@@ -39,5 +40,5 @@ target_include_directories(
 )
 
 if (ENABLE_VULKAN)
-    add_subdirectory(vk)
+    add_subdirectory(src/platform/vk)
 endif ()

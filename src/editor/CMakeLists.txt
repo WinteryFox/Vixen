@@ -4,11 +4,11 @@ find_package(Qt6 6.3 REQUIRED COMPONENTS Core Qml Widgets Quick)
 qt_standard_project_setup()
 qt_policy(SET QTP0001 NEW)
 
-add_executable(editor main.cpp)
+add_executable(editor src/main.cpp)
 target_include_directories(editor PUBLIC ../engine)
 target_link_libraries(editor PRIVATE Vixen Qt6::Core Qt6::Qml Qt6::Quick Qt6::Widgets)
 
-qt_add_qml_module(editor URI editor VERSION 1.0 QML_FILES ui/main.qml ui/Viewport.qml ui/Dock.qml)
+qt_add_qml_module(editor URI editor VERSION 1.0 QML_FILES src/ui/main.qml src/ui/Viewport.qml src/ui/Dock.qml)
 
 if (ENABLE_VULKAN)
     target_link_libraries(editor PRIVATE VkVixen)
