@@ -12,19 +12,20 @@ add_definitions(-DGLFW_INCLUDE_NONE)
 add_library(
         Vixen
         STATIC
-        src/Window.cpp
-        src/Camera.cpp
-        src/CommandBuffer.h
-        src/CommandPoolUsage.h
-        src/IndexFormat.h
-        src/PrimitiveTopology.h
-        src/VertexAttribute.h
-        src/AttachmentInfo.h
-        src/LoadAction.h
-        src/StoreAction.h
-        src/Rectangle.h
-        src/BufferUsage.h
-        src/FrameData.h
+        src/core/Window.cpp
+        src/core/Camera.cpp
+        src/core/CommandBuffer.h
+        src/core/CommandPoolUsage.h
+        src/core/IndexFormat.h
+        src/core/PrimitiveTopology.h
+        src/core/VertexAttribute.h
+        src/core/AttachmentInfo.h
+        src/core/LoadAction.h
+        src/core/StoreAction.h
+        src/core/Rectangle.h
+        src/core/BufferUsage.h
+        src/core/FrameData.h
+        src/core/exception/ShaderLinkFailedException.h
 )
 target_link_libraries(
         Vixen
@@ -41,5 +42,5 @@ target_include_directories(
 )
 
 if (ENABLE_VULKAN)
-    add_subdirectory(src/platform/vk)
+    add_subdirectory(src/platform/vulkan)
 endif ()

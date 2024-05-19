@@ -1,17 +1,13 @@
 project("Vixen Editor")
 
-find_package(Qt6 6.3 REQUIRED COMPONENTS Core Qml Widgets Quick)
-qt_standard_project_setup()
-qt_policy(SET QTP0001 NEW)
-
 add_executable(editor src/main.cpp)
-target_include_directories(editor PUBLIC ../engine)
-target_link_libraries(editor PRIVATE Vixen Qt6::Core Qt6::Qml Qt6::Quick Qt6::Widgets)
-
-qt_add_qml_module(editor URI editor VERSION 1.0 QML_FILES src/ui/main.qml src/ui/Viewport.qml src/ui/Dock.qml)
+target_link_libraries(editor PRIVATE Vixen)
+target_include_directories(editor PUBLIC ../engine/src)
 
 if (ENABLE_VULKAN)
     target_link_libraries(editor PRIVATE VkVixen)
 endif ()
 
-set_target_properties(editor PROPERTIES WIN32_EXECUTABLE ON MACOSX_BUNDLE ON AUTOUIC ON)
+if (CMAKE_BUILD_TYPE MATCHES "Release")
+    set_target_properties(editor PROPERTIES WIN32_EXECUTABLE ON MACOSX_BUNDLE ON AUTOUIC ON)
+endif ()
