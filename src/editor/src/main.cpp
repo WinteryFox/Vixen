@@ -10,21 +10,25 @@
 #include <assimp/Importer.hpp>
 #include <assimp/postprocess.h>
 #include <assimp/scene.h>
+#include <platform/vulkan/window/VulkanWindow.h>
+#include <spdlog/spdlog.h>
 
 #include "core/BufferUsage.h"
 #include "core/Camera.h"
 #include "core/PrimitiveTopology.h"
-#include "platform/vulkan/Renderer.h"
+#include "platform/vulkan/rendering/Renderer.h"
 #include "platform/vulkan/VulkanApplication.h"
-#include "platform/vulkan/VulkanMesh.h"
-#include "platform/vulkan/VulkanSwapchain.h"
+#include "platform/vulkan/rendering/VulkanMesh.h"
+#include "platform/vulkan/window/VulkanSwapchain.h"
 #include "platform/vulkan/buffer/VulkanBuffer.h"
 #include "platform/vulkan/descriptorset/VulkanDescriptorPoolExpanding.h"
+#include "platform/vulkan/device/VulkanDevice.h"
 #include "platform/vulkan/image/VulkanImage.h"
 #include "platform/vulkan/image/VulkanImageView.h"
 #include "platform/vulkan/material/Material.h"
 #include "platform/vulkan/material/MaterialPass.h"
 #include "platform/vulkan/pipeline/VulkanPipeline.h"
+#include "platform/vulkan/shader/VulkanShaderModule.h"
 #include "platform/vulkan/shader/VulkanShaderProgram.h"
 
 struct UniformBufferObject {
