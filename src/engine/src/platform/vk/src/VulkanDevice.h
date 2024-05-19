@@ -3,7 +3,6 @@
 #include <memory>
 #include <vma/vk_mem_alloc.h>
 
-#include "DeletionQueue.h"
 #include "Instance.h"
 
 namespace Vixen {
@@ -16,8 +15,6 @@ namespace Vixen {
         GraphicsCard gpu;
 
         VkDevice device;
-
-        DeletionQueue deletionQueue;
 
         VmaAllocator allocator;
 
@@ -39,19 +36,19 @@ namespace Vixen {
 
     public:
         VulkanDevice(
-            const std::shared_ptr<Instance>& instance,
-            const std::vector<const char*>& extensions,
+            const std::shared_ptr<Instance> &instance,
+            const std::vector<const char *> &extensions,
             GraphicsCard gpu,
             VkSurfaceKHR surface
         );
 
-        VulkanDevice(const VulkanDevice&) = delete;
+        VulkanDevice(const VulkanDevice &) = delete;
 
-        VulkanDevice& operator=(const VulkanDevice&) = delete;
+        VulkanDevice &operator=(const VulkanDevice &) = delete;
 
-        VulkanDevice(VulkanDevice&& other) noexcept;
+        VulkanDevice(VulkanDevice &&other) noexcept;
 
-        VulkanDevice& operator=(VulkanDevice&& other) noexcept;
+        VulkanDevice &operator=(VulkanDevice &&other) noexcept;
 
         ~VulkanDevice();
 
@@ -59,19 +56,19 @@ namespace Vixen {
 
         [[nodiscard]] VkDevice getDevice() const;
 
-        [[nodiscard]] const GraphicsCard& getGpu() const;
+        [[nodiscard]] const GraphicsCard &getGpu() const;
 
         [[nodiscard]] VkSurfaceKHR getSurface() const;
 
-        [[nodiscard]] const QueueFamily& getGraphicsQueueFamily() const;
+        [[nodiscard]] const QueueFamily &getGraphicsQueueFamily() const;
 
         [[nodiscard]] VkQueue getGraphicsQueue() const;
 
-        [[nodiscard]] const QueueFamily& getTransferQueueFamily() const;
+        [[nodiscard]] const QueueFamily &getTransferQueueFamily() const;
 
         [[nodiscard]] VkQueue getTransferQueue() const;
 
-        [[nodiscard]] const QueueFamily& getPresentQueueFamily() const;
+        [[nodiscard]] const QueueFamily &getPresentQueueFamily() const;
 
         [[nodiscard]] VkQueue getPresentQueue() const;
 

@@ -4,7 +4,6 @@
 #include "Rectangle.h"
 #include "VulkanSwapchain.h"
 #include "commandbuffer/CommandBufferUsage.h"
-#include "image/VulkanImageView.h"
 
 namespace Vixen {
     Renderer::Renderer(
@@ -91,7 +90,5 @@ namespace Vixen {
         commandBuffer.end();
     }
 
-    void Renderer::cleanup() {
-        deletionQueue.flush();
-    }
+    void Renderer::cleanup() {}
 }

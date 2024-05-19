@@ -75,7 +75,7 @@ namespace Vixen {
 
     VulkanImage::VulkanImage(
         const std::shared_ptr<VulkanDevice> &device,
-        ::VkImage image,
+        const VkImage image,
         const uint32_t width,
         const uint32_t height,
         const VkFormat format,
@@ -113,8 +113,9 @@ namespace Vixen {
         return *this;
     }
 
-    void VulkanImage::dispose() const {
-        vmaDestroyImage(device->getAllocator(), image, allocation);
+    VulkanImage::~VulkanImage() {
+        if (device)
+            vmaDestroyImage(device->getAllocator(), image, allocation);
     }
 
     void VulkanImage::upload(const VulkanBuffer &data) {

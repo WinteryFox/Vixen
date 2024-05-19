@@ -51,9 +51,6 @@ add_library(
         src/exception/OutOfPoolMemoryException.h
         src/material/Material.h
         src/material/MaterialPass.h
-        src/DeletionQueue.h
-        src/DeletionQueue.cpp
-        src/Disposable.h
         src/commandbuffer/CommandBufferLevel.h
         src/commandbuffer/CommandBufferUsage.h
 )

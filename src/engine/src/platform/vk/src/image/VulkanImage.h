@@ -3,13 +3,12 @@
 #include <memory>
 #include <vma/vk_mem_alloc.h>
 #include <stb_image.h>
-#include "../Disposable.h"
 
 namespace Vixen {
     class VulkanBuffer;
     class VulkanDevice;
 
-    class VulkanImage final : public Disposable {
+    class VulkanImage {
         friend class VulkanCommandBuffer;
 
         std::shared_ptr<VulkanDevice> device;
@@ -59,9 +58,7 @@ namespace Vixen {
 
         VulkanImage &operator=(VulkanImage &&other) noexcept;
 
-        ~VulkanImage() override = default;
-
-        void dispose() const override;
+        ~VulkanImage();
 
         void upload(const VulkanBuffer &data);
 

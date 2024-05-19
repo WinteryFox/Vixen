@@ -1,35 +1,15 @@
 #pragma once
 
 #include <memory>
+
+#include "FrameData.h"
 #include "VulkanDevice.h"
 #include "commandbuffer/VulkanCommandBuffer.h"
-#include "synchronization/VulkanSemaphore.h"
 
 namespace Vixen {
+    struct FrameData;
     class VulkanImageView;
     class VulkanImage;
-
-    struct FrameData {
-        std::shared_ptr<VulkanDevice> device;
-
-        std::shared_ptr<VulkanImage> colorTarget;
-
-        std::shared_ptr<VulkanImageView> colorImageView;
-
-        std::shared_ptr<VulkanImage> depthTarget;
-
-        std::shared_ptr<VulkanImageView> depthImageView;
-
-        std::shared_ptr<VulkanCommandPool> commandPool;
-
-        VulkanCommandBuffer commandBuffer;
-
-        DeletionQueue deletionQueue;
-
-        VulkanSemaphore imageAvailableSemaphore;
-
-        VulkanSemaphore renderFinishedSemaphore;
-    };
 
     class VulkanSwapchain {
         std::shared_ptr<VulkanDevice> device;
@@ -42,7 +22,7 @@ namespace Vixen {
 
         VkSwapchainKHR swapchain;
 
-        std::vector<::VkImage> internalImages;
+        std::vector<VkImage> internalImages;
 
         std::vector<FrameData> frames;
 

@@ -24,6 +24,7 @@ add_library(
         src/StoreAction.h
         src/Rectangle.h
         src/BufferUsage.h
+        src/FrameData.h
 )
 target_link_libraries(
         Vixen

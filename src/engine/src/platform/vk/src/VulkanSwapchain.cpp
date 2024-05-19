@@ -295,7 +295,6 @@ namespace Vixen {
                     ),
                     commandPool,
                     commandPool->allocate(CommandBufferLevel::Primary),
-                    DeletionQueue(),
                     VulkanSemaphore(device),
                     VulkanSemaphore(device)
                 }
@@ -314,8 +313,6 @@ namespace Vixen {
 
     void VulkanSwapchain::destroy() {
         internalImages.clear();
-        for (const auto &frame: frames)
-            frame.colorTarget->dispose();
         frames.clear();
         vkDestroySwapchainKHR(device->getDevice(), swapchain, nullptr);
     }

@@ -12,8 +12,6 @@ namespace Vixen {
     class Renderer {
         std::shared_ptr<VulkanDevice> device;
 
-        DeletionQueue deletionQueue;
-
         std::shared_ptr<VulkanSwapchain> swapchain;
 
         std::unique_ptr<VulkanPipelineLayout> pipelineLayout;
