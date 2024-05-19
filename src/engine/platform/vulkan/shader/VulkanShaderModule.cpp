@@ -4,13 +4,13 @@
 
 namespace Vixen {
     VulkanShaderModule::VulkanShaderModule(
-        const std::shared_ptr<VulkanDevice>& device,
+        const std::shared_ptr<VulkanDevice> &device,
         const Stage stage,
-        const std::vector<uint32_t>& binary,
-        const std::vector<Binding>& bindings,
-        const std::vector<IO>& inputs,
-        const std::vector<Uniform>& uniformBuffers,
-        const std::string& entrypoint
+        const std::vector<uint32_t> &binary,
+        const std::vector<Binding> &bindings,
+        const std::vector<IO> &inputs,
+        const std::vector<Uniform> &uniformBuffers,
+        const std::string &entrypoint
     ) : ShaderModule(stage, entrypoint, bindings, inputs, uniformBuffers),
         module(VK_NULL_HANDLE),
         device(device) {
@@ -24,6 +24,18 @@ namespace Vixen {
             vkCreateShaderModule(device->getDevice(), &info, nullptr, &module),
             "Failed to create shader module"
         );
+    }
+
+    VulkanShaderModule::VulkanShaderModule(VulkanShaderModule &&other) noexcept
+        : ShaderModule(std::move(other)),
+          module(std::exchange(other.module, nullptr)),
+          device(std::exchange(other.device, nullptr)) {}
+
+    VulkanShaderModule & VulkanShaderModule::operator=(VulkanShaderModule &&other) noexcept {
+        std::swap(module, other.module);
+        std::swap(device, other.device);
+
+        return *this;
     }
 
     VulkanShaderModule::~VulkanShaderModule() {
@@ -43,22 +55,22 @@ namespace Vixen {
     }
 
     std::vector<VkDescriptorSetLayoutBinding> VulkanShaderModule::createBindings() const {
-        const VkShaderStageFlags& stage = getVulkanShaderStage(getStage());
-        const auto& uniformBuffers = getUniforms();
+        const VkShaderStageFlags &stage = getVulkanShaderStage(getStage());
+        const auto &uniformBuffers = getUniforms();
 
         std::vector<VkDescriptorSetLayoutBinding> b{};
         b.reserve(uniformBuffers.size());
-        for (const auto& uniformBuffer : uniformBuffers) {
+        for (const auto &uniformBuffer: uniformBuffers) {
             VkDescriptorType type;
             switch (uniformBuffer.type) {
-            case Uniform::Type::Buffer:
-                type = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
-                break;
-            case Uniform::Type::Sampler:
-                type = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
-                break;
-            default:
-                throw std::runtime_error("Unknown uniform type");
+                case Uniform::Type::Buffer:
+                    type = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
+                    break;
+                case Uniform::Type::Sampler:
+                    type = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
+                    break;
+                default:
+                    throw std::runtime_error("Unknown uniform type");
             }
 
             b.emplace_back(

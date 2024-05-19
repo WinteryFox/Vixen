@@ -149,7 +149,7 @@ namespace Vixen {
     }
 
     VulkanPipeline::VulkanPipeline(VulkanPipeline&& other) noexcept
-        : device(std::move(other.device)),
+        : device(std::exchange(other.device, nullptr)),
           program(std::move(other.program)),
           config(other.config),
           pipelineLayout(std::move(other.pipelineLayout)),

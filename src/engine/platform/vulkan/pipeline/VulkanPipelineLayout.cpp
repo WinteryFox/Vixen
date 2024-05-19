@@ -5,7 +5,8 @@
 #include "shader/VulkanShaderProgram.h"
 
 namespace Vixen {
-    VulkanPipelineLayout::VulkanPipelineLayout(const std::shared_ptr<VulkanDevice>& device, const VulkanShaderProgram& program)
+    VulkanPipelineLayout::VulkanPipelineLayout(const std::shared_ptr<VulkanDevice> &device,
+                                               const VulkanShaderProgram &program)
         : device(device) {
         std::vector<::VkDescriptorSetLayout> layouts;
         layouts.push_back(program.getDescriptorSetLayout()->getLayout());
@@ -25,11 +26,11 @@ namespace Vixen {
         );
     }
 
-    VulkanPipelineLayout::VulkanPipelineLayout(VulkanPipelineLayout&& fp) noexcept
-        : device(std::move(device)),
+    VulkanPipelineLayout::VulkanPipelineLayout(VulkanPipelineLayout &&fp) noexcept
+        : device(std::exchange(fp.device, nullptr)),
           layout(std::exchange(fp.layout, nullptr)) {}
 
-    VulkanPipelineLayout& VulkanPipelineLayout::operator=(VulkanPipelineLayout&& fp) noexcept {
+    VulkanPipelineLayout &VulkanPipelineLayout::operator=(VulkanPipelineLayout &&fp) noexcept {
         std::swap(device, fp.device);
         std::swap(layout, fp.layout);
 
@@ -37,10 +38,11 @@ namespace Vixen {
     }
 
     VulkanPipelineLayout::~VulkanPipelineLayout() {
-        vkDestroyPipelineLayout(device->getDevice(), layout, nullptr);
+        if (device)
+            vkDestroyPipelineLayout(device->getDevice(), layout, nullptr);
     }
 
-    ::VkPipelineLayout VulkanPipelineLayout::getLayout() const {
+    VkPipelineLayout VulkanPipelineLayout::getLayout() const {
         return layout;
     }
 }

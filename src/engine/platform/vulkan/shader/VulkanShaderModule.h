@@ -30,18 +30,22 @@ namespace Vixen {
 
     public:
         VulkanShaderModule(
-            const std::shared_ptr<VulkanDevice>& device,
+            const std::shared_ptr<VulkanDevice> &device,
             Stage stage,
-            const std::vector<uint32_t>& binary,
-            const std::vector<Binding>& bindings,
-            const std::vector<IO>& inputs,
-            const std::vector<Uniform>& uniformBuffers,
-            const std::string& entrypoint = "main"
+            const std::vector<uint32_t> &binary,
+            const std::vector<Binding> &bindings,
+            const std::vector<IO> &inputs,
+            const std::vector<Uniform> &uniformBuffers,
+            const std::string &entrypoint = "main"
         );
 
-        VulkanShaderModule(const VulkanShaderModule&) = delete;
+        VulkanShaderModule(const VulkanShaderModule &) = delete;
 
-        VulkanShaderModule& operator=(const VulkanShaderModule&) = delete;
+        VulkanShaderModule &operator=(const VulkanShaderModule &) = delete;
+
+        VulkanShaderModule(VulkanShaderModule &&other) noexcept;
+
+        VulkanShaderModule &operator=(VulkanShaderModule &&other) noexcept;
 
         ~VulkanShaderModule() override;
 
@@ -68,43 +72,44 @@ namespace Vixen {
         public:
             explicit Builder(const Stage stage) : stage(stage) {}
 
-            Builder& setStage(const Stage s) {
+            Builder &setStage(const Stage s) {
                 stage = s;
                 return *this;
             }
 
-            Builder& setBinary(const std::vector<uint32_t>& data) {
+            Builder &setBinary(const std::vector<uint32_t> &data) {
                 binary = data;
                 return *this;
             }
 
-            Builder& setEntrypoint(const std::string& entry) {
+            Builder &setEntrypoint(const std::string &entry) {
                 entrypoint = entry;
                 return *this;
             }
 
-            Builder& addBinding(const Binding& binding) {
+            Builder &addBinding(const Binding &binding) {
                 bindings.push_back(binding);
                 return *this;
             }
 
-            Builder& addInput(const IO& input) {
+            Builder &addInput(const IO &input) {
                 inputs.push_back(input);
                 return *this;
             }
 
-            std::shared_ptr<VulkanShaderModule> compile(const std::shared_ptr<VulkanDevice>& d, const std::vector<char>& source) {
+            std::shared_ptr<VulkanShaderModule> compile(const std::shared_ptr<VulkanDevice> &d,
+                                                        const std::vector<char> &source) {
                 EShLanguage s;
                 switch (stage) {
-                case Stage::Vertex:
-                    s = EShLangVertex;
-                    break;
-                case Stage::Fragment:
-                    s = EShLangFragment;
-                    break;
-                default:
-                    spdlog::error("Unsupported stage for shader module");
-                    throw std::runtime_error("Unsupported stage for shader module");
+                    case Stage::Vertex:
+                        s = EShLangVertex;
+                        break;
+                    case Stage::Fragment:
+                        s = EShLangFragment;
+                        break;
+                    default:
+                        spdlog::error("Unsupported stage for shader module");
+                        throw std::runtime_error("Unsupported stage for shader module");
                 }
 
                 spdlog::trace("Passed in shader source\n{}", source.data());
@@ -166,7 +171,7 @@ namespace Vixen {
                 spirv_cross::CompilerReflection c{binary};
 
                 auto resources = c.get_shader_resources();
-                for (const auto& [id, type_id, base_type_id, name] : resources.uniform_buffers) {
+                for (const auto &[id, type_id, base_type_id, name]: resources.uniform_buffers) {
                     uint32_t binding = c.get_decoration(id, spv::DecorationBinding);
 
                     uniforms.push_back({
@@ -176,7 +181,7 @@ namespace Vixen {
                     });
                 }
 
-                for (const auto& [id, type_id, base_type_id, name] : resources.sampled_images) {
+                for (const auto &[id, type_id, base_type_id, name]: resources.sampled_images) {
                     uint32_t binding = c.get_decoration(id, spv::DecorationBinding);
 
                     uniforms.push_back({
@@ -196,11 +201,13 @@ namespace Vixen {
                 return std::make_shared<VulkanShaderModule>(d, stage, binary, bindings, inputs, uniforms, entrypoint);
             }
 
-            std::shared_ptr<VulkanShaderModule> compile(const std::shared_ptr<VulkanDevice>& d, const std::string& source) {
+            std::shared_ptr<VulkanShaderModule> compile(const std::shared_ptr<VulkanDevice> &d,
+                                                        const std::string &source) {
                 return compile(d, std::vector(source.begin(), source.end()));
             }
 
-            std::shared_ptr<VulkanShaderModule> compileFromFile(const std::shared_ptr<VulkanDevice>& d, const std::string& path) {
+            std::shared_ptr<VulkanShaderModule> compileFromFile(const std::shared_ptr<VulkanDevice> &d,
+                                                                const std::string &path) {
                 std::ifstream file(path, std::ios::ate);
                 if (!file.is_open())
                     throw std::runtime_error("Failed to read from file");
