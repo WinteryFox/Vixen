@@ -6,7 +6,7 @@ namespace Vixen::Vk {
     VkBuffer::VkBuffer(): count(0), stride(0), allocation(nullptr), buffer(nullptr), allocationInfo(), usage() {}
 
     VkBuffer::VkBuffer(
-        const std::shared_ptr<Device>& device,
+        const std::shared_ptr<Device> &device,
         const BufferUsage usage,
         const uint32_t count,
         const uint32_t stride
@@ -34,7 +34,7 @@ namespace Vixen::Vk {
 
         if (usage & BufferUsage::CopySource) {
             allocationFlags |= VMA_ALLOCATION_CREATE_MAPPED_BIT |
-                VMA_ALLOCATION_CREATE_HOST_ACCESS_SEQUENTIAL_WRITE_BIT;
+                    VMA_ALLOCATION_CREATE_HOST_ACCESS_SEQUENTIAL_WRITE_BIT;
             bufferUsageFlags |= VK_BUFFER_USAGE_TRANSFER_SRC_BIT;
         }
 
@@ -44,7 +44,7 @@ namespace Vixen::Vk {
 
         if (usage & BufferUsage::Uniform) {
             allocationFlags |= VMA_ALLOCATION_CREATE_MAPPED_BIT |
-                VMA_ALLOCATION_CREATE_HOST_ACCESS_SEQUENTIAL_WRITE_BIT;
+                    VMA_ALLOCATION_CREATE_HOST_ACCESS_SEQUENTIAL_WRITE_BIT;
             bufferUsageFlags |= VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT;
             requiredFlags |= VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT;
         }
@@ -84,7 +84,7 @@ namespace Vixen::Vk {
         );
     }
 
-    VkBuffer::VkBuffer(VkBuffer&& other) noexcept
+    VkBuffer::VkBuffer(VkBuffer &&other) noexcept
         : device(std::exchange(other.device, nullptr)),
           count(other.count),
           stride(other.stride),
@@ -93,7 +93,7 @@ namespace Vixen::Vk {
           allocationInfo(other.allocationInfo),
           usage(other.usage) {}
 
-    VkBuffer& VkBuffer::operator=(VkBuffer&& other) noexcept {
+    VkBuffer &VkBuffer::operator=(VkBuffer &&other) noexcept {
         std::swap(device, other.device);
         std::swap(count, other.count);
         std::swap(stride, other.stride);
@@ -110,7 +110,10 @@ namespace Vixen::Vk {
             vmaDestroyBuffer(device->getAllocator(), buffer, allocation);
     }
 
-    void VkBuffer::setData(const std::byte* data) const {
+    void VkBuffer::setData(const std::byte *data) const {
+        if (!data)
+            throw std::runtime_error("Data is nullptr");
+
         memcpy(allocationInfo.pMappedData, data, getSize());
     }
 

@@ -1,3 +1,5 @@
+#define STB_IMAGE_IMPLEMENTATION
+
 #include "VkImage.h"
 
 #include "Device.h"
@@ -76,12 +78,12 @@ namespace Vixen::Vk {
         const VkImageUsageFlags usageFlags,
         const uint8_t mipLevels
     ) : device(device),
-        image(image),
         allocation(VK_NULL_HANDLE),
         width(width),
         height(height),
-        format(format),
         usageFlags(usageFlags),
+        image(image),
+        format(format),
         mipLevels(mipLevels) {}
 
     VkImage::VkImage(VkImage &&other) noexcept
@@ -130,45 +132,49 @@ namespace Vixen::Vk {
     }
 
     VkImage VkImage::from(const std::shared_ptr<Device> &device, const std::string &path) {
-        FreeImage_Initialise();
+        stbi_set_flip_vertically_on_load(1);
 
-        const auto &format = FreeImage_GetFileType(path.c_str(), static_cast<int>(path.length()));
-        if (format == FIF_UNKNOWN) {
-            error(
-                R"(Failed to determine image format for file "{}", is the relative path correct? Possibly unsupported format?)",
-                path);
-            throw std::runtime_error("Failed to determine image format for file");
-        }
+        int width;
+        int height;
+        int channels;
+        stbi_uc *data = stbi_load(path.c_str(), &width, &height, &channels, STBI_rgb_alpha);
+        if (!data)
+            throw std::runtime_error("Failed to load image");
 
-        const auto &bitmap = FreeImage_Load(format, path.c_str(), 0);
-        if (!bitmap) {
-            spdlog::error("Failed to load image from file \"{}\"", path);
-            throw std::runtime_error("Failed to load image from file");
-        }
+        const auto &staging = VkBuffer(
+            device,
+            BufferUsage::Uniform | BufferUsage::CopySource,
+            width * height,
+            4
+        );
+        staging.setData(reinterpret_cast<std::byte *>(data));
 
-        return from(device, bitmap);
+        stbi_image_free(data);
+
+        return from(device, staging, width, height, VK_FORMAT_R8G8B8A8_SRGB);
     }
 
-    VkImage VkImage::from(const std::shared_ptr<Device> &device, const std::string &format, std::byte *data,
-                          const uint32_t size) {
-        // TODO: Add some way to detect the format
-        const auto &memory = FreeImage_OpenMemory(reinterpret_cast<BYTE *>(data), size);
-        if (!memory) {
-            spdlog::error("Failed to open memory for image");
-            throw std::runtime_error("Failed to open memory for image");
-        }
+    VkImage VkImage::from(const std::shared_ptr<Device> &device, const std::byte *data, const uint32_t size) {
+        stbi_set_flip_vertically_on_load(1);
 
-        const auto &bitmap = FreeImage_LoadFromMemory(FreeImage_GetFIFFromFormat(format.c_str()), memory, 0);
-        if (!bitmap) {
-            spdlog::error("Failed to load bitmap from memory");
-            throw std::runtime_error("Failed to load bitmap from memory");
-        }
+        int width;
+        int height;
+        int channels;
+        stbi_load_from_memory(reinterpret_cast<stbi_uc const *>(data), static_cast<int>(size), &width, &height,
+                              &channels, STBI_rgb_alpha);
 
-        // TODO: FreeImage_CloseMemory(memory);
-        return from(device, bitmap);
+        const auto &staging = VkBuffer(
+            device,
+            BufferUsage::Uniform | BufferUsage::CopySource,
+            width * height,
+            4
+        );
+        staging.setData(data);
+
+        return from(device, staging, width, height, VK_FORMAT_R8G8B8A8_SRGB);
     }
 
-    VkImage VkImage::from(const std::shared_ptr<Device> &device, const VkBuffer &buffer, const uint32_t width,
+    VkImage VkImage::from(const std::shared_ptr<Device> &device, const VkBuffer &data, const uint32_t width,
                           const uint32_t height, const VkFormat format) {
         auto image = VkImage(
             device,
@@ -183,7 +189,7 @@ namespace Vixen::Vk {
             static_cast<uint32_t>(floor(log2(std::max(width, height))) + 1),
             VK_IMAGE_LAYOUT_UNDEFINED
         );
-        image.upload(buffer);
+        image.upload(data);
 
         return image;
     }
@@ -202,45 +208,6 @@ namespace Vixen::Vk {
 
     uint8_t VkImage::getMipLevels() const {
         return mipLevels;
-    }
-
-    VkImage VkImage::from(const std::shared_ptr<Device> &device, FIBITMAP *bitmap) {
-        const auto &converted = FreeImage_ConvertTo32Bits(bitmap);
-        if (!converted)
-            error("Failed to convert image to 32 bits");
-
-        const auto &width = FreeImage_GetWidth(converted);
-        const auto &height = FreeImage_GetHeight(converted);
-        const auto &bitsPerPixel = FreeImage_GetBPP(converted);
-        const auto &pixels = FreeImage_GetBits(converted);
-
-        const auto &staging = VkBuffer(
-            device,
-            BufferUsage::Uniform | BufferUsage::CopySource,
-            width * height,
-            bitsPerPixel / 8
-        );
-        staging.setData(reinterpret_cast<std::byte *>(pixels));
-
-        FreeImage_Unload(converted);
-        FreeImage_Unload(bitmap);
-
-        FreeImage_DeInitialise();
-
-        VkFormat f;
-        // TODO: This will need a better implementation to detect the exact format later
-        switch (bitsPerPixel) {
-            case 24:
-                f = VK_FORMAT_B8G8R8_SRGB;
-                break;
-            case 32:
-                f = VK_FORMAT_B8G8R8A8_SRGB;
-                break;
-            default:
-                throw std::runtime_error("Failed to determine format");
-        }
-
-        return from(device, staging, width, height, f);
     }
 
     VkFormat VkImage::getFormat() const {

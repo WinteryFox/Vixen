@@ -30,13 +30,13 @@ namespace Vixen::Vk {
         if (available.empty())
             throw std::runtime_error("Failed to find suitable present mode");
 
-        if (std::ranges::contains(available, VK_PRESENT_MODE_MAILBOX_KHR))
+        if (std::ranges::find(available, VK_PRESENT_MODE_MAILBOX_KHR) != available.end())
             return VK_PRESENT_MODE_MAILBOX_KHR;
-        if (std::ranges::contains(available, VK_PRESENT_MODE_FIFO_KHR))
+        if (std::ranges::find(available, VK_PRESENT_MODE_FIFO_KHR) != available.end())
             return VK_PRESENT_MODE_FIFO_KHR;
-        if (std::ranges::contains(available, VK_PRESENT_MODE_FIFO_RELAXED_KHR))
+        if (std::ranges::find(available, VK_PRESENT_MODE_FIFO_RELAXED_KHR) != available.end())
             return VK_PRESENT_MODE_FIFO_RELAXED_KHR;
-        if (std::ranges::contains(available, VK_PRESENT_MODE_IMMEDIATE_KHR))
+        if (std::ranges::find(available, VK_PRESENT_MODE_IMMEDIATE_KHR) != available.end())
             return VK_PRESENT_MODE_IMMEDIATE_KHR;
 
         return available[0];

@@ -169,7 +169,6 @@ int main() {
             image = std::make_shared<Vixen::Vk::VkImage>(
                 Vixen::Vk::VkImage::from(
                     vixen.getDevice(),
-                    texture->achFormatHint,
                     reinterpret_cast<std::byte*>(texture->pcData),
                     texture->mWidth
                 )

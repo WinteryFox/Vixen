@@ -1,7 +1,6 @@
 #pragma once
 
-#include <FreeImagePlus.h>
-
+#include <stb_image.h>
 #include "Disposable.h"
 #include "VkBuffer.h"
 
@@ -27,7 +26,7 @@ namespace Vixen::Vk {
 
     public:
         VkImage(
-            const std::shared_ptr<Device>& device,
+            const std::shared_ptr<Device> &device,
             uint32_t width,
             uint32_t height,
             VkSampleCountFlagBits samples,
@@ -39,7 +38,7 @@ namespace Vixen::Vk {
         );
 
         VkImage(
-            const std::shared_ptr<Device>& device,
+            const std::shared_ptr<Device> &device,
             ::VkImage image,
             uint32_t width,
             uint32_t height,
@@ -48,26 +47,25 @@ namespace Vixen::Vk {
             uint8_t mipLevels
         );
 
-        VkImage(VkImage& other) = delete;
+        VkImage(VkImage &other) = delete;
 
-        VkImage& operator=(const VkImage& other) = delete;
+        VkImage &operator=(const VkImage &other) = delete;
 
-        VkImage(VkImage&& other) noexcept;
+        VkImage(VkImage &&other) noexcept;
 
-        VkImage& operator=(VkImage&& other) noexcept;
+        VkImage &operator=(VkImage &&other) noexcept;
 
         ~VkImage() override = default;
 
         void dispose() const override;
 
-        void upload(const VkBuffer& data);
+        void upload(const VkBuffer &data);
 
-        static VkImage from(const std::shared_ptr<Device>& device, const std::string& path);
+        static VkImage from(const std::shared_ptr<Device> &device, const std::string &path);
 
-        static VkImage from(const std::shared_ptr<Device>& device, const std::string& format, std::byte* data,
-                            uint32_t size);
+        static VkImage from(const std::shared_ptr<Device> &device, const std::byte *data, uint32_t size);
 
-        static VkImage from(const std::shared_ptr<Device>& device, const VkBuffer& buffer, uint32_t width,
+        static VkImage from(const std::shared_ptr<Device> &device, const VkBuffer &data, uint32_t width,
                             uint32_t height, VkFormat format);
 
         [[nodiscard]] uint32_t getWidth() const;
@@ -80,11 +78,8 @@ namespace Vixen::Vk {
 
         [[nodiscard]] ::VkImage getImage() const;
 
-        [[nodiscard]] const std::shared_ptr<Device>& getDevice() const;
+        [[nodiscard]] const std::shared_ptr<Device> &getDevice() const;
 
         [[nodiscard]] uint8_t getMipLevels() const;
-
-    private:
-        static VkImage from(const std::shared_ptr<Device>& device, FIBITMAP* bitmap);
     };
 }

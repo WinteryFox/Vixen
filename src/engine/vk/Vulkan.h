@@ -101,7 +101,7 @@ namespace Vixen::Vk {
         spdlog::level::level_enum level;
         switch (messageSeverity) {
         case VK_DEBUG_UTILS_MESSAGE_SEVERITY_VERBOSE_BIT_EXT:
-            level = spdlog::level::trace;
+            level = spdlog::level::debug;
             break;
         case VK_DEBUG_UTILS_MESSAGE_SEVERITY_INFO_BIT_EXT:
             level = spdlog::level::info;
