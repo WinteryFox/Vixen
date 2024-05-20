@@ -61,7 +61,10 @@ namespace Vixen {
 
     void VulkanCommandBuffer::begin(const CommandBufferUsage usage) const {
         VkCommandBufferBeginInfo info{
-            .sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO
+            .sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO,
+            .pNext = nullptr,
+            .flags = 0,
+            .pInheritanceInfo = nullptr
         };
 
         switch (usage) {
@@ -97,6 +100,7 @@ namespace Vixen {
 
         const VkSubmitInfo info{
             .sType = VK_STRUCTURE_TYPE_SUBMIT_INFO,
+            .pNext = nullptr,
 
             .waitSemaphoreCount = static_cast<uint32_t>(waitSemaphores.size()),
             .pWaitSemaphores = waitSemaphores.data(),
@@ -405,11 +409,11 @@ namespace Vixen {
     }
 
     void VulkanCommandBuffer::blitImage(const VulkanImage &source, VulkanImage &destination) const {
-        if (!commandPool->getDevice()->getGpu().getFormatProperties(source.getFormat()).optimalTilingFeatures &
-            VK_FORMAT_FEATURE_BLIT_SRC_BIT)
+        if (!(commandPool->getDevice()->getGpu().getFormatProperties(source.getFormat()).optimalTilingFeatures &
+              VK_FORMAT_FEATURE_BLIT_SRC_BIT))
             throw std::runtime_error("Source image format does not support blitting");
-        if (!commandPool->getDevice()->getGpu().getFormatProperties(destination.getFormat()).optimalTilingFeatures &
-            VK_FORMAT_FEATURE_BLIT_DST_BIT)
+        if (!(commandPool->getDevice()->getGpu().getFormatProperties(destination.getFormat()).optimalTilingFeatures &
+              VK_FORMAT_FEATURE_BLIT_DST_BIT))
             throw std::runtime_error("Destination image format does not support blitting");
 
         for (uint32_t i = 1; i < destination.getMipLevels(); i++) {
@@ -430,8 +434,8 @@ namespace Vixen {
                         .z = 0
                     },
                     {
-                        .x = static_cast<int32_t>(source.getWidth() >> i - 1),
-                        .y = static_cast<int32_t>(source.getHeight() >> i - 1),
+                        .x = static_cast<int32_t>(source.getWidth() >> (i - 1)),
+                        .y = static_cast<int32_t>(source.getHeight() >> (i - 1)),
                         .z = 1
                     }
                 },

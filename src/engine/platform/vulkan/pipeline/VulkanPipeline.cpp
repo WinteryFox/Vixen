@@ -23,6 +23,8 @@ namespace Vixen {
 
         VkPipelineDynamicStateCreateInfo dynamicStateInfo{
             .sType = VK_STRUCTURE_TYPE_PIPELINE_DYNAMIC_STATE_CREATE_INFO,
+            .pNext = nullptr,
+            .flags = 0,
             .dynamicStateCount = static_cast<uint32_t>(dynamicStates.size()),
             .pDynamicStates = dynamicStates.data()
         };
@@ -82,6 +84,8 @@ namespace Vixen {
 
         VkPipelineVertexInputStateCreateInfo vertexInputInfo{
             .sType = VK_STRUCTURE_TYPE_PIPELINE_VERTEX_INPUT_STATE_CREATE_INFO,
+            .pNext = nullptr,
+            .flags = 0,
             .vertexBindingDescriptionCount = static_cast<uint32_t>(vertexBindings.size()),
             .pVertexBindingDescriptions = vertexBindings.data(),
             .vertexAttributeDescriptionCount = static_cast<uint32_t>(vertexAttributes.size()),
@@ -90,6 +94,8 @@ namespace Vixen {
 
         VkPipelineViewportStateCreateInfo viewportInfo{
             .sType = VK_STRUCTURE_TYPE_PIPELINE_VIEWPORT_STATE_CREATE_INFO,
+            .pNext = nullptr,
+            .flags = 0,
             .viewportCount = 1,
             .pViewports = &config.viewport,
             .scissorCount = 1,
@@ -98,6 +104,8 @@ namespace Vixen {
 
         VkPipelineColorBlendStateCreateInfo colorBlendInfo{
             .sType = VK_STRUCTURE_TYPE_PIPELINE_COLOR_BLEND_STATE_CREATE_INFO,
+            .pNext = nullptr,
+            .flags = 0,
             .logicOpEnable = VK_FALSE,
             .logicOp = VK_LOGIC_OP_COPY,
             .attachmentCount = 1,
@@ -123,10 +131,12 @@ namespace Vixen {
         const VkGraphicsPipelineCreateInfo pipelineCreateInfo{
             .sType = VK_STRUCTURE_TYPE_GRAPHICS_PIPELINE_CREATE_INFO,
             .pNext = &renderingCreateInfo,
+            .flags = 0,
             .stageCount = static_cast<uint32_t>(stages.size()),
             .pStages = stages.data(),
             .pVertexInputState = &vertexInputInfo,
             .pInputAssemblyState = &config.inputAssemblyInfo,
+            .pTessellationState = nullptr,
             .pViewportState = &viewportInfo,
             .pRasterizationState = &config.rasterizationInfo,
             .pMultisampleState = &config.multisampleInfo,

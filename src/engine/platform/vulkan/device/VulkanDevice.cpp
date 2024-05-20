@@ -103,11 +103,17 @@ namespace Vixen {
         };
 
         VmaAllocatorCreateInfo allocatorInfo{
+            .flags = 0,
             .physicalDevice = gpu.device,
             .device = device,
+            .preferredLargeHeapBlockSize = 0,
+            .pAllocationCallbacks = nullptr,
+            .pDeviceMemoryCallbacks = nullptr,
+            .pHeapSizeLimit = nullptr,
             .pVulkanFunctions = &vulkanFunctions,
             .instance = instance->instance,
             .vulkanApiVersion = VK_API_VERSION_1_3,
+            .pTypeExternalMemoryHandleTypes = nullptr
         };
         vmaCreateAllocator(&allocatorInfo, &allocator);
 

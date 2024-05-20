@@ -8,6 +8,7 @@ namespace Vixen {
           fence(VK_NULL_HANDLE) {
         const VkFenceCreateInfo info{
             .sType = VK_STRUCTURE_TYPE_FENCE_CREATE_INFO,
+            .pNext = nullptr,
             .flags = static_cast<VkFenceCreateFlags>(createSignaled ? VK_FENCE_CREATE_SIGNALED_BIT : 0)
         };
 

@@ -172,13 +172,11 @@ namespace Vixen {
 
         const VkPresentInfoKHR presentInfo{
             .sType = VK_STRUCTURE_TYPE_PRESENT_INFO_KHR,
-
+            .pNext = nullptr,
             .waitSemaphoreCount = static_cast<uint32_t>(waitSemaphores.size()),
             .pWaitSemaphores = waitSemaphores.data(),
-
             .swapchainCount = 1,
             .pSwapchains = &swapchain,
-
             .pImageIndices = &currentFrame,
             .pResults = nullptr
         };
@@ -251,7 +249,7 @@ namespace Vixen {
         vkGetSwapchainImagesKHR(device->getDevice(), swapchain, &imageCount, images.data());
 
         frames.reserve(imageCount);
-        for (auto i = 0; i < imageCount; i++) {
+        for (uint32_t i = 0; i < imageCount; i++) {
             const auto &resolveImage = std::make_shared<VulkanImage>(
                 device,
                 extent.width,

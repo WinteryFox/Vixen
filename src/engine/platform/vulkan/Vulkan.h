@@ -19,29 +19,35 @@
 #include "exception/VulkanException.h"
 
 namespace Vixen {
-    static bool isDepthFormat(const VkFormat format) {
+    [[maybe_unused]] static bool isDepthFormat(const VkFormat format) {
         switch (format) {
             case VK_FORMAT_D32_SFLOAT:
             case VK_FORMAT_D32_SFLOAT_S8_UINT:
             case VK_FORMAT_D24_UNORM_S8_UINT:
                 return true;
+
             default:
                 return false;
         }
     }
 
-    static VkSampleCountFlagBits toVkSampleCountFlagBits(const Samples &samples) {
+    [[maybe_unused]] static VkSampleCountFlagBits toVkSampleCountFlagBits(const Samples &samples) {
         switch (samples) {
-            case Samples::None:
+                using enum Samples;
+
+            case None:
                 return VK_SAMPLE_COUNT_1_BIT;
                 break;
-            case Samples::MSAA2x:
+
+            case MSAA2x:
                 return VK_SAMPLE_COUNT_2_BIT;
                 break;
-            case Samples::MSAA4x:
+
+            case MSAA4x:
                 return VK_SAMPLE_COUNT_4_BIT;
                 break;
-            case Samples::MSAA8x:
+
+            case MSAA8x:
                 return VK_SAMPLE_COUNT_8_BIT;
                 break;
         }
@@ -49,15 +55,19 @@ namespace Vixen {
         throw std::runtime_error("Unsupported sample count");
     }
 
-    static VkAttachmentLoadOp toVkLoadAction(const LoadAction loadAction) {
+    [[maybe_unused]] static VkAttachmentLoadOp toVkLoadAction(const LoadAction loadAction) {
         switch (loadAction) {
-            case LoadAction::Load:
+                using enum LoadAction;
+
+            case Load:
                 return VK_ATTACHMENT_LOAD_OP_LOAD;
                 break;
-            case LoadAction::Clear:
+
+            case Clear:
                 return VK_ATTACHMENT_LOAD_OP_CLEAR;
                 break;
-            case LoadAction::DontCare:
+
+            case DontCare:
                 return VK_ATTACHMENT_LOAD_OP_DONT_CARE;
                 break;
         }
@@ -65,54 +75,60 @@ namespace Vixen {
         return VK_ATTACHMENT_LOAD_OP_DONT_CARE;
     }
 
-    static VkAttachmentStoreOp toVkStoreAction(const StoreAction storeAction) {
+    [[maybe_unused]] static VkAttachmentStoreOp toVkStoreAction(const StoreAction storeAction) {
         switch (storeAction) {
-            case StoreAction::Store:
+                using enum StoreAction;
+
+            case Store:
                 return VK_ATTACHMENT_STORE_OP_STORE;
                 break;
-            case StoreAction::Resolve:
+
+            case Resolve:
                 return VK_ATTACHMENT_STORE_OP_NONE;
                 break;
-            case StoreAction::StoreAndResolve:
+
+            case StoreAndResolve:
                 return VK_ATTACHMENT_STORE_OP_STORE;
                 break;
-            case StoreAction::DontCare:
+
+            case DontCare:
                 return VK_ATTACHMENT_STORE_OP_DONT_CARE;
                 break;
         }
 
-        return VK_ATTACHMENT_STORE_OP_NONE;
+        throw std::runtime_error("Unsupported store action");
     }
 
-    static void checkVulkanResult(const VkResult result, const std::string &message) {
+    [[maybe_unused]] static void checkVulkanResult(const VkResult result, const std::string &message) {
         if (result != VK_SUCCESS)
             throw VulkanException(message);
     }
 
-    static std::string getVersionString(glm::ivec3 version) {
+    [[maybe_unused]] static std::string getVersionString(glm::ivec3 version) {
         return fmt::format("{}.{}.{}", version.x, version.y, version.z);
     }
 
-    static std::string getVersionString(const uint32_t version) {
+    [[maybe_unused]] static std::string getVersionString(const uint32_t version) {
         return fmt::format("{}.{}.{}", VK_API_VERSION_MAJOR(version), VK_API_VERSION_MINOR(version),
                            VK_API_VERSION_PATCH(version));
     }
 
-    static VkShaderStageFlagBits getVulkanShaderStage(const ShaderModule::Stage stage) {
+    [[maybe_unused]] static VkShaderStageFlagBits getVulkanShaderStage(const ShaderModule::Stage stage) {
         switch (stage) {
-            case ShaderModule::Stage::Vertex:
+                using enum ShaderModule::Stage;
+
+            case Vertex:
                 return VK_SHADER_STAGE_VERTEX_BIT;
-            case ShaderModule::Stage::Fragment:
+
+            case Fragment:
                 return VK_SHADER_STAGE_FRAGMENT_BIT;
-            default:
-                throw std::runtime_error("Unknown shader stage");
         }
 
-        return VK_SHADER_STAGE_FLAG_BITS_MAX_ENUM;
+        throw std::runtime_error("Unknown shader stage");
     }
 
 #ifdef DEBUG
-    static VkBool32 VKAPI_CALL vkDebugCallback(
+    [[maybe_unused]] static VkBool32 VKAPI_CALL vkDebugCallback(
         const VkDebugUtilsMessageSeverityFlagBitsEXT messageSeverity,
         const VkDebugUtilsMessageTypeFlagsEXT messageType,
         const VkDebugUtilsMessengerCallbackDataEXT *pCallbackData,
@@ -143,12 +159,15 @@ namespace Vixen {
             case VK_DEBUG_UTILS_MESSAGE_TYPE_PERFORMANCE_BIT_EXT:
                 source = "Performance";
                 break;
+
             case VK_DEBUG_UTILS_MESSAGE_TYPE_VALIDATION_BIT_EXT:
                 source = "Validation";
                 break;
+
             case VK_DEBUG_UTILS_MESSAGE_TYPE_GENERAL_BIT_EXT:
                 source = "General";
                 break;
+
             default:
                 source = string_VkDebugUtilsMessageTypeFlagsEXT(messageType);
                 break;
@@ -157,12 +176,14 @@ namespace Vixen {
         auto vkDebugLogger = spdlog::get("Vulkan");
         if (vkDebugLogger == nullptr)
             vkDebugLogger = spdlog::stdout_color_mt("Vulkan");
+
         vkDebugLogger->log(
             level,
             "[{}] {}",
-            fmt::format(fmt::fg(fmt::terminal_color::magenta), source),
+            fmt::format(fg(fmt::terminal_color::magenta), source),
             pCallbackData->pMessage
         );
+
         return VK_FALSE;
     }
 #endif

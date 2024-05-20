@@ -16,6 +16,8 @@ namespace Vixen {
         device(device) {
         const VkShaderModuleCreateInfo info{
             .sType = VK_STRUCTURE_TYPE_SHADER_MODULE_CREATE_INFO,
+            .pNext = nullptr,
+            .flags = 0,
             .codeSize = binary.size() * sizeof(uint32_t),
             .pCode = binary.data()
         };

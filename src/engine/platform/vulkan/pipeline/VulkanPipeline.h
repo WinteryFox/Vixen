@@ -33,18 +33,18 @@ namespace Vixen {
 
     public:
         VulkanPipeline(
-            const std::shared_ptr<VulkanDevice>& device,
-            const VulkanShaderProgram& program,
-            const Config& config
+            const std::shared_ptr<VulkanDevice> &device,
+            const VulkanShaderProgram &program,
+            const Config &config
         );
 
-        VulkanPipeline(VulkanPipeline& other) = delete;
+        VulkanPipeline(VulkanPipeline &other) = delete;
 
-        VulkanPipeline& operator=(const VulkanPipeline& other) = delete;
+        VulkanPipeline &operator=(const VulkanPipeline &other) = delete;
 
-        VulkanPipeline(VulkanPipeline&& other) noexcept;
+        VulkanPipeline(VulkanPipeline &&other) noexcept;
 
-        VulkanPipeline& operator=(VulkanPipeline&& other) noexcept;
+        VulkanPipeline &operator=(VulkanPipeline &&other) noexcept;
 
         ~VulkanPipeline();
 
@@ -56,24 +56,33 @@ namespace Vixen {
 
         void bindRayTracing(::VkCommandBuffer commandBuffer) const;
 
-        [[nodiscard]] const VulkanShaderProgram& getProgram() const;
+        [[nodiscard]] const VulkanShaderProgram &getProgram() const;
 
-        [[nodiscard]] const Config& getConfig() const;
+        [[nodiscard]] const Config &getConfig() const;
 
         [[nodiscard]] std::shared_ptr<VulkanDevice> getDevice() const;
 
-        [[nodiscard]] const VulkanPipelineLayout& getLayout() const;
+        [[nodiscard]] const VulkanPipelineLayout &getLayout() const;
 
         class Builder {
             Config config{
                 .viewport = {
-                    .x = 0,
-                    .y = 0,
+                    .x = 0.0f,
+                    .y = 0.0f,
+                    .width = 0.0f,
+                    .height = 0.0f,
                     .minDepth = 0.0f,
                     .maxDepth = 1.0f
                 },
                 .scissor = {
-                    .offset = {0, 0},
+                    .offset = {
+                        .x = 0,
+                        .y = 0
+                    },
+                    .extent = {
+                        .width = 0,
+                        .height = 0
+                    }
                 }
             };
 
@@ -81,12 +90,16 @@ namespace Vixen {
             Builder() {
                 config.inputAssemblyInfo = {
                     .sType = VK_STRUCTURE_TYPE_PIPELINE_INPUT_ASSEMBLY_STATE_CREATE_INFO,
-                    // TODO: These shouldn't be hardcoded, the mesh class has an option for this.
+                    .pNext = nullptr,
+                    .flags = 0,
                     .topology = VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST,
                     .primitiveRestartEnable = VK_FALSE
+                    // TODO: These shouldn't be hardcoded, the mesh class has an option for this.
                 };
                 config.rasterizationInfo = {
                     .sType = VK_STRUCTURE_TYPE_PIPELINE_RASTERIZATION_STATE_CREATE_INFO,
+                    .pNext = nullptr,
+                    .flags = 0,
                     .depthClampEnable = VK_FALSE,
                     .rasterizerDiscardEnable = VK_FALSE,
                     .polygonMode = VK_POLYGON_MODE_FILL,
@@ -96,10 +109,12 @@ namespace Vixen {
                     .depthBiasConstantFactor = 0.0f,
                     .depthBiasClamp = 0.0f,
                     .depthBiasSlopeFactor = 0.0f,
-                    .lineWidth = 1.0f
+                    .lineWidth = 1.0f,
                 };
                 config.multisampleInfo = {
                     .sType = VK_STRUCTURE_TYPE_PIPELINE_MULTISAMPLE_STATE_CREATE_INFO,
+                    .pNext = nullptr,
+                    .flags = 0,
                     .rasterizationSamples = VK_SAMPLE_COUNT_1_BIT,
                     .sampleShadingEnable = VK_FALSE,
                     .minSampleShading = 1.0f,
@@ -116,10 +131,12 @@ namespace Vixen {
                     .dstAlphaBlendFactor = VK_BLEND_FACTOR_ZERO,
                     .alphaBlendOp = VK_BLEND_OP_ADD,
                     .colorWriteMask = VK_COLOR_COMPONENT_R_BIT | VK_COLOR_COMPONENT_G_BIT |
-                    VK_COLOR_COMPONENT_B_BIT | VK_COLOR_COMPONENT_A_BIT,
+                                      VK_COLOR_COMPONENT_B_BIT | VK_COLOR_COMPONENT_A_BIT,
                 };
                 config.depthStencilInfo = {
                     .sType = VK_STRUCTURE_TYPE_PIPELINE_DEPTH_STENCIL_STATE_CREATE_INFO,
+                    .pNext = nullptr,
+                    .flags = 0,
                     .depthTestEnable = VK_TRUE,
                     .depthWriteEnable = VK_TRUE,
                     .depthCompareOp = VK_COMPARE_OP_LESS,
@@ -132,57 +149,57 @@ namespace Vixen {
                 };
             }
 
-            Builder& setWidth(const uint32_t w) {
+            Builder &setWidth(const uint32_t w) {
                 config.viewport.width = static_cast<float>(w);
                 config.scissor.extent.width = w;
                 return *this;
             }
 
-            Builder& setHeight(const int32_t h) {
+            Builder &setHeight(const int32_t h) {
                 config.viewport.height = static_cast<float>(-h);
                 config.viewport.y = static_cast<float>(h);
                 config.scissor.extent.height = h;
                 return *this;
             }
 
-            Builder& setInputAssembly(const VkPipelineInputAssemblyStateCreateInfo& info) {
+            Builder &setInputAssembly(const VkPipelineInputAssemblyStateCreateInfo &info) {
                 config.inputAssemblyInfo = info;
                 return *this;
             }
 
-            Builder& setRasterization(const VkPipelineRasterizationStateCreateInfo& info) {
+            Builder &setRasterization(const VkPipelineRasterizationStateCreateInfo &info) {
                 config.rasterizationInfo = info;
                 return *this;
             }
 
-            Builder& setMultisample(const VkPipelineMultisampleStateCreateInfo& info) {
+            Builder &setMultisample(const VkPipelineMultisampleStateCreateInfo &info) {
                 config.multisampleInfo = info;
                 return *this;
             }
 
-            Builder& setColorBlend(const VkPipelineColorBlendAttachmentState& info) {
+            Builder &setColorBlend(const VkPipelineColorBlendAttachmentState &info) {
                 config.colorBlendAttachment = info;
                 return *this;
             }
 
-            Builder& setDepthStencil(const VkPipelineDepthStencilStateCreateInfo& info) {
+            Builder &setDepthStencil(const VkPipelineDepthStencilStateCreateInfo &info) {
                 config.depthStencilInfo = info;
                 return *this;
             }
 
-            Builder& setColorFormat(const VkFormat &format) {
+            Builder &setColorFormat(const VkFormat &format) {
                 config.colorFormat = format;
                 return *this;
             }
 
-            Builder& setDepthFormat(const VkFormat &format) {
+            Builder &setDepthFormat(const VkFormat &format) {
                 config.depthFormat = format;
                 return *this;
             }
 
             std::shared_ptr<VulkanPipeline> build(
-                const std::shared_ptr<VulkanDevice>& d,
-                const VulkanShaderProgram& p
+                const std::shared_ptr<VulkanDevice> &d,
+                const VulkanShaderProgram &p
             ) {
                 return std::make_shared<VulkanPipeline>(d, p, config);
             }

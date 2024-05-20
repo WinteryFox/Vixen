@@ -8,6 +8,8 @@ namespace Vixen {
           semaphore(VK_NULL_HANDLE) {
         VkSemaphoreCreateInfo info{
             .sType = VK_STRUCTURE_TYPE_SEMAPHORE_CREATE_INFO,
+            .pNext = nullptr,
+            .flags = 0
         };
 
         checkVulkanResult(
