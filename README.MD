@@ -9,8 +9,8 @@ are to be supported by Vixen, and they are to be switched between with a simple 
 The engine consists of several modules, primarily the runtime core abstraction and its platform dependant
 implementations.
 
-- [Runtime](/src/engine)
-  - [Vulkan](/src/engine/platform/vulkan)
+- [Runtime core](/src/engine/core)
+  - [Vulkan implementation](/src/engine/platform/vulkan)
 
 The editor application consists of only its own module.
 
