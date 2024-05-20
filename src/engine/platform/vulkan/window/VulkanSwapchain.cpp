@@ -72,7 +72,7 @@ namespace Vixen {
     void VulkanSwapchain::present(const std::vector<::VkSemaphore> &waitSemaphores) {
         const auto &commandBuffer = device->getTransferCommandPool()->allocate(CommandBufferLevel::Primary);
         commandBuffer.begin(CommandBufferUsage::Once);
-        commandBuffer.transitionImage(*frames[currentFrame].colorTarget, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL,
+        commandBuffer.transitionImage(*frames[currentFrame].resolveTarget, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL,
                                       VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL, 0, 1);
         commandBuffer.record([this](const auto &cmd) {
             VkImageMemoryBarrier barrier{
@@ -84,7 +84,7 @@ namespace Vixen {
                 .newLayout = VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
                 .srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED,
                 .dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED,
-                .image = internalImages[currentFrame],
+                .image = images[currentFrame],
                 .subresourceRange = {
                     .aspectMask = VK_IMAGE_ASPECT_COLOR_BIT,
                     .baseMipLevel = 0,
@@ -139,9 +139,9 @@ namespace Vixen {
 
             vkCmdCopyImage(
                 cmd,
-                frames[currentFrame].colorTarget->getImage(),
+                frames[currentFrame].resolveTarget->getImage(),
                 VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL,
-                internalImages[currentFrame],
+                images[currentFrame],
                 barrier.newLayout,
                 1,
                 &region
@@ -165,7 +165,7 @@ namespace Vixen {
                 &barrier
             );
         });
-        commandBuffer.transitionImage(*frames[currentFrame].colorTarget, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL,
+        commandBuffer.transitionImage(*frames[currentFrame].resolveTarget, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL,
                                       VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL, 0, 1);
         commandBuffer.end();
         commandBuffer.submit(device->getTransferQueue(), {}, {}, {});
@@ -207,6 +207,8 @@ namespace Vixen {
 
         VkSwapchainCreateInfoKHR info{
             .sType = VK_STRUCTURE_TYPE_SWAPCHAIN_CREATE_INFO_KHR,
+            .pNext = nullptr,
+            .flags = 0,
             .surface = device->getSurface(),
             .minImageCount = imageCount,
             .imageFormat = format.format,
@@ -214,11 +216,14 @@ namespace Vixen {
             .imageExtent = extent,
             .imageArrayLayers = 1,
             .imageUsage = VK_IMAGE_USAGE_TRANSFER_DST_BIT,
+            .imageSharingMode = VK_SHARING_MODE_EXCLUSIVE,
+            .queueFamilyIndexCount = 0,
+            .pQueueFamilyIndices = nullptr,
             .preTransform = capabilities.currentTransform,
             .compositeAlpha = VK_COMPOSITE_ALPHA_OPAQUE_BIT_KHR,
             .presentMode = presentMode,
             .clipped = VK_TRUE,
-            .oldSwapchain = VK_NULL_HANDLE,
+            .oldSwapchain = nullptr
         };
 
         if (device->getGraphicsQueueFamily().index != device->getPresentQueueFamily().index) {
@@ -242,21 +247,32 @@ namespace Vixen {
         );
 
         vkGetSwapchainImagesKHR(device->getDevice(), swapchain, &imageCount, nullptr);
-        internalImages.resize(imageCount);
-        vkGetSwapchainImagesKHR(device->getDevice(), swapchain, &imageCount, internalImages.data());
+        images.resize(imageCount);
+        vkGetSwapchainImagesKHR(device->getDevice(), swapchain, &imageCount, images.data());
 
         frames.reserve(imageCount);
         for (auto i = 0; i < imageCount; i++) {
-            const auto &image = std::make_shared<VulkanImage>(
+            const auto &resolveImage = std::make_shared<VulkanImage>(
                 device,
                 extent.width,
                 extent.height,
-                VK_SAMPLE_COUNT_1_BIT,
+                Samples::None,
                 format.format,
                 VK_IMAGE_TILING_OPTIMAL,
                 VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT | VK_IMAGE_USAGE_TRANSFER_SRC_BIT,
-                1,
-                VK_IMAGE_LAYOUT_UNDEFINED
+                1
+            );
+
+            const auto &colorImage = std::make_shared<VulkanImage>(
+                device,
+                extent.width,
+                extent.height,
+                // TODO: Allow this to be set as an option
+                Samples::MSAA8x,
+                format.format,
+                VK_IMAGE_TILING_OPTIMAL,
+                VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT,
+                1
             );
             const auto &commandPool = device->allocateCommandPool(CommandPoolUsage::Graphics, true);
 
@@ -264,7 +280,7 @@ namespace Vixen {
                 device,
                 extent.width,
                 extent.height,
-                VK_SAMPLE_COUNT_1_BIT,
+                Samples::MSAA8x,
                 device->getGpu().pickFormat(
                     {
                         VK_FORMAT_D32_SFLOAT_S8_UINT,
@@ -275,45 +291,52 @@ namespace Vixen {
                 ),
                 VK_IMAGE_TILING_OPTIMAL,
                 VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT,
-                1,
-                VK_IMAGE_LAYOUT_UNDEFINED
+                1
             );
 
-            frames.push_back(
-                {
+            frames.emplace_back(
+                device,
+                resolveImage,
+                std::make_shared<VulkanImageView>(
                     device,
-                    image,
-                    std::make_shared<VulkanImageView>(
-                        device,
-                        image,
-                        VK_IMAGE_ASPECT_COLOR_BIT
-                    ),
+                    resolveImage,
+                    VK_IMAGE_ASPECT_COLOR_BIT
+                ),
+                colorImage,
+                std::make_shared<VulkanImageView>(
+                    device,
+                    colorImage,
+                    VK_IMAGE_ASPECT_COLOR_BIT
+                ),
+                depthTarget,
+                std::make_shared<VulkanImageView>(
+                    device,
                     depthTarget,
-                    std::make_shared<VulkanImageView>(
-                        device,
-                        depthTarget,
-                        VK_IMAGE_ASPECT_DEPTH_BIT | VK_IMAGE_ASPECT_STENCIL_BIT
-                    ),
-                    commandPool,
-                    commandPool->allocate(CommandBufferLevel::Primary),
-                    VulkanSemaphore(device),
-                    VulkanSemaphore(device)
-                }
+                    VK_IMAGE_ASPECT_DEPTH_BIT | VK_IMAGE_ASPECT_STENCIL_BIT
+                ),
+                commandPool,
+                commandPool->allocate(CommandBufferLevel::Primary),
+                VulkanSemaphore(device),
+                VulkanSemaphore(device)
             );
         }
 
         const auto &cmd = device->getTransferCommandPool()->allocate(CommandBufferLevel::Primary);
         cmd.begin(CommandBufferUsage::Once);
-        for (const auto &frame: frames)
-            cmd.transitionImage(*frame.colorTarget, VK_IMAGE_LAYOUT_UNDEFINED,
-                                VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL, 0,
-                                1);
+        for (const auto &[device, resolveTarget, resolveTargetView, colorTarget, colorImageView, depthTarget,
+                 depthImageView, commandPool, commandBuffer, imageAvailableSemaphore, renderFinishedSemaphore]:
+             frames) {
+            cmd.transitionImage(*resolveTarget, VK_IMAGE_LAYOUT_UNDEFINED,
+                                VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL, 0, 1);
+            cmd.transitionImage(*colorTarget, VK_IMAGE_LAYOUT_UNDEFINED,
+                                VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL, 0, 1);
+        }
         cmd.end();
         cmd.submit(device->getPresentQueue(), {}, {}, {});
     }
 
     void VulkanSwapchain::destroy() {
-        internalImages.clear();
+        images.clear();
         frames.clear();
         vkDestroySwapchainKHR(device->getDevice(), swapchain, nullptr);
     }

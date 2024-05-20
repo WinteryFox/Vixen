@@ -16,12 +16,11 @@ namespace Vixen {
         const std::shared_ptr<VulkanDevice> &device,
         const uint32_t width,
         const uint32_t height,
-        const VkSampleCountFlagBits samples,
+        const Samples sampleCount,
         const VkFormat format,
         const VkImageTiling tiling,
         const VkImageUsageFlags usageFlags,
-        const uint8_t mipLevels,
-        const VkImageLayout initialLayout
+        const uint8_t mipLevels
     ) : device(device),
         allocation(VK_NULL_HANDLE),
         width(width),
@@ -29,7 +28,8 @@ namespace Vixen {
         usageFlags(usageFlags),
         image(VK_NULL_HANDLE),
         format(format),
-        mipLevels(mipLevels) {
+        mipLevels(mipLevels),
+        sampleCount(sampleCount) {
         const VkImageCreateInfo imageCreateInfo{
             .sType = VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO,
             .pNext = nullptr,
@@ -43,13 +43,13 @@ namespace Vixen {
             },
             .mipLevels = mipLevels,
             .arrayLayers = 1,
-            .samples = samples,
+            .samples = toVkSampleCountFlagBits(sampleCount),
             .tiling = tiling,
             .usage = usageFlags | VK_IMAGE_USAGE_TRANSFER_SRC_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT,
             .sharingMode = VK_SHARING_MODE_EXCLUSIVE,
             .queueFamilyIndexCount = 0,
             .pQueueFamilyIndices = nullptr,
-            .initialLayout = initialLayout
+            .initialLayout = VK_IMAGE_LAYOUT_UNDEFINED
         };
 
         constexpr VmaAllocationCreateInfo allocationCreateInfo = {
@@ -76,23 +76,6 @@ namespace Vixen {
         );
     }
 
-    VulkanImage::VulkanImage(
-        const std::shared_ptr<VulkanDevice> &device,
-        const VkImage image,
-        const uint32_t width,
-        const uint32_t height,
-        const VkFormat format,
-        const VkImageUsageFlags usageFlags,
-        const uint8_t mipLevels
-    ) : device(device),
-        allocation(VK_NULL_HANDLE),
-        width(width),
-        height(height),
-        usageFlags(usageFlags),
-        image(image),
-        format(format),
-        mipLevels(mipLevels) {}
-
     VulkanImage::VulkanImage(VulkanImage &&other) noexcept
         : device(std::exchange(other.device, nullptr)),
           allocation(std::exchange(other.allocation, VK_NULL_HANDLE)),
@@ -101,7 +84,8 @@ namespace Vixen {
           usageFlags(other.usageFlags),
           image(std::exchange(other.image, VK_NULL_HANDLE)),
           format(other.format),
-          mipLevels(other.mipLevels) {}
+          mipLevels(other.mipLevels),
+          sampleCount(other.sampleCount) {}
 
     VulkanImage &VulkanImage::operator=(VulkanImage &&other) noexcept {
         std::swap(device, other.device);
@@ -112,6 +96,7 @@ namespace Vixen {
         std::swap(image, other.image);
         std::swap(format, other.format);
         std::swap(mipLevels, other.mipLevels);
+        std::swap(sampleCount, other.sampleCount);
 
         return *this;
     }
@@ -188,14 +173,13 @@ namespace Vixen {
             device,
             width,
             height,
-            VK_SAMPLE_COUNT_1_BIT,
+            Samples::None,
             format,
             VK_IMAGE_TILING_OPTIMAL,
             VK_IMAGE_USAGE_TRANSFER_SRC_BIT |
             VK_IMAGE_USAGE_TRANSFER_DST_BIT |
             VK_IMAGE_USAGE_SAMPLED_BIT,
-            static_cast<uint32_t>(floor(log2(std::max(width, height))) + 1),
-            VK_IMAGE_LAYOUT_UNDEFINED
+            static_cast<uint32_t>(floor(log2(std::max(width, height))) + 1)
         );
         image.upload(data);
 
@@ -206,23 +190,15 @@ namespace Vixen {
 
     uint32_t VulkanImage::getHeight() const { return height; }
 
-    ::VkImage VulkanImage::getImage() const {
-        return image;
-    }
+    VkImage VulkanImage::getImage() const { return image; }
 
-    const std::shared_ptr<VulkanDevice> &VulkanImage::getDevice() const {
-        return device;
-    }
+    const std::shared_ptr<VulkanDevice> &VulkanImage::getDevice() const { return device; }
 
-    uint8_t VulkanImage::getMipLevels() const {
-        return mipLevels;
-    }
+    uint8_t VulkanImage::getMipLevels() const { return mipLevels; }
 
-    VkFormat VulkanImage::getFormat() const {
-        return format;
-    }
+    Samples VulkanImage::getSampleCount() const { return sampleCount; }
 
-    VkImageUsageFlags VulkanImage::getUsageFlags() const {
-        return usageFlags;
-    }
+    VkFormat VulkanImage::getFormat() const { return format; }
+
+    VkImageUsageFlags VulkanImage::getUsageFlags() const { return usageFlags; }
 }

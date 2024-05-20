@@ -118,26 +118,26 @@ namespace Vixen {
     void VulkanCommandBuffer::beginRenderPass(
         const uint32_t width,
         const uint32_t height,
+        // TODO: Currently does nothing and the samples is dependent on the swapchain
         const uint8_t samples,
         const std::vector<AttachmentInfo> &attachments,
         const VulkanImageView &depthAttachment
     ) const {
-        std::vector<VkRenderingAttachmentInfo> vkAttachments{attachments.size()};
-        for (auto i = 0; i < attachments.size(); i++) {
-            const auto &[loadAction, storeAction, loadStoreTarget, resolveTarget, clearColor, clearDepth, clearStencil]
-                    = attachments[i];
-
-            vkAttachments[i] = {
+        std::vector<VkRenderingAttachmentInfo> vkAttachments;
+        vkAttachments.reserve(attachments.size());
+        for (auto [loadAction, storeAction, loadStoreTarget, resolveTarget, clearColor, clearDepth, clearStencil]:
+             attachments)
+            vkAttachments.push_back({
                 .sType = VK_STRUCTURE_TYPE_RENDERING_ATTACHMENT_INFO,
                 .pNext = nullptr,
-                .imageView = !loadStoreTarget ? nullptr : loadStoreTarget->getImageView(),
+                .imageView = !loadStoreTarget ? nullptr : loadStoreTarget,
                 .imageLayout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL,
                 .resolveMode = storeAction == StoreAction::Resolve ||
                                storeAction == StoreAction::StoreAndResolve
                                    ? VK_RESOLVE_MODE_AVERAGE_BIT
                                    : VK_RESOLVE_MODE_NONE,
-                .resolveImageView = !resolveTarget ? nullptr : resolveTarget->getImageView(),
-                .resolveImageLayout = VK_IMAGE_LAYOUT_UNDEFINED,
+                .resolveImageView = !resolveTarget ? nullptr : resolveTarget,
+                .resolveImageLayout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL,
                 .loadOp = toVkLoadAction(loadAction),
                 .storeOp = toVkStoreAction(storeAction),
                 .clearValue = {
@@ -148,8 +148,7 @@ namespace Vixen {
                         clearColor.a
                     },
                 }
-            };
-        }
+            });
 
         VkRenderingAttachmentInfo depthAttachmentInfo{
             .sType = VK_STRUCTURE_TYPE_RENDERING_ATTACHMENT_INFO,
@@ -474,6 +473,9 @@ namespace Vixen {
 
     // TODO: Not sure how to handle the different regions with mip-maps
     void VulkanCommandBuffer::copyImage(const VulkanImage &source, const VulkanImage &destination) const {
+        if (source.getSampleCount() != destination.getSampleCount())
+            throw std::runtime_error("Source image sample count must match destination image sample count");
+
         std::vector<VkImageCopy> regions{source.getMipLevels()};
 
         for (uint32_t i = 0; i < regions.size(); i++) {

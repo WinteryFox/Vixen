@@ -50,10 +50,23 @@ namespace Vixen {
         }
 
         glfwSetWindowUserPointer(window, this);
-        glfwSetFramebufferSizeCallback(window, [](auto w, auto width, auto height) {
+        glfwSetFramebufferSizeCallback(window, [](auto w, auto, auto) {
             const auto wind = static_cast<Window *>(glfwGetWindowUserPointer(w));
             wind->framebufferSizeChanged = true;
         });
+    }
+
+    Window::Window(Window &&other) noexcept
+        : monitor(std::exchange(other.monitor, nullptr)),
+          window(std::exchange(other.window, nullptr)),
+          monitors(std::move(other.monitors)) {}
+
+    Window &Window::operator=(Window &&other) noexcept {
+        std::swap(window, other.window);
+        std::swap(monitor, other.monitor);
+        std::swap(monitors, other.monitors);
+
+        return *this;
     }
 
     Window::~Window() {

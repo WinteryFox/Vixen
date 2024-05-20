@@ -5,23 +5,34 @@
 #include "device/VulkanDevice.h"
 
 namespace Vixen {
-    VulkanImageView::VulkanImageView(const std::shared_ptr<VulkanDevice> &device, const std::shared_ptr<VulkanImage> &image,
-                             const VkImageAspectFlags aspectFlags)
+    VulkanImageView::VulkanImageView(const std::shared_ptr<VulkanDevice> &device,
+                                     const std::shared_ptr<VulkanImage> &image,
+                                     const VkImageAspectFlags aspectFlags)
         : device(device),
           image(image),
           imageView(VK_NULL_HANDLE),
           sampler(VK_NULL_HANDLE) {
-        VkImageViewCreateInfo imageViewCreateInfo{};
-        imageViewCreateInfo.sType = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO;
-        imageViewCreateInfo.image = image->getImage();
-        imageViewCreateInfo.viewType = VK_IMAGE_VIEW_TYPE_2D;
-        imageViewCreateInfo.format = image->getFormat();
-        imageViewCreateInfo.subresourceRange.aspectMask = aspectFlags;
-        imageViewCreateInfo.subresourceRange.baseMipLevel = 0;
-        imageViewCreateInfo.subresourceRange.levelCount = image->getMipLevels();
-        imageViewCreateInfo.subresourceRange.baseArrayLayer = 0;
-        imageViewCreateInfo.subresourceRange.layerCount = 1;
-
+        const VkImageViewCreateInfo imageViewCreateInfo{
+            .sType = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO,
+            .pNext = nullptr,
+            .flags = 0,
+            .image = image->getImage(),
+            .viewType = VK_IMAGE_VIEW_TYPE_2D,
+            .format = image->getFormat(),
+            .components = {
+                .r = VK_COMPONENT_SWIZZLE_IDENTITY,
+                .g = VK_COMPONENT_SWIZZLE_IDENTITY,
+                .b = VK_COMPONENT_SWIZZLE_IDENTITY,
+                .a = VK_COMPONENT_SWIZZLE_IDENTITY
+            },
+            .subresourceRange = {
+                .aspectMask = aspectFlags,
+                .baseMipLevel = 0,
+                .levelCount = image->getMipLevels(),
+                .baseArrayLayer = 0,
+                .layerCount = 1
+            }
+        };
         checkVulkanResult(
             vkCreateImageView(image->getDevice()->getDevice(), &imageViewCreateInfo, nullptr, &imageView),
             "Failed to create image view"

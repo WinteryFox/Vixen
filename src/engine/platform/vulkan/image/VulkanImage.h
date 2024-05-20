@@ -4,6 +4,8 @@
 #include <vma/vk_mem_alloc.h>
 #include <stb_image.h>
 
+#include "core/Samples.h"
+
 namespace Vixen {
     class VulkanBuffer;
     class VulkanDevice;
@@ -21,31 +23,22 @@ namespace Vixen {
 
         VkImageUsageFlags usageFlags;
 
-        ::VkImage image;
+        VkImage image;
 
         VkFormat format;
 
         uint8_t mipLevels;
+
+        Samples sampleCount;
 
     public:
         VulkanImage(
             const std::shared_ptr<VulkanDevice> &device,
             uint32_t width,
             uint32_t height,
-            VkSampleCountFlagBits samples,
+            Samples sampleCount,
             VkFormat format,
             VkImageTiling tiling,
-            VkImageUsageFlags usageFlags,
-            uint8_t mipLevels,
-            VkImageLayout initialLayout
-        );
-
-        VulkanImage(
-            const std::shared_ptr<VulkanDevice> &device,
-            ::VkImage image,
-            uint32_t width,
-            uint32_t height,
-            VkFormat format,
             VkImageUsageFlags usageFlags,
             uint8_t mipLevels
         );
@@ -82,5 +75,7 @@ namespace Vixen {
         [[nodiscard]] const std::shared_ptr<VulkanDevice> &getDevice() const;
 
         [[nodiscard]] uint8_t getMipLevels() const;
+
+        [[nodiscard]] Samples getSampleCount() const;
     };
 }

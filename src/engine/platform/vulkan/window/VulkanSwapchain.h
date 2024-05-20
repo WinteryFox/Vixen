@@ -5,6 +5,7 @@
 #include <Volk/volk.h>
 
 #include "../FrameData.h"
+#include "commandbuffer/CommandBufferUsage.h"
 #include "device/VulkanDevice.h"
 
 namespace Vixen {
@@ -24,7 +25,7 @@ namespace Vixen {
 
         VkSwapchainKHR swapchain;
 
-        std::vector<VkImage> internalImages;
+        std::vector<VkImage> images;
 
         std::vector<FrameData> frames;
 

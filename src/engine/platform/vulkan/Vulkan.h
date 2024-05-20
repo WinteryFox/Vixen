@@ -14,6 +14,7 @@
 #include <vulkan/vk_enum_string_helper.h>
 
 #include "core/LoadAction.h"
+#include "core/Samples.h"
 #include "core/StoreAction.h"
 #include "exception/VulkanException.h"
 
@@ -27,6 +28,25 @@ namespace Vixen {
             default:
                 return false;
         }
+    }
+
+    static VkSampleCountFlagBits toVkSampleCountFlagBits(const Samples &samples) {
+        switch (samples) {
+            case Samples::None:
+                return VK_SAMPLE_COUNT_1_BIT;
+                break;
+            case Samples::MSAA2x:
+                return VK_SAMPLE_COUNT_2_BIT;
+                break;
+            case Samples::MSAA4x:
+                return VK_SAMPLE_COUNT_4_BIT;
+                break;
+            case Samples::MSAA8x:
+                return VK_SAMPLE_COUNT_8_BIT;
+                break;
+        }
+
+        throw std::runtime_error("Unsupported sample count");
     }
 
     static VkAttachmentLoadOp toVkLoadAction(const LoadAction loadAction) {
@@ -96,7 +116,7 @@ namespace Vixen {
         const VkDebugUtilsMessageSeverityFlagBitsEXT messageSeverity,
         const VkDebugUtilsMessageTypeFlagsEXT messageType,
         const VkDebugUtilsMessengerCallbackDataEXT *pCallbackData,
-        [[maybe_unused]] std::byte *pUserData
+        std::byte *
     ) {
         spdlog::level::level_enum level;
         switch (messageSeverity) {

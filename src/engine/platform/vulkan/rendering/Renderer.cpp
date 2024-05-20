@@ -7,6 +7,7 @@
 #include "core/Rectangle.h"
 #include "core/StoreAction.h"
 #include "device/VulkanDevice.h"
+#include "image/VulkanImageView.h"
 #include "pipeline/VulkanPipeline.h"
 #include "window/VulkanSwapchain.h"
 
@@ -66,9 +67,9 @@ namespace Vixen {
             {
                 {
                     .loadAction = LoadAction::Clear,
-                    .storeAction = StoreAction::Store,
-                    .loadStoreTarget = frame.colorImageView,
-                    .resolveTarget = nullptr,
+                    .storeAction = StoreAction::StoreAndResolve,
+                    .loadStoreTarget = frame.colorImageView->getImageView(),
+                    .resolveTarget = frame.resolveTargetView->getImageView(),
                     .clearColor = {0.0F, 0.0F, 0.0F, 0.0F},
                     .clearDepth = 0.0F,
                     .clearStencil = 0

@@ -5,6 +5,7 @@
 #include <string>
 #include <utility>
 #include <optional>
+#include <cstdint>
 
 namespace Vixen {
     class ShaderModule {

@@ -33,6 +33,10 @@ namespace Vixen {
 
         Window &operator=(const Window &) = delete;
 
+        Window(Window &&other) noexcept;
+
+        Window &operator=(Window &&other) noexcept;
+
         virtual ~Window();
 
         [[nodiscard]] GLFWwindow *getWindow() const;

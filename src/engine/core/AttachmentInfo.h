@@ -2,6 +2,7 @@
 
 #include <memory>
 #include <glm/glm.hpp>
+#include <Volk/volk.h>
 
 #include "LoadAction.h"
 #include "StoreAction.h"
@@ -14,9 +15,9 @@ namespace Vixen {
 
         StoreAction storeAction;
 
-        std::shared_ptr<VulkanImageView> loadStoreTarget;
+        VkImageView loadStoreTarget;
 
-        std::shared_ptr<VulkanImageView> resolveTarget;
+        VkImageView resolveTarget;
 
         glm::vec4 clearColor;
 

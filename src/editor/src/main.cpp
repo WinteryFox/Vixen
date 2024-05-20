@@ -1,6 +1,6 @@
 #ifdef _WIN32
 
-#include <windows.h>
+#include <Windows.h>
 
 #endif
 
@@ -41,43 +41,43 @@ struct UniformBufferObject {
 
 int main() {
 #ifdef _WIN32
-    system(("chcp " + std::to_string(CP_UTF8)).c_str());
+    system(std::format("chcp {}", CP_UTF8).c_str());
 #endif
 
 #ifdef DEBUG
-    spdlog::set_level(spdlog::level::trace);
+    spdlog::set_level(spdlog::level::info);
     spdlog::set_pattern("%Y-%m-%d %T.%e %^%7l%$ %P --- [%t] %1v");
 #endif
 
     auto vixen = Vixen::VulkanApplication("Vixen Vulkan Test", {1, 0, 0});
 
     const auto vertexShader = Vixen::VulkanShaderModule::Builder(Vixen::VulkanShaderModule::Stage::Vertex)
-                              .addBinding({
-                                  .binding = 0,
-                                  .stride = sizeof(Vixen::Vertex),
-                                  .rate = Vixen::VulkanShaderModule::Rate::Vertex
-                              })
-                              .addInput({
-                                  .binding = 0,
-                                  .location = 0,
-                                  .size = sizeof(glm::vec3),
-                                  .offset = offsetof(Vixen::Vertex, position)
-                              })
-                              .addInput({
-                                  .binding = 0,
-                                  .location = 1,
-                                  .size = sizeof(glm::vec4),
-                                  .offset = offsetof(Vixen::Vertex, color)
-                              })
-                              .addInput({
-                                  .binding = 0,
-                                  .location = 2,
-                                  .size = sizeof(glm::vec2),
-                                  .offset = offsetof(Vixen::Vertex, uv)
-                              })
-                              .compileFromFile(vixen.getDevice(), "../../src/editor/resources/shaders/triangle.vert");
+            .addBinding({
+                .binding = 0,
+                .stride = sizeof(Vixen::Vertex),
+                .rate = Vixen::VulkanShaderModule::Rate::Vertex
+            })
+            .addInput({
+                .binding = 0,
+                .location = 0,
+                .size = sizeof(glm::vec3),
+                .offset = offsetof(Vixen::Vertex, position)
+            })
+            .addInput({
+                .binding = 0,
+                .location = 1,
+                .size = sizeof(glm::vec4),
+                .offset = offsetof(Vixen::Vertex, color)
+            })
+            .addInput({
+                .binding = 0,
+                .location = 2,
+                .size = sizeof(glm::vec2),
+                .offset = offsetof(Vixen::Vertex, uv)
+            })
+            .compileFromFile(vixen.getDevice(), "../../src/editor/resources/shaders/triangle.vert");
     const auto fragment = Vixen::VulkanShaderModule::Builder(Vixen::VulkanShaderModule::Stage::Fragment)
-        .compileFromFile(vixen.getDevice(), "../../src/editor/resources/shaders/triangle.frag");
+            .compileFromFile(vixen.getDevice(), "../../src/editor/resources/shaders/triangle.frag");
     const auto program = Vixen::VulkanShaderProgram(vertexShader, fragment);
 
     int width;
@@ -85,16 +85,27 @@ int main() {
     vixen.getWindow()->getFramebufferSize(width, height);
 
     auto pipeline = Vixen::VulkanPipeline::Builder()
-                    .setWidth(width)
-                    .setHeight(height)
-                    .setColorFormat(vixen.getSwapchain()->getColorFormat().format)
-                    .setDepthFormat(vixen.getSwapchain()->getDepthFormat())
-                    .build(vixen.getDevice(), program);
+            .setWidth(width)
+            .setHeight(height)
+            .setColorFormat(vixen.getSwapchain()->getColorFormat().format)
+            .setDepthFormat(vixen.getSwapchain()->getDepthFormat())
+            .setMultisample({
+                .sType = VK_STRUCTURE_TYPE_PIPELINE_MULTISAMPLE_STATE_CREATE_INFO,
+                .pNext = nullptr,
+                .flags = 0,
+                .rasterizationSamples = VK_SAMPLE_COUNT_8_BIT,
+                .sampleShadingEnable = VK_FALSE,
+                .minSampleShading = 1,
+                .pSampleMask = nullptr,
+                .alphaToCoverageEnable = VK_FALSE,
+                .alphaToOneEnable = VK_FALSE
+            })
+            .build(vixen.getDevice(), program);
 
     auto renderer = std::make_unique<Vixen::Renderer>(pipeline, vixen.getSwapchain());
 
-    const std::string& file = "../../src/editor/resources/models/sponza/Sponza.gltf";
-    const std::string& path = std::filesystem::path(file).remove_filename().string();
+    const std::string &file = "../../src/editor/resources/models/sponza/Sponza.gltf";
+    const std::string &path = std::filesystem::path(file).remove_filename().string();
 
     std::vector<Vixen::VulkanDescriptorPoolExpanding::PoolSizeRatio> ratios = {
         {VK_DESCRIPTOR_TYPE_STORAGE_IMAGE, 3},
@@ -121,24 +132,24 @@ int main() {
     ubo.model = scale(ubo.model, {0.1F, 0.1F, 0.1F});
 
     Assimp::Importer importer;
-    const auto& scene = importer.ReadFile(file, aiProcessPreset_TargetRealtime_Fast);
+    const auto &scene = importer.ReadFile(file, aiProcessPreset_TargetRealtime_Fast);
     if (!scene)
         throw std::runtime_error("Failed to load model from file");
 
     std::vector<Vixen::VulkanMesh> meshes{};
     meshes.reserve(scene->mNumMeshes);
 
-    for (auto i = 0; i < scene->mNumMeshes; i++) {
-        const auto& aiMesh = scene->mMeshes[i];
-        const auto& hasColors = aiMesh->HasVertexColors(0);
-        const auto& hasUvs = aiMesh->HasTextureCoords(0);
+    for (unsigned int i = 0; i < scene->mNumMeshes; i++) {
+        const auto &aiMesh = scene->mMeshes[i];
+        const auto &hasColors = aiMesh->HasVertexColors(0);
+        const auto &hasUvs = aiMesh->HasTextureCoords(0);
 
         std::vector<Vixen::Vertex> vertices(aiMesh->mNumVertices);
         for (uint32_t j = 0; j < aiMesh->mNumVertices; j++) {
-            const auto& vertex = aiMesh->mVertices[j];
+            const auto &vertex = aiMesh->mVertices[j];
             // TODO: Instead of storing default values for each vertex where a color or UV is missing, we should compact this down to save memory
-            const auto& color = hasColors ? aiMesh->mColors[0][j] : aiColor4D{1.0F, 1.0F, 1.0F, 1.0F};
-            const auto& textureCoord = hasUvs ? aiMesh->mTextureCoords[0][j] : aiVector3D{1.0F, 1.0F, 1.0F};
+            const auto &color = hasColors ? aiMesh->mColors[0][j] : aiColor4D{1.0F, 1.0F, 1.0F, 1.0F};
+            const auto &textureCoord = hasUvs ? aiMesh->mTextureCoords[0][j] : aiVector3D{1.0F, 1.0F, 1.0F};
 
             vertices[j] = Vixen::Vertex{
                 .position = {vertex.x, vertex.y, vertex.z},
@@ -149,7 +160,7 @@ int main() {
 
         std::vector<uint32_t> indices(aiMesh->mNumFaces * 3);
         for (uint32_t j = 0; j < aiMesh->mNumFaces; j++) {
-            const auto& face = aiMesh->mFaces[j];
+            const auto &face = aiMesh->mFaces[j];
             if (face.mNumIndices != 3) {
                 spdlog::warn("Skipping face with {} indices", face.mNumIndices);
                 continue;
@@ -161,12 +172,12 @@ int main() {
         }
 
         aiString imagePath;
-        const auto& aiMaterial = scene->mMaterials[scene->mMeshes[i]->mMaterialIndex];
+        const auto &aiMaterial = scene->mMaterials[scene->mMeshes[i]->mMaterialIndex];
         if (aiMaterial == nullptr)
             throw std::runtime_error("Material is nullptr");
 
         aiMaterial->GetTexture(aiTextureType_DIFFUSE, 0, &imagePath);
-        const auto& texture = scene->GetEmbeddedTexture(imagePath.C_Str());
+        const auto &texture = scene->GetEmbeddedTexture(imagePath.C_Str());
 
         std::shared_ptr<Vixen::VulkanImage> image;
         if (texture == nullptr) {
@@ -180,7 +191,7 @@ int main() {
             image = std::make_shared<Vixen::VulkanImage>(
                 Vixen::VulkanImage::from(
                     vixen.getDevice(),
-                    reinterpret_cast<std::byte*>(texture->pcData),
+                    reinterpret_cast<std::byte *>(texture->pcData),
                     texture->mWidth
                 )
             );
@@ -216,18 +227,18 @@ int main() {
             renderer = std::make_unique<Vixen::Renderer>(pipeline, vixen.getSwapchain());
         }
 
-        const double& now = glfwGetTime();
+        const double &now = glfwGetTime();
         double deltaTime = now - lastFrame;
         camera.update(vixen.getWindow()->getWindow(), deltaTime);
 
         lastFrame = now;
         ubo.view = camera.view();
-        const auto& [width, height] = vixen.getSwapchain()->getExtent();
+        const auto &[width, height] = vixen.getSwapchain()->getExtent();
         ubo.projection = camera.perspective(
             static_cast<float>(width) /
             static_cast<float>(height)
         );
-        uniformBuffer.setData(reinterpret_cast<const std::byte*>(&ubo));
+        uniformBuffer.setData(reinterpret_cast<const std::byte *>(&ubo));
 
         renderer->render(meshes);
 

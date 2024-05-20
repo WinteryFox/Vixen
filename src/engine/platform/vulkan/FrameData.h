@@ -11,6 +11,10 @@ namespace Vixen {
     struct FrameData {
         std::shared_ptr<VulkanDevice> device;
 
+        std::shared_ptr<VulkanImage> resolveTarget;
+
+        std::shared_ptr<VulkanImageView> resolveTargetView;
+
         std::shared_ptr<VulkanImage> colorTarget;
 
         std::shared_ptr<VulkanImageView> colorImageView;
