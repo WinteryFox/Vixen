@@ -31,12 +31,10 @@ namespace Vixen {
     public:
         VulkanShaderModule(
             const std::shared_ptr<VulkanDevice> &device,
-            Stage stage,
+            ShaderResources::Stage stage,
             const std::vector<uint32_t> &binary,
-            const std::vector<Binding> &bindings,
-            const std::vector<IO> &inputs,
-            const std::vector<Uniform> &uniformBuffers,
-            const std::string &entrypoint = "main"
+            const std::string &entrypoint,
+            const ShaderResources &resources
         );
 
         VulkanShaderModule(const VulkanShaderModule &) = delete;
@@ -57,22 +55,18 @@ namespace Vixen {
 
         class Builder {
             // TODO: This builder has slightly confusing API, you can compile before setting the stage meaning its possible to mistakenly have the wrong stage set at compile time
-            Stage stage;
+            ShaderResources::Stage stage;
 
             std::vector<uint32_t> binary{};
 
             std::string entrypoint = "main";
 
-            std::vector<Binding> bindings{};
-
-            std::vector<IO> inputs{};
-
-            std::vector<Uniform> uniforms{};
+            ShaderResources resources;
 
         public:
-            explicit Builder(const Stage stage) : stage(stage) {}
+            explicit Builder(const ShaderResources::Stage stage) : stage(stage) {}
 
-            Builder &setStage(const Stage s) {
+            Builder &setStage(const ShaderResources::Stage s) {
                 stage = s;
                 return *this;
             }
@@ -87,13 +81,13 @@ namespace Vixen {
                 return *this;
             }
 
-            Builder &addBinding(const Binding &binding) {
-                bindings.push_back(binding);
+            Builder &addBinding(const ShaderResources::Binding &binding) {
+                resources.bindings.push_back(binding);
                 return *this;
             }
 
-            Builder &addInput(const IO &input) {
-                inputs.push_back(input);
+            Builder &addInput(const ShaderResources::IO &input) {
+                resources.inputs.push_back(input);
                 return *this;
             }
 
@@ -101,10 +95,10 @@ namespace Vixen {
                                                         const std::vector<char> &source) {
                 EShLanguage s;
                 switch (stage) {
-                    case Stage::Vertex:
+                    case ShaderResources::Stage::Vertex:
                         s = EShLangVertex;
                         break;
-                    case Stage::Fragment:
+                    case ShaderResources::Stage::Fragment:
                         s = EShLangFragment;
                         break;
                     default:
@@ -170,24 +164,33 @@ namespace Vixen {
 
                 spirv_cross::CompilerReflection c{binary};
 
-                auto resources = c.get_shader_resources();
-                for (const auto &[id, type_id, base_type_id, name]: resources.uniform_buffers) {
-                    uint32_t binding = c.get_decoration(id, spv::DecorationBinding);
+                auto reflectedResources = c.get_shader_resources();
 
-                    uniforms.push_back({
+                for (const auto &pushConstant: reflectedResources.push_constant_buffers) {
+                    // TODO: Determine type of push constant
+                    resources.pushConstants.push_back({
                         .stage = stage,
-                        .binding = binding,
-                        .type = Uniform::Type::Buffer
+                        .offset = 0,
+                        // TODO: Calculate size automatically from type
+                        .size = 64
                     });
                 }
 
-                for (const auto &[id, type_id, base_type_id, name]: resources.sampled_images) {
+                for (const auto &[id, type_id, base_type_id, name]: reflectedResources.uniform_buffers) {
                     uint32_t binding = c.get_decoration(id, spv::DecorationBinding);
 
-                    uniforms.push_back({
-                        .stage = stage,
+                    resources.uniforms.push_back({
                         .binding = binding,
-                        .type = Uniform::Type::Sampler
+                        .type = ShaderResources::Type::Buffer
+                    });
+                }
+
+                for (const auto &[id, type_id, base_type_id, name]: reflectedResources.sampled_images) {
+                    uint32_t binding = c.get_decoration(id, spv::DecorationBinding);
+
+                    resources.uniforms.push_back({
+                        .binding = binding,
+                        .type = ShaderResources::Type::Sampler
                     });
                 }
 
@@ -198,7 +201,7 @@ namespace Vixen {
 
                 glslang::FinalizeProcess();
 
-                return std::make_shared<VulkanShaderModule>(d, stage, binary, bindings, inputs, uniforms, entrypoint);
+                return std::make_shared<VulkanShaderModule>(d, stage, binary, entrypoint, resources);
             }
 
             std::shared_ptr<VulkanShaderModule> compile(const std::shared_ptr<VulkanDevice> &d,

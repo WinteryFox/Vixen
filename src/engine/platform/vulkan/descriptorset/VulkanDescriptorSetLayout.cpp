@@ -38,7 +38,7 @@ namespace Vixen {
         vkDestroyDescriptorSetLayout(device->getDevice(), layout, nullptr);
     }
 
-    ::VkDescriptorSetLayout VulkanDescriptorSetLayout::getLayout() const {
+    VkDescriptorSetLayout VulkanDescriptorSetLayout::getLayout() const {
         return layout;
     }
 }

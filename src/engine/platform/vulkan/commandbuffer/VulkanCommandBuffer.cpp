@@ -229,7 +229,7 @@ namespace Vixen {
         vkCmdSetScissor(commandBuffer, 0, 1, &rect);
     }
 
-    void VulkanCommandBuffer::drawMesh(const glm::mat4 &modelMatrix, const VulkanMesh &mesh) const {
+    void VulkanCommandBuffer::drawMesh(const glm::mat4 &transform, const VulkanMesh &mesh) const {
         const auto &vertexBuffer = mesh.getVertexBuffer().getBuffer();
         constexpr std::array<VkDeviceSize, 1> offsets{};
         vkCmdBindVertexBuffers(
@@ -249,7 +249,10 @@ namespace Vixen {
                 : VK_INDEX_TYPE_UINT32
         );
 
-        mesh.getMaterial()->pipeline->bindGraphics(commandBuffer);
+        const auto &material = mesh.getMaterial();
+        const auto &pipeline = material->pipeline;
+        const auto &pipelineLayout = pipeline->getLayout();
+        vkCmdBindPipeline(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, pipeline->getPipeline());
 
         const auto &set = mesh.getMaterial()->descriptorSet->getSet();
         vkCmdBindDescriptorSets(
@@ -262,6 +265,10 @@ namespace Vixen {
             0,
             nullptr
         );
+
+        // TODO: Hardcoded shader stage
+        vkCmdPushConstants(commandBuffer, pipelineLayout.getLayout(), VK_SHADER_STAGE_VERTEX_BIT, 0, sizeof(glm::mat4),
+                           &transform);
 
         vkCmdDrawIndexed(
             commandBuffer,

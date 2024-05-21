@@ -3,6 +3,7 @@
 layout(location = 0) in struct {
     vec4 color;
     vec2 uv;
+    vec3 normal;
 } i;
 
 layout(location = 0) out vec4 color;

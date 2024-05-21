@@ -27,6 +27,7 @@ add_library(
         exception/ShaderLinkFailedException.h
         Application.h
         Samples.h
+        shader/ShaderResources.h
 )
 target_link_libraries(
         Vixen

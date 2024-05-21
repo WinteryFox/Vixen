@@ -68,7 +68,7 @@ namespace Vixen {
 
         void setScissor(const Rectangle &rectangle) const;
 
-        void drawMesh(const glm::mat4 &modelMatrix, const VulkanMesh &mesh) const;
+        void drawMesh(const glm::mat4 &transform, const VulkanMesh &mesh) const;
 
         void copyBuffer(const VulkanBuffer &source, const VulkanBuffer &destination) const;
 

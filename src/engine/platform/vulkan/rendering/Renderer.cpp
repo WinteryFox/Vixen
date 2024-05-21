@@ -1,5 +1,7 @@
 #include "Renderer.h"
 
+#include <glm/gtc/matrix_transform.hpp>
+
 #include "VulkanMesh.h"
 #include "commandbuffer/CommandBufferUsage.h"
 #include "core/AttachmentInfo.h"
@@ -87,8 +89,9 @@ namespace Vixen {
         commandBuffer.setViewport(rectangle);
         commandBuffer.setScissor(rectangle);
 
+        const glm::mat4 transform = scale(glm::mat4(1.0f), {0.1F, 0.1F, 0.1F});
         for (const auto &mesh: meshes) {
-            commandBuffer.drawMesh(glm::mat4(1.0), mesh);
+            commandBuffer.drawMesh(transform, mesh);
         }
 
         commandBuffer.endRenderPass();

@@ -1,17 +1,16 @@
 #include "VulkanShaderModule.h"
 
+#include "core/shader/ShaderResources.h"
 #include "device/VulkanDevice.h"
 
 namespace Vixen {
     VulkanShaderModule::VulkanShaderModule(
         const std::shared_ptr<VulkanDevice> &device,
-        const Stage stage,
+        const ShaderResources::Stage stage,
         const std::vector<uint32_t> &binary,
-        const std::vector<Binding> &bindings,
-        const std::vector<IO> &inputs,
-        const std::vector<Uniform> &uniformBuffers,
-        const std::string &entrypoint
-    ) : ShaderModule(stage, entrypoint, bindings, inputs, uniformBuffers),
+        const std::string &entrypoint,
+        const ShaderResources &resources
+    ) : ShaderModule(stage, entrypoint, resources),
         module(VK_NULL_HANDLE),
         device(device) {
         const VkShaderModuleCreateInfo info{
@@ -33,7 +32,7 @@ namespace Vixen {
           module(std::exchange(other.module, nullptr)),
           device(std::exchange(other.device, nullptr)) {}
 
-    VulkanShaderModule & VulkanShaderModule::operator=(VulkanShaderModule &&other) noexcept {
+    VulkanShaderModule &VulkanShaderModule::operator=(VulkanShaderModule &&other) noexcept {
         std::swap(module, other.module);
         std::swap(device, other.device);
 
@@ -58,19 +57,21 @@ namespace Vixen {
 
     std::vector<VkDescriptorSetLayoutBinding> VulkanShaderModule::createBindings() const {
         const VkShaderStageFlags &stage = getVulkanShaderStage(getStage());
-        const auto &uniformBuffers = getUniforms();
+        const auto &uniformBuffers = getResources().uniforms;
 
         std::vector<VkDescriptorSetLayoutBinding> b{};
         b.reserve(uniformBuffers.size());
         for (const auto &uniformBuffer: uniformBuffers) {
             VkDescriptorType type;
             switch (uniformBuffer.type) {
-                case Uniform::Type::Buffer:
+                case ShaderResources::Type::Buffer:
                     type = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
                     break;
-                case Uniform::Type::Sampler:
+
+                case ShaderResources::Type::Sampler:
                     type = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
                     break;
+
                 default:
                     throw std::runtime_error("Unknown uniform type");
             }

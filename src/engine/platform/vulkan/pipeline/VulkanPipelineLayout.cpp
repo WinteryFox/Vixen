@@ -10,14 +10,26 @@ namespace Vixen {
         : device(device) {
         std::vector<::VkDescriptorSetLayout> layouts;
         layouts.push_back(program.getDescriptorSetLayout()->getLayout());
+        const auto &pushConstants = program.getVertex()->getResources().pushConstants;
+        std::vector<VkPushConstantRange> ranges{pushConstants.size()};
+        for (uint32_t i = 0; i < ranges.size(); i++) {
+            const auto &[stage, offset, size] = pushConstants[i];
+
+            ranges[i] = {
+                .stageFlags = toVkShaderStage(stage),
+                .offset = offset,
+                .size = size
+            };
+        }
+
         const VkPipelineLayoutCreateInfo pipelineLayoutInfo{
             .sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO,
             .pNext = nullptr,
             .flags = 0,
             .setLayoutCount = static_cast<uint32_t>(layouts.size()),
             .pSetLayouts = layouts.data(),
-            .pushConstantRangeCount = 0,
-            .pPushConstantRanges = nullptr
+            .pushConstantRangeCount = static_cast<uint32_t>(ranges.size()),
+            .pPushConstantRanges = ranges.data()
         };
 
         checkVulkanResult(

@@ -24,6 +24,6 @@ namespace Vixen {
 
         ~VulkanPipelineLayout();
 
-        [[nodiscard]] ::VkPipelineLayout getLayout() const;
+        [[nodiscard]] VkPipelineLayout getLayout() const;
     };
 }

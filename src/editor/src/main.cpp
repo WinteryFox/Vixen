@@ -32,8 +32,6 @@
 #include "platform/vulkan/shader/VulkanShaderProgram.h"
 
 struct UniformBufferObject {
-    glm::mat4 model;
-
     glm::mat4 view;
 
     glm::mat4 projection;
@@ -51,11 +49,11 @@ int main() {
 
     auto vixen = Vixen::VulkanApplication("Vixen Vulkan Test", {1, 0, 0});
 
-    const auto vertexShader = Vixen::VulkanShaderModule::Builder(Vixen::VulkanShaderModule::Stage::Vertex)
+    const auto vertexShader = Vixen::VulkanShaderModule::Builder(Vixen::ShaderResources::Stage::Vertex)
             .addBinding({
                 .binding = 0,
                 .stride = sizeof(Vixen::Vertex),
-                .rate = Vixen::VulkanShaderModule::Rate::Vertex
+                .rate = Vixen::ShaderResources::Rate::Vertex
             })
             .addInput({
                 .binding = 0,
@@ -75,8 +73,14 @@ int main() {
                 .size = sizeof(glm::vec2),
                 .offset = offsetof(Vixen::Vertex, uv)
             })
+            .addInput({
+                .binding = 0,
+                .location = 3,
+                .size = sizeof(glm::vec3),
+                .offset = offsetof(Vixen::Vertex, normal)
+            })
             .compileFromFile(vixen.getDevice(), "../../src/editor/resources/shaders/triangle.vert");
-    const auto fragment = Vixen::VulkanShaderModule::Builder(Vixen::VulkanShaderModule::Stage::Fragment)
+    const auto fragment = Vixen::VulkanShaderModule::Builder(Vixen::ShaderResources::Stage::Fragment)
             .compileFromFile(vixen.getDevice(), "../../src/editor/resources/shaders/triangle.frag");
     const auto program = Vixen::VulkanShaderProgram(vertexShader, fragment);
 
@@ -125,11 +129,9 @@ int main() {
     );
 
     UniformBufferObject ubo{
-        glm::mat4(1.0F),
         camera.view(),
         camera.perspective(static_cast<float>(width) / static_cast<float>(height))
     };
-    ubo.model = scale(ubo.model, {0.1F, 0.1F, 0.1F});
 
     Assimp::Importer importer;
     const auto &scene = importer.ReadFile(file, aiProcessPreset_TargetRealtime_Fast);
@@ -150,11 +152,13 @@ int main() {
             // TODO: Instead of storing default values for each vertex where a color or UV is missing, we should compact this down to save memory
             const auto &color = hasColors ? aiMesh->mColors[0][j] : aiColor4D{1.0F, 1.0F, 1.0F, 1.0F};
             const auto &textureCoord = hasUvs ? aiMesh->mTextureCoords[0][j] : aiVector3D{1.0F, 1.0F, 1.0F};
+            const auto &normal = aiMesh->mNormals[j];
 
             vertices[j] = Vixen::Vertex{
                 .position = {vertex.x, vertex.y, vertex.z},
                 .color = {color.r, color.g, color.b, color.a},
-                .uv = {textureCoord.x, textureCoord.y}
+                .uv = {textureCoord.x, textureCoord.y},
+                .normal = {normal.x, normal.y, normal.z}
             };
         }
 

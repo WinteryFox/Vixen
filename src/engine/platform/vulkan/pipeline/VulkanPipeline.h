@@ -48,19 +48,13 @@ namespace Vixen {
 
         ~VulkanPipeline();
 
-        void bind(::VkCommandBuffer commandBuffer, VkPipelineBindPoint binding) const;
-
-        void bindGraphics(::VkCommandBuffer commandBuffer) const;
-
-        void bindCompute(::VkCommandBuffer commandBuffer) const;
-
-        void bindRayTracing(::VkCommandBuffer commandBuffer) const;
-
         [[nodiscard]] const VulkanShaderProgram &getProgram() const;
 
         [[nodiscard]] const Config &getConfig() const;
 
         [[nodiscard]] std::shared_ptr<VulkanDevice> getDevice() const;
+
+        [[nodiscard]] VkPipeline getPipeline() const;
 
         [[nodiscard]] const VulkanPipelineLayout &getLayout() const;
 

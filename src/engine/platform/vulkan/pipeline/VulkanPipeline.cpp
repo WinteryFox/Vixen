@@ -5,9 +5,9 @@
 
 namespace Vixen {
     VulkanPipeline::VulkanPipeline(
-        const std::shared_ptr<VulkanDevice>& device,
-        const VulkanShaderProgram& program,
-        const Config& config
+        const std::shared_ptr<VulkanDevice> &device,
+        const VulkanShaderProgram &program,
+        const Config &config
     ) : device(device),
         program(program),
         config(config),
@@ -29,46 +29,34 @@ namespace Vixen {
             .pDynamicStates = dynamicStates.data()
         };
 
-        const auto& vertexModule = program.getVertex();
+        const auto &vertexModule = program.getVertex();
 
         std::vector<VkVertexInputBindingDescription> vertexBindings{};
-        for (const auto& [binding, stride, rate] : vertexModule->getBindings()) {
-            VkVertexInputRate r;
-            switch (rate) {
-            case VulkanShaderModule::Rate::Vertex:
-                r = VK_VERTEX_INPUT_RATE_VERTEX;
-                break;
-            case VulkanShaderModule::Rate::Instance:
-                r = VK_VERTEX_INPUT_RATE_INSTANCE;
-                break;
-            default:
-                throw std::runtime_error("Not implemented input rate");
-            }
-
+        for (const auto &[binding, stride, rate]: vertexModule->getResources().bindings) {
             vertexBindings.push_back(
                 {
                     .binding = binding,
                     .stride = static_cast<uint32_t>(stride),
-                    .inputRate = r
+                    .inputRate = toVkVertexInputRate(rate)
                 }
             );
         }
 
         std::vector<VkVertexInputAttributeDescription> vertexAttributes{};
-        for (const auto& [binding, location, size, offset] : vertexModule->getInputs()) {
+        for (const auto &[binding, location, size, offset]: vertexModule->getResources().inputs) {
             VkFormat format;
             switch (size) {
-            case 2 * sizeof(float):
-                format = VK_FORMAT_R32G32_SFLOAT;
-                break;
-            case 3 * sizeof(float):
-                format = VK_FORMAT_R32G32B32_SFLOAT;
-                break;
-            case 4 * sizeof(float):
-                format = VK_FORMAT_R32G32B32A32_SFLOAT;
-                break;
-            default:
-                throw std::runtime_error("Unsupported input format");
+                case 2 * sizeof(float):
+                    format = VK_FORMAT_R32G32_SFLOAT;
+                    break;
+                case 3 * sizeof(float):
+                    format = VK_FORMAT_R32G32B32_SFLOAT;
+                    break;
+                case 4 * sizeof(float):
+                    format = VK_FORMAT_R32G32B32A32_SFLOAT;
+                    break;
+                default:
+                    throw std::runtime_error("Unsupported input format");
             }
 
             vertexAttributes.push_back(
@@ -158,14 +146,14 @@ namespace Vixen {
         );
     }
 
-    VulkanPipeline::VulkanPipeline(VulkanPipeline&& other) noexcept
+    VulkanPipeline::VulkanPipeline(VulkanPipeline &&other) noexcept
         : device(std::exchange(other.device, nullptr)),
           program(std::move(other.program)),
           config(other.config),
           pipelineLayout(std::move(other.pipelineLayout)),
           pipeline(std::exchange(other.pipeline, nullptr)) {}
 
-    VulkanPipeline& VulkanPipeline::operator=(VulkanPipeline&& other) noexcept {
+    VulkanPipeline &VulkanPipeline::operator=(VulkanPipeline &&other) noexcept {
         std::swap(device, other.device);
         std::swap(program, other.program);
         std::swap(config, other.config);
@@ -179,27 +167,13 @@ namespace Vixen {
         vkDestroyPipeline(device->getDevice(), pipeline, nullptr);
     }
 
-    void VulkanPipeline::bind(::VkCommandBuffer commandBuffer, VkPipelineBindPoint binding) const {
-        vkCmdBindPipeline(commandBuffer, binding, pipeline);
-    }
+    const VulkanShaderProgram &VulkanPipeline::getProgram() const { return program; }
 
-    void VulkanPipeline::bindGraphics(::VkCommandBuffer commandBuffer) const {
-        bind(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS);
-    }
-
-    void VulkanPipeline::bindCompute(::VkCommandBuffer commandBuffer) const {
-        bind(commandBuffer, VK_PIPELINE_BIND_POINT_COMPUTE);
-    }
-
-    void VulkanPipeline::bindRayTracing(::VkCommandBuffer commandBuffer) const {
-        bind(commandBuffer, VK_PIPELINE_BIND_POINT_RAY_TRACING_KHR);
-    }
-
-    const VulkanShaderProgram& VulkanPipeline::getProgram() const { return program; }
-
-    const VulkanPipeline::Config& VulkanPipeline::getConfig() const { return config; }
+    const VulkanPipeline::Config &VulkanPipeline::getConfig() const { return config; }
 
     std::shared_ptr<VulkanDevice> VulkanPipeline::getDevice() const { return device; }
 
-    const VulkanPipelineLayout& VulkanPipeline::getLayout() const { return pipelineLayout; }
+    VkPipeline VulkanPipeline::getPipeline() const { return pipeline; }
+
+    const VulkanPipelineLayout &VulkanPipeline::getLayout() const { return pipelineLayout; }
 }

@@ -113,14 +113,47 @@ namespace Vixen {
                            VK_API_VERSION_PATCH(version));
     }
 
-    [[maybe_unused]] static VkShaderStageFlagBits getVulkanShaderStage(const ShaderModule::Stage stage) {
+    [[maybe_unused]] static VkShaderStageFlagBits getVulkanShaderStage(const ShaderResources::Stage stage) {
         switch (stage) {
-                using enum ShaderModule::Stage;
+                using enum ShaderResources::Stage;
+
+            case All:
+                return VK_SHADER_STAGE_ALL;
 
             case Vertex:
                 return VK_SHADER_STAGE_VERTEX_BIT;
 
             case Fragment:
+                return VK_SHADER_STAGE_FRAGMENT_BIT;
+
+            default:
+                return VK_SHADER_STAGE_ALL;
+        }
+
+        throw std::runtime_error("Unknown shader stage");
+    }
+
+    [[maybe_unused]] static VkVertexInputRate toVkVertexInputRate(const ShaderResources::Rate rate) {
+        switch (rate) {
+            case ShaderResources::Rate::Vertex:
+                return VK_VERTEX_INPUT_RATE_VERTEX;
+
+            case ShaderResources::Rate::Instance:
+                return VK_VERTEX_INPUT_RATE_INSTANCE;
+        }
+
+        throw std::runtime_error("Unknown input rate");
+    }
+
+    [[maybe_unused]] static VkShaderStageFlags toVkShaderStage(const ShaderResources::Stage stage) {
+        switch (stage) {
+            case ShaderResources::Stage::All:
+                return VK_SHADER_STAGE_ALL;
+
+            case ShaderResources::Stage::Vertex:
+                return VK_SHADER_STAGE_VERTEX_BIT;
+
+            case ShaderResources::Stage::Fragment:
                 return VK_SHADER_STAGE_FRAGMENT_BIT;
         }
 
