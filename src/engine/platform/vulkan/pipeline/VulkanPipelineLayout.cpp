@@ -7,7 +7,8 @@
 namespace Vixen {
     VulkanPipelineLayout::VulkanPipelineLayout(const std::shared_ptr<VulkanDevice> &device,
                                                const VulkanShaderProgram &program)
-        : device(device) {
+        : device(device),
+          layout(VK_NULL_HANDLE) {
         std::vector<::VkDescriptorSetLayout> layouts;
         layouts.push_back(program.getDescriptorSetLayout()->getLayout());
         const auto &pushConstants = program.getVertex()->getResources().pushConstants;

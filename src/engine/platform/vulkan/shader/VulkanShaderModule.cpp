@@ -61,15 +61,17 @@ namespace Vixen {
 
         std::vector<VkDescriptorSetLayoutBinding> b{};
         b.reserve(uniformBuffers.size());
-        for (const auto &uniformBuffer: uniformBuffers) {
-            VkDescriptorType type;
-            switch (uniformBuffer.type) {
-                case ShaderResources::Type::Buffer:
-                    type = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
+        for (const auto &[binding, type]: uniformBuffers) {
+            VkDescriptorType t;
+            switch (type) {
+                    using enum ShaderResources::UniformType;
+
+                case Buffer:
+                    t = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
                     break;
 
-                case ShaderResources::Type::Sampler:
-                    type = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
+                case Sampler:
+                    t = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
                     break;
 
                 default:
@@ -78,8 +80,8 @@ namespace Vixen {
 
             b.emplace_back(
                 VkDescriptorSetLayoutBinding{
-                    .binding = uniformBuffer.binding.value_or(0),
-                    .descriptorType = type,
+                    .binding = binding,
+                    .descriptorType = t,
                     // TODO: This count value is used for array bindings
                     .descriptorCount = 1,
                     .stageFlags = stage,

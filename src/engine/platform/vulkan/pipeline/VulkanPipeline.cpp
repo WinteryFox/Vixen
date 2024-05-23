@@ -29,10 +29,8 @@ namespace Vixen {
             .pDynamicStates = dynamicStates.data()
         };
 
-        const auto &vertexModule = program.getVertex();
-
         std::vector<VkVertexInputBindingDescription> vertexBindings{};
-        for (const auto &[binding, stride, rate]: vertexModule->getResources().bindings) {
+        for (const auto &[binding, stride, rate] : config.bindings) {
             vertexBindings.push_back(
                 {
                     .binding = binding,
@@ -43,28 +41,33 @@ namespace Vixen {
         }
 
         std::vector<VkVertexInputAttributeDescription> vertexAttributes{};
-        for (const auto &[binding, location, size, offset]: vertexModule->getResources().inputs) {
-            VkFormat format;
-            switch (size) {
-                case 2 * sizeof(float):
-                    format = VK_FORMAT_R32G32_SFLOAT;
+        for (const auto &[binding, location, type, offset]: config.inputs) {
+            VkFormat f = VK_FORMAT_MAX_ENUM;
+            switch (type) {
+                    using enum ShaderResources::PrimitiveType;
+
+                case Float1:
+                    f = VK_FORMAT_R32_SFLOAT;
                     break;
-                case 3 * sizeof(float):
-                    format = VK_FORMAT_R32G32B32_SFLOAT;
+
+                case Float2:
+                    f = VK_FORMAT_R32G32_SFLOAT;
                     break;
-                case 4 * sizeof(float):
-                    format = VK_FORMAT_R32G32B32A32_SFLOAT;
+
+                case Float3:
+                    f = VK_FORMAT_R32G32B32_SFLOAT;
                     break;
-                default:
-                    throw std::runtime_error("Unsupported input format");
+
+                case Float4:
+                    f = VK_FORMAT_R32G32B32A32_SFLOAT;
+                    break;
             }
 
             vertexAttributes.push_back(
                 {
-                    .location = location.value_or(0),
-                    .binding = binding.value_or(0),
-                    // TODO: Automatically determine the format and offset
-                    .format = format,
+                    .location = location,
+                    .binding = binding,
+                    .format = f,
                     .offset = static_cast<uint32_t>(offset)
                 }
             );

@@ -18,6 +18,8 @@ namespace Vixen {
             uint32_t subpass = 0;
             VkFormat colorFormat = VK_FORMAT_UNDEFINED;
             VkFormat depthFormat = VK_FORMAT_UNDEFINED;
+            std::vector<ShaderResources::Binding> bindings{};
+            std::vector<ShaderResources::Input> inputs{};
         };
 
     protected:
@@ -29,7 +31,7 @@ namespace Vixen {
 
         VulkanPipelineLayout pipelineLayout;
 
-        ::VkPipeline pipeline = VK_NULL_HANDLE;
+        VkPipeline pipeline = VK_NULL_HANDLE;
 
     public:
         VulkanPipeline(
@@ -188,6 +190,16 @@ namespace Vixen {
 
             Builder &setDepthFormat(const VkFormat &format) {
                 config.depthFormat = format;
+                return *this;
+            }
+
+            Builder &addBinding(const ShaderResources::Binding &binding) {
+                config.bindings.push_back(binding);
+                return *this;
+            }
+
+            Builder &addInput(const ShaderResources::Input &input) {
+                config.inputs.push_back(input);
                 return *this;
             }
 

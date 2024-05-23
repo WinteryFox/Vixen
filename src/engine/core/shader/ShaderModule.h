@@ -3,7 +3,6 @@
 #include <utility>
 #include <string>
 #include <utility>
-#include <optional>
 
 #include "ShaderResources.h"
 

@@ -81,16 +81,6 @@ namespace Vixen {
                 return *this;
             }
 
-            Builder &addBinding(const ShaderResources::Binding &binding) {
-                resources.bindings.push_back(binding);
-                return *this;
-            }
-
-            Builder &addInput(const ShaderResources::IO &input) {
-                resources.inputs.push_back(input);
-                return *this;
-            }
-
             std::shared_ptr<VulkanShaderModule> compile(const std::shared_ptr<VulkanDevice> &d,
                                                         const std::vector<char> &source) {
                 EShLanguage s;
@@ -181,7 +171,7 @@ namespace Vixen {
 
                     resources.uniforms.push_back({
                         .binding = binding,
-                        .type = ShaderResources::Type::Buffer
+                        .type = ShaderResources::UniformType::Buffer
                     });
                 }
 
@@ -190,7 +180,7 @@ namespace Vixen {
 
                     resources.uniforms.push_back({
                         .binding = binding,
-                        .type = ShaderResources::Type::Sampler
+                        .type = ShaderResources::UniformType::Sampler
                     });
                 }
 

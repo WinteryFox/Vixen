@@ -16,7 +16,14 @@ namespace Vixen {
             Instance
         };
 
-        enum class Type {
+        enum class PrimitiveType {
+            Float1,
+            Float2,
+            Float3,
+            Float4
+        };
+
+        enum class UniformType {
             Buffer,
             Sampler
         };
@@ -27,16 +34,16 @@ namespace Vixen {
             Rate rate;
         };
 
-        struct IO {
-            std::optional<uint32_t> binding;
-            std::optional<uint32_t> location;
-            size_t size;
+        struct Input {
+            uint32_t binding;
+            uint32_t location;
+            PrimitiveType type;
             size_t offset;
         };
 
         struct Uniform {
-            std::optional<uint32_t> binding{};
-            Type type;
+            uint32_t binding;
+            UniformType type;
         };
 
         struct PushConstant {
@@ -44,10 +51,6 @@ namespace Vixen {
             uint32_t offset;
             uint32_t size;
         };
-
-        std::vector<Binding> bindings{};
-
-        std::vector<IO> inputs{};
 
         std::vector<Uniform> uniforms{};
 
