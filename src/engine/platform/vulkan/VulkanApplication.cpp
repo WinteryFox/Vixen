@@ -187,7 +187,7 @@ namespace Vixen {
                 image = std::make_shared<VulkanImage>(
                     VulkanImage::from(
                         device,
-                        reinterpret_cast<std::byte *>(texture->pcData),
+                        std::bit_cast<std::byte*>(texture->pcData),
                         texture->mWidth
                     )
                 );
@@ -234,7 +234,7 @@ namespace Vixen {
                 static_cast<float>(width) /
                 static_cast<float>(height)
             );
-            uniformBuffer.setData(reinterpret_cast<const std::byte *>(&ubo));
+            uniformBuffer.setData(std::bit_cast<std::byte*>(&ubo));
 
             renderer->render(meshes);
 

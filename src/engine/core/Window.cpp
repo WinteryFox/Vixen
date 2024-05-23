@@ -119,19 +119,19 @@ namespace Vixen {
     }
 
     void Window::center() const {
-        uint32_t w;
-        uint32_t h;
-        glfwGetWindowSize(window, reinterpret_cast<int *>(&w), reinterpret_cast<int *>(&h));
+        int w;
+        int h;
+        glfwGetWindowSize(window, &w, &h);
 
         const auto mode = glfwGetVideoMode(monitor);
 
-        uint32_t x;
-        uint32_t y;
-        glfwGetMonitorPos(monitor, reinterpret_cast<int *>(&x), reinterpret_cast<int *>(&y));
+        int x;
+        int y;
+        glfwGetMonitorPos(monitor, &x, &y);
         glfwSetWindowPos(
             window,
-            static_cast<int>(x + mode->width / 2 - w / 2),
-            static_cast<int>(y + mode->height / 2 - h / 2)
+            x + mode->width / 2 - w / 2,
+            y + mode->height / 2 - h / 2
         );
     }
 

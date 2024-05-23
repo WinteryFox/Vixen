@@ -138,7 +138,7 @@ namespace Vixen {
             width * height,
             4
         );
-        staging.setData(reinterpret_cast<std::byte *>(data));
+        staging.setData(std::bit_cast<std::byte *>(data));
 
         stbi_image_free(data);
 
@@ -152,8 +152,14 @@ namespace Vixen {
         int width;
         int height;
         int channels;
-        stbi_load_from_memory(reinterpret_cast<stbi_uc const *>(data), static_cast<int>(size), &width, &height,
-                              &channels, STBI_rgb_alpha);
+        stbi_load_from_memory(
+            std::bit_cast<stbi_uc const *>(data),
+            static_cast<int>(size),
+            &width,
+            &height,
+            &channels,
+            STBI_rgb_alpha
+        );
 
         const auto &staging = VulkanBuffer(
             device,

@@ -63,7 +63,7 @@ namespace Vixen {
                                 VK_DEBUG_UTILS_MESSAGE_TYPE_VALIDATION_BIT_EXT |
                                 VK_DEBUG_UTILS_MESSAGE_TYPE_PERFORMANCE_BIT_EXT |
                                 VK_DEBUG_UTILS_MESSAGE_TYPE_DEVICE_ADDRESS_BINDING_BIT_EXT;
-        debugInfo.pfnUserCallback = reinterpret_cast<PFN_vkDebugUtilsMessengerCallbackEXT>(vkDebugCallback);
+        debugInfo.pfnUserCallback = vkDebugCallback;
 
         vkCreateDebugUtilsMessengerEXT(instance, &debugInfo, nullptr, &debugMessenger);
 #endif

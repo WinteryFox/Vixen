@@ -161,11 +161,11 @@ namespace Vixen {
     }
 
 #ifdef DEBUG
-    [[maybe_unused]] static VkBool32 VKAPI_CALL vkDebugCallback(
-        const VkDebugUtilsMessageSeverityFlagBitsEXT messageSeverity,
-        const VkDebugUtilsMessageTypeFlagsEXT messageType,
-        const VkDebugUtilsMessengerCallbackDataEXT *pCallbackData,
-        std::byte *
+    [[maybe_unused]] static PFN_vkDebugUtilsMessengerCallbackEXT vkDebugCallback = [](
+        const auto messageSeverity,
+        const auto messageType,
+        const auto pCallbackData,
+        auto *
     ) {
         spdlog::level::level_enum level;
         switch (messageSeverity) {
@@ -218,6 +218,6 @@ namespace Vixen {
         );
 
         return VK_FALSE;
-    }
+    };
 #endif
 }

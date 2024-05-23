@@ -32,7 +32,7 @@ namespace Vixen {
             indexCount,
             sizeof(uint16_t)
         );
-        upload(*indexBuffer, reinterpret_cast<const std::byte *>(indices.data()));
+        upload(*indexBuffer, std::bit_cast<const std::byte *>(indices.data()));
     }
 
     void VulkanMesh::setIndices(const std::vector<uint32_t> &indices, PrimitiveTopology topology) {
@@ -45,7 +45,7 @@ namespace Vixen {
             indexCount,
             sizeof(uint32_t)
         );
-        upload(*indexBuffer, reinterpret_cast<const std::byte *>(indices.data()));
+        upload(*indexBuffer, std::bit_cast<const std::byte *>(indices.data()));
     }
 
     void VulkanMesh::setVertices(const std::vector<Vertex> &vertices) {
@@ -56,7 +56,7 @@ namespace Vixen {
             vertexCount,
             sizeof(Vertex)
         );
-        upload(*vertexBuffer, reinterpret_cast<const std::byte *>(vertices.data()));
+        upload(*vertexBuffer, std::bit_cast<const std::byte *>(vertices.data()));
     }
 
     void VulkanMesh::setMaterial(const std::shared_ptr<const Material> &material) {
