@@ -38,9 +38,9 @@ namespace Vixen {
           swapchain(std::make_shared<VulkanSwapchain>(device, 3)),
           pbrOpaqueShader(
               VulkanShaderModule::Builder(ShaderResources::Stage::Vertex)
-              .compileFromFile(device, "../../src/editor/resources/shaders/triangle.vert"),
+              .compileFromFile(device, "../../src/editor/resources/shaders/pbr.vertex.glsl"),
               VulkanShaderModule::Builder(ShaderResources::Stage::Fragment)
-              .compileFromFile(device, "../../src/editor/resources/shaders/triangle.frag")
+              .compileFromFile(device, "../../src/editor/resources/shaders/pbr.fragment.glsl")
           ) {
         int width;
         int height;
