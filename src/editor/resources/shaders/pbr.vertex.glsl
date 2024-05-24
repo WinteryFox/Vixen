@@ -25,5 +25,5 @@ void main() {
     o.color = color;
     o.uv = uv;
     // TODO: Calculate the normal matrix outside of the shader and pass it in
-    o.normal = normal;
+    o.normal = mat3(transpose(inverse(instance.model))) * normal;
 }
