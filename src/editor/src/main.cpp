@@ -4,15 +4,7 @@
 
 #endif
 
-#include <cstdlib>
-#include <filesystem>
-#include <string>
-#include <spdlog/spdlog.h>
-
-#include "core/Camera.h"
-#include "platform/vulkan/VulkanApplication.h"
-#include "platform/vulkan/pipeline/VulkanPipeline.h"
-#include "platform/vulkan/shader/VulkanShaderModule.h"
+#include <VulkanApplication.h>
 
 int main() {
 #ifdef _WIN32
