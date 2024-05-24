@@ -12,7 +12,7 @@ layout(location = 0) out struct {
 } o;
 
 layout(push_constant) uniform Instance {
-    mat4 transform;
+    mat4 model;
 } instance;
 
 layout(binding = 0) uniform Scene {
@@ -21,8 +21,9 @@ layout(binding = 0) uniform Scene {
 } scene;
 
 void main() {
-    gl_Position = scene.projection * scene.view * instance.transform * vec4(position, 1.0);
+    gl_Position = scene.projection * scene.view * instance.model * vec4(position, 1.0);
     o.color = color;
     o.uv = uv;
+    // TODO: Calculate the normal matrix outside of the shader and pass it in
     o.normal = normal;
 }

@@ -26,7 +26,7 @@
 namespace Vixen {
     VulkanApplication::VulkanApplication(const std::string &appTitle, glm::vec3 appVersion)
         : Application(appTitle, appVersion),
-          window(std::make_unique<VulkanWindow>(appTitle, 640, 480, false)),
+          window(std::make_unique<VulkanWindow>(appTitle, 720, 480, false)),
           instance(std::make_shared<Instance>(appTitle, appVersion, window->getRequiredExtensions())),
           surface(instance->surfaceForWindow(*window)),
           device(std::make_shared<VulkanDevice>(
@@ -112,8 +112,7 @@ namespace Vixen {
         auto descriptorPool = std::make_shared<VulkanDescriptorPoolExpanding>(device, 1000, ratios);
 
         auto camera = Camera(glm::vec3{0.0f, 0.0f, 0.0f});
-
-        auto uniformBuffer = VulkanBuffer(
+        auto cameraBuffer = VulkanBuffer(
             device,
             BufferUsage::Uniform,
             1,
@@ -194,7 +193,7 @@ namespace Vixen {
             }
 
             auto descriptor = descriptorPool->allocate(*pbrOpaqueShader.getDescriptorSetLayout());
-            descriptor->writeUniformBuffer(0, uniformBuffer, 0, uniformBuffer.getSize());
+            descriptor->writeUniformBuffer(0, cameraBuffer, 0, cameraBuffer.getSize());
 
             auto imageView = std::make_shared<VulkanImageView>(device, image, VK_IMAGE_ASPECT_COLOR_BIT);
             descriptor->writeCombinedImageSampler(1, *imageView);
@@ -234,7 +233,7 @@ namespace Vixen {
                 static_cast<float>(width) /
                 static_cast<float>(height)
             );
-            uniformBuffer.setData(std::bit_cast<std::byte*>(&ubo));
+            cameraBuffer.setData(std::bit_cast<std::byte*>(&ubo));
 
             renderer->render(meshes);
 
