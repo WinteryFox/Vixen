@@ -24,8 +24,13 @@ int main() {
     spdlog::set_pattern("%Y-%m-%d %T.%e %^%7l%$ %P --- [%t] %1v");
 #endif
 
-    auto vixen = Vixen::VulkanApplication("Vixen Vulkan Test", {1, 0, 0});
-    vixen.run();
+    try {
+        auto vixen = Vixen::VulkanApplication("Vixen Vulkan Test", {1, 0, 0});
+        vixen.run();
+    } catch (const std::runtime_error &e) {
+        spdlog::error(e);
+        throw;
+    }
 
     return EXIT_SUCCESS;
 }
