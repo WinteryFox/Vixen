@@ -72,8 +72,8 @@ namespace Vixen {
                     .storeAction = StoreAction::StoreAndResolve,
                     .loadStoreTarget = frame.colorImageView->getImageView(),
                     .resolveTarget = frame.resolveTargetView->getImageView(),
-                    .clearColor = {0.0F, 0.0F, 0.0F, 0.0F},
-                    .clearDepth = 0.0F,
+                    .clearColor = {0.01f, 0.01f, 0.01f, 1.0f},
+                    .clearDepth = 0.0f,
                     .clearStencil = 0
                 }
             },
