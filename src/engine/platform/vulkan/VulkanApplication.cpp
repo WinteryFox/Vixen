@@ -99,150 +99,180 @@ namespace Vixen {
         window->setVisible(true);
     }
 
-    void VulkanApplication::run() {
-        const std::string &file = "../../src/editor/resources/models/sponza/Sponza.gltf";
-        const std::string &path = std::filesystem::path(file).remove_filename().string();
-
-        std::vector<VulkanDescriptorPoolExpanding::PoolSizeRatio> ratios = {
-            {VK_DESCRIPTOR_TYPE_STORAGE_IMAGE, 3},
-            {VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, 3},
-            {VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, 3},
-            {VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, 4},
-        };
-        auto descriptorPool = std::make_shared<VulkanDescriptorPoolExpanding>(device, 1000, ratios);
-
-        auto camera = Camera(glm::vec3{0.0f, 0.0f, 0.0f});
-        auto cameraBuffer = VulkanBuffer(
-            device,
-            BufferUsage::Uniform,
-            1,
-            sizeof(UniformBufferObject)
-        );
-
-        UniformBufferObject ubo{
-            camera.view(),
-            camera.perspective(static_cast<float>(1920) / static_cast<float>(1080))
-        };
-
-        Assimp::Importer importer;
-        const auto &scene = importer.ReadFile(file, aiProcessPreset_TargetRealtime_Fast);
-        if (!scene)
-            throw std::runtime_error("Failed to load model from file");
-
-        std::vector<VulkanMesh> meshes{};
-        meshes.reserve(scene->mNumMeshes);
-
-        for (unsigned int i = 0; i < scene->mNumMeshes; i++) {
-            const auto &aiMesh = scene->mMeshes[i];
-            const auto &hasColors = aiMesh->HasVertexColors(0);
-            const auto &hasUvs = aiMesh->HasTextureCoords(0);
-
-            std::vector<Vertex> vertices(aiMesh->mNumVertices);
-            for (uint32_t j = 0; j < aiMesh->mNumVertices; j++) {
-                const auto &vertex = aiMesh->mVertices[j];
-                // TODO: Instead of storing default values for each vertex where a color or UV is missing, we should compact this down to save memory
-                const auto &color = hasColors ? aiMesh->mColors[0][j] : aiColor4D{1.0F, 1.0F, 1.0F, 1.0F};
-                const auto &textureCoord = hasUvs ? aiMesh->mTextureCoords[0][j] : aiVector3D{1.0F, 1.0F, 1.0F};
-                const auto &normal = aiMesh->mNormals[j];
-
-                vertices[j] = Vertex{
-                    .position = {vertex.x, vertex.y, vertex.z},
-                    .color = {color.r, color.g, color.b, color.a},
-                    .uv = {textureCoord.x, textureCoord.y},
-                    .normal = {normal.x, normal.y, normal.z}
-                };
-            }
-
-            std::vector<uint32_t> indices(aiMesh->mNumFaces * 3);
-            for (uint32_t j = 0; j < aiMesh->mNumFaces; j++) {
-                const auto &face = aiMesh->mFaces[j];
-                if (face.mNumIndices != 3) {
-                    spdlog::warn("Skipping face with {} indices", face.mNumIndices);
-                    continue;
-                }
-
-                indices[j * 3] = face.mIndices[0];
-                indices[j * 3 + 1] = face.mIndices[1];
-                indices[j * 3 + 2] = face.mIndices[2];
-            }
-
-            aiString imagePath;
-            const auto &aiMaterial = scene->mMaterials[scene->mMeshes[i]->mMaterialIndex];
-            if (aiMaterial == nullptr)
-                throw std::runtime_error("Material is nullptr");
-
-            aiMaterial->GetTexture(aiTextureType_DIFFUSE, 0, &imagePath);
-            const auto &texture = scene->GetEmbeddedTexture(imagePath.C_Str());
-
-            std::shared_ptr<VulkanImage> image;
-            if (texture == nullptr) {
-                image = std::make_shared<VulkanImage>(
-                    VulkanImage::from(
-                        device,
-                        path + imagePath.C_Str()
-                    )
-                );
-            } else {
-                image = std::make_shared<VulkanImage>(
-                    VulkanImage::from(
-                        device,
-                        std::bit_cast<std::byte*>(texture->pcData),
-                        texture->mWidth
-                    )
-                );
-            }
-
-            auto descriptor = descriptorPool->allocate(*pbrOpaqueShader.getDescriptorSetLayout());
-            descriptor->writeUniformBuffer(0, cameraBuffer, 0, cameraBuffer.getSize());
-
-            auto imageView = std::make_shared<VulkanImageView>(device, image, VK_IMAGE_ASPECT_COLOR_BIT);
-            descriptor->writeCombinedImageSampler(1, *imageView);
-
-            auto material = std::make_shared<Material>(
-                pipeline,
-                image,
-                imageView,
-                descriptor,
-                MaterialPass::Opaque
-            );
-
-            meshes.emplace_back(device);
-            meshes[i].setVertices(vertices);
-            meshes[i].setIndices(indices, PrimitiveTopology::TriangleList);
-            meshes[i].setMaterial(material);
-        }
-
-        double old = glfwGetTime();
-        double lastFrame = old;
-        uint32_t fps = 0;
-        while (!window->shouldClose()) {
-            if (window->update()) {
-                swapchain->invalidate();
-                // TODO: Recreating the entire renderer is probably overkill, need a better way to recreate framebuffers on resize triggered from window
-                renderer = std::make_unique<Renderer>(pipeline, swapchain);
-            }
-
-            const double &now = glfwGetTime();
-            double deltaTime = now - lastFrame;
-            camera.update(window->getWindow(), deltaTime);
-
-            lastFrame = now;
-            ubo.view = camera.view();
-            const auto &[width, height] = swapchain->getExtent();
-            ubo.projection = camera.perspective(
-                static_cast<float>(width) /
-                static_cast<float>(height)
-            );
-            cameraBuffer.setData(std::bit_cast<std::byte*>(&ubo));
-
-            renderer->render(meshes);
-
-            fps++;
-            if (now - old >= 1) {
-                spdlog::info("FPS: {}", fps);
-                old = now;
-                fps = 0;
-            }
-        }
+    bool VulkanApplication::isRunning() const {
+        return window->shouldClose();
     }
+
+    void VulkanApplication::update() {
+        if (window->update()) {
+            swapchain->invalidate();
+            // TODO: Recreating the entire renderer is probably overkill, need a better way to recreate framebuffers on resize triggered from window
+            renderer = std::make_unique<Renderer>(pipeline, swapchain);
+        }
+
+
+    }
+
+    void VulkanApplication::render() {
+        const double &now = glfwGetTime();
+        camera.update(window->getWindow(), deltaTime);
+
+        lastFrame = now;
+        ubo.view = camera.view();
+        const auto &[width, height] = swapchain->getExtent();
+        ubo.projection = camera.perspective(
+            static_cast<float>(width) /
+            static_cast<float>(height)
+        );
+        cameraBuffer.setData(std::bit_cast<std::byte*>(&ubo));
+
+        renderer->render(meshes);
+    }
+
+    // void VulkanApplication::run() {
+    //     const std::string &file = "../../src/editor/resources/models/sponza/Sponza.gltf";
+    //     const std::string &path = std::filesystem::path(file).remove_filename().string();
+    //
+    //     std::vector<VulkanDescriptorPoolExpanding::PoolSizeRatio> ratios = {
+    //         {VK_DESCRIPTOR_TYPE_STORAGE_IMAGE, 3},
+    //         {VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, 3},
+    //         {VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, 3},
+    //         {VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, 4},
+    //     };
+    //     auto descriptorPool = std::make_shared<VulkanDescriptorPoolExpanding>(device, 1000, ratios);
+    //
+    //     auto camera = Camera(glm::vec3{0.0f, 0.0f, 0.0f});
+    //     auto cameraBuffer = VulkanBuffer(
+    //         device,
+    //         BufferUsage::Uniform,
+    //         1,
+    //         sizeof(UniformBufferObject)
+    //     );
+    //
+    //     UniformBufferObject ubo{
+    //         camera.view(),
+    //         camera.perspective(static_cast<float>(1920) / static_cast<float>(1080))
+    //     };
+    //
+    //     Assimp::Importer importer;
+    //     const auto &scene = importer.ReadFile(file, aiProcessPreset_TargetRealtime_Fast);
+    //     if (!scene)
+    //         throw std::runtime_error("Failed to load model from file");
+    //
+    //     std::vector<VulkanMesh> meshes{};
+    //     meshes.reserve(scene->mNumMeshes);
+    //
+    //     for (unsigned int i = 0; i < scene->mNumMeshes; i++) {
+    //         const auto &aiMesh = scene->mMeshes[i];
+    //         const auto &hasColors = aiMesh->HasVertexColors(0);
+    //         const auto &hasUvs = aiMesh->HasTextureCoords(0);
+    //
+    //         std::vector<Vertex> vertices(aiMesh->mNumVertices);
+    //         for (uint32_t j = 0; j < aiMesh->mNumVertices; j++) {
+    //             const auto &vertex = aiMesh->mVertices[j];
+    //             // TODO: Instead of storing default values for each vertex where a color or UV is missing, we should compact this down to save memory
+    //             const auto &color = hasColors ? aiMesh->mColors[0][j] : aiColor4D{1.0F, 1.0F, 1.0F, 1.0F};
+    //             const auto &textureCoord = hasUvs ? aiMesh->mTextureCoords[0][j] : aiVector3D{1.0F, 1.0F, 1.0F};
+    //             const auto &normal = aiMesh->mNormals[j];
+    //
+    //             vertices[j] = Vertex{
+    //                 .position = {vertex.x, vertex.y, vertex.z},
+    //                 .color = {color.r, color.g, color.b, color.a},
+    //                 .uv = {textureCoord.x, textureCoord.y},
+    //                 .normal = {normal.x, normal.y, normal.z}
+    //             };
+    //         }
+    //
+    //         std::vector<uint32_t> indices(aiMesh->mNumFaces * 3);
+    //         for (uint32_t j = 0; j < aiMesh->mNumFaces; j++) {
+    //             const auto &face = aiMesh->mFaces[j];
+    //             if (face.mNumIndices != 3) {
+    //                 spdlog::warn("Skipping face with {} indices", face.mNumIndices);
+    //                 continue;
+    //             }
+    //
+    //             indices[j * 3] = face.mIndices[0];
+    //             indices[j * 3 + 1] = face.mIndices[1];
+    //             indices[j * 3 + 2] = face.mIndices[2];
+    //         }
+    //
+    //         aiString imagePath;
+    //         const auto &aiMaterial = scene->mMaterials[scene->mMeshes[i]->mMaterialIndex];
+    //         if (aiMaterial == nullptr)
+    //             throw std::runtime_error("Material is nullptr");
+    //
+    //         aiMaterial->GetTexture(aiTextureType_DIFFUSE, 0, &imagePath);
+    //         const auto &texture = scene->GetEmbeddedTexture(imagePath.C_Str());
+    //
+    //         std::shared_ptr<VulkanImage> image;
+    //         if (texture == nullptr) {
+    //             image = std::make_shared<VulkanImage>(
+    //                 VulkanImage::from(
+    //                     device,
+    //                     path + imagePath.C_Str()
+    //                 )
+    //             );
+    //         } else {
+    //             image = std::make_shared<VulkanImage>(
+    //                 VulkanImage::from(
+    //                     device,
+    //                     std::bit_cast<std::byte*>(texture->pcData),
+    //                     texture->mWidth
+    //                 )
+    //             );
+    //         }
+    //
+    //         auto descriptor = descriptorPool->allocate(*pbrOpaqueShader.getDescriptorSetLayout());
+    //         descriptor->writeUniformBuffer(0, cameraBuffer, 0, cameraBuffer.getSize());
+    //
+    //         auto imageView = std::make_shared<VulkanImageView>(device, image, VK_IMAGE_ASPECT_COLOR_BIT);
+    //         descriptor->writeCombinedImageSampler(1, *imageView);
+    //
+    //         auto material = std::make_shared<Material>(
+    //             pipeline,
+    //             image,
+    //             imageView,
+    //             descriptor,
+    //             MaterialPass::Opaque
+    //         );
+    //
+    //         meshes.emplace_back(device);
+    //         meshes[i].setVertices(vertices);
+    //         meshes[i].setIndices(indices, PrimitiveTopology::TriangleList);
+    //         meshes[i].setMaterial(material);
+    //     }
+    //
+    //     double old = glfwGetTime();
+    //     double lastFrame = old;
+    //     uint32_t fps = 0;
+    //     while (!window->shouldClose()) {
+    //         if (window->update()) {
+    //             swapchain->invalidate();
+    //             // TODO: Recreating the entire renderer is probably overkill, need a better way to recreate framebuffers on resize triggered from window
+    //             renderer = std::make_unique<Renderer>(pipeline, swapchain);
+    //         }
+    //
+    //         const double &now = glfwGetTime();
+    //         double deltaTime = now - lastFrame;
+    //         camera.update(window->getWindow(), deltaTime);
+    //
+    //         lastFrame = now;
+    //         ubo.view = camera.view();
+    //         const auto &[width, height] = swapchain->getExtent();
+    //         ubo.projection = camera.perspective(
+    //             static_cast<float>(width) /
+    //             static_cast<float>(height)
+    //         );
+    //         cameraBuffer.setData(std::bit_cast<std::byte*>(&ubo));
+    //
+    //         renderer->render(meshes);
+    //
+    //         fps++;
+    //         if (now - old >= 1) {
+    //             spdlog::info("FPS: {}", fps);
+    //             old = now;
+    //             fps = 0;
+    //         }
+    //     }
+    // }
 }

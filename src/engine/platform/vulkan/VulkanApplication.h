@@ -51,6 +51,20 @@ namespace Vixen {
 
         VulkanApplication &operator=(const VulkanApplication &) = delete;
 
-        void run();
+        [[nodiscard]] bool isRunning() const;
+
+        void update();
+
+        void render();
+
+        [[nodiscard]] std::shared_ptr<VulkanWindow> getWindow() const;
+
+        [[nodiscard]] std::shared_ptr<Instance> getInstance() const;
+
+        [[nodiscard]] VkSurfaceKHR getSurface() const;
+
+        [[nodiscard]] std::shared_ptr<VulkanDevice> getDevice() const;
+
+        [[nodiscard]] std::shared_ptr<VulkanSwapchain> getSwapchain() const;
     };
 }

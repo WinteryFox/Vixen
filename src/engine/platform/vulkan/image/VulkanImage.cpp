@@ -161,11 +161,12 @@ namespace Vixen {
             STBI_rgb_alpha
         );
 
+        // TODO: For some reason this is broken and I have no clue why
         const auto &staging = VulkanBuffer(
             device,
             BufferUsage::Uniform | BufferUsage::CopySource,
             width * height,
-            4
+            channels
         );
         staging.setData(data);
 

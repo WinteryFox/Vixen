@@ -1,0 +1,4 @@
+[submodule "src/editor/vendor/imgui"]
+	path = src/editor/vendor/imgui
+	url = https://github.com/ocornut/imgui
+	branch = docking

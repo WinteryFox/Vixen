@@ -99,7 +99,7 @@ namespace Vixen {
         throw std::runtime_error("Unsupported store action");
     }
 
-    [[maybe_unused]] static void checkVulkanResult(const VkResult result, const std::string &message) {
+    [[maybe_unused]] static void checkVulkanResult(const VkResult result, const std::string &message = "") {
         if (result != VK_SUCCESS)
             throw VulkanException(message);
     }
