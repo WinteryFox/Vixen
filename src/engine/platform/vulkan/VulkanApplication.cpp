@@ -31,7 +31,7 @@
 namespace Vixen {
     VulkanApplication::VulkanApplication(const std::string &appTitle, glm::vec3 appVersion)
         : Application(appTitle, appVersion),
-          window(std::make_unique<VulkanWindow>(appTitle, 720, 480, false)),
+          window(std::make_unique<VulkanWindow>(appTitle, 1280, 720, false)),
           instance(std::make_shared<Instance>(appTitle, appVersion, window->getRequiredExtensions())),
           surface(instance->surfaceForWindow(*window)),
           device(std::make_shared<VulkanDevice>(
