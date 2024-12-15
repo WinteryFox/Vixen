@@ -7,7 +7,7 @@ namespace Vixen {
     class VulkanDescriptorPoolFixed : public std::enable_shared_from_this<VulkanDescriptorPoolFixed> {
         std::shared_ptr<VulkanDevice> device;
 
-        ::VkDescriptorPool pool;
+        VkDescriptorPool pool;
 
     public:
         VulkanDescriptorPoolFixed(

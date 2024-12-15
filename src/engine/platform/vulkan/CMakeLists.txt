@@ -1,12 +1,13 @@
 project("Vulkan")
 
-find_package(Vulkan 1.3 REQUIRED OPTIONAL_COMPONENTS volk)
+find_package(Vulkan 1.3 REQUIRED)
 
 find_package(spirv_cross_reflect REQUIRED)
 
 add_library(
         VkVixen
         STATIC
+        vendor/volk/volk.c
         VulkanApplication.cpp
         window/VulkanWindow.cpp
         device/Instance.cpp
@@ -101,8 +102,13 @@ else ()
     )
 endif ()
 
-message("Using volk included with Vulkan SDK")
-target_link_libraries(VkVixen PRIVATE Vulkan::volk)
+if (WIN32)
+    set(VOLK_STATIC_DEFINES VK_USE_PLATFORM_WIN32_KHR)
+    # TODO: Other platforms
+endif ()
+
+#target_link_libraries(VkVixen PRIVATE volk::volk)
+target_include_directories(VkVixen PRIVATE vendor/volk)
 
 find_path(VMA_PATH NAMES vk_mem_alloc.h HINTS ${Vulkan_INCLUDE_DIRS} PATH_SUFFIXES vma)
 target_include_directories(VkVixen PRIVATE ${VMA_PATH})

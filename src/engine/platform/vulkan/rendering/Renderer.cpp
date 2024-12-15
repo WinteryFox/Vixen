@@ -1,5 +1,9 @@
 #include "Renderer.h"
 
+#include <imgui.h>
+#include <backends/imgui_impl_glfw.h>
+#include <backends/imgui_impl_vulkan.h>
+
 #include <glm/gtc/matrix_transform.hpp>
 
 #include "VulkanMesh.h"
@@ -20,7 +24,8 @@ namespace Vixen {
     ) : device(pipeline->getDevice()),
         swapchain(swapchain),
         pipelineLayout(std::make_unique<VulkanPipelineLayout>(device, pipeline->getProgram())),
-        pipeline(pipeline) {}
+        pipeline(pipeline) {
+    }
 
     Renderer::~Renderer() {
         device->waitIdle();
@@ -59,6 +64,13 @@ namespace Vixen {
         const auto &[width, height] = swapchain->getExtent();
         const auto &commandBuffer = frame.commandBuffer;
 
+        ImGui_ImplVulkan_NewFrame();
+        ImGui_ImplGlfw_NewFrame();
+        ImGui::NewFrame();
+
+        ImGui::ShowDemoWindow();
+        ImGui::Render();
+
         commandBuffer.reset();
         commandBuffer.begin(CommandBufferUsage::Simultanious);
 
@@ -94,10 +106,14 @@ namespace Vixen {
             commandBuffer.drawMesh(transform, mesh);
         }
 
+        const auto &imguiDrawData = ImGui::GetDrawData();
+        ImGui_ImplVulkan_RenderDrawData(imguiDrawData, commandBuffer.getCommandBuffer());
+
         commandBuffer.endRenderPass();
 
         commandBuffer.end();
     }
 
-    void Renderer::cleanup() {}
+    void Renderer::cleanup() {
+    }
 }

@@ -1,5 +1,7 @@
 #include "Instance.h"
 
+#include <fmt/ranges.h>
+
 namespace Vixen {
     Instance::Instance(
         const std::string &appName,
@@ -77,6 +79,10 @@ namespace Vixen {
         vkDestroyDebugUtilsMessengerEXT(instance, debugMessenger, nullptr);
 #endif
         vkDestroyInstance(instance, nullptr);
+    }
+
+    VkInstance Instance::getInstance() const {
+        return instance;
     }
 
     std::vector<GraphicsCard> Instance::getGraphicsCards() const {

@@ -34,6 +34,8 @@ namespace Vixen {
 
         ~VulkanCommandBuffer();
 
+        VkCommandBuffer getCommandBuffer() const;
+
         template<typename F>
         void record(F commands) const {
             commands(commandBuffer);

@@ -8,12 +8,14 @@
 #include "image/VulkanImageView.h"
 
 namespace Vixen {
-    VulkanSwapchain::VulkanSwapchain(const std::shared_ptr<VulkanDevice> &device, uint32_t framesInFlight)
+    VulkanSwapchain::VulkanSwapchain(const std::shared_ptr<VulkanDevice> &device, const uint32_t framesInFlight,
+                                     const Samples samples)
         : device(device),
           currentFrame(0),
           imageCount(framesInFlight),
           format(determineSurfaceFormat(device->getGpu().getSurfaceFormats(device->getSurface()))),
-          swapchain(VK_NULL_HANDLE) {
+          swapchain(VK_NULL_HANDLE),
+          samples(samples) {
         create();
     }
 
@@ -265,8 +267,7 @@ namespace Vixen {
                 device,
                 extent.width,
                 extent.height,
-                // TODO: Allow this to be set as an option
-                Samples::MSAA8x,
+                samples,
                 format.format,
                 VK_IMAGE_TILING_OPTIMAL,
                 VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT,
@@ -278,7 +279,7 @@ namespace Vixen {
                 device,
                 extent.width,
                 extent.height,
-                Samples::MSAA8x,
+                samples,
                 device->getGpu().pickFormat(
                     {
                         VK_FORMAT_D32_SFLOAT_S8_UINT,

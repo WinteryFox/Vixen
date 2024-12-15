@@ -1,11 +1,15 @@
 project("Vixen Editor")
 
-add_executable(editor src/main.cpp)
+add_executable(
+        editor
+        src/main.cpp
+)
 target_link_libraries(editor PRIVATE Vixen)
 target_include_directories(
         editor
         PUBLIC
         ${CMAKE_SOURCE_DIR}/src/engine
+        vendor
 )
 
 if (ENABLE_VULKAN)

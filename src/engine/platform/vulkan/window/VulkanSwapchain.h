@@ -31,6 +31,8 @@ namespace Vixen {
 
         VkExtent2D extent{};
 
+        Samples samples;
+
         static VkSurfaceFormatKHR determineSurfaceFormat(const std::vector<VkSurfaceFormatKHR> &available);
 
         static VkPresentModeKHR determinePresentMode(const std::vector<VkPresentModeKHR> &available);
@@ -46,7 +48,7 @@ namespace Vixen {
             OutOfDate
         };
 
-        VulkanSwapchain(const std::shared_ptr<VulkanDevice> &device, uint32_t framesInFlight);
+        VulkanSwapchain(const std::shared_ptr<VulkanDevice> &device, uint32_t framesInFlight, Samples samples);
 
         VulkanSwapchain(const VulkanSwapchain &) = delete;
 

@@ -1,0 +1,6 @@
+[submodule "src/engine/core/vendor/imgui"]
+	path = src/engine/core/vendor/imgui
+	url = https://github.com/ocornut/imgui.git
+[submodule "src/engine/platform/vulkan/vendor/volk"]
+	path = src/engine/platform/vulkan/vendor/volk
+	url = https://github.com/zeux/volk

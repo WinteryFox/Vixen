@@ -5,10 +5,15 @@
 #include <assimp/Importer.hpp>
 #include <assimp/scene.h>
 #include <filesystem>
+#include <backends/imgui_impl_glfw.h>
+#include <backends/imgui_impl_vulkan.h>
 #include <glm/glm.hpp>
 
 #include "buffer/VulkanBuffer.h"
+#include "commandbuffer/CommandBufferLevel.h"
+#include "commandbuffer/VulkanCommandPool.h"
 #include "core/BufferUsage.h"
+#include "core/CommandBuffer.h"
 #include "core/PrimitiveTopology.h"
 #include "descriptorset/VulkanDescriptorPoolExpanding.h"
 #include "device/Instance.h"
@@ -35,7 +40,7 @@ namespace Vixen {
               instance->findOptimalGraphicsCard(surface, deviceExtensions),
               surface
           )),
-          swapchain(std::make_shared<VulkanSwapchain>(device, 3)),
+          swapchain(std::make_shared<VulkanSwapchain>(device, 3, Samples::MSAA8x)),
           pbrOpaqueShader(
               VulkanShaderModule::Builder(ShaderResources::Stage::Vertex)
               .compileFromFile(device, "../../src/editor/resources/shaders/pbr.vertex.glsl"),
@@ -97,6 +102,18 @@ namespace Vixen {
 
         window->center();
         window->setVisible(true);
+    }
+
+    bool VulkanApplication::isRunning() const {
+        return window->shouldClose();
+    }
+
+    void VulkanApplication::update() {
+        if (window->update()) {
+            swapchain->invalidate();
+            // TODO: Recreating the entire renderer is probably overkill, need a better way to recreate framebuffers on resize triggered from window
+            renderer = std::make_unique<Renderer>(pipeline, swapchain);
+        }
     }
 
     void VulkanApplication::run() {
@@ -186,7 +203,7 @@ namespace Vixen {
                 image = std::make_shared<VulkanImage>(
                     VulkanImage::from(
                         device,
-                        std::bit_cast<std::byte*>(texture->pcData),
+                        std::bit_cast<std::byte *>(texture->pcData),
                         texture->mWidth
                     )
                 );
@@ -212,6 +229,60 @@ namespace Vixen {
             meshes[i].setMaterial(material);
         }
 
+        const auto &sizes = std::vector<VkDescriptorPoolSize>({
+            {VK_DESCRIPTOR_TYPE_SAMPLER, 1000},
+            {VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, 1000},
+            {VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE, 1000},
+            {VK_DESCRIPTOR_TYPE_STORAGE_IMAGE, 1000},
+            {VK_DESCRIPTOR_TYPE_UNIFORM_TEXEL_BUFFER, 1000},
+            {VK_DESCRIPTOR_TYPE_STORAGE_TEXEL_BUFFER, 1000},
+            {VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, 1000},
+            {VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, 1000},
+            {VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER_DYNAMIC, 1000},
+            {VK_DESCRIPTOR_TYPE_STORAGE_BUFFER_DYNAMIC, 1000},
+            {VK_DESCRIPTOR_TYPE_INPUT_ATTACHMENT, 1000}
+        });
+        const auto &imguiDescriptorPool = std::make_shared<VulkanDescriptorPoolFixed>(device, sizes, 1000);
+
+        IMGUI_CHECKVERSION();
+        ImGui::CreateContext();
+        ImGuiIO &io = ImGui::GetIO();
+        io.ConfigFlags |= ImGuiConfigFlags_NavEnableKeyboard;
+        io.ConfigFlags |= ImGuiConfigFlags_NavEnableGamepad;
+
+        ImGui::StyleColorsDark();
+
+        ImGui_ImplGlfw_InitForVulkan(window->getWindow(), true);
+        ImGui_ImplVulkan_InitInfo info{
+            .Instance = instance->getInstance(),
+            .PhysicalDevice = device->getGpu().device,
+            .Device = device->getDevice(),
+            .QueueFamily = device->getGraphicsQueueFamily().index,
+            .Queue = device->getGraphicsQueue(),
+            .DescriptorPool = imguiDescriptorPool->getPool(),
+            .RenderPass = nullptr,
+            .MinImageCount = swapchain->getImageCount(),
+            .ImageCount = swapchain->getImageCount(),
+            .MSAASamples = VK_SAMPLE_COUNT_8_BIT,
+            .PipelineCache = nullptr,
+            .Subpass = 0,
+            .DescriptorPoolSize = 0,
+            .UseDynamicRendering = true,
+            .PipelineRenderingCreateInfo = {
+                .sType = VK_STRUCTURE_TYPE_PIPELINE_RENDERING_CREATE_INFO,
+                .pNext = nullptr,
+                .viewMask = 0,
+                .colorAttachmentCount = 1,
+                .pColorAttachmentFormats = &pipeline->getConfig().colorFormat,
+                .depthAttachmentFormat = pipeline->getConfig().depthFormat,
+                .stencilAttachmentFormat = pipeline->getConfig().depthFormat
+            },
+            .Allocator = nullptr,
+            .CheckVkResultFn = nullptr,
+            .MinAllocationSize = 0
+        };
+        ImGui_ImplVulkan_Init(&info);
+
         double old = glfwGetTime();
         double lastFrame = old;
         uint32_t fps = 0;
@@ -233,7 +304,7 @@ namespace Vixen {
                 static_cast<float>(width) /
                 static_cast<float>(height)
             );
-            cameraBuffer.setData(std::bit_cast<std::byte*>(&ubo));
+            cameraBuffer.setData(std::bit_cast<std::byte *>(&ubo));
 
             renderer->render(meshes);
 
@@ -244,5 +315,9 @@ namespace Vixen {
                 fps = 0;
             }
         }
+
+        ImGui_ImplVulkan_Shutdown();
+        ImGui_ImplGlfw_Shutdown();
+        ImGui::DestroyContext();
     }
 }
