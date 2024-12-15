@@ -47,6 +47,10 @@ namespace Vixen {
         );
     }
 
+    VkCommandBuffer VulkanCommandBuffer::getCommandBuffer() const {
+        return commandBuffer;
+    }
+
     void VulkanCommandBuffer::wait() const {
         fence.wait();
     }

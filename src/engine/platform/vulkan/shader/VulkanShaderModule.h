@@ -156,7 +156,7 @@ namespace Vixen {
 
                 auto reflectedResources = c.get_shader_resources();
 
-                for (const auto &pushConstant: reflectedResources.push_constant_buffers) {
+                for ([[maybe_unused]] const auto &pushConstant: reflectedResources.push_constant_buffers) {
                     // TODO: Determine type of push constant
                     resources.pushConstants.push_back({
                         .stage = stage,

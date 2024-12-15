@@ -37,9 +37,9 @@ namespace Vixen {
             std::cos(rotation.x) * std::cos(rotation.y)
         ));
         const auto& right = normalize(glm::vec3(
-            sin(rotation.y - M_PI / 2.0f),
+            sin(rotation.y - std::numbers::pi / 2.0f),
             0.0f,
-            cos(rotation.y - M_PI / 2.0f)
+            cos(rotation.y - std::numbers::pi / 2.0f)
         ));
 
         auto advance = glm::vec3(0.0f);
@@ -78,9 +78,9 @@ namespace Vixen {
             std::cos(rotation.x) * std::cos(rotation.y)
         ));
         const auto& right = normalize(glm::vec3(
-            sin(rotation.y - M_PI / 2.0f),
+            sin(rotation.y - std::numbers::pi / 2.0f),
             0.0f,
-            cos(rotation.y - M_PI / 2.0f)
+            cos(rotation.y - std::numbers::pi / 2.0f)
         ));
         const auto& up = cross(right, direction);
 

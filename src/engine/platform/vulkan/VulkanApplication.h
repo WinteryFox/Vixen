@@ -10,6 +10,8 @@
 #include "shader/VulkanShaderProgram.h"
 
 namespace Vixen {
+    class Scene;
+    class Camera;
     class Renderer;
     class VulkanPipeline;
     class VulkanSwapchain;
@@ -55,7 +57,7 @@ namespace Vixen {
 
         void update();
 
-        void render();
+        void run();
 
         [[nodiscard]] std::shared_ptr<VulkanWindow> getWindow() const;
 

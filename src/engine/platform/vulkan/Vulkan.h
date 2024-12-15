@@ -1,5 +1,8 @@
 #pragma once
 
+#include <Volk/volk.h>
+#include <vulkan/vk_enum_string_helper.h>
+
 #ifdef DEBUG
 
 #include <fmt/color.h>
@@ -10,8 +13,6 @@
 #include <core/shader/ShaderModule.h>
 #include <glm/glm.hpp>
 #include <spdlog/spdlog.h>
-#include <Volk/volk.h>
-#include <vulkan/vk_enum_string_helper.h>
 
 #include "core/LoadAction.h"
 #include "core/Samples.h"
@@ -161,11 +162,11 @@ namespace Vixen {
     }
 
 #ifdef DEBUG
-    [[maybe_unused]] static PFN_vkDebugUtilsMessengerCallbackEXT vkDebugCallback = [](
-        const auto messageSeverity,
-        const auto messageType,
-        const auto pCallbackData,
-        auto *
+    [[maybe_unused]] static VkBool32 vkDebugCallback(
+        const VkDebugUtilsMessageSeverityFlagBitsEXT messageSeverity,
+        const VkDebugUtilsMessageTypeFlagsEXT messageTypes,
+        const VkDebugUtilsMessengerCallbackDataEXT *pCallbackData,
+        [[maybe_unused]] void *pUserData
     ) {
         spdlog::level::level_enum level;
         switch (messageSeverity) {
@@ -188,7 +189,7 @@ namespace Vixen {
         }
 
         std::string source;
-        switch (messageType) {
+        switch (messageTypes) {
             case VK_DEBUG_UTILS_MESSAGE_TYPE_PERFORMANCE_BIT_EXT:
                 source = "Performance";
                 break;
@@ -202,7 +203,7 @@ namespace Vixen {
                 break;
 
             default:
-                source = string_VkDebugUtilsMessageTypeFlagsEXT(messageType);
+                source = string_VkDebugUtilsMessageTypeFlagsEXT(messageTypes);
                 break;
         }
 
@@ -213,7 +214,7 @@ namespace Vixen {
         vkDebugLogger->log(
             level,
             "[{}] {}",
-            fmt::format(fg(fmt::terminal_color::magenta), source),
+            format(fg(fmt::terminal_color::magenta), fmt::runtime(source)),
             pCallbackData->pMessage
         );
 

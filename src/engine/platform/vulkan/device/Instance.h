@@ -31,6 +31,8 @@ namespace Vixen {
 
         ~Instance();
 
+        VkInstance getInstance() const;
+
         [[nodiscard]] std::vector<GraphicsCard> getGraphicsCards() const;
 
         [[nodiscard]] GraphicsCard

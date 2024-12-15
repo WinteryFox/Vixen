@@ -1,5 +1,6 @@
 #pragma once
 
+#include <numbers>
 #include <GLFW/glfw3.h>
 #include <glm/glm.hpp>
 #include <glm/gtc/matrix_transform.hpp>
@@ -11,7 +12,7 @@ namespace Vixen {
     public:
         explicit Camera(
             glm::vec3 position = {},
-            glm::vec3 rotation = {M_PI, 0.0f, 0.0f},
+            glm::vec3 rotation = {std::numbers::pi, 0.0f, 0.0f},
             float fieldOfView = 90.0f,
             float nearPlane = 0.1f,
             float farPlane = 1000.0f
