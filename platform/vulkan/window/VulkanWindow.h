@@ -4,7 +4,7 @@
 #include <core/Window.h>
 
 namespace Vixen {
-    class VulkanWindow : public Window {
+    class VulkanWindow final : public Window {
         std::vector<const char*> requiredExtensions;
 
     public:

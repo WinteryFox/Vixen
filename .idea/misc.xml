@@ -11,8 +11,10 @@
       <file path="$PROJECT_DIR$/src/cmake-build-debug" />
       <file path="$PROJECT_DIR$/src/cmake-build-release" />
       <file path="$PROJECT_DIR$/src/editor/vendor" />
+      <file path="$PROJECT_DIR$/src/engine/core/platform/vulkan/vendor" />
       <file path="$PROJECT_DIR$/src/engine/core/vendor" />
-      <file path="$PROJECT_DIR$/src/engine/platform/vulkan/vendor" />
+      <file path="$PROJECT_DIR$/src/engine/vendor" />
+      <file path="$PROJECT_DIR$/thirdparty" />
     </excludeRoots>
   </component>
 </project>

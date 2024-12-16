@@ -1,8 +1,8 @@
 #pragma once
 
 #include <memory>
-#include <core/shader/ShaderProgram.h>
 
+#include "core/shader/ShaderProgram.h"
 #include "VulkanShaderModule.h"
 
 namespace Vixen {

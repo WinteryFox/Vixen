@@ -9,8 +9,8 @@
 #include <fstream>
 #include <spirv_reflect.hpp>
 #include <sstream>
-#include <core/exception/ShaderLinkFailedException.h>
-#include <core/shader/ShaderModule.h>
+#include "core/exception/ShaderLinkFailedException.h"
+#include "core/shader/ShaderModule.h"
 #include <glslang/Public/ResourceLimits.h>
 #include <glslang/Public/ShaderLang.h>
 #include <glslang/SPIRV/GlslangToSpv.h>

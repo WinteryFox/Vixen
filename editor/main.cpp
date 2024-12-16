@@ -4,10 +4,10 @@
 
 #endif
 
-#include <VulkanApplication.h>
-#include <core/Camera.h>
+#include <format>
+#include <spdlog/spdlog.h>
 
-#include "device/VulkanDevice.h"
+#include "core/Application.h"
 
 int main() {
 #ifdef _WIN32
@@ -20,10 +20,13 @@ int main() {
 #endif
 
     try {
-        auto vixen = Vixen::VulkanApplication("Vixen Vulkan Test", {1, 0, 0});
+        auto application = Vixen::Application({
+            .renderingApi = Vixen::Vulkan,
+            .applicationTitle = "Vixen Engine",
+            .applicationVersion = {1, 0, 0}
+        });
 
-        vixen.update();
-        vixen.run();
+        application.run();
     } catch (const std::runtime_error &e) {
         spdlog::error(e.what());
         throw;

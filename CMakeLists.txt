@@ -29,12 +29,19 @@ option(ENABLE_EDITOR "Enable or disable the compilation of the editor" ON)
 
 if (CMAKE_BUILD_TYPE MATCHES "Debug")
     add_definitions(-DDEBUG)
-else ()
-    add_link_options(-mwindows)
+elseif (CMAKE_BUILD_TYPE MATCHES "Release")
+    if (WIN32)
+        add_link_options(-mwindows)
+    endif ()
 endif ()
 
-add_subdirectory(src/engine)
+add_subdirectory(core)
+
+if (ENABLE_VULKAN)
+    add_subdirectory(thirdparty/VulkanMemoryAllocator)
+    add_subdirectory(platform/vulkan)
+endif ()
 
 if (ENABLE_EDITOR)
-    add_subdirectory(src/editor)
+    add_subdirectory(editor)
 endif ()

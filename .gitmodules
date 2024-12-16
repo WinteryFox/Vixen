@@ -1,6 +1,9 @@
-[submodule "src/engine/core/vendor/imgui"]
-	path = src/engine/core/vendor/imgui
-	url = https://github.com/ocornut/imgui.git
-[submodule "src/engine/platform/vulkan/vendor/volk"]
-	path = src/engine/platform/vulkan/vendor/volk
+[submodule "thirdparty/imgui"]
+	path = thirdparty/imgui
+	url = https://github.com/ocornut/imgui
+[submodule "thirdparty/volk"]
+	path = thirdparty/volk
 	url = https://github.com/zeux/volk
+[submodule "thirdparty/VulkanMemoryAllocator"]
+	path = thirdparty/VulkanMemoryAllocator
+	url = https://github.com/GPUOpen-LibrariesAndSDKs/VulkanMemoryAllocator

@@ -1,5 +1,3 @@
-project("Core")
-
 find_package(GLFW3 3.3 REQUIRED)
 find_package(assimp REQUIRED)
 find_package(glm REQUIRED)
@@ -12,14 +10,14 @@ add_definitions(-DIMGUI_IMPL_VULKAN_USE_VOLK)
 
 set(
         IMGUI_SOURCES
-        vendor/imgui/imgui.cpp
-        vendor/imgui/imgui_demo.cpp
-        vendor/imgui/imgui_draw.cpp
-        vendor/imgui/imgui_tables.cpp
-        vendor/imgui/imgui_widgets.cpp
-        vendor/imgui/misc/cpp/imgui_stdlib.cpp
-        vendor/imgui/backends/imgui_impl_glfw.cpp
-        vendor/imgui/backends/imgui_impl_vulkan.cpp
+        ${CMAKE_SOURCE_DIR}/thirdparty/imgui/imgui.cpp
+        ${CMAKE_SOURCE_DIR}/thirdparty/imgui/imgui_demo.cpp
+        ${CMAKE_SOURCE_DIR}/thirdparty/imgui/imgui_draw.cpp
+        ${CMAKE_SOURCE_DIR}/thirdparty/imgui/imgui_tables.cpp
+        ${CMAKE_SOURCE_DIR}/thirdparty/imgui/imgui_widgets.cpp
+        ${CMAKE_SOURCE_DIR}/thirdparty/imgui/misc/cpp/imgui_stdlib.cpp
+        ${CMAKE_SOURCE_DIR}/thirdparty/imgui/backends/imgui_impl_glfw.cpp
+        ${CMAKE_SOURCE_DIR}/thirdparty/imgui/backends/imgui_impl_vulkan.cpp
 )
 
 add_library(
@@ -39,9 +37,10 @@ add_library(
         Rectangle.h
         BufferUsage.h
         exception/ShaderLinkFailedException.h
-        Application.h
         Samples.h
         shader/ShaderResources.h
+        Application.cpp
+        Application.h
 )
 target_link_libraries(
         Vixen
@@ -54,6 +53,7 @@ target_link_libraries(
 target_include_directories(
         Vixen
         PUBLIC
-        vendor/imgui
+        ${CMAKE_SOURCE_DIR}
+        ${CMAKE_SOURCE_DIR}/thirdparty/imgui
         ${stb_image_INCLUDE_DIRS}
 )

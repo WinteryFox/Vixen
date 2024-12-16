@@ -10,7 +10,7 @@ The engine consists of several modules, primarily the runtime core abstraction a
 implementations.
 
 - [Runtime core](/src/engine/core)
-  - [Vulkan implementation](/src/engine/platform/vulkan)
+  - [Vulkan implementation](/src/engine/core/platform/vulkan)
 
 The editor application consists of only its own module.
 

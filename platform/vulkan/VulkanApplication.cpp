@@ -1,7 +1,6 @@
 #include "VulkanApplication.h"
 
 #include <assimp/postprocess.h>
-#include <core/Camera.h>
 #include <assimp/Importer.hpp>
 #include <assimp/scene.h>
 #include <filesystem>
@@ -9,11 +8,9 @@
 #include <backends/imgui_impl_vulkan.h>
 #include <glm/glm.hpp>
 
+#include "core/Camera.h"
 #include "buffer/VulkanBuffer.h"
-#include "commandbuffer/CommandBufferLevel.h"
-#include "commandbuffer/VulkanCommandPool.h"
 #include "core/BufferUsage.h"
-#include "core/CommandBuffer.h"
 #include "core/PrimitiveTopology.h"
 #include "descriptorset/VulkanDescriptorPoolExpanding.h"
 #include "device/Instance.h"
@@ -30,7 +27,7 @@
 
 namespace Vixen {
     VulkanApplication::VulkanApplication(const std::string &appTitle, glm::vec3 appVersion)
-        : Application(appTitle, appVersion),
+        : Application({Vulkan, appTitle, appVersion}),
           window(std::make_unique<VulkanWindow>(appTitle, 1280, 720, false)),
           instance(std::make_shared<Instance>(appTitle, appVersion, window->getRequiredExtensions())),
           surface(instance->surfaceForWindow(*window)),

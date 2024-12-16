@@ -7,7 +7,7 @@ find_package(spirv_cross_reflect REQUIRED)
 add_library(
         VkVixen
         STATIC
-        vendor/volk/volk.c
+        ${CMAKE_SOURCE_DIR}/thirdparty/volk/volk.c
         VulkanApplication.cpp
         window/VulkanWindow.cpp
         device/Instance.cpp
@@ -55,6 +55,8 @@ add_library(
         commandbuffer/CommandBufferUsage.h
         exception/VulkanException.h
         FrameData.h
+        VulkanContext.cpp
+        VulkanContext.h
 )
 target_link_libraries(
         VkVixen
@@ -96,7 +98,7 @@ else ()
     pkg_check_modules(glslang REQUIRED IMPORTED_TARGET glslang)
     target_link_libraries(
             VkVixen
-            PRIVATE
+            PUBLIC
             PkgConfig::glslang
             PkgConfig::SPIRV
     )
@@ -107,8 +109,10 @@ if (WIN32)
     # TODO: Other platforms
 endif ()
 
-#target_link_libraries(VkVixen PRIVATE volk::volk)
-target_include_directories(VkVixen PRIVATE vendor/volk)
+target_include_directories(VkVixen PUBLIC thirdparty/volk)
 
-find_path(VMA_PATH NAMES vk_mem_alloc.h HINTS ${Vulkan_INCLUDE_DIRS} PATH_SUFFIXES vma)
-target_include_directories(VkVixen PRIVATE ${VMA_PATH})
+target_link_libraries(
+        VkVixen
+        PUBLIC
+        GPUOpen::VulkanMemoryAllocator
+)
