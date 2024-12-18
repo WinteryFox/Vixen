@@ -3,7 +3,7 @@
 #include <Volk/volk.h>
 #include <vulkan/vk_enum_string_helper.h>
 
-#ifdef DEBUG
+#ifdef DEBUG_ENABLED
 
 #include <fmt/color.h>
 #include <spdlog/sinks/stdout_color_sinks.h>
@@ -100,7 +100,7 @@ namespace Vixen {
         throw std::runtime_error("Unsupported store action");
     }
 
-    [[maybe_unused]] static void checkVulkanResult(const VkResult result, const std::string &message = "") {
+    [[maybe_unused]] static void checkVulkanResult(const VkResult result, const std::string &message) {
         if (result != VK_SUCCESS)
             throw VulkanException(message);
     }
@@ -161,7 +161,7 @@ namespace Vixen {
         throw std::runtime_error("Unknown shader stage");
     }
 
-#ifdef DEBUG
+#ifdef DEBUG_ENABLED
     [[maybe_unused]] static VkBool32 vkDebugCallback(
         const VkDebugUtilsMessageSeverityFlagBitsEXT messageSeverity,
         const VkDebugUtilsMessageTypeFlagsEXT messageTypes,

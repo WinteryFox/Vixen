@@ -1,28 +1,24 @@
 #pragma once
 
-#include <string>
-#include <glm/vec3.hpp>
-
-#include "Context.h"
-#include "RenderingApi.h"
+#include "DisplayServer.h"
 
 namespace Vixen {
-    class Window;
-
     class Application {
-        const struct Config {
-            RenderingApi renderingApi;
-            std::string applicationTitle;
-            glm::vec3 applicationVersion;
-            std::string workingDirectory = ".\\";
-        } config;
+        std::shared_ptr<DisplayServer> displayServer;
 
-        std::shared_ptr<Context> context;
+        std::string applicationTitle;
 
-        std::shared_ptr<Window> window;
+        glm::vec3 applicationVersion;
+
+        std::string workingDirectory;
 
     public:
-        explicit Application(const Config &config);
+        explicit Application(
+            DisplayServer::RenderingDriver renderingDriver,
+            const std::string &applicationTitle,
+            glm::vec3 applicationVersion,
+            const std::string &workingDirectory = ".\\"
+        );
 
         virtual ~Application();
 

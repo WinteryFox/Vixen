@@ -2,11 +2,9 @@
 
 #include <spdlog/spdlog.h>
 
-#include "core/exception/OutOfPoolMemoryException.h"
+#include "core/error/OutOfMemoryError.h"
 
 namespace Vixen {
-    class OutOfPoolMemoryException;
-
     std::shared_ptr<VulkanDescriptorPoolFixed> VulkanDescriptorPoolExpanding::createPool(
         const uint32_t setCount,
         const std::span<PoolSizeRatio> poolSizeRatios
@@ -94,7 +92,7 @@ namespace Vixen {
 
         try {
             descriptorSet = std::make_shared<VulkanDescriptorSet>(pool->allocate(layout));
-        } catch (const OutOfPoolMemoryException &) {
+        } catch (const OutOfMemoryError &) {
             fullPools.push_back(pool);
             pool = getPool();
             descriptorSet = std::make_shared<VulkanDescriptorSet>(pool->allocate(layout));

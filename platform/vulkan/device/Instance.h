@@ -4,7 +4,6 @@
 
 #include "Vulkan.h"
 #include "GraphicsCard.h"
-#include "window/VulkanWindow.h"
 
 namespace Vixen {
     class Instance {
@@ -16,7 +15,7 @@ namespace Vixen {
 
         std::vector<VkSurfaceKHR> surfaces;
 
-#ifdef DEBUG
+#ifdef DEBUG_ENABLED
         VkDebugUtilsMessengerEXT debugMessenger = VK_NULL_HANDLE;
 #endif
 
@@ -45,7 +44,5 @@ namespace Vixen {
         static std::vector<VkLayerProperties> getSupportedLayers();
 
         static bool isLayerSupported(const std::string &layer);
-
-        [[nodiscard]] VkSurfaceKHR surfaceForWindow(const VulkanWindow &window);
     };
 }

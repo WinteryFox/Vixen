@@ -1,6 +1,6 @@
 #include "VulkanDescriptorSet.h"
 
-#include "core/exception/OutOfPoolMemoryException.h"
+#include "core/error/OutOfMemoryError.h"
 #include "VulkanDescriptorPoolFixed.h"
 #include "VulkanDescriptorSetLayout.h"
 #include "buffer/VulkanBuffer.h"
@@ -26,10 +26,10 @@ namespace Vixen {
 
         switch (const auto& result = vkAllocateDescriptorSets(device->getDevice(), &info, &set)) {
         case VK_ERROR_OUT_OF_POOL_MEMORY:
-            throw OutOfPoolMemoryException("Descriptor pool is out of memory");
+            throw OutOfMemoryError("Descriptor pool is out of memory");
         case VK_ERROR_FRAGMENTED_POOL:
             // TODO: We should probably attempt to defragment the pool here instead of just erroring
-            throw OutOfPoolMemoryException("Descriptor pool is fragmented");
+            throw OutOfMemoryError("Descriptor pool is fragmented");
         default:
             checkVulkanResult(
                 result,

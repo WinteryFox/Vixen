@@ -5,8 +5,7 @@ pkg_check_modules(SPDLOG REQUIRED IMPORTED_TARGET spdlog)
 
 find_path(stb_image_INCLUDE_DIRS NAMES stb_image.h PATH_SUFFIXES include include/stb stb REQUIRED)
 
-add_definitions(-DGLFW_INCLUDE_NONE)
-add_definitions(-DIMGUI_IMPL_VULKAN_USE_VOLK)
+add_compile_definitions(GLFW_INCLUDE_NONE IMGUI_IMPL_VULKAN_USE_VOLK)
 
 set(
         IMGUI_SOURCES
@@ -24,7 +23,7 @@ add_library(
         Vixen
         STATIC
         ${IMGUI_SOURCES}
-        Window.cpp
+        DisplayServer.cpp
         Camera.cpp
         CommandBuffer.h
         CommandPoolUsage.h
@@ -36,11 +35,16 @@ add_library(
         StoreAction.h
         Rectangle.h
         BufferUsage.h
-        exception/ShaderLinkFailedException.h
+        error/ShaderLinkFailedError.h
         Samples.h
         shader/ShaderResources.h
         Application.cpp
         Application.h
+        RenderingDevice.cpp
+        RenderingDevice.h
+        error/macros.h
+        error/CantCreateError.h
+        error/Macros.cpp
 )
 target_link_libraries(
         Vixen

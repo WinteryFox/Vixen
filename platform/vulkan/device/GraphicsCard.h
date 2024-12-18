@@ -3,6 +3,9 @@
 #include <map>
 #include <algorithm>
 
+#include "core/error/CantCreateError.h"
+#include "core/error/Macros.h"
+
 namespace Vixen {
     struct QueueFamily {
         uint32_t index = -1;
@@ -15,8 +18,9 @@ namespace Vixen {
 
         bool hasSurfaceSupport(VkPhysicalDevice device, VkSurfaceKHR surface) const {
             VkBool32 support = VK_FALSE;
-            checkVulkanResult(
+            ASSERT_THROW(
                 vkGetPhysicalDeviceSurfaceSupportKHR(device, index, surface, &support),
+                CantCreateError,
                 "Failed to query surface support"
             );
             return support;
@@ -156,8 +160,7 @@ namespace Vixen {
                     return format;
             }
 
-            spdlog::error("Failed to pick suitable format");
-            throw std::runtime_error("Failed to pick suitable format");
+            return VK_FORMAT_UNDEFINED;
         }
 
         [[nodiscard]] VkSampleCountFlagBits getMaxSampleCount() const {

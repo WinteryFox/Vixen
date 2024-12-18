@@ -1,8 +1,6 @@
 #pragma once
 
 #include <memory>
-#include <glm/glm.hpp>
-#include <Volk/volk.h>
 
 #include "LoadAction.h"
 #include "StoreAction.h"

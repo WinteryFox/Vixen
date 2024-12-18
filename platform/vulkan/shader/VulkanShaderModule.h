@@ -1,6 +1,6 @@
 #pragma once
 
-#ifdef DEBUG
+#ifdef DEBUG_ENABLED
 
 #include <glslang/SPIRV/disassemble.h>
 
@@ -9,7 +9,7 @@
 #include <fstream>
 #include <spirv_reflect.hpp>
 #include <sstream>
-#include "core/exception/ShaderLinkFailedException.h"
+#include "core/error/ShaderLinkFailedError.h"
 #include "core/shader/ShaderModule.h"
 #include <glslang/Public/ResourceLimits.h>
 #include <glslang/Public/ShaderLang.h>
@@ -119,14 +119,14 @@ namespace Vixen {
 
                 // TODO: Resource limit should probably be gotten from the GPU
                 if (!shader.parse(GetDefaultResources(), VIXEN_VK_SPIRV_VERSION, false, messages))
-                    throw ShaderLinkFailedException(shader.getInfoLog());
+                    throw ShaderLinkFailedError(shader.getInfoLog());
 
                 program.addShader(&shader);
                 if (!program.link(messages))
-                    throw ShaderLinkFailedException(shader.getInfoLog());
+                    throw ShaderLinkFailedError(shader.getInfoLog());
 
                 glslang::SpvOptions options{
-#ifdef DEBUG
+#ifdef DEBUG_ENABLED
                     .generateDebugInfo = true,
                     .stripDebugInfo = false,
                     .disableOptimizer = true,
@@ -145,7 +145,7 @@ namespace Vixen {
                 spv::SpvBuildLogger logger;
                 GlslangToSpv(*program.getIntermediate(s), binary, &logger, &options);
 
-#ifdef DEBUG
+#ifdef DEBUG_ENABLED
                 std::stringstream stream;
                 spv::Disassemble(stream, binary);
                 spdlog::debug("Passed in GLSL source string:\n{}\n\nDisassembled SPIR-V:\n{}",

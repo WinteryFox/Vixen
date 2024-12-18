@@ -22,7 +22,7 @@ namespace Vixen {
         //        extensions.emplace_back(VK_KHR_PORTABILITY_ENUMERATION_EXTENSION_NAME);
 
         std::vector<const char *> layers{};
-#ifdef DEBUG
+#ifdef DEBUG_ENABLED
         if (isLayerSupported("VK_LAYER_KHRONOS_validation")) {
             layers.emplace_back("VK_LAYER_KHRONOS_validation");
             extensions.emplace_back(VK_EXT_DEBUG_UTILS_EXTENSION_NAME);
@@ -53,7 +53,7 @@ namespace Vixen {
         );
         volkLoadInstance(instance);
 
-#ifdef DEBUG
+#ifdef DEBUG_ENABLED
         VkDebugUtilsMessengerCreateInfoEXT debugInfo{};
         debugInfo.sType = VK_STRUCTURE_TYPE_DEBUG_UTILS_MESSENGER_CREATE_INFO_EXT;
         debugInfo.messageSeverity =
@@ -75,7 +75,7 @@ namespace Vixen {
         for (const auto &surface: surfaces)
             vkDestroySurfaceKHR(instance, surface, nullptr);
 
-#ifdef DEBUG
+#ifdef DEBUG_ENABLED
         vkDestroyDebugUtilsMessengerEXT(instance, debugMessenger, nullptr);
 #endif
         vkDestroyInstance(instance, nullptr);
@@ -184,17 +184,5 @@ namespace Vixen {
                    layers,
                    [layer](VkLayerProperties props) { return layer == props.layerName; }
                ) != std::end(layers);
-    }
-
-    /**
-     * Creates a new surface for the given window. Surfaces are owned by this instance, and will be deleted alongside.
-     * @param window The window to create the surface for.
-     * @return Returns a new surface for this window.
-     */
-    VkSurfaceKHR Instance::surfaceForWindow(const VulkanWindow &window) {
-        auto surface = window.createSurface(instance);
-        surfaces.push_back(surface);
-
-        return surface;
     }
 }

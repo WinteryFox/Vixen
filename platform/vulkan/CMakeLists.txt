@@ -9,7 +9,6 @@ add_library(
         STATIC
         ${CMAKE_SOURCE_DIR}/thirdparty/volk/volk.c
         VulkanApplication.cpp
-        window/VulkanWindow.cpp
         device/Instance.cpp
         device/VulkanDevice.cpp
         device/VulkanDevice.h
@@ -55,8 +54,10 @@ add_library(
         commandbuffer/CommandBufferUsage.h
         exception/VulkanException.h
         FrameData.h
-        VulkanContext.cpp
-        VulkanContext.h
+        VulkanRenderingContext.cpp
+        VulkanRenderingContext.h
+        VulkanRenderingDevice.cpp
+        VulkanRenderingDevice.h
 )
 target_link_libraries(
         VkVixen
@@ -75,13 +76,13 @@ target_include_directories(
         ${CMAKE_SOURCE_DIR}/src/engine/platform/vulkan
 )
 
-target_compile_definitions(VkVixen PUBLIC -DVK_NO_PROTOTYPES)
+target_compile_definitions(VkVixen PUBLIC VK_NO_PROTOTYPES)
 
 find_package(glslang QUIET)
 if (${glslang_FOUND})
     target_link_libraries(
             VkVixen
-            PRIVATE
+            PUBLIC
             #           glslang::OSDependent
             glslang::glslang
             #           glslang::MachineIndependent
@@ -109,7 +110,12 @@ if (WIN32)
     # TODO: Other platforms
 endif ()
 
-target_include_directories(VkVixen PUBLIC thirdparty/volk)
+target_include_directories(
+        VkVixen
+        PUBLIC
+        ${CMAKE_SOURCE_DIR}/thirdparty/volk
+        ${CMAKE_SOURCE_DIR}/thirdparty/VulkanMemoryAllocator/include
+)
 
 target_link_libraries(
         VkVixen
