@@ -1,11 +1,10 @@
 #include "VulkanBuffer.h"
 
-#include "device/VulkanDevice.h"
-#include "core/BufferUsage.h"
+#include <utility>
 
 namespace Vixen {
     VulkanBuffer::VulkanBuffer(
-        const std::shared_ptr<VulkanDevice> &device,
+        const std::shared_ptr<VulkanRenderingDevice> &device,
         const BufferUsage usage,
         const uint32_t count,
         const uint32_t stride
@@ -25,10 +24,10 @@ namespace Vixen {
         VkBufferUsageFlags bufferUsageFlags = 0;
         VkMemoryPropertyFlags requiredFlags = 0;
 
-        if (usage & BufferUsage::Vertex)
+        if (usage & Vertex)
             bufferUsageFlags |= VK_BUFFER_USAGE_VERTEX_BUFFER_BIT;
 
-        if (usage & BufferUsage::Index)
+        if (usage & Index)
             bufferUsageFlags |= VK_BUFFER_USAGE_INDEX_BUFFER_BIT;
 
         if (usage & BufferUsage::CopySource) {
@@ -41,7 +40,7 @@ namespace Vixen {
             bufferUsageFlags |= VK_BUFFER_USAGE_TRANSFER_DST_BIT;
         }
 
-        if (usage & BufferUsage::Uniform) {
+        if (usage & Uniform) {
             allocationFlags |= VMA_ALLOCATION_CREATE_MAPPED_BIT |
                     VMA_ALLOCATION_CREATE_HOST_ACCESS_SEQUENTIAL_WRITE_BIT;
             bufferUsageFlags |= VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT;
@@ -70,7 +69,7 @@ namespace Vixen {
             .priority = 0.0f
         };
 
-        checkVulkanResult(
+        ASSERT_THROW(
             vmaCreateBuffer(
                 device->getAllocator(),
                 &bufferCreateInfo,
@@ -79,6 +78,7 @@ namespace Vixen {
                 &allocation,
                 &allocationInfo
             ),
+            CantCreateError,
             "Failed to create buffer"
         );
     }

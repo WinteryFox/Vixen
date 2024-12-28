@@ -13,7 +13,8 @@ namespace Vixen {
     class DisplayServer final {
     public:
         enum class RenderingDriver {
-            Vulkan
+            Vulkan,
+            D3D12
         };
 
         enum class WindowMode {
@@ -40,10 +41,10 @@ namespace Vixen {
         };
 
         enum WindowFlags {
-            Resizable,
-            Borderless,
-            Transparent,
-            AlwaysOnTop
+            WINDOW_FLAGS_RESIZABLE,
+            WINDOW_FLAGS_BORDERLESS,
+            WINDOW_FLAGS_TRANSPARENT,
+            WINDOW_FLAGS_ALWAYS_ON_TOP
         };
 
         enum class Cursor {

@@ -294,7 +294,7 @@ namespace Vixen {
         vkCmdCopyBuffer(commandBuffer, source.getBuffer(), destination.getBuffer(), 1, &region);
     }
 
-    void VulkanCommandBuffer::copyBufferToImage(const VulkanBuffer &source, const VulkanImage &destination) const {
+    void VulkanCommandBuffer::copyBufferToImage(const VulkanBuffer &source, const VulkanImage2D &destination) const {
         const VkBufferImageCopy region{
             .bufferOffset = 0,
             .bufferRowLength = 0,
@@ -322,7 +322,7 @@ namespace Vixen {
     }
 
     void VulkanCommandBuffer::transitionImage(
-        VulkanImage &image,
+        VulkanImage2D &image,
         const VkImageLayout oldLayout,
         const VkImageLayout newLayout,
         const uint32_t baseMipLevel,
@@ -419,7 +419,7 @@ namespace Vixen {
         );
     }
 
-    void VulkanCommandBuffer::blitImage(const VulkanImage &source, VulkanImage &destination) const {
+    void VulkanCommandBuffer::blitImage(const VulkanImage2D &source, VulkanImage2D &destination) const {
         if (!(commandPool->getDevice()->getGpu().getFormatProperties(source.getFormat()).optimalTilingFeatures &
               VK_FORMAT_FEATURE_BLIT_SRC_BIT))
             throw std::runtime_error("Source image format does not support blitting");
@@ -487,7 +487,7 @@ namespace Vixen {
     }
 
     // TODO: Not sure how to handle the different regions with mip-maps
-    void VulkanCommandBuffer::copyImage(const VulkanImage &source, const VulkanImage &destination) const {
+    void VulkanCommandBuffer::copyImage(const VulkanImage2D &source, const VulkanImage2D &destination) const {
         if (source.getSampleCount() != destination.getSampleCount())
             throw std::runtime_error("Source image sample count must match destination image sample count");
 

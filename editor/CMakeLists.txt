@@ -23,6 +23,14 @@ if (ENABLE_VULKAN)
     )
 endif ()
 
+if (ENABLE_D3D12)
+    target_link_libraries(
+            editor
+            PUBLIC
+            D3D12Vixen
+    )
+endif ()
+
 if (CMAKE_BUILD_TYPE MATCHES "Release")
     set_target_properties(editor PROPERTIES WIN32_EXECUTABLE ON MACOSX_BUNDLE ON)
 endif ()

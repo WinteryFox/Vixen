@@ -252,7 +252,7 @@ namespace Vixen {
 
         frames.reserve(imageCount);
         for (uint32_t i = 0; i < imageCount; i++) {
-            const auto &resolveImage = std::make_shared<VulkanImage>(
+            const auto &resolveImage = std::make_shared<VulkanImage2D>(
                 device,
                 extent.width,
                 extent.height,
@@ -263,7 +263,7 @@ namespace Vixen {
                 1
             );
 
-            const auto &colorImage = std::make_shared<VulkanImage>(
+            const auto &colorImage = std::make_shared<VulkanImage2D>(
                 device,
                 extent.width,
                 extent.height,
@@ -275,7 +275,7 @@ namespace Vixen {
             );
             const auto &commandPool = device->allocateCommandPool(CommandPoolUsage::Graphics, true);
 
-            const auto &depthTarget = std::make_shared<VulkanImage>(
+            const auto &depthTarget = std::make_shared<VulkanImage2D>(
                 device,
                 extent.width,
                 extent.height,

@@ -5,10 +5,11 @@ pkg_check_modules(SPDLOG REQUIRED IMPORTED_TARGET spdlog)
 
 find_path(stb_image_INCLUDE_DIRS NAMES stb_image.h PATH_SUFFIXES include include/stb stb REQUIRED)
 
-add_compile_definitions(GLFW_INCLUDE_NONE IMGUI_IMPL_VULKAN_USE_VOLK)
+add_compile_definitions(GLFW_INCLUDE_NONE)
 
-set(
-        IMGUI_SOURCES
+add_library(
+        imgui
+        STATIC
         ${CMAKE_SOURCE_DIR}/thirdparty/imgui/imgui.cpp
         ${CMAKE_SOURCE_DIR}/thirdparty/imgui/imgui_demo.cpp
         ${CMAKE_SOURCE_DIR}/thirdparty/imgui/imgui_draw.cpp
@@ -18,6 +19,12 @@ set(
         ${CMAKE_SOURCE_DIR}/thirdparty/imgui/backends/imgui_impl_glfw.cpp
         ${CMAKE_SOURCE_DIR}/thirdparty/imgui/backends/imgui_impl_vulkan.cpp
 )
+target_include_directories(
+        imgui
+        PUBLIC
+        ${CMAKE_SOURCE_DIR}/thirdparty/imgui
+)
+target_compile_definitions(imgui PUBLIC IMGUI_IMPL_VULKAN_USE_VOLK)
 
 add_library(
         Vixen
@@ -34,9 +41,8 @@ add_library(
         LoadAction.h
         StoreAction.h
         Rectangle.h
-        BufferUsage.h
+        buffer/BufferUsage.h
         error/ShaderLinkFailedError.h
-        Samples.h
         shader/ShaderResources.h
         Application.cpp
         Application.h
@@ -45,6 +51,22 @@ add_library(
         error/macros.h
         error/CantCreateError.h
         error/Macros.cpp
+        buffer/Buffer.h
+        MemoryAllocationType.h
+        image/ImageView.h
+        DataFormat.h
+        image/ImageSwizzle.h
+        image/ImageLayout.h
+        image/ImageAspect.h
+        image/ImageSubresource.h
+        image/ImageFormat.h
+        image/ImageSamples.h
+        image/ImageType.h
+        image/Image.cpp
+        image/Image.h
+        image/Image2D.cpp
+        image/Image2D.h
+        image/ImageUsage.h
 )
 target_link_libraries(
         Vixen
@@ -53,6 +75,7 @@ target_link_libraries(
         assimp::assimp
         glm::glm
         PkgConfig::SPDLOG
+        imgui
 )
 target_include_directories(
         Vixen

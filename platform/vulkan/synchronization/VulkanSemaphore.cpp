@@ -1,7 +1,5 @@
 #include "VulkanSemaphore.h"
 
-#include "device/VulkanDevice.h"
-
 namespace Vixen {
     VulkanSemaphore::VulkanSemaphore(const std::shared_ptr<VulkanDevice> &device)
         : device(device),

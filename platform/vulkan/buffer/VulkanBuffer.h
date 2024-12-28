@@ -3,12 +3,12 @@
 #include <memory>
 #include <vma/vk_mem_alloc.h>
 
-namespace Vixen {
-    enum class BufferUsage : std::uint32_t;
-    class VulkanDevice;
+#include "VulkanRenderingDevice.h"
+#include "core/buffer/BufferUsage.h"
 
+namespace Vixen {
     class VulkanBuffer {
-        std::shared_ptr<VulkanDevice> device;
+        std::shared_ptr<VulkanRenderingDevice> device;
 
         uint32_t count;
 
@@ -23,7 +23,7 @@ namespace Vixen {
         BufferUsage usage;
 
     public:
-        VulkanBuffer(const std::shared_ptr<VulkanDevice>& device, BufferUsage usage, uint32_t count, uint32_t stride);
+        VulkanBuffer(const std::shared_ptr<VulkanRenderingDevice>& device, BufferUsage usage, uint32_t count, uint32_t stride);
 
         VulkanBuffer(const VulkanBuffer&) = delete;
 

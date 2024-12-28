@@ -1,9 +1,11 @@
 #include "DisplayServer.h"
 
-#include "platform/vulkan/VulkanRenderingDevice.h"
 #include "error/CantCreateError.h"
 #include "error/Macros.h"
+#include "platform/d3d12/D3D12RenderingContext.h"
+#include "platform/d3d12/D3D12RenderingDevice.h"
 #include "platform/vulkan/VulkanRenderingContext.h"
+#include "platform/vulkan/VulkanRenderingDevice.h"
 
 namespace Vixen {
     GLFWwindow *DisplayServer::createWindow(
@@ -14,18 +16,13 @@ namespace Vixen {
     ) {
         glfwWindowHint(GLFW_CLIENT_API, GLFW_NO_API);
         glfwWindowHint(GLFW_VISIBLE, GLFW_TRUE);
-        glfwWindowHint(GLFW_RESIZABLE, (flags & Resizable) == 0 ? GLFW_TRUE : GLFW_FALSE);
-        glfwWindowHint(GLFW_TRANSPARENT_FRAMEBUFFER, (flags & Transparent) == 0 ? GLFW_TRUE : GLFW_FALSE);
-        glfwWindowHint(GLFW_DECORATED, (flags & Borderless) == 0 ? GLFW_TRUE : GLFW_FALSE);
-        glfwWindowHint(GLFW_FLOATING, (flags & AlwaysOnTop) == 0 ? GLFW_TRUE : GLFW_FALSE);
+        glfwWindowHint(GLFW_RESIZABLE, (flags & WINDOW_FLAGS_RESIZABLE) == 0 ? GLFW_TRUE : GLFW_FALSE);
+        glfwWindowHint(GLFW_TRANSPARENT_FRAMEBUFFER, (flags & WINDOW_FLAGS_TRANSPARENT) == 0 ? GLFW_TRUE : GLFW_FALSE);
+        glfwWindowHint(GLFW_DECORATED, (flags & WINDOW_FLAGS_BORDERLESS) == 0 ? GLFW_TRUE : GLFW_FALSE);
+        glfwWindowHint(GLFW_FLOATING, (flags & WINDOW_FLAGS_ALWAYS_ON_TOP) == 0 ? GLFW_TRUE : GLFW_FALSE);
 
         const auto window = glfwCreateWindow(resolution.x, resolution.y, "", nullptr, nullptr);
-        if (!window) {
-            spdlog::error("Failed to create window");
-            glfwDestroyWindow(window);
-            glfwTerminate();
-            throw std::runtime_error("Failed to create window");
-        }
+        ASSERT_THROW(window != nullptr, CantCreateError, "Failed to create window");
 
         glfwSetWindowUserPointer(window, this);
         glfwSetFramebufferSizeCallback(window, [](auto w, auto, auto) {
@@ -45,21 +42,46 @@ namespace Vixen {
     ) : driver(driver),
         resolution(resolution),
         mainWindow(nullptr) {
+        ASSERT_THROW(glfwInit() != GLFW_FALSE, CantCreateError,
+                     "Failed to initialize GLFW.\n"
+                     "glfwInit failed.")
+
+        glfwSetErrorCallback([](int code, const char *message) {
+            spdlog::error("[GLFW] {} ({})", message, code);
+        });
+
+        switch (driver) {
 #ifdef VULKAN_ENABLED
-        if (driver == RenderingDriver::Vulkan)
-            renderingContext = std::make_shared<VulkanRenderingContext>();
+            case RenderingDriver::Vulkan:
+                renderingContext = std::make_shared<VulkanRenderingContext>();
+                break;
 #endif
 
-        if (!renderingContext)
-            throw std::runtime_error("Failed to create rendering context");
+#ifdef D3D12_ENABLED
+            case RenderingDriver::D3D12:
+                renderingContext = std::make_shared<D3D12RenderingContext>();
+                break;
+#endif
+        }
+        ASSERT_THROW(renderingContext, CantCreateError, "Failed to create rendering context");
 
         mainWindow = createWindow(mode, vsync, flags, resolution);
         ASSERT_THROW(mainWindow, CantCreateError, "Failed to create window");
 
+        switch (driver) {
 #ifdef VULKAN_ENABLED
-        if (driver == RenderingDriver::Vulkan)
-            renderingDevice = std::make_shared<VulkanRenderingDevice>();
+            case RenderingDriver::Vulkan:
+                // TODO: Hardcoded physical device index
+                renderingDevice = std::make_shared<VulkanRenderingDevice>(std::dynamic_pointer_cast<VulkanRenderingContext>(renderingContext), 0);
+                break;
 #endif
+
+#ifdef D3D12_ENABLED
+            case RenderingDriver::D3D12:
+                renderingDevice = std::make_shared<D3D12RenderingDevice>(std::dynamic_pointer_cast<D3D12RenderingContext>(renderingContext));
+                break;
+#endif
+        }
         ASSERT_THROW(renderingDevice, CantCreateError, "Failed to create rendering device");
     }
 

@@ -15,7 +15,7 @@ namespace Vixen {
             renderingDriver,
             DisplayServer::WindowMode::Maximized,
             DisplayServer::VSyncMode::Disabled,
-            DisplayServer::WindowFlags::Resizable,
+            DisplayServer::WindowFlags::WINDOW_FLAGS_RESIZABLE,
             glm::ivec2{1920, 1080}
         );
     }

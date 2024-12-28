@@ -70,7 +70,7 @@ namespace Vixen {
         for (const auto &[extensionName, required]: requestedExtensions) {
             if (std::ranges::find(enabledInstanceExtensions.begin(), enabledInstanceExtensions.end(), extensionName) ==
                 enabledInstanceExtensions.end()) {
-                ASSERT_THROW(required, CantCreateError, "Required extension \"" + extensionName + "\" was not found");
+                ASSERT_THROW(!required, CantCreateError, "Required extension \"" + extensionName + "\" was not found");
 
                 spdlog::debug("Optional extension {} was not found.", extensionName);
             }
@@ -159,7 +159,8 @@ namespace Vixen {
         ASSERT_THROW(vkEnumeratePhysicalDevices(instance, &physicalDeviceCount, physicalDevices.data()) == VK_SUCCESS,
                      CantCreateError, "Failed to enumerate physical devices.");
 
-        // TODO
+        for (const auto &device: physicalDevices)
+            this->physicalDevices.emplace_back(device);
     }
 
     VulkanRenderingContext::VulkanRenderingContext()
@@ -167,14 +168,6 @@ namespace Vixen {
           instanceApiVersion(VK_API_VERSION_1_0),
           instance(VK_NULL_HANDLE),
           surface(VK_NULL_HANDLE) {
-        ASSERT_THROW(glfwInit() != GLFW_FALSE, CantCreateError,
-                     "Failed to initialize GLFW.\n"
-                     "glfwInit failed.")
-
-        glfwSetErrorCallback([](int code, const char *message) {
-            spdlog::error("[GLFW] {} ({})", message, code);
-        });
-
         ASSERT_THROW(glfwVulkanSupported() == GLFW_TRUE, CantCreateError,
                      "This device does not report Vulkan support.\n"
                      "Updating your graphics drivers may resolve this issue.\n"
@@ -195,5 +188,13 @@ namespace Vixen {
 
     VulkanRenderingContext::~VulkanRenderingContext() {
         vkDestroyInstance(instance, nullptr);
+    }
+
+    GraphicsCard VulkanRenderingContext::getPhysicalDevice(const uint32_t index) {
+        return physicalDevices[index];
+    }
+
+    VkInstance VulkanRenderingContext::getInstance() const {
+        return instance;
     }
 }

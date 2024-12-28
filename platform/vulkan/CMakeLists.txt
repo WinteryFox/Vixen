@@ -1,59 +1,18 @@
-project("Vulkan")
-
 find_package(Vulkan 1.3 REQUIRED)
 
 find_package(spirv_cross_reflect REQUIRED)
 
 add_library(
-        VkVixen
+        volk
         STATIC
         ${CMAKE_SOURCE_DIR}/thirdparty/volk/volk.c
-        VulkanApplication.cpp
-        device/Instance.cpp
-        device/VulkanDevice.cpp
-        device/VulkanDevice.h
-        buffer/VulkanBuffer.cpp
-        buffer/VulkanBuffer.h
-        window/VulkanSwapchain.cpp
-        window/VulkanSwapchain.h
-        pipeline/VulkanPipeline.cpp
-        pipeline/VulkanPipeline.h
-        shader/VulkanShaderModule.cpp
-        shader/VulkanShaderModule.h
-        shader/VulkanShaderProgram.cpp
-        shader/VulkanShaderProgram.h
-        rendering/Renderer.cpp
-        rendering/Renderer.h
-        pipeline/VulkanPipelineLayout.cpp
-        pipeline/VulkanPipelineLayout.h
-        commandbuffer/VulkanCommandBuffer.cpp
-        commandbuffer/VulkanCommandBuffer.h
-        commandbuffer/VulkanCommandPool.cpp
-        commandbuffer/VulkanCommandPool.h
-        synchronization/VulkanFence.cpp
-        synchronization/VulkanFence.h
-        image/VulkanImage.cpp
-        image/VulkanImage.h
-        image/VulkanImageView.cpp
-        image/VulkanImageView.h
-        synchronization/VulkanSemaphore.cpp
-        synchronization/VulkanSemaphore.h
-        descriptorset/VulkanDescriptorPoolFixed.cpp
-        descriptorset/VulkanDescriptorPoolFixed.h
-        descriptorset/VulkanDescriptorSetLayout.cpp
-        descriptorset/VulkanDescriptorSetLayout.h
-        descriptorset/VulkanDescriptorSet.cpp
-        descriptorset/VulkanDescriptorSet.h
-        rendering/VulkanMesh.cpp
-        rendering/VulkanMesh.h
-        descriptorset/VulkanDescriptorPoolExpanding.cpp
-        descriptorset/VulkanDescriptorPoolExpanding.h
-        material/Material.h
-        material/MaterialPass.h
-        commandbuffer/CommandBufferLevel.h
-        commandbuffer/CommandBufferUsage.h
-        exception/VulkanException.h
-        FrameData.h
+)
+
+add_library(
+        VkVixen
+        STATIC
+        image/VulkanImage2D.cpp
+        image/VulkanImage2D.h
         VulkanRenderingContext.cpp
         VulkanRenderingContext.h
         VulkanRenderingDevice.cpp
@@ -68,6 +27,7 @@ target_link_libraries(
         spirv-cross-glsl
         spirv-cross-reflect
         freeimage
+        volk
 )
 target_include_directories(
         VkVixen

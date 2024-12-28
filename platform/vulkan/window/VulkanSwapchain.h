@@ -12,7 +12,7 @@ namespace Vixen {
     class VulkanDevice;
     struct FrameData;
     class VulkanImageView;
-    class VulkanImage;
+    class VulkanImage2D;
 
     class VulkanSwapchain {
         std::shared_ptr<VulkanDevice> device;

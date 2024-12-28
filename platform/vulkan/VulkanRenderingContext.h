@@ -14,9 +14,7 @@ namespace Vixen {
 
         VkInstance instance;
 
-        std::vector<GraphicsCard> driverDevices;
-
-        std::vector<VkPhysicalDevice> physicalDevices;
+        std::vector<GraphicsCard> physicalDevices;
 
         VkSurfaceKHR surface;
 
@@ -32,5 +30,9 @@ namespace Vixen {
         VulkanRenderingContext();
 
         ~VulkanRenderingContext() override;
+
+        GraphicsCard getPhysicalDevice(uint32_t index);
+
+        [[nodiscard]] VkInstance getInstance() const;
     };
 }

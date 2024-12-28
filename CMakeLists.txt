@@ -58,11 +58,19 @@ if (ENABLE_VULKAN)
     add_compile_definitions(VULKAN_ENABLED)
 endif ()
 
+if (ENABLE_D3D12)
+    add_compile_definitions(D3D12_ENABLED)
+endif ()
+
 add_subdirectory(core)
 
 if (ENABLE_VULKAN)
     add_subdirectory(thirdparty/VulkanMemoryAllocator)
     add_subdirectory(platform/vulkan)
+endif ()
+
+if (ENABLE_D3D12)
+    add_subdirectory(platform/d3d12)
 endif ()
 
 if (ENABLE_EDITOR)
