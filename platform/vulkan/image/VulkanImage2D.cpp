@@ -120,6 +120,33 @@ namespace Vixen {
             CantCreateError,
             "Failed to create image"
         );
+
+        VkImageViewCreateInfo imageViewInfo{
+            .sType = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO,
+            .pNext = nullptr,
+            .flags = 0,
+            .image = image,
+            .viewType = VK_IMAGE_VIEW_TYPE_2D,
+            .format = imageCreateInfo.format,
+            .components = {
+                .r = static_cast<VkComponentSwizzle>(view.swizzleRed),
+                .g = static_cast<VkComponentSwizzle>(view.swizzleGreen),
+                .b = static_cast<VkComponentSwizzle>(view.swizzleBlue),
+                .a = static_cast<VkComponentSwizzle>(view.swizzleAlpha)
+            },
+            .subresourceRange = {
+                .aspectMask = static_cast<VkImageAspectFlags>(format.usage & DepthStencilAttachment
+                                                                  ? VK_IMAGE_ASPECT_DEPTH_BIT
+                                                                  : VK_IMAGE_ASPECT_COLOR_BIT),
+                .baseMipLevel = 0,
+                .levelCount = imageCreateInfo.mipLevels,
+                .baseArrayLayer = 0,
+                .layerCount = imageCreateInfo.arrayLayers
+            }
+        };
+
+        ASSERT_THROW(vkCreateImageView(device->getDevice(), &imageViewInfo, nullptr, &imageView) == VK_SUCCESS,
+                     CantCreateError, "Call to vkCreateImageView failed.");
     }
 
     VulkanImage2D::VulkanImage2D(VulkanImage2D &&other) noexcept
