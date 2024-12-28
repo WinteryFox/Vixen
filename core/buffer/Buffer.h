@@ -2,19 +2,28 @@
 
 #include <cstdint>
 
+#include "BufferUsage.h"
+
 namespace Vixen {
     class Buffer {
+    protected:
+        BufferUsage usage;
+
+        uint32_t count;
+
+        uint32_t stride;
+
     public:
-        enum class Usage {
-            Vertex = 1 << 0,
-            Index = 1 << 1,
-            Uniform = 1 << 2,
-            CopySource = 1 << 3,
-            CopyDestination = 1 << 4
-        };
+        Buffer(BufferUsage usage, uint32_t count, uint32_t stride);
 
-        Buffer(Usage usage, uint32_t size);
+        virtual ~Buffer() = default;
 
-        ~Buffer();
+        [[nodiscard]] BufferUsage getUsage() const;
+
+        [[nodiscard]] uint32_t getCount() const;
+
+        [[nodiscard]] uint32_t getStride() const;
+
+        [[nodiscard]] uint64_t getSize() const;
     };
 }

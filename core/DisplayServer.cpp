@@ -260,6 +260,14 @@ namespace Vixen {
         glfwGetFramebufferSize(mainWindow, &width, &height);
     }
 
+    std::shared_ptr<RenderingDevice> DisplayServer::getRenderingDevice() const {
+        return renderingDevice;
+    }
+
+    std::shared_ptr<RenderingContext> DisplayServer::getRenderingContext() const {
+        return renderingContext;
+    }
+
     void DisplayServer::maximize() const {
         glfwMaximizeWindow(mainWindow);
     }

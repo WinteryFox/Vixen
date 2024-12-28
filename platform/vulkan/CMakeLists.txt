@@ -11,12 +11,13 @@ add_library(
 add_library(
         VkVixen
         STATIC
-        image/VulkanImage2D.cpp
-        image/VulkanImage2D.h
+        image/VulkanImage.h
         VulkanRenderingContext.cpp
         VulkanRenderingContext.h
         VulkanRenderingDevice.cpp
         VulkanRenderingDevice.h
+        image/VulkanSampler.h
+        buffer/VulkanBuffer.h
 )
 target_link_libraries(
         VkVixen

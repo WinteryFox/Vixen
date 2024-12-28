@@ -3,7 +3,7 @@
 #include "DisplayServer.h"
 
 namespace Vixen {
-    class Application {
+    class Application final {
         std::shared_ptr<DisplayServer> displayServer;
 
         std::string applicationTitle;
@@ -15,13 +15,15 @@ namespace Vixen {
     public:
         explicit Application(
             DisplayServer::RenderingDriver renderingDriver,
-            const std::string &applicationTitle,
+            std::string applicationTitle,
             glm::vec3 applicationVersion,
-            const std::string &workingDirectory = ".\\"
+            std::string workingDirectory = ".\\"
         );
 
-        virtual ~Application();
+        ~Application();
 
-        virtual void run();
+        void run() const;
+
+        [[nodiscard]] std::shared_ptr<DisplayServer> getDisplayServer() const;
     };
 }

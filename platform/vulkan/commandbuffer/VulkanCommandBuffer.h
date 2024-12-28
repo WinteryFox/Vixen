@@ -8,8 +8,8 @@ namespace Vixen {
     struct AttachmentInfo;
     struct Rectangle;
     class VulkanCommandPool;
-    class VulkanBuffer;
-    class VulkanImage2D;
+    struct VulkanBuffer;
+    struct VulkanImage;
     class VulkanImageView;
     class VulkanMesh;
     enum class CommandBufferUsage;
@@ -74,13 +74,13 @@ namespace Vixen {
 
         void copyBuffer(const VulkanBuffer &source, const VulkanBuffer &destination) const;
 
-        void copyBufferToImage(const VulkanBuffer &source, const VulkanImage2D &destination) const;
+        void copyBufferToImage(const VulkanBuffer &source, const VulkanImage &destination) const;
 
-        void copyImage(const VulkanImage2D &source, const VulkanImage2D &destination) const;
+        void copyImage(const VulkanImage &source, const VulkanImage &destination) const;
 
-        void transitionImage(VulkanImage2D &image, VkImageLayout oldLayout, VkImageLayout newLayout, uint32_t baseMipLevel,
+        void transitionImage(VulkanImage &image, VkImageLayout oldLayout, VkImageLayout newLayout, uint32_t baseMipLevel,
                              uint32_t mipLevels) const;
 
-        void blitImage(const VulkanImage2D &source, VulkanImage2D &destination) const;
+        void blitImage(const VulkanImage &source, VulkanImage &destination) const;
     };
 }

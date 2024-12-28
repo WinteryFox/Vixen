@@ -1,16 +1,30 @@
 #include "Application.h"
 
+#ifdef _WIN32
+#include <Windows.h>
+#endif
+
 #include <DisplayServer.h>
+#include <utility>
 
 namespace Vixen {
     Application::Application(
         DisplayServer::RenderingDriver renderingDriver,
-        const std::string &applicationTitle,
+        std::string applicationTitle,
         const glm::vec3 applicationVersion,
-        const std::string &workingDirectory
-    ) : applicationTitle(applicationTitle),
+        std::string workingDirectory
+    ) : applicationTitle(std::move(applicationTitle)),
         applicationVersion(applicationVersion),
-        workingDirectory(workingDirectory) {
+        workingDirectory(std::move(workingDirectory)) {
+#ifdef _WIN32
+        system(std::format("chcp {}", CP_UTF8).c_str());
+#endif
+
+        spdlog::set_pattern("%Y-%m-%d %T.%e %^%7l%$ %P --- [%t] %1v");
+#ifdef DEBUG_ENABLED
+        spdlog::set_level(spdlog::level::trace);
+#endif
+
         this->displayServer = std::make_shared<DisplayServer>(
             renderingDriver,
             DisplayServer::WindowMode::Maximized,
@@ -20,12 +34,15 @@ namespace Vixen {
         );
     }
 
-    Application::~Application() {
-    }
+    Application::~Application() = default;
 
-    void Application::run() {
+    void Application::run() const {
         while (!displayServer->shouldClose()) {
             displayServer->update();
         }
+    }
+
+    std::shared_ptr<DisplayServer> Application::getDisplayServer() const {
+        return displayServer;
     }
 }

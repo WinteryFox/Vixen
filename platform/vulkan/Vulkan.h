@@ -17,6 +17,7 @@
 #include "core/LoadAction.h"
 #include "core/StoreAction.h"
 #include "core/image/ImageSamples.h"
+#include "core/image/ImageType.h"
 #include "exception/VulkanException.h"
 
 namespace Vixen {
@@ -255,7 +256,7 @@ namespace Vixen {
 
     static VkSampleCountFlagBits toVkSampleCountFlagBits(const ImageSamples &samples) {
         switch (samples) {
-            using enum ImageSamples;
+                using enum ImageSamples;
 
             case One:
                 return VK_SAMPLE_COUNT_1_BIT;
@@ -280,6 +281,27 @@ namespace Vixen {
         }
 
         throw std::runtime_error("Unsupported sample count");
+    }
+
+    static constexpr VkImageType toVkImageType(const ImageType &type) {
+        switch (type) {
+            case ImageType::OneD:
+                return VK_IMAGE_TYPE_1D;
+            case ImageType::TwoD:
+                return VK_IMAGE_TYPE_2D;
+            case ImageType::ThreeD:
+                return VK_IMAGE_TYPE_3D;
+            case ImageType::Cube:
+                return VK_IMAGE_TYPE_2D;
+            case ImageType::OneDArray:
+                return VK_IMAGE_TYPE_1D;
+            case ImageType::TwoDArray:
+                return VK_IMAGE_TYPE_2D;
+            case ImageType::CubeArray:
+                return VK_IMAGE_TYPE_2D;
+        }
+
+        throw std::runtime_error("Unsupported image type");
     }
 
     [[maybe_unused]] static VkAttachmentLoadOp toVkLoadAction(const LoadAction loadAction) {

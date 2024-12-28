@@ -41,7 +41,7 @@ include(FetchContent)
 find_package(PkgConfig REQUIRED)
 
 option(ENABLE_VULKAN "Enable or disable Vulkan support" ON)
-option(ENABLE_D3D12 "Enable or disable D3D12 support" ON)
+option(ENABLE_D3D12 "Enable or disable D3D12 support" OFF)
 option(ENABLE_OPENGL "Enable or disable OpenGL support" ON)
 option(ENABLE_TESTS "Enable or disable building of the tests" ON)
 option(ENABLE_EDITOR "Enable or disable the editor" ON)

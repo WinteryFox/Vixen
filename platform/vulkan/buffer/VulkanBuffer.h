@@ -1,48 +1,26 @@
 #pragma once
 
-#include <memory>
-#include <vma/vk_mem_alloc.h>
+#include "core/buffer/Buffer.h"
 
-#include "VulkanRenderingDevice.h"
-#include "core/buffer/BufferUsage.h"
+typedef struct VmaAllocation_T *VmaAllocation;
+class VulkanRenderingDevice;
+enum class BufferUsage : int64_t;
 
 namespace Vixen {
-    class VulkanBuffer {
-        std::shared_ptr<VulkanRenderingDevice> device;
-
-        uint32_t count;
-
-        uint32_t stride;
-
-        VmaAllocation allocation;
+    struct VulkanBuffer final : Buffer {
+        VulkanBuffer(
+            const BufferUsage usage,
+            const uint32_t count,
+            const uint32_t stride,
+            VkBuffer buffer,
+            VmaAllocation allocation
+        ) : Buffer(usage, count, stride),
+            buffer(buffer),
+            allocation(allocation) {
+        }
 
         VkBuffer buffer;
 
-        VmaAllocationInfo allocationInfo;
-
-        BufferUsage usage;
-
-    public:
-        VulkanBuffer(const std::shared_ptr<VulkanRenderingDevice>& device, BufferUsage usage, uint32_t count, uint32_t stride);
-
-        VulkanBuffer(const VulkanBuffer&) = delete;
-
-        VulkanBuffer& operator=(const VulkanBuffer&) = delete;
-
-        VulkanBuffer(VulkanBuffer&& other) noexcept;
-
-        VulkanBuffer& operator=(VulkanBuffer&& other) noexcept;
-
-        ~VulkanBuffer();
-
-        void setData(const std::byte* data) const;
-
-        [[nodiscard]] ::VkBuffer getBuffer() const;
-
-        [[nodiscard]] std::size_t getSize() const;
-
-        [[nodiscard]] uint32_t getCount() const;
-
-        [[nodiscard]] uint32_t getStride() const;
+        VmaAllocation allocation;
     };
 }

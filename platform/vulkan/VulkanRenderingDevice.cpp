@@ -1,13 +1,13 @@
 #define VMA_IMPLEMENTATION
-#include <vk_mem_alloc.h>
-
 #include "VulkanRenderingDevice.h"
 
-#include <vma/vk_mem_alloc.h>
+#include <vk_mem_alloc.h>
 
 #include "FrameData.h"
 #include "VulkanRenderingContext.h"
 #include "buffer/VulkanBuffer.h"
+#include "image/VulkanImage.h"
+#include "image/VulkanSampler.h"
 
 namespace Vixen {
     void VulkanRenderingDevice::initializeExtensions() {
@@ -149,6 +149,7 @@ namespace Vixen {
             .vkGetPhysicalDeviceMemoryProperties2KHR = vkGetPhysicalDeviceMemoryProperties2,
             .vkGetDeviceBufferMemoryRequirements = vkGetDeviceBufferMemoryRequirements,
             .vkGetDeviceImageMemoryRequirements = vkGetDeviceImageMemoryRequirements,
+            .vkGetMemoryWin32HandleKHR = nullptr
         };
 
         const VmaAllocatorCreateInfo allocatorInfo{
@@ -169,10 +170,30 @@ namespace Vixen {
                      "Call to vmaCreateAllocator failed.");
     }
 
+    VkSampleCountFlagBits VulkanRenderingDevice::findClosestSupportedSampleCount(const ImageSamples &samples) const {
+        const auto limits = physicalDevice.properties.limits;
+
+        const VkSampleCountFlags flags = limits.framebufferColorSampleCounts & limits.framebufferDepthSampleCounts;
+        if (flags & toVkSampleCountFlagBits(samples))
+            return toVkSampleCountFlagBits(samples);
+
+        VkSampleCountFlagBits sampleCount = toVkSampleCountFlagBits(samples);
+        while (sampleCount > VK_SAMPLE_COUNT_1_BIT) {
+            if (flags & sampleCount) {
+                return sampleCount;
+            }
+
+            sampleCount = static_cast<VkSampleCountFlagBits>(sampleCount >> 1);
+        }
+
+        return VK_SAMPLE_COUNT_1_BIT;
+    }
+
     VulkanRenderingDevice::VulkanRenderingDevice(
         const std::shared_ptr<VulkanRenderingContext> &renderingContext,
         const uint32_t deviceIndex
-    ) : enabledFeatures(),
+    ) : RenderingDevice(),
+        enabledFeatures(),
         renderingContext(renderingContext),
         physicalDevice(renderingContext->getPhysicalDevice(deviceIndex)),
         device(VK_NULL_HANDLE),
@@ -190,25 +211,280 @@ namespace Vixen {
         vmaDestroyAllocator(allocator);
 
         vkDestroyDevice(device, nullptr);
-    };
-
-    Buffer VulkanRenderingDevice::createBuffer(Buffer::Usage usage, uint32_t count, uint32_t stride) {
-        // TODO
     }
 
-    Image VulkanRenderingDevice::createImage(const ImageFormat &format, const ImageView &view) {
-        // TODO
+    Buffer *VulkanRenderingDevice::createBuffer(const BufferUsage usage, const uint32_t count, const uint32_t stride) {
+        if (count <= 0)
+            throw std::runtime_error("Count cannot be equal to or less than 0");
+        if (stride <= 0)
+            throw std::runtime_error("Stride cannot be equal to or less than 0");
+
+        VmaAllocationCreateFlags allocationFlags = 0;
+        VkBufferUsageFlags bufferUsageFlags = 0;
+        VkMemoryPropertyFlags requiredFlags = 0;
+
+        if (usage & BufferUsage::Vertex)
+            bufferUsageFlags |= VK_BUFFER_USAGE_VERTEX_BUFFER_BIT;
+
+        if (usage & BufferUsage::Index)
+            bufferUsageFlags |= VK_BUFFER_USAGE_INDEX_BUFFER_BIT;
+
+        if (usage & BufferUsage::CopySource) {
+            allocationFlags |= VMA_ALLOCATION_CREATE_MAPPED_BIT |
+                    VMA_ALLOCATION_CREATE_HOST_ACCESS_SEQUENTIAL_WRITE_BIT;
+            bufferUsageFlags |= VK_BUFFER_USAGE_TRANSFER_SRC_BIT;
+        }
+
+        if (usage & BufferUsage::CopyDestination)
+            bufferUsageFlags |= VK_BUFFER_USAGE_TRANSFER_DST_BIT;
+
+        if (usage & BufferUsage::Uniform) {
+            allocationFlags |= VMA_ALLOCATION_CREATE_MAPPED_BIT |
+                    VMA_ALLOCATION_CREATE_HOST_ACCESS_SEQUENTIAL_WRITE_BIT;
+            bufferUsageFlags |= VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT;
+            requiredFlags |= VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT;
+        }
+
+        const VkBufferCreateInfo bufferCreateInfo{
+            .sType = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO,
+            .pNext = nullptr,
+            .flags = 0,
+            .size = count * stride,
+            .usage = bufferUsageFlags,
+            .sharingMode = VK_SHARING_MODE_EXCLUSIVE,
+            .queueFamilyIndexCount = 0,
+            .pQueueFamilyIndices = nullptr
+        };
+
+        const VmaAllocationCreateInfo allocationCreateInfo = {
+            .flags = allocationFlags,
+            .usage = VMA_MEMORY_USAGE_AUTO,
+            .requiredFlags = requiredFlags,
+            .preferredFlags = 0,
+            .memoryTypeBits = 0,
+            .pool = nullptr,
+            .pUserData = nullptr,
+            .priority = 0.0f
+        };
+
+        VkBuffer buffer;
+        VmaAllocation allocation;
+        VmaAllocationInfo allocationInfo;
+        ASSERT_THROW(
+            vmaCreateBuffer(
+                allocator,
+                &bufferCreateInfo,
+                &allocationCreateInfo,
+                &buffer,
+                &allocation,
+                &allocationInfo
+            ) == VK_SUCCESS,
+            CantCreateError,
+            "Failed to create buffer"
+        );
+
+        return new VulkanBuffer(
+            usage,
+            count,
+            stride,
+            buffer,
+            allocation
+        );
+    }
+
+    void VulkanRenderingDevice::destroyBuffer(Buffer *buffer) {
+        const auto o = reinterpret_cast<VulkanBuffer *>(buffer);
+        vmaDestroyBuffer(allocator, o->buffer, o->allocation);
+    }
+
+    Image *VulkanRenderingDevice::createImage(const ImageFormat &format, const ImageView &view) {
+        VkImageCreateInfo imageCreateInfo{
+            .sType = VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO,
+            .pNext = nullptr,
+            .flags = 0,
+            .imageType = toVkImageType(format.type),
+            .format = toVkDataFormat[format.format],
+            .extent = {
+                .width = format.width,
+                .height = format.height,
+                .depth = format.depth
+            },
+            .mipLevels = format.mipmapCount,
+            .arrayLayers = format.layerCount,
+            .samples = findClosestSupportedSampleCount(format.samples),
+            .tiling = format.usage & ImageUsage::CpuRead ? VK_IMAGE_TILING_LINEAR : VK_IMAGE_TILING_OPTIMAL,
+            .usage = 0,
+            .sharingMode = VK_SHARING_MODE_EXCLUSIVE,
+            .queueFamilyIndexCount = 0,
+            .pQueueFamilyIndices = nullptr,
+            .initialLayout = VK_IMAGE_LAYOUT_UNDEFINED
+        };
+
+        if (format.type == ImageType::Cube || format.type == ImageType::CubeArray)
+            imageCreateInfo.flags |= VK_IMAGE_CREATE_CUBE_COMPATIBLE_BIT;
+
+        if (format.usage & ImageUsage::Sampling)
+            imageCreateInfo.usage |= VK_IMAGE_USAGE_SAMPLED_BIT;
+        if (format.usage & ImageUsage::Storage)
+            imageCreateInfo.usage |= VK_IMAGE_USAGE_STORAGE_BIT;
+        if (format.usage & ImageUsage::ColorAttachment)
+            imageCreateInfo.usage |= VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT;
+        if (format.usage & ImageUsage::DepthStencilAttachment)
+            imageCreateInfo.usage |= VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT;
+        if (format.usage & ImageUsage::InputAttachment)
+            imageCreateInfo.usage |= VK_IMAGE_USAGE_INPUT_ATTACHMENT_BIT;
+        if (format.usage & ImageUsage::Update)
+            imageCreateInfo.usage |= VK_IMAGE_USAGE_TRANSFER_DST_BIT;
+        if (format.usage & ImageUsage::CopySource)
+            imageCreateInfo.usage |= VK_IMAGE_USAGE_TRANSFER_SRC_BIT;
+        if (format.usage & ImageUsage::CopyDestination)
+            imageCreateInfo.usage |= VK_IMAGE_USAGE_TRANSFER_DST_BIT;
+
+        VmaAllocationCreateInfo allocationCreateInfo{
+            .flags = static_cast<VmaAllocationCreateFlags>(
+                format.usage & ImageUsage::CpuRead
+                    ? VMA_ALLOCATION_CREATE_HOST_ACCESS_RANDOM_BIT
+                    : 0
+            ),
+            .usage = VMA_MEMORY_USAGE_AUTO,
+            .requiredFlags = 0,
+            .preferredFlags = 0,
+            .memoryTypeBits = 0,
+            .pool = nullptr,
+            .pUserData = nullptr,
+            .priority = 0.0f
+        };
+
+        if (format.usage & ImageUsage::Transient) {
+            uint32_t memoryTypeIndex = 0;
+            VmaAllocationCreateInfo lazyMemoryRequirements = allocationCreateInfo;
+            lazyMemoryRequirements.usage = VMA_MEMORY_USAGE_GPU_LAZILY_ALLOCATED;
+            if (const VkResult result = vmaFindMemoryTypeIndex(allocator, UINT32_MAX, &lazyMemoryRequirements,
+                                                               &memoryTypeIndex);
+                result == VK_SUCCESS) {
+                allocationCreateInfo = lazyMemoryRequirements;
+                imageCreateInfo.usage |= VK_IMAGE_USAGE_TRANSIENT_ATTACHMENT_BIT;
+                imageCreateInfo.usage &= (VK_IMAGE_USAGE_TRANSIENT_ATTACHMENT_BIT | VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT
+                                          | VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT |
+                                          VK_IMAGE_USAGE_INPUT_ATTACHMENT_BIT);
+            } else {
+                allocationCreateInfo.preferredFlags = VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT;
+            }
+        } else {
+            allocationCreateInfo.preferredFlags = VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT;
+        }
+
+        // TODO: Handle small allocations
+
+        VkImage image;
+        VmaAllocation allocation;
+        ASSERT_THROW(
+            vmaCreateImage(
+                allocator,
+                &imageCreateInfo,
+                &allocationCreateInfo,
+                &image,
+                &allocation,
+                nullptr
+            ) == VK_SUCCESS,
+            CantCreateError,
+            "Failed to create image"
+        );
+
+        VkImageView imageView;
+        const VkImageViewCreateInfo imageViewInfo{
+            .sType = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO,
+            .pNext = nullptr,
+            .flags = 0,
+            .image = image,
+            .viewType = VK_IMAGE_VIEW_TYPE_2D,
+            .format = imageCreateInfo.format,
+            .components = {
+                .r = static_cast<VkComponentSwizzle>(view.swizzleRed),
+                .g = static_cast<VkComponentSwizzle>(view.swizzleGreen),
+                .b = static_cast<VkComponentSwizzle>(view.swizzleBlue),
+                .a = static_cast<VkComponentSwizzle>(view.swizzleAlpha)
+            },
+            .subresourceRange = {
+                .aspectMask = static_cast<VkImageAspectFlags>(format.usage & ImageUsage::DepthStencilAttachment
+                                                                  ? VK_IMAGE_ASPECT_DEPTH_BIT
+                                                                  : VK_IMAGE_ASPECT_COLOR_BIT),
+                .baseMipLevel = 0,
+                .levelCount = imageCreateInfo.mipLevels,
+                .baseArrayLayer = 0,
+                .layerCount = imageCreateInfo.arrayLayers
+            }
+        };
+
+        if (const auto error = vkCreateImageView(device, &imageViewInfo, nullptr, &imageView);
+            error != VK_SUCCESS) {
+            vmaDestroyImage(allocator, image, allocation);
+            ASSERT_THROW(error == VK_SUCCESS, CantCreateError, "Call to vkCreateImageView failed.");
+        }
+
+        return new VulkanImage(
+            format,
+            view,
+            image,
+            imageView,
+            allocation
+        );
+    }
+
+    std::byte *VulkanRenderingDevice::mapImage(Image *image) {
+        const auto o = reinterpret_cast<VulkanImage *>(image);
+        std::byte *data;
+        vmaMapMemory(allocator, o->allocation, reinterpret_cast<void **>(&data));
+        return data;
+    }
+
+    void VulkanRenderingDevice::unmapImage(Image *image) {
+        const auto o = reinterpret_cast<VulkanImage *>(image);
+        vmaUnmapMemory(allocator, o->allocation);
+    }
+
+    void VulkanRenderingDevice::destroyImage(Image *image) {
+        const auto o = reinterpret_cast<VulkanImage *>(image);
+        vkDestroyImageView(device, o->imageView, nullptr);
+        vmaDestroyImage(allocator, o->image, o->allocation);
+    }
+
+    Sampler *VulkanRenderingDevice::createSampler(SamplerState state) {
+        const VkSamplerCreateInfo samplerInfo{
+            .sType = VK_STRUCTURE_TYPE_SAMPLER_CREATE_INFO,
+            .pNext = nullptr,
+            .flags = 0,
+            .magFilter = state.mag == SamplerFilter::Linear ? VK_FILTER_LINEAR : VK_FILTER_NEAREST,
+            .minFilter = state.min == SamplerFilter::Linear ? VK_FILTER_LINEAR : VK_FILTER_NEAREST,
+            .mipmapMode = state.mip == SamplerFilter::Linear
+                              ? VK_SAMPLER_MIPMAP_MODE_LINEAR
+                              : VK_SAMPLER_MIPMAP_MODE_NEAREST,
+            .addressModeU = static_cast<VkSamplerAddressMode>(state.u),
+            .addressModeV = static_cast<VkSamplerAddressMode>(state.v),
+            .addressModeW = static_cast<VkSamplerAddressMode>(state.w),
+            .mipLodBias = state.lodBias,
+            .anisotropyEnable = state.useAnisotropy && physicalDevice.features.samplerAnisotropy,
+            .maxAnisotropy = state.maxAnisotropy,
+            .compareEnable = state.enableCompare,
+            .compareOp = static_cast<VkCompareOp>(state.compareOperator),
+            .minLod = state.minLod,
+            .maxLod = state.maxLod,
+            .borderColor = static_cast<VkBorderColor>(state.borderColor),
+            .unnormalizedCoordinates = state.unnormalizedCoordinates
+        };
+
+        VkSampler sampler;
+        ASSERT_THROW(vkCreateSampler(device, &samplerInfo, nullptr, &sampler) == VK_SUCCESS,
+                     CantCreateError, "Call to vkCreateSampler failed.");
+
+        return new VulkanSampler(state, sampler);
+    }
+
+    void VulkanRenderingDevice::destroySampler(Sampler *sampler) {
+        vkDestroySampler(device, reinterpret_cast<VulkanSampler *>(sampler)->sampler, nullptr);
     }
 
     GraphicsCard VulkanRenderingDevice::getPhysicalDevice() const {
         return physicalDevice;
-    }
-
-    VkDevice VulkanRenderingDevice::getDevice() const {
-        return device;
-    }
-
-    VmaAllocator VulkanRenderingDevice::getAllocator() const {
-        return allocator;
     }
 }

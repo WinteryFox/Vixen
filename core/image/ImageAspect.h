@@ -1,9 +1,13 @@
 #pragma once
 
+#include "core/Bitmask.h"
+
 namespace Vixen {
-    enum ImageAspect {
-        IMAGE_ASPECT_COLOR,
-        IMAGE_ASPECT_DEPTH,
-        IMAGE_ASPECT_STENCIL
+    enum class ImageAspect : int64_t {
+        Color = 1 << 0,
+        Depth = 1 << 1,
+        Stencil = 1 << 2
     };
+
+    DECLARE_BITMASK(ImageAspect);
 }

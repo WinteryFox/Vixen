@@ -13,8 +13,16 @@ namespace Vixen {
 
         ~D3D12RenderingDevice() override;
 
-        Buffer createBuffer(Buffer::Usage usage, uint32_t count, uint32_t stride) override;
+        Buffer *createBuffer(BufferUsage usage, uint32_t count, uint32_t stride) override;
 
-        Image createImage(const ImageFormat &format, const ImageView &view) override;
+        void destroyBuffer(Buffer *buffer) override;
+
+        Image *createImage(const ImageFormat &format, const ImageView &view) override;
+
+        void destroyImage(Image *image) override;
+
+        Sampler *createSampler(SamplerState state) override;
+
+        void destroySampler(Sampler *sampler) override;
     };
 }

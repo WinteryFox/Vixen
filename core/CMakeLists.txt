@@ -46,7 +46,6 @@ add_library(
         shader/ShaderResources.h
         Application.cpp
         Application.h
-        RenderingDevice.cpp
         RenderingDevice.h
         error/macros.h
         error/CantCreateError.h
@@ -64,9 +63,16 @@ add_library(
         image/ImageType.h
         image/Image.cpp
         image/Image.h
-        image/Image2D.cpp
-        image/Image2D.h
         image/ImageUsage.h
+        image/Sampler.cpp
+        image/Sampler.h
+        image/SamplerState.h
+        image/SamplerFilter.h
+        image/SamplerRepeatMode.h
+        image/CompareOperator.h
+        image/SamplerBorderColor.h
+        Bitmask.h
+        buffer/Buffer.cpp
 )
 target_link_libraries(
         Vixen

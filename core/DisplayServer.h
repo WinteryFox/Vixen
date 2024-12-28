@@ -126,5 +126,9 @@ namespace Vixen {
         static std::vector<Monitor> getMonitors();
 
         void getFramebufferSize(int &width, int &height) const;
+
+        [[nodiscard]] std::shared_ptr<RenderingDevice> getRenderingDevice() const;
+
+        [[nodiscard]] std::shared_ptr<RenderingContext> getRenderingContext() const;
     };
 }
