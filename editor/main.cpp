@@ -1,3 +1,5 @@
+#include <fstream>
+
 #include "core/Application.h"
 #include "core/RenderingDevice.h"
 
@@ -33,9 +35,18 @@ int main() {
             }
         );
         spdlog::error(buffer->getCount());
-        spdlog::error(image->getWidth());
+        spdlog::error(image->format.width);
         device->destroyBuffer(buffer);
         device->destroyImage(image);
+
+        std::ifstream file("../../editor/resources/shaders/pbr.vertex.glsl");
+        std::string source = (std::stringstream{} << file.rdbuf()).str();
+        file.close();
+
+        const auto binary = Vixen::RenderingDevice::compileSpirvFromSource("test", Vixen::ShaderStage::Vertex, source);
+        const auto shader = device->createShaderFromBytecode(binary);
+        spdlog::error("Shader compiled successfully {}", shader->name);
+        device->destroyShader(shader);
 
         application.run();
     } catch (const std::runtime_error &e) {

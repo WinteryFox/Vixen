@@ -18,6 +18,11 @@ add_library(
         VulkanRenderingDevice.h
         image/VulkanSampler.h
         buffer/VulkanBuffer.h
+        VulkanSwapchain.h
+        GraphicsCard.h
+        command/VulkanCommandPool.h
+        command/VulkanCommandBuffer.h
+        shader/VulkanShader.h
 )
 target_link_libraries(
         VkVixen

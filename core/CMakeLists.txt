@@ -18,6 +18,7 @@ add_library(
         ${CMAKE_SOURCE_DIR}/thirdparty/imgui/misc/cpp/imgui_stdlib.cpp
         ${CMAKE_SOURCE_DIR}/thirdparty/imgui/backends/imgui_impl_glfw.cpp
         ${CMAKE_SOURCE_DIR}/thirdparty/imgui/backends/imgui_impl_vulkan.cpp
+        command/CommandBufferType.h
 )
 target_include_directories(
         imgui
@@ -31,28 +32,22 @@ add_library(
         STATIC
         ${IMGUI_SOURCES}
         DisplayServer.cpp
-        Camera.cpp
-        CommandBuffer.h
-        CommandPoolUsage.h
         IndexFormat.h
         PrimitiveTopology.h
         VertexAttribute.h
         AttachmentInfo.h
         LoadAction.h
         StoreAction.h
-        Rectangle.h
         buffer/BufferUsage.h
-        error/ShaderLinkFailedError.h
-        shader/ShaderResources.h
         Application.cpp
         Application.h
+        RenderingDevice.cpp
         RenderingDevice.h
         error/macros.h
         error/CantCreateError.h
         error/Macros.cpp
         buffer/Buffer.h
         MemoryAllocationType.h
-        image/ImageView.h
         DataFormat.h
         image/ImageSwizzle.h
         image/ImageLayout.h
@@ -61,10 +56,8 @@ add_library(
         image/ImageFormat.h
         image/ImageSamples.h
         image/ImageType.h
-        image/Image.cpp
         image/Image.h
         image/ImageUsage.h
-        image/Sampler.cpp
         image/Sampler.h
         image/SamplerState.h
         image/SamplerFilter.h
@@ -73,6 +66,14 @@ add_library(
         image/SamplerBorderColor.h
         Bitmask.h
         buffer/Buffer.cpp
+        command/CommandPool.h
+        command/CommandBuffer.h
+        command/Semaphore.h
+        command/Fence.h
+        shader/Shader.h
+        shader/ShaderUniform.h
+        shader/ShaderUniformType.h
+        shader/ShaderStage.h
 )
 target_link_libraries(
         Vixen

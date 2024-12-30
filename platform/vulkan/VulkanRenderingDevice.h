@@ -4,7 +4,7 @@
 #include <vector>
 
 #include "core/RenderingDevice.h"
-#include "device/GraphicsCard.h"
+#include "GraphicsCard.h"
 
 typedef struct VmaAllocator_T *VmaAllocator;
 
@@ -36,7 +36,7 @@ namespace Vixen {
 
         void initializeDevice();
 
-        VkSampleCountFlagBits findClosestSupportedSampleCount(const ImageSamples &samples) const;
+        [[nodiscard]] VkSampleCountFlagBits findClosestSupportedSampleCount(const ImageSamples &samples) const;
 
     public:
         VulkanRenderingDevice(const std::shared_ptr<VulkanRenderingContext> &renderingContext, uint32_t deviceIndex);
@@ -50,6 +50,14 @@ namespace Vixen {
         VulkanRenderingDevice &operator=(VulkanRenderingDevice &&) = delete;
 
         ~VulkanRenderingDevice() override;
+
+        CommandPool *createCommandPool(uint32_t queueFamily, CommandBufferType type) override;
+
+        void resetCommandPool(CommandPool *pool) override;
+
+        void destroyCommandPool(CommandPool *pool) override;
+
+        CommandBuffer *createCommandBuffer(CommandPool *pool) override;
 
         Buffer *createBuffer(BufferUsage usage, uint32_t count, uint32_t stride) override;
 
@@ -66,6 +74,10 @@ namespace Vixen {
         Sampler *createSampler(SamplerState state) override;
 
         void destroySampler(Sampler *sampler) override;
+
+        Shader *createShaderFromBytecode(const std::vector<std::byte> &binary) override;
+
+        void destroyShader(Shader *shader) override;
 
         [[nodiscard]] GraphicsCard getPhysicalDevice() const;
     };

@@ -13,12 +13,10 @@
 #include <glm/glm.hpp>
 #include <spdlog/spdlog.h>
 
-#include "core/shader/ShaderModule.h"
 #include "core/LoadAction.h"
 #include "core/StoreAction.h"
 #include "core/image/ImageSamples.h"
 #include "core/image/ImageType.h"
-#include "exception/VulkanException.h"
 
 namespace Vixen {
     [[maybe_unused]] static bool isDepthFormat(const VkFormat format) {
@@ -256,7 +254,7 @@ namespace Vixen {
 
     static VkSampleCountFlagBits toVkSampleCountFlagBits(const ImageSamples &samples) {
         switch (samples) {
-                using enum ImageSamples;
+            using enum ImageSamples;
 
             case One:
                 return VK_SAMPLE_COUNT_1_BIT;
@@ -355,53 +353,6 @@ namespace Vixen {
     [[maybe_unused]] static std::string getVersionString(const uint32_t version) {
         return fmt::format("{}.{}.{}", VK_API_VERSION_MAJOR(version), VK_API_VERSION_MINOR(version),
                            VK_API_VERSION_PATCH(version));
-    }
-
-    [[maybe_unused]] static VkShaderStageFlagBits getVulkanShaderStage(const ShaderResources::Stage stage) {
-        switch (stage) {
-                using enum ShaderResources::Stage;
-
-            case All:
-                return VK_SHADER_STAGE_ALL;
-
-            case Vertex:
-                return VK_SHADER_STAGE_VERTEX_BIT;
-
-            case Fragment:
-                return VK_SHADER_STAGE_FRAGMENT_BIT;
-
-            default:
-                return VK_SHADER_STAGE_ALL;
-        }
-
-        throw std::runtime_error("Unknown shader stage");
-    }
-
-    [[maybe_unused]] static VkVertexInputRate toVkVertexInputRate(const ShaderResources::Rate rate) {
-        switch (rate) {
-            case ShaderResources::Rate::Vertex:
-                return VK_VERTEX_INPUT_RATE_VERTEX;
-
-            case ShaderResources::Rate::Instance:
-                return VK_VERTEX_INPUT_RATE_INSTANCE;
-        }
-
-        throw std::runtime_error("Unknown input rate");
-    }
-
-    [[maybe_unused]] static VkShaderStageFlags toVkShaderStage(const ShaderResources::Stage stage) {
-        switch (stage) {
-            case ShaderResources::Stage::All:
-                return VK_SHADER_STAGE_ALL;
-
-            case ShaderResources::Stage::Vertex:
-                return VK_SHADER_STAGE_VERTEX_BIT;
-
-            case ShaderResources::Stage::Fragment:
-                return VK_SHADER_STAGE_FRAGMENT_BIT;
-        }
-
-        throw std::runtime_error("Unknown shader stage");
     }
 
 #ifdef DEBUG_ENABLED

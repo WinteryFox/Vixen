@@ -8,18 +8,18 @@
 
 namespace Vixen {
     struct QueueFamily {
-        uint32_t index = -1;
+        uint32_t index;
 
-        VkQueueFamilyProperties properties{};
+        VkQueueFamilyProperties properties;
 
-        [[nodiscard]] bool hasFlags(VkQueueFlags flags) const {
+        [[nodiscard]] bool hasFlags(const VkQueueFlags flags) const {
             return properties.queueFlags & flags;
         }
 
-        bool hasSurfaceSupport(VkPhysicalDevice device, VkSurfaceKHR surface) const {
+        bool hasSurfaceSupport(const VkPhysicalDevice device, const VkSurfaceKHR surface) const {
             VkBool32 support = VK_FALSE;
             ASSERT_THROW(
-                vkGetPhysicalDeviceSurfaceSupportKHR(device, index, surface, &support),
+                vkGetPhysicalDeviceSurfaceSupportKHR(device, index, surface, &support) == VK_SUCCESS,
                 CantCreateError,
                 "Failed to query surface support"
             );

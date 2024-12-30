@@ -2,12 +2,17 @@
 #include "VulkanRenderingDevice.h"
 
 #include <vk_mem_alloc.h>
+#include <Vulkan.h>
+#include <spirv_reflect.hpp>
+#include <spirv_cross.hpp>
 
-#include "FrameData.h"
 #include "VulkanRenderingContext.h"
 #include "buffer/VulkanBuffer.h"
+#include "command/VulkanCommandBuffer.h"
+#include "command/VulkanCommandPool.h"
 #include "image/VulkanImage.h"
 #include "image/VulkanSampler.h"
+#include "shader/VulkanShader.h"
 
 namespace Vixen {
     void VulkanRenderingDevice::initializeExtensions() {
@@ -213,6 +218,56 @@ namespace Vixen {
         vkDestroyDevice(device, nullptr);
     }
 
+    CommandPool *VulkanRenderingDevice::createCommandPool(const uint32_t queueFamily, CommandBufferType type) {
+        const VkCommandPoolCreateInfo commandPoolInfo{
+            .sType = VK_STRUCTURE_TYPE_COMMAND_POOL_CREATE_INFO,
+            .pNext = nullptr,
+            .flags = 0,
+            .queueFamilyIndex = queueFamily
+        };
+
+        VkCommandPool commandPool;
+        ASSERT_THROW(vkCreateCommandPool(device, &commandPoolInfo, nullptr, &commandPool) == VK_SUCCESS,
+                     CantCreateError, "Call to vkCreateCommandPool failed.");
+        const auto o = new VulkanCommandPool{};
+        o->pool = commandPool;
+        o->type = type;
+        o->queueFamily = queueFamily;
+        return o;
+    }
+
+    void VulkanRenderingDevice::resetCommandPool(CommandPool *pool) {
+        const auto *o = reinterpret_cast<VulkanCommandPool *>(pool);
+        ASSERT_THROW(vkResetCommandPool(device, o->pool, 0) == VK_SUCCESS, CantCreateError,
+                     "Call to vkResetCommandPool failed.");
+    }
+
+    void VulkanRenderingDevice::destroyCommandPool(CommandPool *pool) {
+        const auto *o = reinterpret_cast<VulkanCommandPool *>(pool);
+        vkDestroyCommandPool(device, o->pool, nullptr);
+        delete o;
+    }
+
+    CommandBuffer *VulkanRenderingDevice::createCommandBuffer(CommandPool *pool) {
+        const auto *p = reinterpret_cast<VulkanCommandPool *>(pool);
+
+        const VkCommandBufferAllocateInfo commandBufferInfo{
+            .sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO,
+            .pNext = nullptr,
+            .commandPool = p->pool,
+            .level = static_cast<VkCommandBufferLevel>(p->type),
+            .commandBufferCount = 1
+        };
+
+        VkCommandBuffer commandBuffer;
+        ASSERT_THROW(vkAllocateCommandBuffers(device, &commandBufferInfo, &commandBuffer) == VK_SUCCESS,
+                     CantCreateError, "Call to vkAllocateCommandBuffers failed.");
+        const auto o = new VulkanCommandBuffer{};
+        o->buffer = commandBuffer;
+
+        return o;
+    }
+
     Buffer *VulkanRenderingDevice::createBuffer(const BufferUsage usage, const uint32_t count, const uint32_t stride) {
         if (count <= 0)
             throw std::runtime_error("Count cannot be equal to or less than 0");
@@ -293,8 +348,9 @@ namespace Vixen {
     }
 
     void VulkanRenderingDevice::destroyBuffer(Buffer *buffer) {
-        const auto o = reinterpret_cast<VulkanBuffer *>(buffer);
+        const auto o = dynamic_cast<VulkanBuffer *>(buffer);
         vmaDestroyBuffer(allocator, o->buffer, o->allocation);
+        delete o;
     }
 
     Image *VulkanRenderingDevice::createImage(const ImageFormat &format, const ImageView &view) {
@@ -422,13 +478,13 @@ namespace Vixen {
             ASSERT_THROW(error == VK_SUCCESS, CantCreateError, "Call to vkCreateImageView failed.");
         }
 
-        return new VulkanImage(
-            format,
-            view,
-            image,
-            imageView,
-            allocation
-        );
+        const auto o = new VulkanImage{};
+        o->format = format;
+        o->view = view;
+        o->image = image;
+        o->imageView = imageView;
+        o->allocation = allocation;
+        return o;
     }
 
     std::byte *VulkanRenderingDevice::mapImage(Image *image) {
@@ -447,6 +503,7 @@ namespace Vixen {
         const auto o = reinterpret_cast<VulkanImage *>(image);
         vkDestroyImageView(device, o->imageView, nullptr);
         vmaDestroyImage(allocator, o->image, o->allocation);
+        delete o;
     }
 
     Sampler *VulkanRenderingDevice::createSampler(SamplerState state) {
@@ -477,11 +534,87 @@ namespace Vixen {
         ASSERT_THROW(vkCreateSampler(device, &samplerInfo, nullptr, &sampler) == VK_SUCCESS,
                      CantCreateError, "Call to vkCreateSampler failed.");
 
-        return new VulkanSampler(state, sampler);
+        const auto o = new VulkanSampler{};
+        o->state = state;
+        o->sampler = sampler;
+        return o;
     }
 
     void VulkanRenderingDevice::destroySampler(Sampler *sampler) {
-        vkDestroySampler(device, reinterpret_cast<VulkanSampler *>(sampler)->sampler, nullptr);
+        const auto o = reinterpret_cast<VulkanSampler *>(sampler);
+        vkDestroySampler(device, o->sampler, nullptr);
+        delete o;
+    }
+
+    Shader *VulkanRenderingDevice::createShaderFromBytecode(const std::vector<std::byte> &binary) {
+        const auto o = new VulkanShader{};
+
+        auto compiler = spirv_cross::Compiler(reinterpret_cast<const uint32_t *>(binary.data()),
+                                              binary.size() / sizeof(uint32_t));
+        auto resources = compiler.get_shader_resources();
+
+        o->name = "test";
+        o->pushConstantSize = compiler.get_active_buffer_ranges(resources.push_constant_buffers[0].id)[0].range;
+
+        for (const auto &[name, executionModel]: compiler.get_entry_points_and_stages()) {
+            switch (executionModel) {
+                case spv::ExecutionModelVertex:
+                    o->stages.push_back(ShaderStage::Vertex);
+                    break;
+
+                case spv::ExecutionModelFragment:
+                    o->stages.push_back(ShaderStage::Fragment);
+                    break;
+
+                case spv::ExecutionModelTessellationControl:
+                    o->stages.push_back(ShaderStage::TesselationControl);
+                    break;
+
+                case spv::ExecutionModelTessellationEvaluation:
+                    o->stages.push_back(ShaderStage::TesselationEvaluation);
+                    break;
+
+                case spv::ExecutionModelGeometry:
+                    o->stages.push_back(ShaderStage::Geometry);
+                    break;
+
+                default:
+                    spdlog::warn("Skipping unsupported stage {} in shader \"{}\".", name, o->name);
+                    break;
+            }
+        }
+
+        for (const auto &uniformBuffer: resources.uniform_buffers) {
+            o->uniforms.push_back({
+                .type = ShaderUniformType::UniformBuffer,
+                .binding = compiler.get_decoration(uniformBuffer.id, spv::DecorationBinding),
+                .stages = {}, // TODO
+                .length = static_cast<uint32_t>(compiler.get_declared_struct_size(
+                    compiler.get_type(uniformBuffer.base_type_id)))
+            });
+        }
+
+        const VkShaderModuleCreateInfo shaderModuleInfo{
+            .sType = VK_STRUCTURE_TYPE_SHADER_MODULE_CREATE_INFO,
+            .pNext = nullptr,
+            .flags = 0,
+            .codeSize = binary.size(),
+            .pCode = reinterpret_cast<const uint32_t *>(binary.data())
+        };
+
+        VkShaderModule module;
+        ASSERT_THROW(vkCreateShaderModule(device, &shaderModuleInfo, nullptr, &module) == VK_SUCCESS, CantCreateError,
+                     "Call to vkCreateShaderModule failed.");
+
+        o->module = module;
+        return o;
+    }
+
+    void VulkanRenderingDevice::destroyShader(Shader *shader) {
+        const auto o = reinterpret_cast<VulkanShader *>(shader);
+
+        vkDestroyShaderModule(device, o->module, nullptr);
+        delete o;
     }
 
     GraphicsCard VulkanRenderingDevice::getPhysicalDevice() const {

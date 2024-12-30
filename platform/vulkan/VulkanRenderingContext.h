@@ -3,7 +3,7 @@
 #include <vector>
 #include <volk.h>
 
-#include "device/GraphicsCard.h"
+#include "GraphicsCard.h"
 #include "core/RenderingContext.h"
 
 namespace Vixen {
