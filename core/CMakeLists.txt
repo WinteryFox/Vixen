@@ -74,6 +74,12 @@ add_library(
         shader/ShaderUniform.h
         shader/ShaderUniformType.h
         shader/ShaderStage.h
+        WindowFlags.h
+        WindowMode.h
+        VSyncMode.h
+        RenderingDriver.h
+        WindowMouseMode.h
+        WindowCursor.h
 )
 target_link_libraries(
         Vixen

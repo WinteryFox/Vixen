@@ -6,52 +6,15 @@
 
 #include "Monitor.h"
 #include "RenderingContext.h"
+#include "RenderingDriver.h"
+#include "VSyncMode.h"
+#include "WindowFlags.h"
+#include "WindowMode.h"
 
 namespace Vixen {
     class RenderingDevice;
 
     class DisplayServer final {
-    public:
-        enum class RenderingDriver {
-            Vulkan,
-            D3D12
-        };
-
-        enum class WindowMode {
-            Windowed,
-            Minimized,
-            Maximized,
-            BorderlessFullscreen,
-            ExclusiveFullscreen
-        };
-
-        enum class VSyncMode {
-            Disabled,
-            Enabled,
-            Adaptive,
-            Mailbox
-        };
-
-        enum class MouseMode {
-            Visible,
-            Hidden,
-            Captured,
-            Confined,
-            ConfinedHidden
-        };
-
-        enum WindowFlags {
-            WINDOW_FLAGS_RESIZABLE,
-            WINDOW_FLAGS_BORDERLESS,
-            WINDOW_FLAGS_TRANSPARENT,
-            WINDOW_FLAGS_ALWAYS_ON_TOP
-        };
-
-        enum class Cursor {
-            Arrow
-        };
-
-    private:
         RenderingDriver driver;
 
         glm::ivec2 resolution;

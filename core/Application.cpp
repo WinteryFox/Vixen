@@ -9,7 +9,7 @@
 
 namespace Vixen {
     Application::Application(
-        DisplayServer::RenderingDriver renderingDriver,
+        RenderingDriver renderingDriver,
         std::string applicationTitle,
         const glm::vec3 applicationVersion,
         std::string workingDirectory
@@ -27,9 +27,9 @@ namespace Vixen {
 
         this->displayServer = std::make_shared<DisplayServer>(
             renderingDriver,
-            DisplayServer::WindowMode::Maximized,
-            DisplayServer::VSyncMode::Disabled,
-            DisplayServer::WindowFlags::WINDOW_FLAGS_RESIZABLE,
+            WindowMode::Windowed,
+            VSyncMode::Disabled,
+            WindowFlags::Resizable,
             glm::ivec2{1920, 1080}
         );
     }

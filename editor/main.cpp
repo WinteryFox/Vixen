@@ -6,7 +6,7 @@
 int main() {
     try {
         auto application = Vixen::Application(
-            Vixen::DisplayServer::RenderingDriver::Vulkan,
+            Vixen::RenderingDriver::Vulkan,
             "Vixen Engine",
             {1, 0, 0}
         );

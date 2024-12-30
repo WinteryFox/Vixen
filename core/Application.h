@@ -14,7 +14,7 @@ namespace Vixen {
 
     public:
         explicit Application(
-            DisplayServer::RenderingDriver renderingDriver,
+            RenderingDriver renderingDriver,
             std::string applicationTitle,
             glm::vec3 applicationVersion,
             std::string workingDirectory = ".\\"

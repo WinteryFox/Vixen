@@ -553,7 +553,7 @@ namespace Vixen {
                                               binary.size() / sizeof(uint32_t));
         auto resources = compiler.get_shader_resources();
 
-        o->name = "test";
+        o->name = "test"; // TODO
         o->pushConstantSize = compiler.get_active_buffer_ranges(resources.push_constant_buffers[0].id)[0].range;
 
         for (const auto &[name, executionModel]: compiler.get_entry_points_and_stages()) {
@@ -580,7 +580,7 @@ namespace Vixen {
 
                 default:
                     spdlog::warn("Skipping unsupported stage {} in shader \"{}\".", name, o->name);
-                    break;
+                    continue;
             }
         }
 

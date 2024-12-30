@@ -16,10 +16,10 @@ namespace Vixen {
     ) {
         glfwWindowHint(GLFW_CLIENT_API, GLFW_NO_API);
         glfwWindowHint(GLFW_VISIBLE, GLFW_TRUE);
-        glfwWindowHint(GLFW_RESIZABLE, (flags & WINDOW_FLAGS_RESIZABLE) == 0 ? GLFW_TRUE : GLFW_FALSE);
-        glfwWindowHint(GLFW_TRANSPARENT_FRAMEBUFFER, (flags & WINDOW_FLAGS_TRANSPARENT) == 0 ? GLFW_TRUE : GLFW_FALSE);
-        glfwWindowHint(GLFW_DECORATED, (flags & WINDOW_FLAGS_BORDERLESS) == 0 ? GLFW_TRUE : GLFW_FALSE);
-        glfwWindowHint(GLFW_FLOATING, (flags & WINDOW_FLAGS_ALWAYS_ON_TOP) == 0 ? GLFW_TRUE : GLFW_FALSE);
+        glfwWindowHint(GLFW_RESIZABLE, flags & WindowFlags::Resizable ? GLFW_TRUE : GLFW_FALSE);
+        glfwWindowHint(GLFW_TRANSPARENT_FRAMEBUFFER, flags & WindowFlags::Transparent ? GLFW_TRUE : GLFW_FALSE);
+        glfwWindowHint(GLFW_DECORATED, flags & WindowFlags::Borderless ? GLFW_FALSE : GLFW_TRUE);
+        glfwWindowHint(GLFW_FLOATING, flags & WindowFlags::AlwaysOnTop ? GLFW_TRUE : GLFW_FALSE);
 
         const auto window = glfwCreateWindow(resolution.x, resolution.y, "", nullptr, nullptr);
         ASSERT_THROW(window != nullptr, CantCreateError, "Failed to create window");
@@ -62,11 +62,13 @@ namespace Vixen {
                 renderingContext = std::make_shared<D3D12RenderingContext>();
                 break;
 #endif
+
+            default:
+                ASSERT_THROW(false, CantCreateError, "Unsupported rendering driver.");
         }
-        ASSERT_THROW(renderingContext, CantCreateError, "Failed to create rendering context");
 
         mainWindow = createWindow(mode, vsync, flags, resolution);
-        ASSERT_THROW(mainWindow, CantCreateError, "Failed to create window");
+        ASSERT_THROW(mainWindow, CantCreateError, "Failed to create window.");
 
         switch (driver) {
 #ifdef VULKAN_ENABLED
@@ -81,8 +83,10 @@ namespace Vixen {
                 renderingDevice = std::make_shared<D3D12RenderingDevice>(std::dynamic_pointer_cast<D3D12RenderingContext>(renderingContext));
                 break;
 #endif
+
+            default:
+                ASSERT_THROW(false, CantCreateError, "Unsupported rendering driver.");
         }
-        ASSERT_THROW(renderingDevice, CantCreateError, "Failed to create rendering device");
     }
 
     DisplayServer::DisplayServer(DisplayServer &&other) noexcept

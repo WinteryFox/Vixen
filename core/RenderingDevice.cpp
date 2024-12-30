@@ -95,6 +95,7 @@ namespace Vixen {
         spdlog::debug("Passed in GLSL source string:\n{}\n\nDisassembled SPIR-V:\n{}",
                       std::string_view(source.begin(), source.end()), stream.str());
 #endif
+        glslang::FinalizeProcess();
 
         std::vector<std::byte> result{binary.size() * sizeof(uint32_t)};
         memcpy(result.data(), binary.data(), binary.size() * sizeof(uint32_t));
