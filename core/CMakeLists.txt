@@ -80,6 +80,8 @@ add_library(
         RenderingDriver.h
         WindowMouseMode.h
         WindowCursor.h
+        shader/ShaderSource.h
+        shader/ShaderLanguage.h
 )
 target_link_libraries(
         Vixen

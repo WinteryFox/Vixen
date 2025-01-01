@@ -13,32 +13,32 @@
 #include "error/Macros.h"
 
 namespace Vixen {
-    std::vector<std::byte> RenderingDevice::compileSpirvFromSource(const std::string &name, ShaderStage stage,
-                                                                   const std::string &source) {
-        EShLanguage language;
+    std::vector<std::byte> RenderingDevice::compileSpirvFromSource(ShaderStage stage, const std::string &source,
+                                                                   ShaderLanguage language) {
+        EShLanguage glslangLanguage;
         switch (stage) {
             case ShaderStage::Vertex:
-                language = EShLangVertex;
+                glslangLanguage = EShLangVertex;
                 break;
 
             case ShaderStage::Fragment:
-                language = EShLangFragment;
+                glslangLanguage = EShLangFragment;
                 break;
 
             case ShaderStage::TesselationControl:
-                language = EShLangTessControl;
+                glslangLanguage = EShLangTessControl;
                 break;
 
             case ShaderStage::TesselationEvaluation:
-                language = EShLangTessEvaluation;
+                glslangLanguage = EShLangTessEvaluation;
                 break;
 
             case ShaderStage::Compute:
-                language = EShLangCompute;
+                glslangLanguage = EShLangCompute;
                 break;
 
             case ShaderStage::Geometry:
-                language = EShLangGeometry;
+                glslangLanguage = EShLangGeometry;
                 break;
 
             default:
@@ -47,12 +47,10 @@ namespace Vixen {
 
         glslang::InitializeProcess();
 
-        glslang::TShader shader{language};
+        glslang::TShader shader{glslangLanguage};
         auto src = source.data();
-        auto length = static_cast<int>(source.size());
-        auto n = name.c_str();
-        shader.setStringsWithLengthsAndNames(&src, &length, &n, 1);
-        shader.setEnvInput(glslang::EShSourceGlsl, language, glslang::EShClientVulkan, 160);
+        shader.setStrings(&src, 1);
+        shader.setEnvInput(glslang::EShSourceGlsl, glslangLanguage, glslang::EShClientVulkan, 160);
         shader.setEnvClient(glslang::EShClientVulkan, glslang::EShTargetVulkan_1_3);
         shader.setEnvTarget(glslang::EShTargetSpv, glslang::EShTargetSpv_1_6);
 
@@ -62,11 +60,15 @@ namespace Vixen {
         glslang::TShader::ForbidIncluder includer;
 
         // TODO: Resource limit should probably be gotten from the GPU
-        ASSERT_THROW(shader.parse(GetDefaultResources(), 160, false, EShMsgEnhanced), CantCreateError,
+        auto messages = static_cast<EShMessages>(EShMsgSpvRules | EShMsgVulkanRules);
+#ifdef DEBUG_ENABLED
+        messages = static_cast<EShMessages>(messages | EShMsgDebugInfo);
+#endif
+        ASSERT_THROW(shader.parse(GetDefaultResources(), 160, false, messages), CantCreateError,
                      "Failed to parse SPIR-V");
 
         program.addShader(&shader);
-        ASSERT_THROW(program.link(EShMsgEnhanced), CantCreateError, "Failed to link shader");
+        ASSERT_THROW(program.link(messages), CantCreateError, "Failed to link shader");
 
         glslang::SpvOptions options{
 #ifdef DEBUG_ENABLED
@@ -87,7 +89,7 @@ namespace Vixen {
 
         spv::SpvBuildLogger logger;
         std::vector<uint32_t> binary{};
-        GlslangToSpv(*program.getIntermediate(language), binary, &logger, &options);
+        GlslangToSpv(*program.getIntermediate(glslangLanguage), binary, &logger, &options);
 
 #ifdef DEBUG_ENABLED
         std::stringstream stream;

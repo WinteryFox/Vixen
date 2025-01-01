@@ -43,9 +43,10 @@ int main() {
         std::string source = (std::stringstream{} << file.rdbuf()).str();
         file.close();
 
-        const auto binary = Vixen::RenderingDevice::compileSpirvFromSource("test", Vixen::ShaderStage::Vertex, source);
+        const auto binary = device->compileSpirvFromSource(Vixen::ShaderStage::Vertex, source,
+                                                           Vixen::ShaderLanguage::GLSL);
         const auto shader = device->createShaderFromBytecode(binary);
-        spdlog::error("Shader compiled successfully {}", shader->name);
+        spdlog::error("Shader compiled successfully");
         device->destroyShader(shader);
 
         application.run();

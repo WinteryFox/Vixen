@@ -7,13 +7,13 @@
 #include "command/CommandBuffer.h"
 #include "buffer/Buffer.h"
 #include "buffer/BufferUsage.h"
-#include "command/CommandBufferType.h"
 #include "image/Image.h"
 #include "image/ImageFormat.h"
 #include "image/ImageView.h"
 #include "image/Sampler.h"
 #include "image/SamplerState.h"
 #include "shader/Shader.h"
+#include "shader/ShaderLanguage.h"
 
 namespace Vixen {
     class RenderingDevice {
@@ -44,7 +44,8 @@ namespace Vixen {
 
         virtual void destroySampler(Sampler *sampler) = 0;
 
-        static std::vector<std::byte> compileSpirvFromSource(const std::string& name, ShaderStage stage, const std::string &source);
+        virtual std::vector<std::byte> compileSpirvFromSource(ShaderStage stage, const std::string &source,
+                                                              ShaderLanguage language);
 
         virtual Shader *createShaderFromBytecode(const std::vector<std::byte> &binary) = 0;
 
