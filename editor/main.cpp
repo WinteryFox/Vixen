@@ -2,6 +2,7 @@
 
 #include "core/Application.h"
 #include "core/RenderingDevice.h"
+#include "core/command/CommandBufferType.h"
 
 int main() {
     try {
@@ -48,6 +49,10 @@ int main() {
         const auto shader = device->createShaderFromBytecode(binary);
         spdlog::error("Shader compiled successfully");
         device->destroyShader(shader);
+        const auto commandPool = device->createCommandPool(0, Vixen::CommandBufferType::Primary);
+        const auto commandBuffer = device->createCommandBuffer(commandPool);
+        device->resetCommandPool(commandPool);
+        device->destroyCommandPool(commandPool);
 
         application.run();
     } catch (const std::runtime_error &e) {

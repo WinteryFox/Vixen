@@ -610,6 +610,14 @@ namespace Vixen {
             });
         }
 
+        for (const auto &sampler : resources.separate_samplers) {
+            o->uniformSets.push_back({
+                .type = ShaderUniformType::Sampler,
+                .binding = compiler.get_decoration(sampler.id, spv::DecorationBinding),
+                .length = 0
+            });
+        }
+
         for (const auto &sampledImage: resources.sampled_images) {
             o->uniformSets.push_back({
                 .type = ShaderUniformType::CombinedImageSampler,
