@@ -646,7 +646,7 @@ namespace Vixen {
                 .flags = 0,
                 .stage = stageFlag,
                 .module = module,
-                .pName = "main",
+                .pName = name.c_str(),
                 .pSpecializationInfo = nullptr
             });
         }

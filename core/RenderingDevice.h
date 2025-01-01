@@ -24,7 +24,7 @@ namespace Vixen {
         };
 
     protected:
-        static bool reflectShader(const std::vector<ShaderStageData> &stages, Shader* shader);
+        static bool reflectShader(const std::vector<ShaderStageData> &stages, Shader *shader);
 
     public:
         virtual ~RenderingDevice() = default;
@@ -57,7 +57,7 @@ namespace Vixen {
                                                               ShaderLanguage language);
 
         virtual Shader *createShaderFromSpirv(const std::string &name,
-                                                 const std::vector<ShaderStageData> &stages) = 0;
+                                              const std::vector<ShaderStageData> &stages) = 0;
 
         virtual void destroyShaderModules(Shader *shader) = 0;
 
