@@ -8,11 +8,54 @@
 #include <glslang/Public/ShaderLang.h>
 #include <glslang/SPIRV/GlslangToSpv.h>
 #include <spdlog/spdlog.h>
+#include <spirv_cross/spirv_cross.hpp>
 
 #include "error/CantCreateError.h"
 #include "error/Macros.h"
 
 namespace Vixen {
+    bool RenderingDevice::reflectShader(const std::vector<ShaderStageData> &stages, Shader *shader) {
+        for (const auto &[stage, spirv]: stages) {
+            const auto compiler = spirv_cross::Compiler(reinterpret_cast<const uint32_t *>(spirv.data()),
+                                                        spirv.size() / sizeof(uint32_t));
+            auto resources = compiler.get_shader_resources();
+
+            if (!resources.push_constant_buffers.empty()) {
+                const auto pushConstant = resources.push_constant_buffers[0];
+                shader->pushConstantSize = compiler.get_active_buffer_ranges(pushConstant.id)[0].range;
+            }
+
+            shader->stages.push_back(stage);
+
+            for (const auto &uniformBuffer: resources.uniform_buffers) {
+                shader->uniformSets.push_back({
+                    .type = ShaderUniformType::UniformBuffer,
+                    .binding = compiler.get_decoration(uniformBuffer.id, spv::DecorationBinding),
+                    .length = static_cast<uint32_t>(compiler.get_declared_struct_size(
+                        compiler.get_type(uniformBuffer.base_type_id)))
+                });
+            }
+
+            for (const auto &sampler: resources.separate_samplers) {
+                shader->uniformSets.push_back({
+                    .type = ShaderUniformType::Sampler,
+                    .binding = compiler.get_decoration(sampler.id, spv::DecorationBinding),
+                    .length = 0
+                });
+            }
+
+            for (const auto &sampledImage: resources.sampled_images) {
+                shader->uniformSets.push_back({
+                    .type = ShaderUniformType::CombinedImageSampler,
+                    .binding = compiler.get_decoration(sampledImage.id, spv::DecorationBinding),
+                    .length = 0
+                });
+            }
+        }
+
+        return true;
+    }
+
     std::vector<std::byte> RenderingDevice::compileSpirvFromSource(ShaderStage stage, const std::string &source,
                                                                    ShaderLanguage language) {
         EShLanguage glslangLanguage;
@@ -59,7 +102,6 @@ namespace Vixen {
         // TODO: Add actual includer
         glslang::TShader::ForbidIncluder includer;
 
-        // TODO: Resource limit should probably be gotten from the GPU
         auto messages = static_cast<EShMessages>(EShMsgSpvRules | EShMsgVulkanRules);
 #ifdef DEBUG_ENABLED
         messages = static_cast<EShMessages>(messages | EShMsgDebugInfo);

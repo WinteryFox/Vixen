@@ -99,3 +99,12 @@ target_include_directories(
         ${CMAKE_SOURCE_DIR}/thirdparty/imgui
         ${stb_image_INCLUDE_DIRS}
 )
+
+find_package(spirv_cross_reflect REQUIRED)
+target_link_libraries(
+        Vixen
+        PUBLIC
+        spirv-cross-core
+        spirv-cross-glsl
+        spirv-cross-reflect
+)

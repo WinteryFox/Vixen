@@ -1,7 +1,5 @@
 find_package(Vulkan 1.3 REQUIRED)
 
-find_package(spirv_cross_reflect REQUIRED)
-
 add_library(
         volk
         STATIC
@@ -29,9 +27,6 @@ target_link_libraries(
         PUBLIC
         Vixen
         Vulkan::Headers
-        spirv-cross-core
-        spirv-cross-glsl
-        spirv-cross-reflect
         freeimage
         volk
 )

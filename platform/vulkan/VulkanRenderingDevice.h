@@ -75,7 +75,9 @@ namespace Vixen {
 
         void destroySampler(Sampler *sampler) override;
 
-        Shader *createShaderFromBytecode(const std::vector<std::byte> &binary) override;
+        Shader *createShaderFromSpirv(const std::string &name, const std::vector<ShaderStageData> &stages) override;
+
+        void destroyShaderModules(Shader *shader) override;
 
         void destroyShader(Shader *shader) override;
 

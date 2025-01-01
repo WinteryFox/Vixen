@@ -546,141 +546,129 @@ namespace Vixen {
         delete o;
     }
 
-    Shader *VulkanRenderingDevice::createShaderFromBytecode(const std::vector<std::byte> &binary) {
-        const VkShaderModuleCreateInfo shaderModuleInfo{
-            .sType = VK_STRUCTURE_TYPE_SHADER_MODULE_CREATE_INFO,
-            .pNext = nullptr,
-            .flags = 0,
-            .codeSize = binary.size(),
-            .pCode = reinterpret_cast<const uint32_t *>(binary.data())
-        };
-
-        VkShaderModule module;
-        ASSERT_THROW(vkCreateShaderModule(device, &shaderModuleInfo, nullptr, &module) == VK_SUCCESS,
-                     CantCreateError,
-                     "Call to vkCreateShaderModule failed.");
-
-        const auto compiler = spirv_cross::Compiler(reinterpret_cast<const uint32_t *>(binary.data()),
-                                                    binary.size() / sizeof(uint32_t));
-        auto resources = compiler.get_shader_resources();
-
-        const auto o = new VulkanShader{};
-        if (!resources.push_constant_buffers.empty()) {
-            const auto pushConstant = resources.push_constant_buffers[0];
-            o->pushConstantSize = compiler.get_active_buffer_ranges(pushConstant.id)[0].range;
+    Shader *VulkanRenderingDevice::createShaderFromSpirv(const std::string &name,
+                                                         const std::vector<ShaderStageData> &stages) {
+        const auto o = new VulkanShader();
+        if (!reflectShader(stages, o)) {
+            delete o;
+            ASSERT_THROW(false, CantCreateError, "Shader reflection failed.");
         }
 
-        for (const auto &[name, executionModel]: compiler.get_entry_points_and_stages()) {
-            switch (executionModel) {
-                case spv::ExecutionModelVertex:
-                    o->stages.push_back(ShaderStage::Vertex);
-                    break;
+        for (const auto &[stage, spirv]: stages) {
+            const VkShaderModuleCreateInfo shaderModuleInfo{
+                .sType = VK_STRUCTURE_TYPE_SHADER_MODULE_CREATE_INFO,
+                .pNext = nullptr,
+                .flags = 0,
+                .codeSize = spirv.size(),
+                .pCode = reinterpret_cast<const uint32_t *>(spirv.data())
+            };
 
-                case spv::ExecutionModelFragment:
-                    o->stages.push_back(ShaderStage::Fragment);
-                    break;
+            VkShaderModule module;
+            ASSERT_THROW(vkCreateShaderModule(device, &shaderModuleInfo, nullptr, &module) == VK_SUCCESS,
+                         CantCreateError,
+                         "Call to vkCreateShaderModule failed.");
 
-                case spv::ExecutionModelTessellationControl:
-                    o->stages.push_back(ShaderStage::TesselationControl);
-                    break;
+            constexpr VkPipelineLayoutCreateInfo pipelineLayoutInfo{
+                .sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO,
+                .pNext = nullptr,
+                .flags = 0,
+                .setLayoutCount = 0,
+                .pSetLayouts = nullptr,
+                .pushConstantRangeCount = 0,
+                .pPushConstantRanges = nullptr
+            };
 
-                case spv::ExecutionModelTessellationEvaluation:
-                    o->stages.push_back(ShaderStage::TesselationEvaluation);
-                    break;
+            VkPipelineLayout pipelineLayout;
+            ASSERT_THROW(vkCreatePipelineLayout(device, &pipelineLayoutInfo, nullptr, &pipelineLayout) == VK_SUCCESS,
+                         CantCreateError,
+                         "Call to vkCreatePipelineLayout failed.");
+            o->pipelineLayout = pipelineLayout;
 
-                case spv::ExecutionModelGeometry:
-                    o->stages.push_back(ShaderStage::Geometry);
-                    break;
-
-                default:
-                    spdlog::warn("Skipping unsupported stage in shader entrypoint \"{}\".", name);
-                    continue;
+            std::vector<VkDescriptorSetLayoutBinding> layoutBindings{};
+            layoutBindings.reserve(o->uniformSets.size());
+            for (const auto &uniformBuffer: o->uniformSets) {
+                const VkDescriptorSetLayoutBinding layoutBinding = {
+                    .binding = uniformBuffer.binding,
+                    .descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER,
+                    .descriptorCount = 1,
+                    .stageFlags = 0,
+                    .pImmutableSamplers = nullptr
+                };
+                layoutBindings.push_back(layoutBinding);
             }
 
-            const auto &entrypoint = compiler.get_entry_point(name, executionModel);
-            // TODO: Probably do something with this?
-        }
-
-        for (const auto &uniformBuffer: resources.uniform_buffers) {
-            o->uniformSets.push_back({
-                .type = ShaderUniformType::UniformBuffer,
-                .binding = compiler.get_decoration(uniformBuffer.id, spv::DecorationBinding),
-                .length = static_cast<uint32_t>(compiler.get_declared_struct_size(
-                    compiler.get_type(uniformBuffer.base_type_id)))
-            });
-        }
-
-        for (const auto &sampler : resources.separate_samplers) {
-            o->uniformSets.push_back({
-                .type = ShaderUniformType::Sampler,
-                .binding = compiler.get_decoration(sampler.id, spv::DecorationBinding),
-                .length = 0
-            });
-        }
-
-        for (const auto &sampledImage: resources.sampled_images) {
-            o->uniformSets.push_back({
-                .type = ShaderUniformType::CombinedImageSampler,
-                .binding = compiler.get_decoration(sampledImage.id, spv::DecorationBinding),
-                .length = 0
-            });
-        }
-
-        VkPipelineLayoutCreateInfo pipelineLayoutInfo{
-            .sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO,
-            .pNext = nullptr,
-            .flags = 0,
-            .setLayoutCount = 0,
-            .pSetLayouts = nullptr,
-            .pushConstantRangeCount = 0,
-            .pPushConstantRanges = nullptr
-        };
-
-        VkPipelineLayout pipelineLayout;
-        ASSERT_THROW(vkCreatePipelineLayout(device, &pipelineLayoutInfo, nullptr, &pipelineLayout) == VK_SUCCESS,
-                     CantCreateError,
-                     "Call to vkCreatePipelineLayout failed.");
-
-        std::vector<VkDescriptorSetLayoutBinding> layoutBindings{};
-        layoutBindings.reserve(o->uniformSets.size());
-        for (const auto &uniformBuffer: o->uniformSets) {
-            const VkDescriptorSetLayoutBinding layoutBinding = {
-                .binding = uniformBuffer.binding,
-                .descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER,
-                .descriptorCount = 1,
-                .stageFlags = 0,
-                .pImmutableSamplers = nullptr
+            const VkDescriptorSetLayoutCreateInfo descriptorSetLayoutInfo{
+                .sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO,
+                .pNext = nullptr,
+                .flags = 0,
+                .bindingCount = static_cast<uint32_t>(layoutBindings.size()),
+                .pBindings = layoutBindings.data()
             };
-            layoutBindings.push_back(layoutBinding);
+
+            VkDescriptorSetLayout descriptorSetLayout = nullptr;
+            ASSERT_THROW(
+                vkCreateDescriptorSetLayout(device, &descriptorSetLayoutInfo, nullptr, &descriptorSetLayout) ==
+                VK_SUCCESS,
+                CantCreateError,
+                "Call to vkCreateDescriptorSetLayout failed.");
+            o->descriptorSetLayouts = {descriptorSetLayout};
+
+            VkShaderStageFlagBits stageFlag = VK_SHADER_STAGE_FLAG_BITS_MAX_ENUM;
+            switch (stage) {
+                case ShaderStage::Vertex:
+                    stageFlag = VK_SHADER_STAGE_VERTEX_BIT;
+                    break;
+
+                case ShaderStage::Fragment:
+                    stageFlag = VK_SHADER_STAGE_FRAGMENT_BIT;
+                    break;
+
+                case ShaderStage::TesselationControl:
+                    stageFlag = VK_SHADER_STAGE_TESSELLATION_CONTROL_BIT;
+                    break;
+
+                case ShaderStage::TesselationEvaluation:
+                    stageFlag = VK_SHADER_STAGE_TESSELLATION_EVALUATION_BIT;
+                    break;
+
+                case ShaderStage::Compute:
+                    stageFlag = VK_SHADER_STAGE_COMPUTE_BIT;
+                    break;
+
+                case ShaderStage::Geometry:
+                    stageFlag = VK_SHADER_STAGE_GEOMETRY_BIT;
+                    break;
+            }
+
+            o->shaderStageInfos.push_back({
+                .sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO,
+                .pNext = nullptr,
+                .flags = 0,
+                .stage = stageFlag,
+                .module = module,
+                .pName = "main",
+                .pSpecializationInfo = nullptr
+            });
         }
 
-        const VkDescriptorSetLayoutCreateInfo descriptorSetLayoutInfo{
-            .sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO,
-            .pNext = nullptr,
-            .flags = 0,
-            .bindingCount = static_cast<uint32_t>(layoutBindings.size()),
-            .pBindings = layoutBindings.data()
-        };
-
-        VkDescriptorSetLayout descriptorSetLayout = nullptr;
-        ASSERT_THROW(
-            vkCreateDescriptorSetLayout(device, &descriptorSetLayoutInfo, nullptr, &descriptorSetLayout) == VK_SUCCESS,
-            CantCreateError,
-            "Call to vkCreateDescriptorSetLayout failed.");
-
-        o->module = module;
-        o->pipelineLayout = pipelineLayout;
-        o->descriptorSetLayouts = {descriptorSetLayout};
         return o;
+    }
+
+    void VulkanRenderingDevice::destroyShaderModules(Shader *shader) {
+        for (const auto o = reinterpret_cast<VulkanShader *>(shader);
+             const auto &module: o->shaderStageInfos) {
+            vkDestroyShaderModule(device, module.module, nullptr);
+        }
     }
 
     void VulkanRenderingDevice::destroyShader(Shader *shader) {
         const auto o = reinterpret_cast<VulkanShader *>(shader);
 
+        destroyShaderModules(o);
         for (const auto &descriptorSetLayout: o->descriptorSetLayouts)
             vkDestroyDescriptorSetLayout(device, descriptorSetLayout, nullptr);
         vkDestroyPipelineLayout(device, o->pipelineLayout, nullptr);
-        vkDestroyShaderModule(device, o->module, nullptr);
+
         delete o;
     }
 

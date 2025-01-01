@@ -18,6 +18,15 @@
 namespace Vixen {
     class RenderingDevice {
     public:
+        struct ShaderStageData {
+            ShaderStage stage;
+            std::vector<std::byte> spirv;
+        };
+
+    protected:
+        static bool reflectShader(const std::vector<ShaderStageData> &stages, Shader* shader);
+
+    public:
         virtual ~RenderingDevice() = default;
 
         virtual CommandPool *createCommandPool(uint32_t queueFamily, CommandBufferType type) = 0;
@@ -47,7 +56,10 @@ namespace Vixen {
         virtual std::vector<std::byte> compileSpirvFromSource(ShaderStage stage, const std::string &source,
                                                               ShaderLanguage language);
 
-        virtual Shader *createShaderFromBytecode(const std::vector<std::byte> &binary) = 0;
+        virtual Shader *createShaderFromSpirv(const std::string &name,
+                                                 const std::vector<ShaderStageData> &stages) = 0;
+
+        virtual void destroyShaderModules(Shader *shader) = 0;
 
         virtual void destroyShader(Shader *shader) = 0;
     };
