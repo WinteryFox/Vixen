@@ -2,10 +2,16 @@
 
 #include "error/CantCreateError.h"
 #include "error/Macros.h"
-#include "platform/d3d12/D3D12RenderingContext.h"
-#include "platform/d3d12/D3D12RenderingDevice.h"
+
+#ifdef VULKAN_ENABLED
 #include "platform/vulkan/VulkanRenderingContext.h"
 #include "platform/vulkan/VulkanRenderingDevice.h"
+#endif
+
+#ifdef D3D12_ENABLED
+#include "platform/d3d12/D3D12RenderingContext.h"
+#include "platform/d3d12/D3D12RenderingDevice.h"
+#endif
 
 namespace Vixen {
     GLFWwindow *DisplayServer::createWindow(
@@ -74,7 +80,8 @@ namespace Vixen {
 #ifdef VULKAN_ENABLED
             case RenderingDriver::Vulkan:
                 // TODO: Hardcoded physical device index
-                renderingDevice = std::make_shared<VulkanRenderingDevice>(std::dynamic_pointer_cast<VulkanRenderingContext>(renderingContext), 0);
+                renderingDevice = std::make_shared<VulkanRenderingDevice>(
+                    std::dynamic_pointer_cast<VulkanRenderingContext>(renderingContext), 0);
                 break;
 #endif
 

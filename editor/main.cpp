@@ -63,7 +63,8 @@ int main() {
                     .stage = Vixen::ShaderStage::Fragment,
                     .spirv = fragmentSpirv
                 }
-            });
+            }
+        );
         spdlog::error("Shader compiled successfully");
         device->destroyShader(shader);
         const auto commandPool = device->createCommandPool(0, Vixen::CommandBufferType::Primary);
