@@ -712,14 +712,20 @@ namespace Vixen {
             });
         }
 
-        constexpr VkPipelineLayoutCreateInfo pipelineLayoutInfo{
+        const VkPushConstantRange pushConstantRange{
+            .stageFlags = VK_SHADER_STAGE_VERTEX_BIT, // TODO: Use the actual stage flags from Shader
+            .offset = 0,
+            .size = o->pushConstantSize
+        };
+
+        const VkPipelineLayoutCreateInfo pipelineLayoutInfo{
             .sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO,
             .pNext = nullptr,
             .flags = 0,
-            .setLayoutCount = 0,
-            .pSetLayouts = nullptr,
-            .pushConstantRangeCount = 0,
-            .pPushConstantRanges = nullptr
+            .setLayoutCount = static_cast<uint32_t>(o->descriptorSetLayouts.size()),
+            .pSetLayouts = o->descriptorSetLayouts.data(),
+            .pushConstantRangeCount = 1,
+            .pPushConstantRanges = pushConstantRange.size > 0 ? &pushConstantRange : nullptr
         };
 
         VkPipelineLayout pipelineLayout;
