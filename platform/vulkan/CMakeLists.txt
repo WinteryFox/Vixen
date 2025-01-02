@@ -75,7 +75,6 @@ target_include_directories(
         VkVixen
         PUBLIC
         ${CMAKE_SOURCE_DIR}/thirdparty/volk
-        ${CMAKE_SOURCE_DIR}/thirdparty/VulkanMemoryAllocator/include
 )
 
 target_link_libraries(
