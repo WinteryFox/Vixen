@@ -614,33 +614,11 @@ namespace Vixen {
 
         o->name = name;
 
+        for (const auto &stage : o->pushConstantStages)
+            o->pushConstantStageFlags |= toVkShaderStageFlag(stage);
+
         for (const auto &[stage, spirv]: stages) {
-            VkShaderStageFlags stageFlag = VK_SHADER_STAGE_FLAG_BITS_MAX_ENUM;
-            switch (stage) {
-                case ShaderStage::Vertex:
-                    stageFlag = VK_SHADER_STAGE_VERTEX_BIT;
-                    break;
-
-                case ShaderStage::Fragment:
-                    stageFlag = VK_SHADER_STAGE_FRAGMENT_BIT;
-                    break;
-
-                case ShaderStage::TesselationControl:
-                    stageFlag = VK_SHADER_STAGE_TESSELLATION_CONTROL_BIT;
-                    break;
-
-                case ShaderStage::TesselationEvaluation:
-                    stageFlag = VK_SHADER_STAGE_TESSELLATION_EVALUATION_BIT;
-                    break;
-
-                case ShaderStage::Compute:
-                    stageFlag = VK_SHADER_STAGE_COMPUTE_BIT;
-                    break;
-
-                case ShaderStage::Geometry:
-                    stageFlag = VK_SHADER_STAGE_GEOMETRY_BIT;
-                    break;
-            }
+            const auto stageFlag = toVkShaderStageFlag(stage);
 
             const VkShaderModuleCreateInfo shaderModuleInfo{
                 .sType = VK_STRUCTURE_TYPE_SHADER_MODULE_CREATE_INFO,
@@ -713,7 +691,7 @@ namespace Vixen {
         }
 
         const VkPushConstantRange pushConstantRange{
-            .stageFlags = VK_SHADER_STAGE_VERTEX_BIT, // TODO: Use the actual stage flags from Shader
+            .stageFlags = o->pushConstantStageFlags,
             .offset = 0,
             .size = o->pushConstantSize
         };

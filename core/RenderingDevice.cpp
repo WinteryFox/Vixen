@@ -20,12 +20,13 @@ namespace Vixen {
                                                         spirv.size() / sizeof(uint32_t));
             auto resources = compiler.get_shader_resources();
 
+            shader->stages.push_back(stage);
+
             if (!resources.push_constant_buffers.empty()) {
                 const auto pushConstant = resources.push_constant_buffers[0];
                 shader->pushConstantSize = compiler.get_active_buffer_ranges(pushConstant.id)[0].range;
+                shader->pushConstantStages.push_back(stage);
             }
-
-            shader->stages.push_back(stage);
 
             for (const auto &uniformBuffer: resources.uniform_buffers) {
                 shader->uniformSets.push_back({

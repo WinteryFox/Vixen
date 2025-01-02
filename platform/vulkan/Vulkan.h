@@ -17,6 +17,7 @@
 #include "core/StoreAction.h"
 #include "core/image/ImageSamples.h"
 #include "core/image/ImageType.h"
+#include "core/shader/ShaderStage.h"
 
 namespace Vixen {
     [[maybe_unused]] static bool isDepthFormat(const VkFormat format) {
@@ -254,7 +255,7 @@ namespace Vixen {
 
     static VkSampleCountFlagBits toVkSampleCountFlagBits(const ImageSamples &samples) {
         switch (samples) {
-            using enum ImageSamples;
+                using enum ImageSamples;
 
             case One:
                 return VK_SAMPLE_COUNT_1_BIT;
@@ -279,6 +280,30 @@ namespace Vixen {
         }
 
         throw std::runtime_error("Unsupported sample count");
+    }
+
+    static constexpr VkShaderStageFlagBits toVkShaderStageFlag(const ShaderStage &stage) {
+        switch (stage) {
+            case ShaderStage::Vertex:
+                return VK_SHADER_STAGE_VERTEX_BIT;
+
+            case ShaderStage::Fragment:
+                return VK_SHADER_STAGE_FRAGMENT_BIT;
+
+            case ShaderStage::TesselationControl:
+                return VK_SHADER_STAGE_TESSELLATION_CONTROL_BIT;
+
+            case ShaderStage::TesselationEvaluation:
+                return VK_SHADER_STAGE_TESSELLATION_EVALUATION_BIT;
+
+            case ShaderStage::Compute:
+                return VK_SHADER_STAGE_COMPUTE_BIT;
+
+            case ShaderStage::Geometry:
+                return VK_SHADER_STAGE_GEOMETRY_BIT;
+        }
+
+        throw std::runtime_error("Unsupported shader stage");
     }
 
     static constexpr VkImageType toVkImageType(const ImageType &type) {
