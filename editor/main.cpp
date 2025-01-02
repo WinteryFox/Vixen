@@ -40,18 +40,28 @@ int main() {
         device->destroyBuffer(buffer);
         device->destroyImage(image);
 
-        std::ifstream file("../../editor/resources/shaders/pbr.vertex.glsl");
-        std::string source = (std::stringstream{} << file.rdbuf()).str();
-        file.close();
+        std::ifstream vertexFile("../../editor/resources/shaders/pbr.vertex.glsl");
+        std::string vertexSource = (std::stringstream{} << vertexFile.rdbuf()).str();
+        vertexFile.close();
+        const auto vertexSpirv = device->compileSpirvFromSource(Vixen::ShaderStage::Vertex, vertexSource,
+                                                                Vixen::ShaderLanguage::GLSL);
 
-        const auto spirv = device->compileSpirvFromSource(Vixen::ShaderStage::Vertex, source,
-                                                          Vixen::ShaderLanguage::GLSL);
+        std::ifstream fragmentFile("../../editor/resources/shaders/pbr.fragment.glsl");
+        std::string fragmentSource = (std::stringstream{} << fragmentFile.rdbuf()).str();
+        fragmentFile.close();
+        const auto fragmentSpirv = device->compileSpirvFromSource(Vixen::ShaderStage::Fragment, fragmentSource,
+                                                                  Vixen::ShaderLanguage::GLSL);
+
         const auto shader = device->createShaderFromSpirv(
-            "main",
+            "PBR",
             {
                 {
                     .stage = Vixen::ShaderStage::Vertex,
-                    .spirv = spirv
+                    .spirv = vertexSpirv
+                },
+                {
+                    .stage = Vixen::ShaderStage::Fragment,
+                    .spirv = fragmentSpirv
                 }
             });
         spdlog::error("Shader compiled successfully");

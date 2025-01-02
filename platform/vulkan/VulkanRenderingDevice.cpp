@@ -536,7 +536,7 @@ namespace Vixen {
             ASSERT_THROW(error == VK_SUCCESS, CantCreateError, "Call to vkCreateImageView failed.");
         }
 
-        const auto o = new VulkanImage{};
+        const auto o = new VulkanImage();
         o->format = format;
         o->view = view;
         o->image = image;
@@ -612,66 +612,10 @@ namespace Vixen {
             ASSERT_THROW(false, CantCreateError, "Shader reflection failed.");
         }
 
+        o->name = name;
+
         for (const auto &[stage, spirv]: stages) {
-            const VkShaderModuleCreateInfo shaderModuleInfo{
-                .sType = VK_STRUCTURE_TYPE_SHADER_MODULE_CREATE_INFO,
-                .pNext = nullptr,
-                .flags = 0,
-                .codeSize = spirv.size(),
-                .pCode = reinterpret_cast<const uint32_t *>(spirv.data())
-            };
-
-            VkShaderModule module;
-            ASSERT_THROW(vkCreateShaderModule(device, &shaderModuleInfo, nullptr, &module) == VK_SUCCESS,
-                         CantCreateError,
-                         "Call to vkCreateShaderModule failed.");
-
-            constexpr VkPipelineLayoutCreateInfo pipelineLayoutInfo{
-                .sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO,
-                .pNext = nullptr,
-                .flags = 0,
-                .setLayoutCount = 0,
-                .pSetLayouts = nullptr,
-                .pushConstantRangeCount = 0,
-                .pPushConstantRanges = nullptr
-            };
-
-            VkPipelineLayout pipelineLayout;
-            ASSERT_THROW(vkCreatePipelineLayout(device, &pipelineLayoutInfo, nullptr, &pipelineLayout) == VK_SUCCESS,
-                         CantCreateError,
-                         "Call to vkCreatePipelineLayout failed.");
-            o->pipelineLayout = pipelineLayout;
-
-            std::vector<VkDescriptorSetLayoutBinding> layoutBindings{};
-            layoutBindings.reserve(o->uniformSets.size());
-            for (const auto &uniformBuffer: o->uniformSets) {
-                const VkDescriptorSetLayoutBinding layoutBinding = {
-                    .binding = uniformBuffer.binding,
-                    .descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER,
-                    .descriptorCount = 1,
-                    .stageFlags = 0,
-                    .pImmutableSamplers = nullptr
-                };
-                layoutBindings.push_back(layoutBinding);
-            }
-
-            const VkDescriptorSetLayoutCreateInfo descriptorSetLayoutInfo{
-                .sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO,
-                .pNext = nullptr,
-                .flags = 0,
-                .bindingCount = static_cast<uint32_t>(layoutBindings.size()),
-                .pBindings = layoutBindings.data()
-            };
-
-            VkDescriptorSetLayout descriptorSetLayout = nullptr;
-            ASSERT_THROW(
-                vkCreateDescriptorSetLayout(device, &descriptorSetLayoutInfo, nullptr, &descriptorSetLayout) ==
-                VK_SUCCESS,
-                CantCreateError,
-                "Call to vkCreateDescriptorSetLayout failed.");
-            o->descriptorSetLayouts = {descriptorSetLayout};
-
-            VkShaderStageFlagBits stageFlag = VK_SHADER_STAGE_FLAG_BITS_MAX_ENUM;
+            VkShaderStageFlags stageFlag = VK_SHADER_STAGE_FLAG_BITS_MAX_ENUM;
             switch (stage) {
                 case ShaderStage::Vertex:
                     stageFlag = VK_SHADER_STAGE_VERTEX_BIT;
@@ -698,25 +642,100 @@ namespace Vixen {
                     break;
             }
 
+            const VkShaderModuleCreateInfo shaderModuleInfo{
+                .sType = VK_STRUCTURE_TYPE_SHADER_MODULE_CREATE_INFO,
+                .pNext = nullptr,
+                .flags = 0,
+                .codeSize = spirv.size(),
+                .pCode = reinterpret_cast<const uint32_t *>(spirv.data())
+            };
+
+            VkShaderModule module;
+            ASSERT_THROW(vkCreateShaderModule(device, &shaderModuleInfo, nullptr, &module) == VK_SUCCESS,
+                         CantCreateError,
+                         "Call to vkCreateShaderModule failed.");
+
+            std::vector<VkDescriptorSetLayoutBinding> layoutBindings{};
+            layoutBindings.reserve(o->uniformSets.size());
+
+            for (const auto &uniformSet: o->uniformSets) {
+                VkDescriptorType descriptorType = VK_DESCRIPTOR_TYPE_MAX_ENUM;
+
+                switch (uniformSet.type) {
+                    case ShaderUniformType::Sampler:
+                        descriptorType = VK_DESCRIPTOR_TYPE_SAMPLER;
+                        break;
+
+                    case ShaderUniformType::CombinedImageSampler:
+                        descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
+                        break;
+
+                    case ShaderUniformType::UniformBuffer:
+                        descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
+                        break;
+                }
+
+                const VkDescriptorSetLayoutBinding layoutBinding = {
+                    .binding = uniformSet.binding,
+                    .descriptorType = descriptorType,
+                    .descriptorCount = 1,
+                    .stageFlags = stageFlag,
+                    .pImmutableSamplers = nullptr
+                };
+                layoutBindings.push_back(layoutBinding);
+            }
+
+            const VkDescriptorSetLayoutCreateInfo descriptorSetLayoutInfo{
+                .sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO,
+                .pNext = nullptr,
+                .flags = 0,
+                .bindingCount = static_cast<uint32_t>(layoutBindings.size()),
+                .pBindings = layoutBindings.data()
+            };
+
+            VkDescriptorSetLayout descriptorSetLayout = nullptr;
+            ASSERT_THROW(
+                vkCreateDescriptorSetLayout(device, &descriptorSetLayoutInfo, nullptr, &descriptorSetLayout) ==
+                VK_SUCCESS,
+                CantCreateError,
+                "Call to vkCreateDescriptorSetLayout failed.");
+            o->descriptorSetLayouts.push_back(descriptorSetLayout);
+
             o->shaderStageInfos.push_back({
                 .sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO,
                 .pNext = nullptr,
                 .flags = 0,
-                .stage = stageFlag,
+                .stage = static_cast<VkShaderStageFlagBits>(stageFlag),
                 .module = module,
-                .pName = name.c_str(),
+                .pName = nullptr,
                 .pSpecializationInfo = nullptr
             });
         }
+
+        constexpr VkPipelineLayoutCreateInfo pipelineLayoutInfo{
+            .sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO,
+            .pNext = nullptr,
+            .flags = 0,
+            .setLayoutCount = 0,
+            .pSetLayouts = nullptr,
+            .pushConstantRangeCount = 0,
+            .pPushConstantRanges = nullptr
+        };
+
+        VkPipelineLayout pipelineLayout;
+        ASSERT_THROW(vkCreatePipelineLayout(device, &pipelineLayoutInfo, nullptr, &pipelineLayout) == VK_SUCCESS,
+                     CantCreateError,
+                     "Call to vkCreatePipelineLayout failed.");
+        o->pipelineLayout = pipelineLayout;
 
         return o;
     }
 
     void VulkanRenderingDevice::destroyShaderModules(Shader *shader) {
-        for (const auto o = reinterpret_cast<VulkanShader *>(shader);
-             const auto &module: o->shaderStageInfos) {
-            vkDestroyShaderModule(device, module.module, nullptr);
-        }
+        const auto o = reinterpret_cast<VulkanShader *>(shader);
+        for (const auto &stageInfo: o->shaderStageInfos)
+            vkDestroyShaderModule(device, stageInfo.module, nullptr);
+        o->shaderStageInfos.clear();
     }
 
     void VulkanRenderingDevice::destroyShader(Shader *shader) {
