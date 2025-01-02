@@ -14,7 +14,7 @@
 #endif
 
 namespace Vixen {
-    GLFWwindow *DisplayServer::createWindow(
+    void DisplayServer::createWindow(
         const WindowMode mode,
         const VSyncMode vsync,
         const WindowFlags flags,
@@ -27,16 +27,17 @@ namespace Vixen {
         glfwWindowHint(GLFW_DECORATED, flags & WindowFlags::Borderless ? GLFW_FALSE : GLFW_TRUE);
         glfwWindowHint(GLFW_FLOATING, flags & WindowFlags::AlwaysOnTop ? GLFW_TRUE : GLFW_FALSE);
 
-        const auto window = glfwCreateWindow(resolution.x, resolution.y, "", nullptr, nullptr);
-        ASSERT_THROW(window != nullptr, CantCreateError, "Failed to create window");
+        this->mainWindow = glfwCreateWindow(resolution.x, resolution.y, "", nullptr, nullptr);
+        ASSERT_THROW(mainWindow != nullptr, CantCreateError, "Failed to create window");
 
-        glfwSetWindowUserPointer(window, this);
-        glfwSetFramebufferSizeCallback(window, [](auto w, auto, auto) {
+        glfwSetWindowUserPointer(mainWindow, this);
+        glfwSetFramebufferSizeCallback(mainWindow, [](auto w, auto, auto) {
             const auto wind = static_cast<DisplayServer *>(glfwGetWindowUserPointer(w));
             wind->framebufferSizeChanged = true;
         });
 
-        return window;
+        setWindowedMode(mode);
+        setVSyncMode(vsync);
     }
 
     DisplayServer::DisplayServer(
@@ -73,7 +74,7 @@ namespace Vixen {
                 ASSERT_THROW(false, CantCreateError, "Unsupported rendering driver.");
         }
 
-        mainWindow = createWindow(mode, vsync, flags, resolution);
+        createWindow(mode, vsync, flags, resolution);
         ASSERT_THROW(mainWindow, CantCreateError, "Failed to create window.");
 
         switch (driver) {
@@ -265,6 +266,20 @@ namespace Vixen {
         }
 
         glfwSetWindowMonitor(mainWindow, m, x, y, w, h, refreshRate);
+    }
+
+    void DisplayServer::setVSyncMode(const VSyncMode mode) const {
+        switch (mode) {
+            case VSyncMode::Disabled:
+                glfwSwapInterval(0);
+                break;
+
+            case VSyncMode::Enabled:
+            case VSyncMode::Adaptive:
+            case VSyncMode::Mailbox:
+                glfwSwapInterval(1);
+                break;
+        }
     }
 
     void DisplayServer::getFramebufferSize(int &width, int &height) const {

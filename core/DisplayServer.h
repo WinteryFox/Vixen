@@ -27,7 +27,7 @@ namespace Vixen {
 
         std::shared_ptr<RenderingDevice> renderingDevice;
 
-        GLFWwindow *createWindow(
+        void createWindow(
             WindowMode mode,
             VSyncMode vsync,
             WindowFlags flags,
@@ -83,6 +83,8 @@ namespace Vixen {
         void maximize() const;
 
         void setWindowedMode(WindowMode mode) const;
+
+        void setVSyncMode(VSyncMode mode) const;
 
         [[nodiscard]] bool getWindowMonitor(Monitor &m) const;
 
