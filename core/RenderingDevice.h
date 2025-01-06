@@ -1,12 +1,13 @@
 #pragma once
 
-#include <functional>
 #include <string>
 
 #include "command/CommandPool.h"
 #include "command/CommandBuffer.h"
 #include "buffer/Buffer.h"
 #include "buffer/BufferUsage.h"
+#include "command/CommandQueue.h"
+#include "command/Semaphore.h"
 #include "image/Image.h"
 #include "image/ImageFormat.h"
 #include "image/ImageView.h"
@@ -14,15 +15,10 @@
 #include "image/SamplerState.h"
 #include "shader/Shader.h"
 #include "shader/ShaderLanguage.h"
+#include "shader/ShaderStageData.h"
 
 namespace Vixen {
     class RenderingDevice {
-    public:
-        struct ShaderStageData {
-            ShaderStage stage;
-            std::vector<std::byte> spirv;
-        };
-
     protected:
         static bool reflectShader(const std::vector<ShaderStageData> &stages, Shader *shader);
 
@@ -37,9 +33,20 @@ namespace Vixen {
 
         virtual CommandBuffer *createCommandBuffer(CommandPool *pool) = 0;
 
+        virtual void beginCommandBuffer(CommandBuffer *commandBuffer) = 0;
+
+        virtual void endCommandBuffer(CommandBuffer *commandBuffer) = 0;
+
         virtual Buffer *createBuffer(BufferUsage usage, uint32_t count, uint32_t stride) = 0;
 
         virtual void destroyBuffer(Buffer *buffer) = 0;
+
+        virtual CommandQueue *createCommandQueue() = 0;
+
+        virtual void executeCommandQueueAndPresent(CommandQueue *commandQueue, std::vector<Semaphore> waitSemaphores,
+                                                   std::vector<CommandBuffer> commandBuffers) = 0;
+
+        virtual void destroyCommandQueue(CommandQueue *commandQueue) = 0;
 
         virtual Image *createImage(const ImageFormat &format, const ImageView &view) = 0;
 

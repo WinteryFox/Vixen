@@ -6,6 +6,6 @@
 
 namespace Vixen {
     struct VulkanCommandBuffer final : CommandBuffer {
-        VkCommandBuffer buffer;
+        VkCommandBuffer commandBuffer;
     };
 }

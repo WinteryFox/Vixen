@@ -1,15 +1,18 @@
 #define VMA_IMPLEMENTATION
+
 #include "VulkanRenderingDevice.h"
 
 #include <vk_mem_alloc.h>
 #include <Vulkan.h>
 #include <spirv_reflect.hpp>
-#include <spirv_cross.hpp>
 
 #include "VulkanRenderingContext.h"
 #include "buffer/VulkanBuffer.h"
 #include "command/VulkanCommandBuffer.h"
 #include "command/VulkanCommandPool.h"
+#include "command/VulkanCommandQueue.h"
+#include "command/VulkanSemaphore.h"
+#include "command/VulkanFence.h"
 #include "image/VulkanImage.h"
 #include "image/VulkanSampler.h"
 #include "shader/VulkanShader.h"
@@ -321,9 +324,80 @@ namespace Vixen {
         ASSERT_THROW(vkAllocateCommandBuffers(device, &commandBufferInfo, &commandBuffer) == VK_SUCCESS,
                      CantCreateError, "Call to vkAllocateCommandBuffers failed.");
         const auto o = new VulkanCommandBuffer{};
-        o->buffer = commandBuffer;
+        o->commandBuffer = commandBuffer;
 
         return o;
+    }
+
+    void VulkanRenderingDevice::beginCommandBuffer(CommandBuffer *commandBuffer) {
+        const auto o = reinterpret_cast<VulkanCommandBuffer *>(commandBuffer);
+
+        constexpr VkCommandBufferBeginInfo beginInfo{
+            .sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO,
+            .pNext = nullptr,
+            .flags = VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT,
+            .pInheritanceInfo = nullptr
+        };
+        ASSERT_THROW(vkBeginCommandBuffer(o->commandBuffer, &beginInfo) == VK_SUCCESS,
+                     CantCreateError,
+                     "Call to vkBeginCommandBuffer failed.");
+    }
+
+    void VulkanRenderingDevice::endCommandBuffer(CommandBuffer *commandBuffer) {
+        const auto o = reinterpret_cast<VulkanCommandBuffer *>(commandBuffer);
+
+        vkEndCommandBuffer(o->commandBuffer);
+    }
+
+    CommandQueue *VulkanRenderingDevice::createCommandQueue() {
+        auto commandQueue = new VulkanCommandQueue();
+
+
+        return commandQueue;
+    }
+
+    void VulkanRenderingDevice::executeCommandQueueAndPresent(CommandQueue *commandQueue,
+                                                              std::vector<Semaphore> waitSemaphores,
+                                                              std::vector<CommandBuffer> commandBuffers) {
+        const auto o = reinterpret_cast<VulkanCommandQueue *>(commandQueue);
+
+        const VkQueue queue = VK_NULL_HANDLE;
+
+        std::vector<VkSemaphore> vkWaitSemaphores{};
+        vkWaitSemaphores.reserve(waitSemaphores.size());
+        for (const auto &semaphore: waitSemaphores) {
+            vkWaitSemaphores.push_back(static_cast<VulkanSemaphore>(semaphore).semaphore);
+        }
+
+        std::vector<VkCommandBuffer> vkCommandBuffers{};
+        vkCommandBuffers.reserve(commandBuffers.size());
+        for (const auto &commandBuffer: commandBuffers) {
+            vkCommandBuffers.push_back(static_cast<VulkanCommandBuffer>(commandBuffer).commandBuffer);
+        }
+
+        VkSemaphoreWaitFlags waitFlags = VK_SEMAPHORE_WAIT_ANY_BIT;
+
+        VkSubmitInfo submitInfo{
+            .sType = VK_STRUCTURE_TYPE_SUBMIT_INFO,
+            .pNext = nullptr,
+            .waitSemaphoreCount = static_cast<uint32_t>(vkWaitSemaphores.size()),
+            .pWaitSemaphores = vkWaitSemaphores.data(),
+            .pWaitDstStageMask = &waitFlags,
+            .commandBufferCount = static_cast<uint32_t>(vkCommandBuffers.size()),
+            .pCommandBuffers = vkCommandBuffers.data(),
+            .signalSemaphoreCount = 0,
+            .pSignalSemaphores = nullptr
+        };
+
+        vkQueueSubmit(queue, 1, &submitInfo, fence);
+
+        // TODO: Present to swapchain
+    }
+
+    void VulkanRenderingDevice::destroyCommandQueue(CommandQueue *commandQueue) {
+        const auto o = reinterpret_cast<VulkanCommandQueue *>(commandQueue);
+
+        delete o;
     }
 
     Buffer *VulkanRenderingDevice::createBuffer(const BufferUsage usage, const uint32_t count, const uint32_t stride) {
@@ -614,7 +688,7 @@ namespace Vixen {
 
         o->name = name;
 
-        for (const auto &stage : o->pushConstantStages)
+        for (const auto &stage: o->pushConstantStages)
             o->pushConstantStageFlags |= toVkShaderStageFlag(stage);
 
         for (const auto &[stage, spirv]: stages) {

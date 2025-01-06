@@ -1,6 +1,6 @@
 #pragma once
 
 namespace Vixen {
-    struct Semaphore {
+    struct CommandQueue {
     };
 }

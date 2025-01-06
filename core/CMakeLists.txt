@@ -82,6 +82,8 @@ add_library(
         WindowCursor.h
         shader/ShaderSource.h
         shader/ShaderLanguage.h
+        command/CommandQueue.h
+        shader/ShaderStageData.h
 )
 target_link_libraries(
         Vixen

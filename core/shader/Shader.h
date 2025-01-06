@@ -1,5 +1,7 @@
 #pragma once
 
+#include <vector>
+
 #include "ShaderUniform.h"
 
 namespace Vixen {

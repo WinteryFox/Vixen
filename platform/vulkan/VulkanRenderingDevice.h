@@ -59,6 +59,17 @@ namespace Vixen {
 
         CommandBuffer *createCommandBuffer(CommandPool *pool) override;
 
+        void beginCommandBuffer(CommandBuffer *commandBuffer) override;
+
+        void endCommandBuffer(CommandBuffer *commandBuffer) override;
+
+        CommandQueue *createCommandQueue() override;
+
+        void executeCommandQueueAndPresent(CommandQueue *commandQueue, std::vector<Semaphore> waitSemaphores,
+                                           std::vector<CommandBuffer> commandBuffers) override;
+
+        void destroyCommandQueue(CommandQueue *commandQueue) override;
+
         Buffer *createBuffer(BufferUsage usage, uint32_t count, uint32_t stride) override;
 
         void destroyBuffer(Buffer *buffer) override;
