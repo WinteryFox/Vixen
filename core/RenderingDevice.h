@@ -2,11 +2,15 @@
 
 #include <string>
 
+#include "QueueFamilyFlags.h"
+#include "Surface.h"
+#include "Swapchain.h"
 #include "command/CommandPool.h"
 #include "command/CommandBuffer.h"
 #include "buffer/Buffer.h"
 #include "buffer/BufferUsage.h"
 #include "command/CommandQueue.h"
+#include "command/Fence.h"
 #include "command/Semaphore.h"
 #include "image/Image.h"
 #include "image/ImageFormat.h"
@@ -25,6 +29,22 @@ namespace Vixen {
     public:
         virtual ~RenderingDevice() = default;
 
+        virtual Swapchain *createSwapchain(Surface *surface) = 0;
+
+        virtual void resizeSwapchain(CommandQueue *commandQueue, Swapchain *swapchain, uint32_t imageCount) = 0;
+
+        virtual void destroySwapchain(Swapchain *swapchain) = 0;
+
+        virtual Fence *createFence() = 0;
+
+        virtual void waitOnFence(const Fence *fence) = 0;
+
+        virtual void destroyFence(Fence *fence) = 0;
+
+        virtual Semaphore *createSemaphore() = 0;
+
+        virtual void destroySemaphore(Semaphore *semaphore) = 0;
+
         virtual CommandPool *createCommandPool(uint32_t queueFamily, CommandBufferType type) = 0;
 
         virtual void resetCommandPool(CommandPool *pool) = 0;
@@ -41,10 +61,14 @@ namespace Vixen {
 
         virtual void destroyBuffer(Buffer *buffer) = 0;
 
+        virtual uint32_t getQueueFamily(QueueFamilyFlags queueFamilyFlags, Surface *surface) = 0;
+
         virtual CommandQueue *createCommandQueue() = 0;
 
         virtual void executeCommandQueueAndPresent(CommandQueue *commandQueue, std::vector<Semaphore> waitSemaphores,
-                                                   std::vector<CommandBuffer> commandBuffers) = 0;
+                                                   std::vector<CommandBuffer> commandBuffers,
+                                                   std::vector<Semaphore> semaphores,
+                                                   Fence *fence, std::vector<Swapchain> swapchains) = 0;
 
         virtual void destroyCommandQueue(CommandQueue *commandQueue) = 0;
 

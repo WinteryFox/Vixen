@@ -4,6 +4,7 @@
 #include <volk.h>
 
 #include "GraphicsCard.h"
+#include "VulkanSurface.h"
 #include "core/RenderingContext.h"
 
 namespace Vixen {
@@ -34,5 +35,7 @@ namespace Vixen {
         GraphicsCard getPhysicalDevice(uint32_t index);
 
         [[nodiscard]] VkInstance getInstance() const;
+
+        bool supportsPresent(VkPhysicalDevice physicalDevice, uint32_t queueFamilyIndex, VulkanSurface *surface);
     };
 }

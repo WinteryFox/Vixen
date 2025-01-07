@@ -3,8 +3,10 @@
 #include <vector>
 #include <volk.h>
 
+#include "core/Swapchain.h"
+
 namespace Vixen {
-    struct VulkanSwapchain {
+    struct VulkanSwapchain : Swapchain {
         VkSwapchainKHR swapchain;
         VkSurfaceKHR surface;
         VkFormat format;

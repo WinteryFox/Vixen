@@ -24,6 +24,7 @@ add_library(
         command/VulkanFence.h
         command/VulkanSemaphore.h
         command/VulkanCommandQueue.h
+        VulkanSurface.h
 )
 target_link_libraries(
         VkVixen

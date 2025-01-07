@@ -197,4 +197,16 @@ namespace Vixen {
     VkInstance VulkanRenderingContext::getInstance() const {
         return instance;
     }
+
+    bool VulkanRenderingContext::supportsPresent(VkPhysicalDevice physicalDevice, uint32_t queueFamilyIndex,
+                                                 VulkanSurface *surface) {
+        VkBool32 support = VK_FALSE;
+        ASSERT_THROW(
+            vkGetPhysicalDeviceSurfaceSupportKHR(physicalDevice, queueFamilyIndex, surface->surface, &support) ==
+            VK_SUCCESS,
+            CantCreateError,
+            "Failed to query surface support"
+        );
+        return support;
+    }
 }

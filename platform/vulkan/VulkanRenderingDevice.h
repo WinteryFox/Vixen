@@ -2,6 +2,7 @@
 
 #include <memory>
 #include <vector>
+#include <volk.h>
 
 #include "core/RenderingDevice.h"
 #include "GraphicsCard.h"
@@ -9,7 +10,6 @@
 typedef struct VmaAllocator_T *VmaAllocator;
 
 namespace Vixen {
-    enum class BufferUsage : int64_t;
     class VulkanRenderingContext;
 
     class VulkanRenderingDevice final : public RenderingDevice {
@@ -18,6 +18,12 @@ namespace Vixen {
             bool deviceFault;
         } enabledFeatures;
 
+        struct Queue {
+            VkQueue queue;
+            uint32_t count;
+            std::mutex submitMutex;
+        };
+
         std::shared_ptr<VulkanRenderingContext> renderingContext;
 
         GraphicsCard physicalDevice;
@@ -25,6 +31,8 @@ namespace Vixen {
         std::vector<const char *> enabledExtensionNames;
 
         VkDevice device;
+
+        std::vector<std::vector<Queue> > queueFamilies;
 
         VmaAllocator allocator;
 
@@ -51,6 +59,24 @@ namespace Vixen {
 
         ~VulkanRenderingDevice() override;
 
+        Swapchain *createSwapchain(Surface *surface) override;
+
+        void resizeSwapchain(CommandQueue *commandQueue, Swapchain *swapchain, uint32_t imageCount) override;
+
+        void destroySwapchain(Swapchain *swapchain) override;
+
+        uint32_t getQueueFamily(QueueFamilyFlags queueFamilyFlags, Surface *surface) override;
+
+        Fence *createFence() override;
+
+        void waitOnFence(const Fence *fence) override;
+
+        void destroyFence(Fence *fence) override;
+
+        Semaphore *createSemaphore() override;
+
+        void destroySemaphore(Semaphore *semaphore) override;
+
         CommandPool *createCommandPool(uint32_t queueFamily, CommandBufferType type) override;
 
         void resetCommandPool(CommandPool *pool) override;
@@ -66,7 +92,8 @@ namespace Vixen {
         CommandQueue *createCommandQueue() override;
 
         void executeCommandQueueAndPresent(CommandQueue *commandQueue, std::vector<Semaphore> waitSemaphores,
-                                           std::vector<CommandBuffer> commandBuffers) override;
+                                           std::vector<CommandBuffer> commandBuffers, std::vector<Semaphore> semaphores,
+                                           Fence *fence, std::vector<Swapchain> swapchains) override;
 
         void destroyCommandQueue(CommandQueue *commandQueue) override;
 

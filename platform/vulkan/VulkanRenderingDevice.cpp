@@ -13,6 +13,7 @@
 #include "command/VulkanCommandQueue.h"
 #include "command/VulkanSemaphore.h"
 #include "command/VulkanFence.h"
+#include "core/error/CantCreateError.h"
 #include "image/VulkanImage.h"
 #include "image/VulkanSampler.h"
 #include "shader/VulkanShader.h"
@@ -78,17 +79,17 @@ namespace Vixen {
     }
 
     void VulkanRenderingDevice::initializeDevice() {
-        const auto queueFamilies = physicalDevice.getQueueFamilyWithFlags(
+        const auto families = physicalDevice.getQueueFamilyWithFlags(
             VK_QUEUE_GRAPHICS_BIT | VK_QUEUE_COMPUTE_BIT | VK_QUEUE_TRANSFER_BIT);
         std::vector<VkDeviceQueueCreateInfo> queueCreateInfos{queueFamilies.size()};
         std::vector queuePriorities{0.0f};
-        for (uint32_t i = 0; i < queueFamilies.size(); i++) {
+        for (uint32_t i = 0; i < families.size(); i++) {
             queueCreateInfos[i] = {
                 .sType = VK_STRUCTURE_TYPE_DEVICE_QUEUE_CREATE_INFO,
                 .pNext = nullptr,
                 .flags = 0,
-                .queueFamilyIndex = queueFamilies[i].index,
-                .queueCount = 1,
+                .queueFamilyIndex = families[i].index,
+                .queueCount = std::min(families[i].properties.queueCount, static_cast<uint32_t>(1)),
                 .pQueuePriorities = queuePriorities.data()
             };
         }
@@ -186,6 +187,10 @@ namespace Vixen {
                      CantCreateError,
                      "Failed to create VkDevice");
 
+        for (uint32_t i = 0; i < queueFamilies.size(); i++)
+            for (uint32_t j = 0; j < queueFamilies[i].size(); j++)
+                vkGetDeviceQueue(device, i, j, &queueFamilies[i][j].queue);
+
         volkLoadDevice(device);
 
         const VmaVulkanFunctions vulkanFunctions{
@@ -279,6 +284,94 @@ namespace Vixen {
         vkDestroyDevice(device, nullptr);
     }
 
+    Swapchain *VulkanRenderingDevice::createSwapchain(Surface *surface) {
+        // TODO
+    }
+
+    void VulkanRenderingDevice::resizeSwapchain(CommandQueue *commandQueue, Swapchain *swapchain,
+                                                uint32_t imageCount) {
+        // TODO
+    }
+
+    void VulkanRenderingDevice::destroySwapchain(Swapchain *swapchain) {
+        // TODO
+    }
+
+    uint32_t VulkanRenderingDevice::getQueueFamily(QueueFamilyFlags queueFamilyFlags, Surface *surface) {
+        VkQueueFlags pickedQueueFlags = VK_QUEUE_FLAG_BITS_MAX_ENUM;
+        uint32_t pickedQueueFamilyIndex = std::numeric_limits<uint32_t>::max();
+
+        for (uint32_t i = 0; i < queueFamilies.size(); i++) {
+            if (queueFamilies[i].empty())
+                continue;
+
+            if (surface != nullptr && !renderingContext->supportsPresent(
+                    physicalDevice.device, i, reinterpret_cast<VulkanSurface *>(surface)))
+                continue;
+
+            const VkQueueFlags optionQueueFlags = physicalDevice.queueFamilies[i].properties.queueFlags;
+            const bool includesAllBits = static_cast<QueueFamilyFlags>(optionQueueFlags) & queueFamilyFlags;
+            const bool preferLessBits = optionQueueFlags < pickedQueueFlags;
+            if (includesAllBits && preferLessBits) {
+                pickedQueueFamilyIndex = i;
+                pickedQueueFlags = optionQueueFlags;
+            }
+        }
+
+        ASSERT_THROW(pickedQueueFamilyIndex <= queueFamilies.size(), CantCreateError,
+                     "Failed to find suitable queue family");
+
+        return pickedQueueFamilyIndex;
+    }
+
+    Fence *VulkanRenderingDevice::createFence() {
+        const auto o = new VulkanFence();
+
+        constexpr VkFenceCreateInfo fenceInfo{
+            .sType = VK_STRUCTURE_TYPE_FENCE_CREATE_INFO,
+            .pNext = nullptr,
+            .flags = 0
+        };
+
+        ASSERT_THROW(vkCreateFence(device, &fenceInfo, nullptr, &o->fence) == VK_SUCCESS,
+                     CantCreateError,
+                     "Call to vkCreateFence failed.");
+
+        return o;
+    }
+
+    void VulkanRenderingDevice::waitOnFence(const Fence *fence) {
+        const auto o = reinterpret_cast<const VulkanFence *>(fence);
+        vkWaitForFences(device, 1, &o->fence, VK_TRUE, std::numeric_limits<uint64_t>::max());
+    }
+
+    void VulkanRenderingDevice::destroyFence(Fence *fence) {
+        const auto o = reinterpret_cast<VulkanFence *>(fence);
+        vkDestroyFence(device, o->fence, nullptr);
+        delete o;
+    }
+
+    Semaphore *VulkanRenderingDevice::createSemaphore() {
+        const auto o = new VulkanSemaphore();
+
+        constexpr VkSemaphoreCreateInfo semaphoreInfo{
+            .sType = VK_STRUCTURE_TYPE_SEMAPHORE_CREATE_INFO,
+            .pNext = nullptr,
+            .flags = 0
+        };
+        ASSERT_THROW(vkCreateSemaphore(device, &semaphoreInfo, nullptr, &o->semaphore) == VK_SUCCESS,
+                     CantCreateError,
+                     "Call to vkCreateSemaphore failed.");
+
+        return o;
+    }
+
+    void VulkanRenderingDevice::destroySemaphore(Semaphore *semaphore) {
+        const auto o = reinterpret_cast<VulkanSemaphore *>(semaphore);
+        vkDestroySemaphore(device, o->semaphore, nullptr);
+        delete o;
+    }
+
     CommandPool *VulkanRenderingDevice::createCommandPool(const uint32_t queueFamily, CommandBufferType type) {
         const VkCommandPoolCreateInfo commandPoolInfo{
             .sType = VK_STRUCTURE_TYPE_COMMAND_POOL_CREATE_INFO,
@@ -345,20 +438,22 @@ namespace Vixen {
 
     void VulkanRenderingDevice::endCommandBuffer(CommandBuffer *commandBuffer) {
         const auto o = reinterpret_cast<VulkanCommandBuffer *>(commandBuffer);
-
         vkEndCommandBuffer(o->commandBuffer);
     }
 
     CommandQueue *VulkanRenderingDevice::createCommandQueue() {
         auto commandQueue = new VulkanCommandQueue();
 
+        // TODO
 
         return commandQueue;
     }
 
     void VulkanRenderingDevice::executeCommandQueueAndPresent(CommandQueue *commandQueue,
                                                               std::vector<Semaphore> waitSemaphores,
-                                                              std::vector<CommandBuffer> commandBuffers) {
+                                                              std::vector<CommandBuffer> commandBuffers,
+                                                              std::vector<Semaphore> semaphores,
+                                                              Fence *fence, std::vector<Swapchain> swapchains) {
         const auto o = reinterpret_cast<VulkanCommandQueue *>(commandQueue);
 
         const VkQueue queue = VK_NULL_HANDLE;
@@ -377,7 +472,7 @@ namespace Vixen {
 
         VkSemaphoreWaitFlags waitFlags = VK_SEMAPHORE_WAIT_ANY_BIT;
 
-        VkSubmitInfo submitInfo{
+        const VkSubmitInfo submitInfo{
             .sType = VK_STRUCTURE_TYPE_SUBMIT_INFO,
             .pNext = nullptr,
             .waitSemaphoreCount = static_cast<uint32_t>(vkWaitSemaphores.size()),
@@ -389,13 +484,28 @@ namespace Vixen {
             .pSignalSemaphores = nullptr
         };
 
-        vkQueueSubmit(queue, 1, &submitInfo, fence);
+        vkQueueSubmit(queue, 1, &submitInfo, nullptr);
+
+        VkPresentInfoKHR presentInfo{
+            .sType = VK_STRUCTURE_TYPE_PRESENT_INFO_KHR,
+            .pNext = nullptr,
+            .waitSemaphoreCount = 0,
+            .pWaitSemaphores = nullptr,
+            .swapchainCount = 0,
+            .pSwapchains = nullptr,
+            .pImageIndices = nullptr,
+            .pResults = nullptr
+        };
+
+        vkQueuePresentKHR(queue, &presentInfo);
 
         // TODO: Present to swapchain
     }
 
     void VulkanRenderingDevice::destroyCommandQueue(CommandQueue *commandQueue) {
         const auto o = reinterpret_cast<VulkanCommandQueue *>(commandQueue);
+
+        // TODO: Destroy Vulkan objects
 
         delete o;
     }

@@ -84,6 +84,9 @@ add_library(
         shader/ShaderLanguage.h
         command/CommandQueue.h
         shader/ShaderStageData.h
+        Swapchain.h
+        Surface.h
+        QueueFamilyFlags.h
 )
 target_link_libraries(
         Vixen

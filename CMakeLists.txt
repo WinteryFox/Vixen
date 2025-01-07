@@ -28,7 +28,7 @@ set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 add_link_options(-static -static-libstdc++ -static-libgcc)
 add_compile_options(-std=c++20 -Wall -Wextra -Wpedantic)
 if (CMAKE_BUILD_TYPE MATCHES "Release")
-    set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} -O2")
+    add_link_options(-O2)
 endif ()
 
 if (POLICY CMP0025)

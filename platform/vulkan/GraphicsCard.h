@@ -3,7 +3,6 @@
 #include <map>
 #include <algorithm>
 
-#include "core/error/CantCreateError.h"
 #include "core/error/Macros.h"
 
 namespace Vixen {
@@ -11,20 +10,6 @@ namespace Vixen {
         uint32_t index;
 
         VkQueueFamilyProperties properties;
-
-        [[nodiscard]] bool hasFlags(const VkQueueFlags flags) const {
-            return properties.queueFlags & flags;
-        }
-
-        bool hasSurfaceSupport(const VkPhysicalDevice device, const VkSurfaceKHR surface) const {
-            VkBool32 support = VK_FALSE;
-            ASSERT_THROW(
-                vkGetPhysicalDeviceSurfaceSupportKHR(device, index, surface, &support) == VK_SUCCESS,
-                CantCreateError,
-                "Failed to query surface support"
-            );
-            return support;
-        }
     };
 
     class GraphicsCard {
@@ -65,16 +50,7 @@ namespace Vixen {
         [[nodiscard]] std::vector<QueueFamily> getQueueFamilyWithFlags(const VkQueueFlags flags) const {
             std::vector<QueueFamily> families{};
             for (auto queue: queueFamilies)
-                if (queue.hasFlags(flags))
-                    families.push_back(queue);
-
-            return families;
-        }
-
-        std::vector<QueueFamily> getSurfaceSupportedQueues(VkSurfaceKHR surface) const {
-            std::vector<QueueFamily> families{};
-            for (auto queue: queueFamilies)
-                if (queue.hasSurfaceSupport(device, surface))
+                if (queue.properties.queueFlags & flags)
                     families.push_back(queue);
 
             return families;
