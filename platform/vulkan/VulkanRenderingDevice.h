@@ -91,9 +91,11 @@ namespace Vixen {
 
         CommandQueue *createCommandQueue() override;
 
-        void executeCommandQueueAndPresent(CommandQueue *commandQueue, std::vector<Semaphore> waitSemaphores,
-                                           std::vector<CommandBuffer> commandBuffers, std::vector<Semaphore> semaphores,
-                                           Fence *fence, std::vector<Swapchain> swapchains) override;
+        void executeCommandQueueAndPresent(CommandQueue *commandQueue,
+                                           const std::vector<Semaphore *> &waitSemaphores,
+                                           const std::vector<CommandBuffer *> &commandBuffers,
+                                           const std::vector<Semaphore *> &semaphores,
+                                           Fence *fence, const std::vector<Swapchain *> &swapchains) override;
 
         void destroyCommandQueue(CommandQueue *commandQueue) override;
 

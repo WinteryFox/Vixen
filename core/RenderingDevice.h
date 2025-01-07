@@ -65,10 +65,11 @@ namespace Vixen {
 
         virtual CommandQueue *createCommandQueue() = 0;
 
-        virtual void executeCommandQueueAndPresent(CommandQueue *commandQueue, std::vector<Semaphore> waitSemaphores,
-                                                   std::vector<CommandBuffer> commandBuffers,
-                                                   std::vector<Semaphore> semaphores,
-                                                   Fence *fence, std::vector<Swapchain> swapchains) = 0;
+        virtual void executeCommandQueueAndPresent(CommandQueue *commandQueue,
+                                                   const std::vector<Semaphore *> &waitSemaphores,
+                                                   const std::vector<CommandBuffer *> &commandBuffers,
+                                                   const std::vector<Semaphore *> &semaphores,
+                                                   Fence *fence, const std::vector<Swapchain *> &swapchains) = 0;
 
         virtual void destroyCommandQueue(CommandQueue *commandQueue) = 0;
 

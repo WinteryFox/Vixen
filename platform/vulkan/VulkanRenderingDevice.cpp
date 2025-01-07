@@ -7,6 +7,7 @@
 #include <spirv_reflect.hpp>
 
 #include "VulkanRenderingContext.h"
+#include "VulkanSwapchain.h"
 #include "buffer/VulkanBuffer.h"
 #include "command/VulkanCommandBuffer.h"
 #include "command/VulkanCommandPool.h"
@@ -450,25 +451,24 @@ namespace Vixen {
     }
 
     void VulkanRenderingDevice::executeCommandQueueAndPresent(CommandQueue *commandQueue,
-                                                              std::vector<Semaphore> waitSemaphores,
-                                                              std::vector<CommandBuffer> commandBuffers,
-                                                              std::vector<Semaphore> semaphores,
-                                                              Fence *fence, std::vector<Swapchain> swapchains) {
+                                                              const std::vector<Semaphore *> &waitSemaphores,
+                                                              const std::vector<CommandBuffer *> &commandBuffers,
+                                                              const std::vector<Semaphore *> &semaphores,
+                                                              Fence *fence,
+                                                              const std::vector<Swapchain *> &swapchains) {
         const auto o = reinterpret_cast<VulkanCommandQueue *>(commandQueue);
 
         const VkQueue queue = VK_NULL_HANDLE;
 
         std::vector<VkSemaphore> vkWaitSemaphores{};
         vkWaitSemaphores.reserve(waitSemaphores.size());
-        for (const auto &semaphore: waitSemaphores) {
-            vkWaitSemaphores.push_back(static_cast<VulkanSemaphore>(semaphore).semaphore);
-        }
+        for (const auto &semaphore: waitSemaphores)
+            vkWaitSemaphores.push_back(reinterpret_cast<VulkanSemaphore*>(semaphore)->semaphore);
 
         std::vector<VkCommandBuffer> vkCommandBuffers{};
         vkCommandBuffers.reserve(commandBuffers.size());
-        for (const auto &commandBuffer: commandBuffers) {
-            vkCommandBuffers.push_back(static_cast<VulkanCommandBuffer>(commandBuffer).commandBuffer);
-        }
+        for (const auto &commandBuffer: commandBuffers)
+            vkCommandBuffers.push_back(reinterpret_cast<VulkanCommandBuffer*>(commandBuffer)->commandBuffer);
 
         VkSemaphoreWaitFlags waitFlags = VK_SEMAPHORE_WAIT_ANY_BIT;
 
@@ -486,13 +486,18 @@ namespace Vixen {
 
         vkQueueSubmit(queue, 1, &submitInfo, nullptr);
 
+        std::vector<VkSwapchainKHR> vkSwapchains{};
+        vkSwapchains.reserve(swapchains.size());
+        for (const auto &swapchain: swapchains)
+            vkSwapchains.push_back(reinterpret_cast<VulkanSwapchain*>(swapchain)->swapchain);
+
         VkPresentInfoKHR presentInfo{
             .sType = VK_STRUCTURE_TYPE_PRESENT_INFO_KHR,
             .pNext = nullptr,
             .waitSemaphoreCount = 0,
             .pWaitSemaphores = nullptr,
-            .swapchainCount = 0,
-            .pSwapchains = nullptr,
+            .swapchainCount = static_cast<uint32_t>(vkSwapchains.size()),
+            .pSwapchains = vkSwapchains.data(),
             .pImageIndices = nullptr,
             .pResults = nullptr
         };
