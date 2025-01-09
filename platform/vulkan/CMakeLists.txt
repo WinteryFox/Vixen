@@ -43,33 +43,6 @@ target_include_directories(
 
 target_compile_definitions(VkVixen PUBLIC VK_NO_PROTOTYPES)
 
-find_package(glslang QUIET)
-if (${glslang_FOUND})
-    target_link_libraries(
-            VkVixen
-            PUBLIC
-            #           glslang::OSDependent
-            glslang::glslang
-            #           glslang::MachineIndependent
-            #           glslang::GenericCodeGen
-            #           glslang::OGLCompiler
-            #           glslang::glslangValidator
-            #           glslang::spirv-remap
-            glslang::glslang-default-resource-limits
-            #           glslang::SPVRemapper
-            glslang::SPIRV
-            #           glslang::HLSL
-    )
-else ()
-    pkg_check_modules(glslang REQUIRED IMPORTED_TARGET glslang)
-    target_link_libraries(
-            VkVixen
-            PUBLIC
-            PkgConfig::glslang
-            PkgConfig::SPIRV
-    )
-endif ()
-
 if (WIN32)
     set(VOLK_STATIC_DEFINES VK_USE_PLATFORM_WIN32_KHR)
     # TODO: Other platforms

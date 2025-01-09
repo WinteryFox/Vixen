@@ -10,10 +10,10 @@
 namespace Vixen {
     Application::Application(
         RenderingDriver renderingDriver,
-        std::string applicationTitle,
+        const std::string &applicationTitle,
         const glm::vec3 applicationVersion,
         std::string workingDirectory
-    ) : applicationTitle(std::move(applicationTitle)),
+    ) : applicationTitle(applicationTitle),
         applicationVersion(applicationVersion),
         workingDirectory(std::move(workingDirectory)) {
 #ifdef _WIN32
@@ -26,6 +26,7 @@ namespace Vixen {
 #endif
 
         this->displayServer = std::make_shared<DisplayServer>(
+            applicationTitle,
             renderingDriver,
             WindowMode::Windowed,
             VSyncMode::Disabled,

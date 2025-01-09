@@ -13,8 +13,14 @@
 #include "platform/d3d12/D3D12RenderingDevice.h"
 #endif
 
+#ifdef OPENGL_ENABLED
+#include "platform/opengl/OpenGLRenderingContext.h"
+#include "platform/opengl/OpenGLRenderingDevice.h"
+#endif
+
 namespace Vixen {
     void DisplayServer::createWindow(
+        const std::string &title,
         const WindowMode mode,
         const VSyncMode vsync,
         const WindowFlags flags,
@@ -27,7 +33,7 @@ namespace Vixen {
         glfwWindowHint(GLFW_DECORATED, flags & WindowFlags::Borderless ? GLFW_FALSE : GLFW_TRUE);
         glfwWindowHint(GLFW_FLOATING, flags & WindowFlags::AlwaysOnTop ? GLFW_TRUE : GLFW_FALSE);
 
-        this->mainWindow = glfwCreateWindow(resolution.x, resolution.y, "", nullptr, nullptr);
+        this->mainWindow = glfwCreateWindow(resolution.x, resolution.y, title.c_str(), nullptr, nullptr);
         ASSERT_THROW(mainWindow != nullptr, CantCreateError, "Failed to create window");
 
         glfwSetWindowUserPointer(mainWindow, this);
@@ -41,14 +47,17 @@ namespace Vixen {
     }
 
     DisplayServer::DisplayServer(
+        const std::string &title,
         const RenderingDriver driver,
-        const WindowMode mode,
-        const VSyncMode vsync,
+        const WindowMode windowMode,
+        const VSyncMode vsyncMode,
         const WindowFlags flags,
         const glm::ivec2 resolution
     ) : driver(driver),
         resolution(resolution),
-        mainWindow(nullptr) {
+        mainWindow(nullptr),
+        vsyncMode(vsyncMode),
+        windowMode(windowMode) {
         ASSERT_THROW(glfwInit() != GLFW_FALSE, CantCreateError,
                      "Failed to initialize GLFW.\n"
                      "glfwInit failed.")
@@ -60,7 +69,7 @@ namespace Vixen {
         switch (driver) {
 #ifdef VULKAN_ENABLED
             case RenderingDriver::Vulkan:
-                renderingContext = std::make_shared<VulkanRenderingContext>();
+                renderingContext = std::make_shared<VulkanRenderingContext>(title);
                 break;
 #endif
 
@@ -70,11 +79,17 @@ namespace Vixen {
                 break;
 #endif
 
+#ifdef OPENGL_ENABLED
+            case RenderingDriver::OpenGL:
+                renderingContext = std::make_shared<OpenGLRenderingContext>();
+                break;
+#endif
+
             default:
                 ASSERT_THROW(false, CantCreateError, "Unsupported rendering driver.");
         }
 
-        createWindow(mode, vsync, flags, resolution);
+        createWindow(title, windowMode, vsyncMode, flags, resolution);
         ASSERT_THROW(mainWindow, CantCreateError, "Failed to create window.");
 
         switch (driver) {
@@ -92,6 +107,12 @@ namespace Vixen {
                 break;
 #endif
 
+#ifdef OPENGL_ENABLED
+            case RenderingDriver::OpenGL:
+                renderingDevice = std::make_shared<OpenGLRenderingDevice>();
+                break;
+#endif
+
             default:
                 ASSERT_THROW(false, CantCreateError, "Unsupported rendering driver.");
         }
@@ -100,7 +121,9 @@ namespace Vixen {
     DisplayServer::DisplayServer(DisplayServer &&other) noexcept
         : driver(other.driver),
           resolution(other.resolution),
-          mainWindow(std::exchange(other.mainWindow, nullptr)) {
+          mainWindow(std::exchange(other.mainWindow, nullptr)),
+          vsyncMode(other.vsyncMode),
+          windowMode(other.windowMode) {
     }
 
     DisplayServer &DisplayServer::operator=(DisplayServer &&other) noexcept {
@@ -226,7 +249,9 @@ namespace Vixen {
         return monitors;
     }
 
-    void DisplayServer::setWindowedMode(const WindowMode mode) const {
+    void DisplayServer::setWindowedMode(const WindowMode mode) {
+        this->windowMode = mode;
+
         int w;
         int h;
         int x;
@@ -268,17 +293,21 @@ namespace Vixen {
         glfwSetWindowMonitor(mainWindow, m, x, y, w, h, refreshRate);
     }
 
-    void DisplayServer::setVSyncMode(const VSyncMode mode) const {
-        switch (mode) {
-            case VSyncMode::Disabled:
-                glfwSwapInterval(0);
-                break;
+    void DisplayServer::setVSyncMode(const VSyncMode mode) {
+        this->vsyncMode = mode;
 
-            case VSyncMode::Enabled:
-            case VSyncMode::Adaptive:
-            case VSyncMode::Mailbox:
-                glfwSwapInterval(1);
-                break;
+        if (driver == RenderingDriver::OpenGL) {
+            switch (mode) {
+                case VSyncMode::Disabled:
+                    glfwSwapInterval(0);
+                    break;
+
+                case VSyncMode::Enabled:
+                case VSyncMode::Adaptive:
+                case VSyncMode::Mailbox:
+                    glfwSwapInterval(1);
+                    break;
+            }
         }
     }
 

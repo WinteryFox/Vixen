@@ -82,16 +82,16 @@ namespace Vixen {
     void VulkanRenderingDevice::initializeDevice() {
         const auto families = physicalDevice.getQueueFamilyWithFlags(
             VK_QUEUE_GRAPHICS_BIT | VK_QUEUE_COMPUTE_BIT | VK_QUEUE_TRANSFER_BIT);
-        std::vector<VkDeviceQueueCreateInfo> queueCreateInfos{queueFamilies.size()};
-        std::vector queuePriorities{0.0f};
-        for (uint32_t i = 0; i < families.size(); i++) {
+        std::vector<VkDeviceQueueCreateInfo> queueCreateInfos{families.size()};
+        static constexpr float queuePriorities[1] = {0.0f};
+        for (uint32_t i = 0; i < queueCreateInfos.size(); i++) {
             queueCreateInfos[i] = {
                 .sType = VK_STRUCTURE_TYPE_DEVICE_QUEUE_CREATE_INFO,
                 .pNext = nullptr,
                 .flags = 0,
                 .queueFamilyIndex = families[i].index,
                 .queueCount = std::min(families[i].properties.queueCount, static_cast<uint32_t>(1)),
-                .pQueuePriorities = queuePriorities.data()
+                .pQueuePriorities = queuePriorities
             };
         }
 

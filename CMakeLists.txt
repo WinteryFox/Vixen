@@ -1,22 +1,24 @@
 cmake_minimum_required(VERSION 3.25)
 project("Vixen")
 
-set(ENGINE_NAME "\"Vixen Engine\"")
+set(ENGINE_NAME "Vixen")
 set(ENGINE_VERSION_MAJOR 1)
 set(ENGINE_VERSION_MINOR 0)
 set(ENGINE_VERSION_PATCH 0)
 if (CMAKE_BUILD_TYPE MATCHES "Release")
-    set(ENGINE_VERSION_STATUS "\"stable\"")
-elseif (CMAKE_BUILD_TYPE MATCHES "Debug")
-    set(ENGINE_VERSION_STATUS "\"dev\"")
+    set(ENGINE_VERSION_STATUS "stable")
+else ()
+    set(ENGINE_VERSION_STATUS "dev")
 endif ()
+set(ENGINE_VERSION "${ENGINE_VERSION_MAJOR}.${ENGINE_VERSION_MINOR}.${ENGINE_VERSION_PATCH}.${ENGINE_VERSION_STATUS}")
 
 add_compile_definitions(
-        ENGINE_NAME=${ENGINE_NAME}
+        ENGINE_NAME="${ENGINE_NAME}"
         ENGINE_VERSION_MAJOR=${ENGINE_VERSION_MAJOR}
         ENGINE_VERSION_MINOR=${ENGINE_VERSION_MINOR}
         ENGINE_VERSION_PATCH=${ENGINE_VERSION_PATCH}
-        ENGINE_VERSION_STATUS=${ENGINE_VERSION_STATUS}
+        ENGINE_VERSION_STATUS="${ENGINE_VERSION_STATUS}"
+        ENGINE_VERSION="${ENGINE_VERSION}"
 )
 
 set(CMAKE_INCLUDE_CURRENT_DIR ON)
@@ -42,7 +44,7 @@ find_package(PkgConfig REQUIRED)
 
 option(ENABLE_VULKAN "Enable or disable Vulkan support" ON)
 option(ENABLE_D3D12 "Enable or disable D3D12 support" OFF)
-option(ENABLE_OPENGL "Enable or disable OpenGL support" ON)
+option(ENABLE_OPENGL "Enable or disable OpenGL support" OFF)
 option(ENABLE_TESTS "Enable or disable building of the tests" ON)
 option(ENABLE_EDITOR "Enable or disable the editor" ON)
 
@@ -62,6 +64,10 @@ if (ENABLE_D3D12)
     add_compile_definitions(D3D12_ENABLED)
 endif ()
 
+if (ENABLE_OPENGL)
+    add_compile_definitions(OPENGL_ENABLED)
+endif ()
+
 add_subdirectory(core)
 
 if (ENABLE_VULKAN)
@@ -71,6 +77,10 @@ endif ()
 
 if (ENABLE_D3D12)
     add_subdirectory(platform/d3d12)
+endif ()
+
+if (ENABLE_OPENGL)
+    add_subdirectory(platform/opengl)
 endif ()
 
 if (ENABLE_EDITOR)

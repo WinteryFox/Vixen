@@ -23,11 +23,16 @@ namespace Vixen {
 
         bool framebufferSizeChanged = false;
 
+        VSyncMode vsyncMode;
+
+        WindowMode windowMode;
+
         std::shared_ptr<RenderingContext> renderingContext;
 
         std::shared_ptr<RenderingDevice> renderingDevice;
 
         void createWindow(
+            const std::string &title,
             WindowMode mode,
             VSyncMode vsync,
             WindowFlags flags,
@@ -36,9 +41,10 @@ namespace Vixen {
 
     public:
         DisplayServer(
+            const std::string &title,
             RenderingDriver driver,
-            WindowMode mode,
-            VSyncMode vsync,
+            WindowMode windowMode,
+            VSyncMode vsyncMode,
             WindowFlags flags,
             glm::ivec2 resolution
         );
@@ -82,9 +88,9 @@ namespace Vixen {
 
         void maximize() const;
 
-        void setWindowedMode(WindowMode mode) const;
+        void setWindowedMode(WindowMode mode);
 
-        void setVSyncMode(VSyncMode mode) const;
+        void setVSyncMode(VSyncMode mode);
 
         [[nodiscard]] bool getWindowMonitor(Monitor &m) const;
 

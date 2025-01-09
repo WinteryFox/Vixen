@@ -113,3 +113,30 @@ target_link_libraries(
         spirv-cross-glsl
         spirv-cross-reflect
 )
+
+find_package(glslang QUIET)
+if (${glslang_FOUND})
+    target_link_libraries(
+            Vixen
+            PUBLIC
+            #           glslang::OSDependent
+            glslang::glslang
+            #           glslang::MachineIndependent
+            #           glslang::GenericCodeGen
+            #           glslang::OGLCompiler
+            #           glslang::glslangValidator
+            #           glslang::spirv-remap
+            glslang::glslang-default-resource-limits
+            #           glslang::SPVRemapper
+            glslang::SPIRV
+            #           glslang::HLSL
+    )
+else ()
+    pkg_check_modules(glslang REQUIRED IMPORTED_TARGET glslang)
+    target_link_libraries(
+            Vixen
+            PUBLIC
+            PkgConfig::glslang
+            PkgConfig::SPIRV
+    )
+endif ()

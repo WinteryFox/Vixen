@@ -77,11 +77,11 @@ namespace Vixen {
         }
     }
 
-    void VulkanRenderingContext::initializeInstance() {
+    void VulkanRenderingContext::initializeInstance(const std::string &applicationName) {
         VkApplicationInfo applicationInfo{
             .sType = VK_STRUCTURE_TYPE_APPLICATION_INFO,
             .pNext = nullptr,
-            .pApplicationName = ENGINE_NAME,
+            .pApplicationName = applicationName.c_str(),
             .applicationVersion = 0,
             .pEngineName = ENGINE_NAME,
             .engineVersion = VK_MAKE_VERSION(ENGINE_VERSION_MAJOR, ENGINE_VERSION_MINOR, ENGINE_VERSION_PATCH),
@@ -163,7 +163,7 @@ namespace Vixen {
             this->physicalDevices.emplace_back(device);
     }
 
-    VulkanRenderingContext::VulkanRenderingContext()
+    VulkanRenderingContext::VulkanRenderingContext(const std::string &applicationName)
         : RenderingContext(),
           instanceApiVersion(VK_API_VERSION_1_0),
           instance(VK_NULL_HANDLE),
@@ -181,7 +181,7 @@ namespace Vixen {
 
         initializeInstanceExtensions();
 
-        initializeInstance();
+        initializeInstance(applicationName);
 
         initializeDevices();
     }

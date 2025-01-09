@@ -23,12 +23,12 @@ namespace Vixen {
 
         void initializeInstanceExtensions();
 
-        void initializeInstance();
+        void initializeInstance(const std::string &applicationName);
 
         void initializeDevices();
 
     public:
-        VulkanRenderingContext();
+        explicit VulkanRenderingContext(const std::string &applicationName);
 
         ~VulkanRenderingContext() override;
 

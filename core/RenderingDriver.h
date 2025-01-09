@@ -3,6 +3,7 @@
 namespace Vixen {
     enum class RenderingDriver {
         Vulkan,
-        D3D12
+        D3D12,
+        OpenGL
     };
 }

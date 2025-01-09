@@ -8,8 +8,8 @@ int main() {
     try {
         auto application = Vixen::Application(
             Vixen::RenderingDriver::Vulkan,
-            "Vixen Engine",
-            {1, 0, 0}
+            "Vixen " ENGINE_VERSION,
+            {ENGINE_VERSION_MAJOR, ENGINE_VERSION_MINOR, ENGINE_VERSION_PATCH}
         );
 
         const auto device = application.getDisplayServer()->getRenderingDevice();

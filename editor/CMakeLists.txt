@@ -31,6 +31,14 @@ if (ENABLE_D3D12)
     )
 endif ()
 
+if (ENABLE_OPENGL)
+    target_link_libraries(
+            editor
+            PUBLIC
+            OpenGLVixen
+    )
+endif ()
+
 if (CMAKE_BUILD_TYPE MATCHES "Release")
     set_target_properties(editor PROPERTIES WIN32_EXECUTABLE ON MACOSX_BUNDLE ON)
 endif ()
