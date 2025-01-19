@@ -27,6 +27,7 @@ namespace Vixen {
 
         this->displayServer = std::make_shared<DisplayServer>(
             applicationTitle,
+            applicationVersion,
             renderingDriver,
             WindowMode::Windowed,
             VSyncMode::Disabled,
@@ -38,8 +39,9 @@ namespace Vixen {
     Application::~Application() = default;
 
     void Application::run() const {
-        while (!displayServer->shouldClose()) {
-            displayServer->update();
+        const auto &mainWindow = displayServer->getMainWindow();
+        while (!displayServer->shouldClose(mainWindow)) {
+            displayServer->update(mainWindow);
         }
     }
 

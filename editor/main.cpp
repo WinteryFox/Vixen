@@ -13,6 +13,7 @@ int main() {
         );
 
         const auto device = application.getDisplayServer()->getRenderingDevice();
+        const auto context = application.getDisplayServer()->getRenderingContext();
         const auto buffer = device->createBuffer(
             Vixen::BufferUsage::Vertex, 1, sizeof(float) * 3);
         const auto image = device->createImage(
@@ -71,6 +72,14 @@ int main() {
         const auto commandBuffer = device->createCommandBuffer(commandPool);
         device->resetCommandPool(commandPool);
         device->destroyCommandPool(commandPool);
+
+        const auto surface = context->createSurface(application.getDisplayServer()->getMainWindow());
+
+        const auto swapchain = device->createSwapchain(surface);
+        device->resizeSwapchain(nullptr, swapchain, 1);
+        device->destroySwapchain(swapchain);
+
+        context->destroySurface(surface);
 
         application.run();
     } catch (const std::runtime_error &e) {

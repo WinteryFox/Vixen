@@ -77,12 +77,13 @@ namespace Vixen {
         }
     }
 
-    void VulkanRenderingContext::initializeInstance(const std::string &applicationName) {
+    void VulkanRenderingContext::initializeInstance(const std::string &applicationName,
+                                                    const glm::ivec3 &applicationVersion) {
         VkApplicationInfo applicationInfo{
             .sType = VK_STRUCTURE_TYPE_APPLICATION_INFO,
             .pNext = nullptr,
             .pApplicationName = applicationName.c_str(),
-            .applicationVersion = 0,
+            .applicationVersion = VK_MAKE_VERSION(applicationVersion.x, applicationVersion.y, applicationVersion.z),
             .pEngineName = ENGINE_NAME,
             .engineVersion = VK_MAKE_VERSION(ENGINE_VERSION_MAJOR, ENGINE_VERSION_MINOR, ENGINE_VERSION_PATCH),
             .apiVersion = instanceApiVersion == VK_API_VERSION_1_0 ? VK_API_VERSION_1_0 : VK_API_VERSION_1_3
@@ -163,11 +164,11 @@ namespace Vixen {
             this->physicalDevices.emplace_back(device);
     }
 
-    VulkanRenderingContext::VulkanRenderingContext(const std::string &applicationName)
+    VulkanRenderingContext::VulkanRenderingContext(const std::string &applicationName,
+                                                   const glm::ivec3 &applicationVersion)
         : RenderingContext(),
           instanceApiVersion(VK_API_VERSION_1_0),
-          instance(VK_NULL_HANDLE),
-          surface(VK_NULL_HANDLE) {
+          instance(VK_NULL_HANDLE) {
         ASSERT_THROW(glfwVulkanSupported() == GLFW_TRUE, CantCreateError,
                      "This device does not report Vulkan support.\n"
                      "Updating your graphics drivers may resolve this issue.\n"
@@ -181,7 +182,7 @@ namespace Vixen {
 
         initializeInstanceExtensions();
 
-        initializeInstance(applicationName);
+        initializeInstance(applicationName, applicationVersion);
 
         initializeDevices();
     }
@@ -198,8 +199,8 @@ namespace Vixen {
         return instance;
     }
 
-    bool VulkanRenderingContext::supportsPresent(VkPhysicalDevice physicalDevice, uint32_t queueFamilyIndex,
-                                                 VulkanSurface *surface) {
+    bool VulkanRenderingContext::supportsPresent(VkPhysicalDevice physicalDevice, const uint32_t queueFamilyIndex,
+                                                 const VulkanSurface *surface) {
         VkBool32 support = VK_FALSE;
         ASSERT_THROW(
             vkGetPhysicalDeviceSurfaceSupportKHR(physicalDevice, queueFamilyIndex, surface->surface, &support) ==
@@ -208,5 +209,18 @@ namespace Vixen {
             "Failed to query surface support"
         );
         return support;
+    }
+
+    Surface *VulkanRenderingContext::createSurface(Window *window) {
+        auto *surface = reinterpret_cast<VulkanSurface *>(window->surface);
+        glfwCreateWindowSurface(instance, window->window, nullptr, &surface->surface);
+
+        return surface;
+    }
+
+    void VulkanRenderingContext::destroySurface(Surface *surface) {
+        const auto vkSurface = reinterpret_cast<VulkanSurface *>(surface);
+        vkDestroySurfaceKHR(instance, vkSurface->surface, nullptr);
+        delete vkSurface;
     }
 }

@@ -87,6 +87,7 @@ add_library(
         Swapchain.h
         Surface.h
         QueueFamilyFlags.h
+        Window.h
 )
 target_link_libraries(
         Vixen

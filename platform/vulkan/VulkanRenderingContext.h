@@ -2,6 +2,7 @@
 
 #include <vector>
 #include <volk.h>
+#include <glm/glm.hpp>
 
 #include "GraphicsCard.h"
 #include "VulkanSurface.h"
@@ -11,24 +12,22 @@ namespace Vixen {
     class VulkanRenderingContext final : public RenderingContext {
         uint32_t instanceApiVersion;
 
-        std::vector<const char*> enabledInstanceExtensions;
+        std::vector<const char *> enabledInstanceExtensions;
 
         VkInstance instance;
 
         std::vector<GraphicsCard> physicalDevices;
 
-        VkSurfaceKHR surface;
-
         void initializeVulkanVersion();
 
         void initializeInstanceExtensions();
 
-        void initializeInstance(const std::string &applicationName);
+        void initializeInstance(const std::string &applicationName, const glm::ivec3 &applicationVersion);
 
         void initializeDevices();
 
     public:
-        explicit VulkanRenderingContext(const std::string &applicationName);
+        explicit VulkanRenderingContext(const std::string &applicationName, const glm::ivec3 &applicationVersion);
 
         ~VulkanRenderingContext() override;
 
@@ -36,6 +35,10 @@ namespace Vixen {
 
         [[nodiscard]] VkInstance getInstance() const;
 
-        bool supportsPresent(VkPhysicalDevice physicalDevice, uint32_t queueFamilyIndex, VulkanSurface *surface);
+        bool supportsPresent(VkPhysicalDevice physicalDevice, uint32_t queueFamilyIndex, const VulkanSurface *surface);
+
+        Surface *createSurface(Window *window) override;
+
+        void destroySurface(Surface *surface) override;
     };
 }

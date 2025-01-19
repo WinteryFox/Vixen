@@ -8,7 +8,7 @@
 namespace Vixen {
     struct VulkanSwapchain : Swapchain {
         VkSwapchainKHR swapchain;
-        VkSurfaceKHR surface;
+        VulkanSurface *surface;
         VkFormat format;
         VkColorSpaceKHR colorSpace;
         std::vector<VkImage> images;

@@ -286,16 +286,127 @@ namespace Vixen {
     }
 
     Swapchain *VulkanRenderingDevice::createSwapchain(Surface *surface) {
-        // TODO
+        const auto vkSurface = reinterpret_cast<VulkanSurface *>(surface);
+
+        uint32_t formatCount;
+        ASSERT_THROW(
+            vkGetPhysicalDeviceSurfaceFormatsKHR(physicalDevice.device, vkSurface->surface, &formatCount, nullptr)
+            == VK_SUCCESS,
+            CantCreateError,
+            "Call to vkGetPhysicalDeviceSurfaceFormatsKHR failed.");
+        std::vector<VkSurfaceFormatKHR> formats(formatCount);
+        ASSERT_THROW(
+            vkGetPhysicalDeviceSurfaceFormatsKHR(physicalDevice.device, vkSurface->surface, &formatCount,
+                formats.data()) == VK_SUCCESS,
+            CantCreateError,
+            "Call to vkGetPhysicalDeviceSurfaceFormatsKHR failed.");
+
+        auto *swapchain = new VulkanSwapchain();
+
+        swapchain->surface = vkSurface;
+        swapchain->format = VK_FORMAT_UNDEFINED;
+
+        if (formatCount == 1 && formats[0].format == VK_FORMAT_UNDEFINED) {
+            swapchain->format = VK_FORMAT_B8G8R8A8_SRGB;
+            swapchain->colorSpace = formats[0].colorSpace;
+        } else if (formatCount > 0) {
+            constexpr VkFormat preferredFormat = VK_FORMAT_B8G8R8A8_UNORM;
+            constexpr VkFormat alternativeFormat = VK_FORMAT_R8G8B8A8_UNORM;
+
+            for (uint32_t i = 0; i < formatCount; i++) {
+                if (formats[i].format == preferredFormat || formats[i].format == alternativeFormat) {
+                    swapchain->format = formats[i].format;
+
+                    if (formats[i].format == preferredFormat)
+                        break;
+                }
+            }
+        }
+
+        ASSERT_THROW(swapchain->format != VK_FORMAT_UNDEFINED, CantCreateError,
+                     "Surface does not have any supported formats.");
+
+        return swapchain;
     }
 
     void VulkanRenderingDevice::resizeSwapchain(CommandQueue *commandQueue, Swapchain *swapchain,
-                                                uint32_t imageCount) {
-        // TODO
+                                                const uint32_t imageCount) {
+        const auto vkSwapchain = reinterpret_cast<VulkanSwapchain *>(swapchain);
+
+        const auto surface = vkSwapchain->surface;
+        const auto surfaceCapabilities = physicalDevice.getSurfaceCapabilities(surface->surface);
+
+        VkSwapchainCreateInfoKHR swapchainInfo{
+            .sType = VK_STRUCTURE_TYPE_SWAPCHAIN_CREATE_INFO_KHR,
+            .pNext = nullptr,
+            .flags = 0,
+            .surface = surface->surface,
+            .minImageCount = std::max(surfaceCapabilities.minImageCount, imageCount),
+            .imageFormat = vkSwapchain->format,
+            .imageColorSpace = vkSwapchain->colorSpace,
+            .imageExtent = {
+                .width = static_cast<uint32_t>(surface->resolution.x),
+                .height = static_cast<uint32_t>(surface->resolution.y)
+            },
+            .imageArrayLayers = 1,
+            .imageUsage = VK_IMAGE_USAGE_TRANSFER_DST_BIT,
+            // TODO: Should be set conditionally if present and graphics queue are not in the same family.
+            .imageSharingMode = VK_SHARING_MODE_EXCLUSIVE,
+            // TODO: Should be set conditionally if present and graphics queue are not in the same family.
+            .queueFamilyIndexCount = 0,
+            .pQueueFamilyIndices = nullptr,
+            .preTransform = VK_SURFACE_TRANSFORM_IDENTITY_BIT_KHR,
+            // TODO: Add support for transparent frames, useful for e.g. splash screens with transparent backgrounds.
+            .compositeAlpha = VK_COMPOSITE_ALPHA_OPAQUE_BIT_KHR,
+            .presentMode = VK_PRESENT_MODE_FIFO_KHR,
+            .clipped = VK_TRUE,
+            .oldSwapchain = nullptr
+        };
+
+        std::vector<VkPresentModeKHR> supportedPresentModes{};
+        uint32_t presentModeCount;
+        ASSERT_THROW(
+            vkGetPhysicalDeviceSurfacePresentModesKHR(physicalDevice.device, surface->surface, &presentModeCount,
+                nullptr) == VK_SUCCESS,
+            CantCreateError,
+            "Call to vkGetPhysicalDeviceSurfacePresentModesKHR failed.");
+        supportedPresentModes.resize(presentModeCount);
+        ASSERT_THROW(
+            vkGetPhysicalDeviceSurfacePresentModesKHR(physicalDevice.device, surface->surface, &presentModeCount,
+                supportedPresentModes.data()) == VK_SUCCESS,
+            CantCreateError,
+            "Call to vkGetPhysicalDeviceSurfacePresentModesKHR failed.");
+
+        switch (surface->vsyncMode) {
+            case VSyncMode::Disabled:
+                swapchainInfo.presentMode = VK_PRESENT_MODE_IMMEDIATE_KHR;
+                break;
+
+            case VSyncMode::Enabled:
+                swapchainInfo.presentMode = VK_PRESENT_MODE_FIFO_KHR;
+                break;
+
+            case VSyncMode::Adaptive:
+                swapchainInfo.presentMode = VK_PRESENT_MODE_FIFO_RELAXED_KHR;
+                break;
+
+            case VSyncMode::Mailbox:
+                swapchainInfo.presentMode = VK_PRESENT_MODE_MAILBOX_KHR;
+                break;
+        }
+
+        if (std::ranges::find(supportedPresentModes.begin(), supportedPresentModes.end(), swapchainInfo.presentMode) ==
+            supportedPresentModes.end()) {
+            spdlog::warn("Requested VSync mode is not available. Falling back to vsync mode enabled.");
+            swapchainInfo.presentMode = VK_PRESENT_MODE_FIFO_KHR;
+        }
+
+        vkCreateSwapchainKHR(device, &swapchainInfo, nullptr, &vkSwapchain->swapchain);
     }
 
     void VulkanRenderingDevice::destroySwapchain(Swapchain *swapchain) {
-        // TODO
+        const auto o = reinterpret_cast<VulkanSwapchain *>(swapchain);
+        vkDestroySwapchainKHR(device, o->swapchain, nullptr);
     }
 
     uint32_t VulkanRenderingDevice::getQueueFamily(QueueFamilyFlags queueFamilyFlags, Surface *surface) {
@@ -456,19 +567,19 @@ namespace Vixen {
                                                               const std::vector<Semaphore *> &semaphores,
                                                               Fence *fence,
                                                               const std::vector<Swapchain *> &swapchains) {
-        const auto o = reinterpret_cast<VulkanCommandQueue *>(commandQueue);
+        const auto vkCommandQueue = reinterpret_cast<VulkanCommandQueue *>(commandQueue);
 
         const VkQueue queue = VK_NULL_HANDLE;
 
         std::vector<VkSemaphore> vkWaitSemaphores{};
         vkWaitSemaphores.reserve(waitSemaphores.size());
         for (const auto &semaphore: waitSemaphores)
-            vkWaitSemaphores.push_back(reinterpret_cast<VulkanSemaphore*>(semaphore)->semaphore);
+            vkWaitSemaphores.push_back(reinterpret_cast<VulkanSemaphore *>(semaphore)->semaphore);
 
         std::vector<VkCommandBuffer> vkCommandBuffers{};
         vkCommandBuffers.reserve(commandBuffers.size());
         for (const auto &commandBuffer: commandBuffers)
-            vkCommandBuffers.push_back(reinterpret_cast<VulkanCommandBuffer*>(commandBuffer)->commandBuffer);
+            vkCommandBuffers.push_back(reinterpret_cast<VulkanCommandBuffer *>(commandBuffer)->commandBuffer);
 
         VkSemaphoreWaitFlags waitFlags = VK_SEMAPHORE_WAIT_ANY_BIT;
 
@@ -489,7 +600,7 @@ namespace Vixen {
         std::vector<VkSwapchainKHR> vkSwapchains{};
         vkSwapchains.reserve(swapchains.size());
         for (const auto &swapchain: swapchains)
-            vkSwapchains.push_back(reinterpret_cast<VulkanSwapchain*>(swapchain)->swapchain);
+            vkSwapchains.push_back(reinterpret_cast<VulkanSwapchain *>(swapchain)->swapchain);
 
         VkPresentInfoKHR presentInfo{
             .sType = VK_STRUCTURE_TYPE_PRESENT_INFO_KHR,
