@@ -4,7 +4,7 @@
 
 typedef struct VmaAllocation_T *VmaAllocation;
 class VulkanRenderingDevice;
-enum class BufferUsage : int64_t;
+enum class BufferUsage : uint32_t;
 
 namespace Vixen {
     struct VulkanBuffer final : Buffer {

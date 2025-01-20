@@ -286,6 +286,8 @@ namespace Vixen {
     }
 
     Swapchain *VulkanRenderingDevice::createSwapchain(Surface *surface) {
+        DEBUG_ASSERT(surface != nullptr);
+
         const auto vkSurface = reinterpret_cast<VulkanSurface *>(surface);
 
         uint32_t formatCount;
@@ -331,6 +333,9 @@ namespace Vixen {
 
     void VulkanRenderingDevice::resizeSwapchain(CommandQueue *commandQueue, Swapchain *swapchain,
                                                 const uint32_t imageCount) {
+        DEBUG_ASSERT(commandQueue != nullptr);
+        DEBUG_ASSERT(swapchain != nullptr);
+
         const auto vkSwapchain = reinterpret_cast<VulkanSwapchain *>(swapchain);
 
         const auto surface = vkSwapchain->surface;
@@ -349,10 +354,8 @@ namespace Vixen {
                 .height = static_cast<uint32_t>(surface->resolution.y)
             },
             .imageArrayLayers = 1,
-            .imageUsage = VK_IMAGE_USAGE_TRANSFER_DST_BIT,
-            // TODO: Should be set conditionally if present and graphics queue are not in the same family.
+            .imageUsage = VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT,
             .imageSharingMode = VK_SHARING_MODE_EXCLUSIVE,
-            // TODO: Should be set conditionally if present and graphics queue are not in the same family.
             .queueFamilyIndexCount = 0,
             .pQueueFamilyIndices = nullptr,
             .preTransform = VK_SURFACE_TRANSFORM_IDENTITY_BIT_KHR,
@@ -362,6 +365,23 @@ namespace Vixen {
             .clipped = VK_TRUE,
             .oldSwapchain = nullptr
         };
+
+        // TODO: Queue family index and image sharing mode should be set dynamically if the graphics queue family
+        //  and present queue family are not the same.
+        // if (device->getGraphicsQueueFamily().index != device->getPresentQueueFamily().index) {
+        //     const std::vector indices = {
+        //         device->getGraphicsQueueFamily().index,
+        //         device->getPresentQueueFamily().index
+        //     };
+        //
+        //     info.imageSharingMode = VK_SHARING_MODE_CONCURRENT;
+        //     info.queueFamilyIndexCount = indices.size();
+        //     info.pQueueFamilyIndices = indices.data();
+        // } else {
+        //     info.imageSharingMode = VK_SHARING_MODE_EXCLUSIVE;
+        //     info.queueFamilyIndexCount = 0;
+        //     info.pQueueFamilyIndices = nullptr;
+        // }
 
         std::vector<VkPresentModeKHR> supportedPresentModes{};
         uint32_t presentModeCount;
@@ -401,12 +421,107 @@ namespace Vixen {
             swapchainInfo.presentMode = VK_PRESENT_MODE_FIFO_KHR;
         }
 
-        vkCreateSwapchainKHR(device, &swapchainInfo, nullptr, &vkSwapchain->swapchain);
+        ASSERT_THROW(vkCreateSwapchainKHR(device, &swapchainInfo, nullptr, &vkSwapchain->swapchain) == VK_SUCCESS,
+                     CantCreateError,
+                     "Call to vkCreateSwapchainKHR failed.");
+
+        uint32_t swapchainImageCount;
+        ASSERT_THROW(
+            vkGetSwapchainImagesKHR(device, vkSwapchain->swapchain, &swapchainImageCount, nullptr) == VK_SUCCESS,
+            CantCreateError,
+            "Call to vkGetSwapchainImagesKHR failed.");
+        vkSwapchain->resolveImages.resize(swapchainImageCount);
+        vkSwapchain->resolveImageViews.resize(swapchainImageCount);
+        ASSERT_THROW(
+            vkGetSwapchainImagesKHR(device, vkSwapchain->swapchain, &swapchainImageCount, vkSwapchain->resolveImages.
+                data()) == VK_SUCCESS,
+            CantCreateError,
+            "Call to vkGetSwapchainImagesKHR failed.");
+
+        vkSwapchain->colorTargets.resize(swapchainImageCount);
+        vkSwapchain->depthTargets.resize(swapchainImageCount);
+        for (uint32_t i = 0; i < swapchainImageCount; i++) {
+            VkImageViewCreateInfo imageViewInfo{
+                .sType = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO,
+                .pNext = nullptr,
+                .flags = 0,
+                .image = vkSwapchain->resolveImages[i],
+                .viewType = VK_IMAGE_VIEW_TYPE_2D,
+                .format = swapchainInfo.imageFormat,
+                .components = {
+                    .r = VK_COMPONENT_SWIZZLE_R,
+                    .g = VK_COMPONENT_SWIZZLE_G,
+                    .b = VK_COMPONENT_SWIZZLE_B,
+                    .a = VK_COMPONENT_SWIZZLE_A
+                },
+                .subresourceRange = {
+                    .aspectMask = VK_IMAGE_ASPECT_COLOR_BIT,
+                    .baseMipLevel = 0,
+                    .levelCount = 1,
+                    .baseArrayLayer = 0,
+                    .layerCount = 1
+                }
+            };
+            ASSERT_THROW(
+                vkCreateImageView(device, &imageViewInfo, nullptr, &vkSwapchain->resolveImageViews[i]) == VK_SUCCESS,
+                CantCreateError,
+                "Failed to create image views for swap chain acquired images.");
+
+            vkSwapchain->colorTargets[i] = reinterpret_cast<VulkanImage *>(createImage(
+                {
+                    .format = static_cast<DataFormat>(vkSwapchain->format - 1),
+                    .width = swapchainInfo.imageExtent.width,
+                    .height = swapchainInfo.imageExtent.height,
+                    .depth = 1,
+                    .layerCount = 1,
+                    .mipmapCount = 1,
+                    .type = ImageType::TwoD,
+                    .samples = ImageSamples::One,
+                    .usage = ImageUsage::ColorAttachment | ImageUsage::CopySource
+                },
+                {
+                    .format = static_cast<DataFormat>(vkSwapchain->format - 1),
+                    .swizzleRed = ImageSwizzle::Identity,
+                    .swizzleGreen = ImageSwizzle::Identity,
+                    .swizzleBlue = ImageSwizzle::Identity,
+                    .swizzleAlpha = ImageSwizzle::Identity
+                }
+            ));
+            vkSwapchain->depthTargets[i] = reinterpret_cast<VulkanImage *>(createImage(
+                {
+                    // TODO: Actually check for a supported depth format instead of blindly picking our preferred one.
+                    .format = D32_SFLOAT_S8_UINT,
+                    .width = swapchainInfo.imageExtent.width,
+                    .height = swapchainInfo.imageExtent.height,
+                    .depth = 1,
+                    .layerCount = 1,
+                    .mipmapCount = 1,
+                    .type = ImageType::TwoD,
+                    .samples = ImageSamples::One,
+                    .usage = ImageUsage::DepthStencilAttachment
+                },
+                {
+                    .format = D32_SFLOAT_S8_UINT,
+                    .swizzleRed = ImageSwizzle::Identity,
+                    .swizzleGreen = ImageSwizzle::Identity,
+                    .swizzleBlue = ImageSwizzle::Identity,
+                    .swizzleAlpha = ImageSwizzle::Identity
+                }
+            ));
+        }
     }
 
     void VulkanRenderingDevice::destroySwapchain(Swapchain *swapchain) {
-        const auto o = reinterpret_cast<VulkanSwapchain *>(swapchain);
-        vkDestroySwapchainKHR(device, o->swapchain, nullptr);
+        DEBUG_ASSERT(swapchain != nullptr);
+
+        const auto vkSwapchain = reinterpret_cast<VulkanSwapchain *>(swapchain);
+
+        for (uint32_t i = 0; i < vkSwapchain->resolveImages.size(); i++) {
+            destroyImage(vkSwapchain->colorTargets[i]);
+            destroyImage(vkSwapchain->depthTargets[i]);
+            vkDestroyImageView(device, vkSwapchain->resolveImageViews[i], nullptr);
+        }
+        vkDestroySwapchainKHR(device, vkSwapchain->swapchain, nullptr);
     }
 
     uint32_t VulkanRenderingDevice::getQueueFamily(QueueFamilyFlags queueFamilyFlags, Surface *surface) {
@@ -423,8 +538,8 @@ namespace Vixen {
 
             const VkQueueFlags optionQueueFlags = physicalDevice.queueFamilies[i].properties.queueFlags;
             const bool includesAllBits = static_cast<QueueFamilyFlags>(optionQueueFlags) & queueFamilyFlags;
-            const bool preferLessBits = optionQueueFlags < pickedQueueFlags;
-            if (includesAllBits && preferLessBits) {
+            if (const bool preferLessBits = optionQueueFlags < pickedQueueFlags;
+                includesAllBits && preferLessBits) {
                 pickedQueueFamilyIndex = i;
                 pickedQueueFlags = optionQueueFlags;
             }
@@ -778,9 +893,9 @@ namespace Vixen {
                 result == VK_SUCCESS) {
                 allocationCreateInfo = lazyMemoryRequirements;
                 imageCreateInfo.usage |= VK_IMAGE_USAGE_TRANSIENT_ATTACHMENT_BIT;
-                imageCreateInfo.usage &= (VK_IMAGE_USAGE_TRANSIENT_ATTACHMENT_BIT | VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT
-                                          | VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT |
-                                          VK_IMAGE_USAGE_INPUT_ATTACHMENT_BIT);
+                imageCreateInfo.usage &= VK_IMAGE_USAGE_TRANSIENT_ATTACHMENT_BIT | VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT
+                        | VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT |
+                        VK_IMAGE_USAGE_INPUT_ATTACHMENT_BIT;
             } else {
                 allocationCreateInfo.preferredFlags = VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT;
             }
@@ -821,7 +936,8 @@ namespace Vixen {
             },
             .subresourceRange = {
                 .aspectMask = static_cast<VkImageAspectFlags>(format.usage & ImageUsage::DepthStencilAttachment
-                                                                  ? VK_IMAGE_ASPECT_DEPTH_BIT
+                                                                  ? VK_IMAGE_ASPECT_DEPTH_BIT |
+                                                                    VK_IMAGE_ASPECT_STENCIL_BIT
                                                                   : VK_IMAGE_ASPECT_COLOR_BIT),
                 .baseMipLevel = 0,
                 .levelCount = imageCreateInfo.mipLevels,

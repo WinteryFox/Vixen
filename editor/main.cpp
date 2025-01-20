@@ -30,10 +30,10 @@ int main() {
             },
             {
                 .format = Vixen::R8G8B8A8_SRGB,
-                .swizzleRed = Vixen::ImageSwizzle::Red,
-                .swizzleGreen = Vixen::ImageSwizzle::Green,
-                .swizzleBlue = Vixen::ImageSwizzle::Blue,
-                .swizzleAlpha = Vixen::ImageSwizzle::Alpha
+                .swizzleRed = Vixen::ImageSwizzle::Identity,
+                .swizzleGreen = Vixen::ImageSwizzle::Identity,
+                .swizzleBlue = Vixen::ImageSwizzle::Identity,
+                .swizzleAlpha = Vixen::ImageSwizzle::Identity
             }
         );
         spdlog::error(buffer->getCount());
@@ -74,11 +74,12 @@ int main() {
         device->destroyCommandPool(commandPool);
 
         const auto surface = context->createSurface(application.getDisplayServer()->getMainWindow());
+        const auto commandQueue = device->createCommandQueue();
 
         const auto swapchain = device->createSwapchain(surface);
-        device->resizeSwapchain(nullptr, swapchain, 1);
-        device->destroySwapchain(swapchain);
+        device->resizeSwapchain(commandQueue, swapchain, 3);
 
+        device->destroySwapchain(swapchain);
         context->destroySurface(surface);
 
         application.run();

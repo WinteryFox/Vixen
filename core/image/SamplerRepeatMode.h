@@ -5,7 +5,7 @@
 #include "../Bitmask.h"
 
 namespace Vixen {
-    enum class SamplerRepeatMode : int64_t {
+    enum class SamplerRepeatMode : uint32_t {
         Repeat,
         MirroredRepeat,
         ClampToEdge,

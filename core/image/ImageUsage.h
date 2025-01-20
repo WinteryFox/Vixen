@@ -2,7 +2,7 @@
 #include "core/Bitmask.h"
 
 namespace Vixen {
-    enum class ImageUsage : int64_t {
+    enum class ImageUsage : uint32_t {
         Sampling = 1 << 0,
         ColorAttachment = 1 << 1,
         DepthStencilAttachment = 1 << 2,

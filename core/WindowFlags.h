@@ -3,7 +3,7 @@
 #include "Bitmask.h"
 
 namespace Vixen {
-    enum class WindowFlags : int64_t {
+    enum class WindowFlags : uint32_t {
         Resizable = 1 << 0,
         Borderless = 1 << 1,
         Transparent = 1 << 2,

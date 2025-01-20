@@ -6,7 +6,7 @@
 #include "core/Bitmask.h"
 
 namespace Vixen {
-    enum class BufferUsage : int64_t {
+    enum class BufferUsage : uint32_t {
         CopySource = 1 << 0,
         CopyDestination = 1 << 1,
         Texel = 1 << 2,
