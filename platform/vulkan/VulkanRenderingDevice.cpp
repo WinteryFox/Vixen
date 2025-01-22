@@ -307,6 +307,7 @@ namespace Vixen {
 
         swapchain->surface = vkSurface;
         swapchain->format = VK_FORMAT_UNDEFINED;
+        swapchain->colorSpace = VK_COLOR_SPACE_SRGB_NONLINEAR_KHR;
 
         if (formatCount == 1 && formats[0].format == VK_FORMAT_UNDEFINED) {
             swapchain->format = VK_FORMAT_B8G8R8A8_SRGB;
@@ -318,6 +319,7 @@ namespace Vixen {
             for (uint32_t i = 0; i < formatCount; i++) {
                 if (formats[i].format == preferredFormat || formats[i].format == alternativeFormat) {
                     swapchain->format = formats[i].format;
+                    swapchain->colorSpace = formats[i].colorSpace;
 
                     if (formats[i].format == preferredFormat)
                         break;
@@ -522,6 +524,7 @@ namespace Vixen {
             vkDestroyImageView(device, vkSwapchain->resolveImageViews[i], nullptr);
         }
         vkDestroySwapchainKHR(device, vkSwapchain->swapchain, nullptr);
+        delete vkSwapchain;
     }
 
     uint32_t VulkanRenderingDevice::getQueueFamily(QueueFamilyFlags queueFamilyFlags, Surface *surface) {

@@ -117,6 +117,7 @@ namespace Vixen {
             .ppEnabledExtensionNames = enabledInstanceExtensions.data()
         };
 
+#ifdef DEBUG_ENABLED
         VkDebugUtilsMessengerCreateInfoEXT debugMessengerInfo = {};
         if (std::ranges::find(enabledInstanceExtensions.begin(), enabledInstanceExtensions.end(),
                               VK_EXT_DEBUG_UTILS_EXTENSION_NAME) != enabledInstanceExtensions.end()) {
@@ -132,6 +133,7 @@ namespace Vixen {
             debugMessengerInfo.pUserData = this;
             instanceInfo.pNext = &debugMessengerInfo;
         }
+#endif
 
         const auto res = vkCreateInstance(&instanceInfo, nullptr, &instance);
         ASSERT_THROW(res != VK_ERROR_INCOMPATIBLE_DRIVER, CantCreateError,

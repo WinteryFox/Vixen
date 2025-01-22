@@ -65,7 +65,7 @@ namespace Vixen {
          * Polls window events and processes them.
          * @return Returns true if the framebuffer size has been resized, false if not.
          */
-        bool update(Window *window);
+        bool update(const Window *window);
 
         /**
          * Sets the visibility of the window.

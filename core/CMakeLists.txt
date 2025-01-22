@@ -5,8 +5,6 @@ pkg_check_modules(SPDLOG REQUIRED IMPORTED_TARGET spdlog)
 
 find_path(stb_image_INCLUDE_DIRS NAMES stb_image.h PATH_SUFFIXES include include/stb stb REQUIRED)
 
-add_compile_definitions(GLFW_INCLUDE_NONE)
-
 add_library(
         imgui
         STATIC

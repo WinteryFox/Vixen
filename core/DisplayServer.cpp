@@ -1,3 +1,4 @@
+#define GLFW_INCLUDE_NONE
 #include "DisplayServer.h"
 
 #include "error/CantCreateError.h"
@@ -36,14 +37,40 @@ namespace Vixen {
         const auto &glfwWindow = glfwCreateWindow(resolution.x, resolution.y, title.c_str(), nullptr, nullptr);
         ASSERT_THROW(glfwWindow != nullptr, CantCreateError, "Failed to create window");
 
+        Surface *surface = nullptr;
+        switch (driver) {
+#ifdef VULKAN_ENABLED
+            case RenderingDriver::Vulkan:
+                surface = new VulkanSurface();
+                break;
+#endif
+
+#ifdef D3D12_ENABLED
+            case RenderingDriver::D3D12:
+                surface = new D3D12Surface();
+                break;
+#endif
+
+#ifdef OPENGL_ENABLED
+            case RenderingDriver::OpenGL:
+                surface = new OpenGLSurface();
+                break;
+#endif
+
+            default:
+                break;
+        }
+
+        ASSERT_THROW(surface != nullptr, CantCreateError, "Failed to detect surface type for current driver.");
+
+        surface->resolution = resolution;
+        surface->hasFramebufferSizeChanged = false;
+        surface->windowMode = mode;
+        surface->vsyncMode = vsync;
+
         auto *window = new Window{
             .window = glfwWindow,
-            .surface = new Surface{
-                .resolution = resolution,
-                .hasFramebufferSizeChanged = false,
-                .windowMode = mode,
-                .vsyncMode = vsync
-            }
+            .surface = surface
         };
 
         glfwSetWindowUserPointer(window->window, window);
@@ -145,7 +172,7 @@ namespace Vixen {
         return glfwWindowShouldClose(window->window) == GLFW_TRUE;
     }
 
-    bool DisplayServer::update(Window *window) {
+    bool DisplayServer::update(const Window *window) {
         glfwPollEvents();
 
         if (window->surface->hasFramebufferSizeChanged) {

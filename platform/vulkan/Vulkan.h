@@ -1,6 +1,5 @@
 #pragma once
 
-#include <Volk/volk.h>
 #include <vulkan/vk_enum_string_helper.h>
 
 #ifdef DEBUG_ENABLED
