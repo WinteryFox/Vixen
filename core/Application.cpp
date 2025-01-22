@@ -39,7 +39,7 @@ namespace Vixen {
     Application::~Application() = default;
 
     void Application::run() const {
-        const auto &mainWindow = displayServer->getMainWindow();
+        const auto mainWindow = displayServer->getMainWindow();
         while (!displayServer->shouldClose(mainWindow)) {
             displayServer->update(mainWindow);
         }

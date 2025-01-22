@@ -31,14 +31,16 @@ namespace Vixen {
 
         ~VulkanRenderingContext() override;
 
-        GraphicsCard getPhysicalDevice(uint32_t index);
-
-        [[nodiscard]] VkInstance getInstance() const;
-
         bool supportsPresent(VkPhysicalDevice physicalDevice, uint32_t queueFamilyIndex, const VulkanSurface *surface);
 
         Surface *createSurface(Window *window) override;
 
         void destroySurface(Surface *surface) override;
+
+        GraphicsCard getPhysicalDevice(uint32_t index);
+
+        [[nodiscard]] VkInstance getInstance() const;
+
+        [[nodiscard]] uint32_t getInstanceApiVersion() const;
     };
 }

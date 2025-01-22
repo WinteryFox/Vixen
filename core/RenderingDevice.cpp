@@ -95,7 +95,7 @@ namespace Vixen {
         auto src = source.data();
         shader.setStrings(&src, 1);
         shader.setEnvInput(glslang::EShSourceGlsl, glslangLanguage, glslang::EShClientVulkan, 160);
-        shader.setEnvClient(glslang::EShClientVulkan, glslang::EShTargetVulkan_1_3);
+        shader.setEnvClient(glslang::EShClientVulkan, glslang::EShTargetVulkan_1_4);
         shader.setEnvTarget(glslang::EShTargetSpv, glslang::EShTargetSpv_1_6);
 
         glslang::TProgram program;

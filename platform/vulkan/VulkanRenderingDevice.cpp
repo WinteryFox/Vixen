@@ -234,7 +234,7 @@ namespace Vixen {
             .pHeapSizeLimit = nullptr,
             .pVulkanFunctions = &vulkanFunctions,
             .instance = renderingContext->getInstance(),
-            .vulkanApiVersion = VK_API_VERSION_1_3,
+            .vulkanApiVersion = renderingContext->getInstanceApiVersion(),
             .pTypeExternalMemoryHandleTypes = nullptr
         };
         ASSERT_THROW(vmaCreateAllocator(&allocatorInfo, &allocator) == VK_SUCCESS,

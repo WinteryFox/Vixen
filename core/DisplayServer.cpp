@@ -34,7 +34,7 @@ namespace Vixen {
         glfwWindowHint(GLFW_DECORATED, flags & WindowFlags::Borderless ? GLFW_FALSE : GLFW_TRUE);
         glfwWindowHint(GLFW_FLOATING, flags & WindowFlags::AlwaysOnTop ? GLFW_TRUE : GLFW_FALSE);
 
-        const auto &glfwWindow = glfwCreateWindow(resolution.x, resolution.y, title.c_str(), nullptr, nullptr);
+        auto *glfwWindow = glfwCreateWindow(resolution.x, resolution.y, title.c_str(), nullptr, nullptr);
         ASSERT_THROW(glfwWindow != nullptr, CantCreateError, "Failed to create window");
 
         Surface *surface = nullptr;
@@ -128,7 +128,7 @@ namespace Vixen {
         }
 
         mainWindow = createWindow(applicationName, windowMode, vsyncMode, flags, resolution);
-        ASSERT_THROW(mainWindow, CantCreateError, "Failed to create window.");
+        ASSERT_THROW(mainWindow != nullptr, CantCreateError, "Failed to create window.");
 
         switch (driver) {
 #ifdef VULKAN_ENABLED

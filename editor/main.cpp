@@ -79,10 +79,10 @@ int main() {
         const auto swapchain = device->createSwapchain(surface);
         device->resizeSwapchain(commandQueue, swapchain, 3);
 
+        application.run();
+
         device->destroySwapchain(swapchain);
         context->destroySurface(surface);
-
-        application.run();
     } catch (const std::runtime_error &e) {
         spdlog::error(e.what());
         return EXIT_FAILURE;
