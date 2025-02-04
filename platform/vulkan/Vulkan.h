@@ -12,13 +12,40 @@
 #include <glm/glm.hpp>
 #include <spdlog/spdlog.h>
 
+#include "core/Bitmask.h"
 #include "core/LoadAction.h"
 #include "core/StoreAction.h"
 #include "core/image/ImageSamples.h"
+#include "core/image/ImageSwizzle.h"
 #include "core/image/ImageType.h"
+#include "core/image/SamplerBorderColor.h"
+#include "core/image/SamplerRepeatMode.h"
 #include "core/shader/ShaderStage.h"
 
 namespace Vixen {
+    static_assert(ENUM_MEMBERS_EQUAL(ImageSwizzle::Identity, VK_COMPONENT_SWIZZLE_IDENTITY));
+    static_assert(ENUM_MEMBERS_EQUAL(ImageSwizzle::Zero, VK_COMPONENT_SWIZZLE_ZERO));
+    static_assert(ENUM_MEMBERS_EQUAL(ImageSwizzle::One, VK_COMPONENT_SWIZZLE_ONE));
+    static_assert(ENUM_MEMBERS_EQUAL(ImageSwizzle::Red, VK_COMPONENT_SWIZZLE_R));
+    static_assert(ENUM_MEMBERS_EQUAL(ImageSwizzle::Green, VK_COMPONENT_SWIZZLE_G));
+    static_assert(ENUM_MEMBERS_EQUAL(ImageSwizzle::Blue, VK_COMPONENT_SWIZZLE_B));
+    static_assert(ENUM_MEMBERS_EQUAL(ImageSwizzle::Alpha, VK_COMPONENT_SWIZZLE_A));
+
+    static_assert(
+        ENUM_MEMBERS_EQUAL(SamplerBorderColor::FloatTransparentBlack, VK_BORDER_COLOR_FLOAT_TRANSPARENT_BLACK));
+    static_assert(ENUM_MEMBERS_EQUAL(SamplerBorderColor::IntTransparentBlack, VK_BORDER_COLOR_INT_TRANSPARENT_BLACK));
+    static_assert(ENUM_MEMBERS_EQUAL(SamplerBorderColor::FloatOpaqueBlack, VK_BORDER_COLOR_FLOAT_OPAQUE_BLACK));
+    static_assert(ENUM_MEMBERS_EQUAL(SamplerBorderColor::IntOpaqueBlack, VK_BORDER_COLOR_INT_OPAQUE_BLACK));
+    static_assert(ENUM_MEMBERS_EQUAL(SamplerBorderColor::FloatOpaqueWhite, VK_BORDER_COLOR_FLOAT_OPAQUE_WHITE));
+    static_assert(ENUM_MEMBERS_EQUAL(SamplerBorderColor::IntOpaqueWhite, VK_BORDER_COLOR_INT_OPAQUE_WHITE));
+
+    static_assert(ENUM_MEMBERS_EQUAL(SamplerRepeatMode::Repeat, VK_SAMPLER_ADDRESS_MODE_REPEAT));
+    static_assert(ENUM_MEMBERS_EQUAL(SamplerRepeatMode::MirroredRepeat, VK_SAMPLER_ADDRESS_MODE_MIRRORED_REPEAT));
+    static_assert(ENUM_MEMBERS_EQUAL(SamplerRepeatMode::ClampToEdge, VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE));
+    static_assert(ENUM_MEMBERS_EQUAL(SamplerRepeatMode::ClampToBorder, VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_BORDER));
+    static_assert(
+        ENUM_MEMBERS_EQUAL(SamplerRepeatMode::MirrorClampToEdge, VK_SAMPLER_ADDRESS_MODE_MIRROR_CLAMP_TO_EDGE));
+
     [[maybe_unused]] static bool isDepthFormat(const VkFormat format) {
         switch (format) {
             case VK_FORMAT_D32_SFLOAT:

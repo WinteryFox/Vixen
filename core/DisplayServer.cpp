@@ -1,4 +1,6 @@
 #define GLFW_INCLUDE_NONE
+#include <glfw/glfw3.h>
+
 #include "DisplayServer.h"
 
 #include "error/CantCreateError.h"

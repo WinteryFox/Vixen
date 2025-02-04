@@ -5,6 +5,32 @@ add_library(
         STATIC
         ${CMAKE_SOURCE_DIR}/thirdparty/volk/volk.c
 )
+target_link_libraries(
+        volk
+        PUBLIC
+        Vulkan::Headers
+)
+
+add_library(
+        imgui_vulkan
+        STATIC
+        ${CMAKE_SOURCE_DIR}/thirdparty/imgui/backends/imgui_impl_vulkan.cpp
+)
+target_link_libraries(
+        imgui_vulkan
+        PUBLIC
+        Vulkan::Headers
+)
+target_include_directories(
+        imgui_vulkan
+        PUBLIC
+        ${CMAKE_SOURCE_DIR}/thirdparty/imgui
+)
+target_compile_definitions(
+        imgui
+        PUBLIC
+        IMGUI_IMPL_VULKAN_USE_VOLK
+)
 
 add_library(
         VkVixen
@@ -33,6 +59,7 @@ target_link_libraries(
         Vulkan::Headers
         freeimage
         volk
+        imgui_vulkan
 )
 target_include_directories(
         VkVixen

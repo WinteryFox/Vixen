@@ -15,15 +15,12 @@ add_library(
         ${CMAKE_SOURCE_DIR}/thirdparty/imgui/imgui_widgets.cpp
         ${CMAKE_SOURCE_DIR}/thirdparty/imgui/misc/cpp/imgui_stdlib.cpp
         ${CMAKE_SOURCE_DIR}/thirdparty/imgui/backends/imgui_impl_glfw.cpp
-        ${CMAKE_SOURCE_DIR}/thirdparty/imgui/backends/imgui_impl_vulkan.cpp
-        command/CommandBufferType.h
 )
 target_include_directories(
         imgui
         PUBLIC
         ${CMAKE_SOURCE_DIR}/thirdparty/imgui
 )
-target_compile_definitions(imgui PUBLIC IMGUI_IMPL_VULKAN_USE_VOLK)
 
 add_library(
         Vixen
@@ -86,6 +83,7 @@ add_library(
         Surface.h
         QueueFamilyFlags.h
         Window.h
+        command/CommandBufferType.h
 )
 target_link_libraries(
         Vixen
