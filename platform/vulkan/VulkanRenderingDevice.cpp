@@ -34,19 +34,13 @@ namespace Vixen {
 #endif
 
         uint32_t extensionCount = 0;
-        ASSERT_THROW(
-            vkEnumerateDeviceExtensionProperties(physicalDevice.device, nullptr, &extensionCount, nullptr) ==
-            VK_SUCCESS,
-            CantCreateError,
-            "Call to vkEnumerateDeviceExtensionProperties failed."
-        );
+        if (vkEnumerateDeviceExtensionProperties(physicalDevice.device, nullptr, &extensionCount, nullptr) !=
+            VK_SUCCESS)
+            error<CantCreateError>("Call to vkEnumerateDeviceExtensionProperties failed.");
         std::vector<VkExtensionProperties> availableExtensions{extensionCount};
-        ASSERT_THROW(
-            vkEnumerateDeviceExtensionProperties(physicalDevice.device, nullptr, &extensionCount, availableExtensions.
-                data()) == VK_SUCCESS,
-            CantCreateError,
-            "Call to vkEnumerateDeviceExtensionProperties failed."
-        );
+        if (vkEnumerateDeviceExtensionProperties(physicalDevice.device, nullptr, &extensionCount, availableExtensions.
+                                                 data()) != VK_SUCCESS)
+            error<CantCreateError>("Call to vkEnumerateDeviceExtensionProperties failed.");
 
         for (uint32_t i = 0; i < extensionCount; i++) {
             const auto &extensionName = availableExtensions[i].extensionName;
@@ -58,7 +52,8 @@ namespace Vixen {
         for (const auto &[extensionName, required]: requestedExtensions) {
             if (std::ranges::find(enabledExtensionNames.begin(), enabledExtensionNames.end(), extensionName) ==
                 enabledExtensionNames.end()) {
-                ASSERT_THROW(!required, CantCreateError, "Required extension \"" + extensionName + "\" was not found");
+                if (required)
+                    error<CantCreateError>("Required extension \"" + extensionName + "\" was not found");
 
                 spdlog::debug("Optional extension {} was not found.", extensionName);
             }
@@ -66,9 +61,10 @@ namespace Vixen {
     }
 
     void VulkanRenderingDevice::checkFeatures() const {
-        ASSERT_THROW(physicalDevice.features.imageCubeArray, CantCreateError, "Device lacks image cube array feature.");
-        ASSERT_THROW(physicalDevice.features.independentBlend, CantCreateError,
-                     "Device lacks independent blend feature.");
+        if (!physicalDevice.features.imageCubeArray)
+            error<CantCreateError>("Device lacks image cube array feature.");
+        if (!physicalDevice.features.independentBlend)
+            error<CantCreateError>("Device lacks independent blend feature.");
     }
 
     void VulkanRenderingDevice::checkCapabilities() {
@@ -184,9 +180,8 @@ namespace Vixen {
             .pEnabledFeatures = &deviceFeatures
         };
 
-        ASSERT_THROW(vkCreateDevice(physicalDevice.device, &deviceInfo, nullptr, &device) == VK_SUCCESS,
-                     CantCreateError,
-                     "Failed to create VkDevice");
+        if (vkCreateDevice(physicalDevice.device, &deviceInfo, nullptr, &device) != VK_SUCCESS)
+            error<CantCreateError>("Failed to create VkDevice");
 
         for (uint32_t i = 0; i < queueFamilies.size(); i++)
             for (uint32_t j = 0; j < queueFamilies[i].size(); j++)
@@ -237,9 +232,8 @@ namespace Vixen {
             .vulkanApiVersion = renderingContext->getInstanceApiVersion(),
             .pTypeExternalMemoryHandleTypes = nullptr
         };
-        ASSERT_THROW(vmaCreateAllocator(&allocatorInfo, &allocator) == VK_SUCCESS,
-                     CantCreateError,
-                     "Call to vmaCreateAllocator failed.");
+        if (vmaCreateAllocator(&allocatorInfo, &allocator) != VK_SUCCESS)
+            error<CantCreateError>("Call to vmaCreateAllocator failed.");
     }
 
     VkSampleCountFlagBits VulkanRenderingDevice::findClosestSupportedSampleCount(const ImageSamples &samples) const {
@@ -288,20 +282,16 @@ namespace Vixen {
     Swapchain *VulkanRenderingDevice::createSwapchain(Surface *surface) {
         DEBUG_ASSERT(surface != nullptr);
 
-        const auto vkSurface = static_cast<VulkanSurface *>(surface);
+        const auto vkSurface = dynamic_cast<VulkanSurface *>(surface);
 
         uint32_t formatCount;
-        ASSERT_THROW(
-            vkGetPhysicalDeviceSurfaceFormatsKHR(physicalDevice.device, vkSurface->surface, &formatCount, nullptr)
-            == VK_SUCCESS,
-            CantCreateError,
-            "Call to vkGetPhysicalDeviceSurfaceFormatsKHR failed.");
+        if (vkGetPhysicalDeviceSurfaceFormatsKHR(physicalDevice.device, vkSurface->surface, &formatCount, nullptr)
+            != VK_SUCCESS)
+            error<CantCreateError>("Call to vkGetPhysicalDeviceSurfaceFormatsKHR failed.");
         std::vector<VkSurfaceFormatKHR> formats(formatCount);
-        ASSERT_THROW(
-            vkGetPhysicalDeviceSurfaceFormatsKHR(physicalDevice.device, vkSurface->surface, &formatCount,
-                formats.data()) == VK_SUCCESS,
-            CantCreateError,
-            "Call to vkGetPhysicalDeviceSurfaceFormatsKHR failed.");
+        if (vkGetPhysicalDeviceSurfaceFormatsKHR(physicalDevice.device, vkSurface->surface, &formatCount,
+                                                 formats.data()) != VK_SUCCESS)
+            error<CantCreateError>("Call to vkGetPhysicalDeviceSurfaceFormatsKHR failed.");
 
         auto *swapchain = new VulkanSwapchain();
 
@@ -327,8 +317,8 @@ namespace Vixen {
             }
         }
 
-        ASSERT_THROW(swapchain->format != VK_FORMAT_UNDEFINED, CantCreateError,
-                     "Surface does not have any supported formats.");
+        if (swapchain->format == VK_FORMAT_UNDEFINED)
+            error<CantCreateError>("Surface does not have any supported formats.");
 
         return swapchain;
     }
@@ -338,14 +328,12 @@ namespace Vixen {
         DEBUG_ASSERT(commandQueue != nullptr);
         DEBUG_ASSERT(swapchain != nullptr);
 
-        const auto vkSwapchain = static_cast<VulkanSwapchain *>(swapchain);
+        const auto vkSwapchain = dynamic_cast<VulkanSwapchain *>(swapchain);
         _destroySwapchain(vkSwapchain);
 
         const auto surface = vkSwapchain->surface;
-        ASSERT_THROW(
-            renderingContext->supportsPresent(physicalDevice.device, commandQueue->queueFamilyIndex, surface) == true,
-            CantCreateError,
-            "Surface is not supported by device.");
+        if (renderingContext->supportsPresent(physicalDevice.device, commandQueue->queueFamilyIndex, surface) != true)
+            error<CantCreateError>("Surface is not supported by device.");
 
         const auto surfaceCapabilities = physicalDevice.getSurfaceCapabilities(surface->surface);
 
@@ -381,17 +369,13 @@ namespace Vixen {
 
         std::vector<VkPresentModeKHR> supportedPresentModes{};
         uint32_t presentModeCount;
-        ASSERT_THROW(
-            vkGetPhysicalDeviceSurfacePresentModesKHR(physicalDevice.device, surface->surface, &presentModeCount,
-                nullptr) == VK_SUCCESS,
-            CantCreateError,
-            "Call to vkGetPhysicalDeviceSurfacePresentModesKHR failed.");
+        if (vkGetPhysicalDeviceSurfacePresentModesKHR(physicalDevice.device, surface->surface, &presentModeCount,
+                                                      nullptr) != VK_SUCCESS)
+            error<CantCreateError>("Call to vkGetPhysicalDeviceSurfacePresentModesKHR failed.");
         supportedPresentModes.resize(presentModeCount);
-        ASSERT_THROW(
-            vkGetPhysicalDeviceSurfacePresentModesKHR(physicalDevice.device, surface->surface, &presentModeCount,
-                supportedPresentModes.data()) == VK_SUCCESS,
-            CantCreateError,
-            "Call to vkGetPhysicalDeviceSurfacePresentModesKHR failed.");
+        if (vkGetPhysicalDeviceSurfacePresentModesKHR(physicalDevice.device, surface->surface, &presentModeCount,
+                                                      supportedPresentModes.data()) != VK_SUCCESS)
+            error<CantCreateError>("Call to vkGetPhysicalDeviceSurfacePresentModesKHR failed.");
 
         switch (surface->vsyncMode) {
             case VSyncMode::Disabled:
@@ -417,22 +401,17 @@ namespace Vixen {
             swapchainInfo.presentMode = VK_PRESENT_MODE_FIFO_KHR;
         }
 
-        ASSERT_THROW(vkCreateSwapchainKHR(device, &swapchainInfo, nullptr, &vkSwapchain->swapchain) == VK_SUCCESS,
-                     CantCreateError,
-                     "Call to vkCreateSwapchainKHR failed.");
+        if (vkCreateSwapchainKHR(device, &swapchainInfo, nullptr, &vkSwapchain->swapchain) != VK_SUCCESS)
+            error<CantCreateError>("Call to vkCreateSwapchainKHR failed.");
 
         uint32_t swapchainImageCount;
-        ASSERT_THROW(
-            vkGetSwapchainImagesKHR(device, vkSwapchain->swapchain, &swapchainImageCount, nullptr) == VK_SUCCESS,
-            CantCreateError,
-            "Call to vkGetSwapchainImagesKHR failed.");
+        if (vkGetSwapchainImagesKHR(device, vkSwapchain->swapchain, &swapchainImageCount, nullptr) != VK_SUCCESS)
+            error<CantCreateError>("Call to vkGetSwapchainImagesKHR failed.");
         vkSwapchain->resolveImages.resize(swapchainImageCount);
         vkSwapchain->resolveImageViews.resize(swapchainImageCount);
-        ASSERT_THROW(
-            vkGetSwapchainImagesKHR(device, vkSwapchain->swapchain, &swapchainImageCount, vkSwapchain->resolveImages.
-                data()) == VK_SUCCESS,
-            CantCreateError,
-            "Call to vkGetSwapchainImagesKHR failed.");
+        if (vkGetSwapchainImagesKHR(device, vkSwapchain->swapchain, &swapchainImageCount, vkSwapchain->resolveImages.
+                                    data()) != VK_SUCCESS)
+            error<CantCreateError>("Call to vkGetSwapchainImagesKHR failed.");
 
         vkSwapchain->colorTargets.resize(swapchainImageCount);
         vkSwapchain->depthTargets.resize(swapchainImageCount);
@@ -458,12 +437,10 @@ namespace Vixen {
                     .layerCount = 1
                 }
             };
-            ASSERT_THROW(
-                vkCreateImageView(device, &imageViewInfo, nullptr, &vkSwapchain->resolveImageViews[i]) == VK_SUCCESS,
-                CantCreateError,
-                "Failed to create image views for swap chain acquired images.");
+            if (vkCreateImageView(device, &imageViewInfo, nullptr, &vkSwapchain->resolveImageViews[i]) != VK_SUCCESS)
+                error<CantCreateError>("Failed to create image views for swap chain acquired images.");
 
-            vkSwapchain->colorTargets[i] = static_cast<VulkanImage *>(createImage(
+            vkSwapchain->colorTargets[i] = dynamic_cast<VulkanImage *>(createImage(
                 {
                     .format = static_cast<DataFormat>(vkSwapchain->format - 1),
                     .width = swapchainInfo.imageExtent.width,
@@ -483,9 +460,9 @@ namespace Vixen {
                     .swizzleAlpha = ImageSwizzle::Identity
                 }
             ));
-            vkSwapchain->depthTargets[i] = static_cast<VulkanImage *>(createImage(
+            vkSwapchain->depthTargets[i] = dynamic_cast<VulkanImage *>(createImage(
                 {
-                    // TODO: Actually check for a supported depth format instead of blindly picking our preferred one.
+                    // TODO: Actually error for a supported depth format instead of blindly picking our preferred one.
                     .format = D32_SFLOAT_S8_UINT,
                     .width = swapchainInfo.imageExtent.width,
                     .height = swapchainInfo.imageExtent.height,
@@ -519,7 +496,7 @@ namespace Vixen {
     void VulkanRenderingDevice::destroySwapchain(Swapchain *swapchain) {
         DEBUG_ASSERT(swapchain != nullptr);
 
-        const auto vkSwapchain = static_cast<VulkanSwapchain *>(swapchain);
+        const auto vkSwapchain = dynamic_cast<VulkanSwapchain *>(swapchain);
         _destroySwapchain(vkSwapchain);
         delete vkSwapchain;
     }
@@ -533,7 +510,7 @@ namespace Vixen {
                 continue;
 
             if (surface != nullptr && !renderingContext->supportsPresent(
-                    physicalDevice.device, i, static_cast<VulkanSurface *>(surface)))
+                    physicalDevice.device, i, dynamic_cast<VulkanSurface *>(surface)))
                 continue;
 
             const VkQueueFlags optionQueueFlags = physicalDevice.queueFamilies[i].properties.queueFlags;
@@ -545,8 +522,8 @@ namespace Vixen {
             }
         }
 
-        ASSERT_THROW(pickedQueueFamilyIndex <= queueFamilies.size(), CantCreateError,
-                     "Failed to find suitable queue family");
+        if (pickedQueueFamilyIndex > queueFamilies.size())
+            error<CantCreateError>("Failed to find suitable queue family");
 
         return pickedQueueFamilyIndex;
     }
@@ -560,20 +537,19 @@ namespace Vixen {
             .flags = 0
         };
 
-        ASSERT_THROW(vkCreateFence(device, &fenceInfo, nullptr, &o->fence) == VK_SUCCESS,
-                     CantCreateError,
-                     "Call to vkCreateFence failed.");
+        if (vkCreateFence(device, &fenceInfo, nullptr, &o->fence) != VK_SUCCESS)
+            error<CantCreateError>("Call to vkCreateFence failed.");
 
         return o;
     }
 
     void VulkanRenderingDevice::waitOnFence(const Fence *fence) {
-        const auto o = static_cast<const VulkanFence *>(fence);
+        const auto o = dynamic_cast<const VulkanFence *>(fence);
         vkWaitForFences(device, 1, &o->fence, VK_TRUE, std::numeric_limits<uint64_t>::max());
     }
 
     void VulkanRenderingDevice::destroyFence(Fence *fence) {
-        const auto o = static_cast<VulkanFence *>(fence);
+        const auto o = dynamic_cast<VulkanFence *>(fence);
         vkDestroyFence(device, o->fence, nullptr);
         delete o;
     }
@@ -586,15 +562,14 @@ namespace Vixen {
             .pNext = nullptr,
             .flags = 0
         };
-        ASSERT_THROW(vkCreateSemaphore(device, &semaphoreInfo, nullptr, &o->semaphore) == VK_SUCCESS,
-                     CantCreateError,
-                     "Call to vkCreateSemaphore failed.");
+        if (vkCreateSemaphore(device, &semaphoreInfo, nullptr, &o->semaphore) != VK_SUCCESS)
+            error<CantCreateError>("Call to vkCreateSemaphore failed.");
 
         return o;
     }
 
     void VulkanRenderingDevice::destroySemaphore(Semaphore *semaphore) {
-        const auto o = static_cast<VulkanSemaphore *>(semaphore);
+        const auto o = dynamic_cast<VulkanSemaphore *>(semaphore);
         vkDestroySemaphore(device, o->semaphore, nullptr);
         delete o;
     }
@@ -608,8 +583,8 @@ namespace Vixen {
         };
 
         VkCommandPool commandPool;
-        ASSERT_THROW(vkCreateCommandPool(device, &commandPoolInfo, nullptr, &commandPool) == VK_SUCCESS,
-                     CantCreateError, "Call to vkCreateCommandPool failed.");
+        if (vkCreateCommandPool(device, &commandPoolInfo, nullptr, &commandPool) != VK_SUCCESS)
+            error<CantCreateError>("Call to vkCreateCommandPool failed.");
         const auto o = new VulkanCommandPool{};
         o->pool = commandPool;
         o->type = type;
@@ -619,8 +594,8 @@ namespace Vixen {
 
     void VulkanRenderingDevice::resetCommandPool(CommandPool *pool) {
         const auto *o = dynamic_cast<VulkanCommandPool *>(pool);
-        ASSERT_THROW(vkResetCommandPool(device, o->pool, 0) == VK_SUCCESS, CantCreateError,
-                     "Call to vkResetCommandPool failed.");
+        if (vkResetCommandPool(device, o->pool, 0) != VK_SUCCESS)
+            error<CantCreateError>("Call to vkResetCommandPool failed.");
     }
 
     void VulkanRenderingDevice::destroyCommandPool(CommandPool *pool) {
@@ -641,8 +616,8 @@ namespace Vixen {
         };
 
         VkCommandBuffer commandBuffer;
-        ASSERT_THROW(vkAllocateCommandBuffers(device, &commandBufferInfo, &commandBuffer) == VK_SUCCESS,
-                     CantCreateError, "Call to vkAllocateCommandBuffers failed.");
+        if (vkAllocateCommandBuffers(device, &commandBufferInfo, &commandBuffer) != VK_SUCCESS)
+            error<CantCreateError>("Call to vkAllocateCommandBuffers failed.");
         const auto o = new VulkanCommandBuffer{};
         o->commandBuffer = commandBuffer;
 
@@ -658,9 +633,8 @@ namespace Vixen {
             .flags = VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT,
             .pInheritanceInfo = nullptr
         };
-        ASSERT_THROW(vkBeginCommandBuffer(o->commandBuffer, &beginInfo) == VK_SUCCESS,
-                     CantCreateError,
-                     "Call to vkBeginCommandBuffer failed.");
+        if (vkBeginCommandBuffer(o->commandBuffer, &beginInfo) != VK_SUCCESS)
+            error<CantCreateError>("Call to vkBeginCommandBuffer failed.");
     }
 
     void VulkanRenderingDevice::endCommandBuffer(CommandBuffer *commandBuffer) {
@@ -796,18 +770,15 @@ namespace Vixen {
         VkBuffer buffer;
         VmaAllocation allocation;
         VmaAllocationInfo allocationInfo;
-        ASSERT_THROW(
-            vmaCreateBuffer(
+        if (vmaCreateBuffer(
                 allocator,
                 &bufferCreateInfo,
                 &allocationCreateInfo,
                 &buffer,
                 &allocation,
                 &allocationInfo
-            ) == VK_SUCCESS,
-            CantCreateError,
-            "Failed to create buffer"
-        );
+            ) != VK_SUCCESS)
+            error<CantCreateError>("Failed to create buffer");
 
         return new VulkanBuffer(
             usage,
@@ -905,18 +876,15 @@ namespace Vixen {
 
         VkImage image;
         VmaAllocation allocation;
-        ASSERT_THROW(
-            vmaCreateImage(
+        if (vmaCreateImage(
                 allocator,
                 &imageCreateInfo,
                 &allocationCreateInfo,
                 &image,
                 &allocation,
                 nullptr
-            ) == VK_SUCCESS,
-            CantCreateError,
-            "Failed to create image"
-        );
+            ) != VK_SUCCESS)
+            error<CantCreateError>("Failed to create image");
 
         VkImageView imageView;
         const VkImageViewCreateInfo imageViewInfo{
@@ -944,10 +912,10 @@ namespace Vixen {
             }
         };
 
-        if (const auto error = vkCreateImageView(device, &imageViewInfo, nullptr, &imageView);
-            error != VK_SUCCESS) {
+        if (const auto e = vkCreateImageView(device, &imageViewInfo, nullptr, &imageView);
+            e != VK_SUCCESS) {
             vmaDestroyImage(allocator, image, allocation);
-            ASSERT_THROW(error == VK_SUCCESS, CantCreateError, "Call to vkCreateImageView failed.");
+            error<CantCreateError>("Call to vkCreateImageView failed.");
         }
 
         const auto o = new VulkanImage();
@@ -1003,8 +971,8 @@ namespace Vixen {
         };
 
         VkSampler sampler;
-        ASSERT_THROW(vkCreateSampler(device, &samplerInfo, nullptr, &sampler) == VK_SUCCESS,
-                     CantCreateError, "Call to vkCreateSampler failed.");
+        if (vkCreateSampler(device, &samplerInfo, nullptr, &sampler) != VK_SUCCESS)
+            error<CantCreateError>("Call to vkCreateSampler failed.");
 
         const auto o = new VulkanSampler{};
         o->state = state;
@@ -1023,7 +991,7 @@ namespace Vixen {
         const auto o = new VulkanShader();
         if (!reflectShader(stages, o)) {
             delete o;
-            ASSERT_THROW(false, CantCreateError, "Shader reflection failed.");
+            error<CantCreateError>("Shader reflection failed.");
         }
 
         o->name = name;
@@ -1043,9 +1011,8 @@ namespace Vixen {
             };
 
             VkShaderModule module;
-            ASSERT_THROW(vkCreateShaderModule(device, &shaderModuleInfo, nullptr, &module) == VK_SUCCESS,
-                         CantCreateError,
-                         "Call to vkCreateShaderModule failed.");
+            if (vkCreateShaderModule(device, &shaderModuleInfo, nullptr, &module) != VK_SUCCESS)
+                error<CantCreateError>("Call to vkCreateShaderModule failed.");
 
             std::vector<VkDescriptorSetLayoutBinding> layoutBindings{};
             layoutBindings.reserve(o->uniformSets.size());
@@ -1086,11 +1053,9 @@ namespace Vixen {
             };
 
             VkDescriptorSetLayout descriptorSetLayout = nullptr;
-            ASSERT_THROW(
-                vkCreateDescriptorSetLayout(device, &descriptorSetLayoutInfo, nullptr, &descriptorSetLayout) ==
-                VK_SUCCESS,
-                CantCreateError,
-                "Call to vkCreateDescriptorSetLayout failed.");
+            if (vkCreateDescriptorSetLayout(device, &descriptorSetLayoutInfo, nullptr, &descriptorSetLayout) !=
+                VK_SUCCESS)
+                error<CantCreateError>("Call to vkCreateDescriptorSetLayout failed.");
             o->descriptorSetLayouts.push_back(descriptorSetLayout);
 
             o->shaderStageInfos.push_back({
@@ -1121,9 +1086,8 @@ namespace Vixen {
         };
 
         VkPipelineLayout pipelineLayout;
-        ASSERT_THROW(vkCreatePipelineLayout(device, &pipelineLayoutInfo, nullptr, &pipelineLayout) == VK_SUCCESS,
-                     CantCreateError,
-                     "Call to vkCreatePipelineLayout failed.");
+        if (vkCreatePipelineLayout(device, &pipelineLayoutInfo, nullptr, &pipelineLayout) != VK_SUCCESS)
+            error<CantCreateError>("Call to vkCreatePipelineLayout failed.");
         o->pipelineLayout = pipelineLayout;
 
         return o;

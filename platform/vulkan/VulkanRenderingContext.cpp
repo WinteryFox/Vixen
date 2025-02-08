@@ -18,7 +18,7 @@ namespace Vixen {
             if (const VkResult res = func(&api_version); res == VK_SUCCESS) {
                 instanceApiVersion = api_version;
             } else {
-                ASSERT_THROW(false, CantCreateError, "Failed to get Vulkan API version.");
+                error<CantCreateError>("Failed to get Vulkan API version.");
             }
         } else {
             spdlog::info("vkEnumerateInstanceVersion not available, assuming Vulkan 1.0");
@@ -50,17 +50,11 @@ namespace Vixen {
         requestedExtensions[VK_KHR_GET_PHYSICAL_DEVICE_PROPERTIES_2_EXTENSION_NAME] = false;
 
         uint32_t extensionCount = 0;
-        ASSERT_THROW(
-            vkEnumerateInstanceExtensionProperties(nullptr, &extensionCount, nullptr) == VK_SUCCESS,
-            CantCreateError,
-            "Call to vkEnumerateInstanceExtensions failed."
-        );
+        if (vkEnumerateInstanceExtensionProperties(nullptr, &extensionCount, nullptr) != VK_SUCCESS)
+            error<CantCreateError>("Call to vkEnumerateInstanceExtensions failed.");
         std::vector<VkExtensionProperties> availableExtensions{extensionCount};
-        ASSERT_THROW(
-            vkEnumerateInstanceExtensionProperties(nullptr, &extensionCount, availableExtensions.data()) == VK_SUCCESS,
-            CantCreateError,
-            "Call to vkEnumerateInstanceExtensions failed."
-        );
+        if (vkEnumerateInstanceExtensionProperties(nullptr, &extensionCount, availableExtensions.data()) != VK_SUCCESS)
+            error<CantCreateError>("Call to vkEnumerateInstanceExtensions failed.");
 
         for (uint32_t i = 0; i < extensionCount; i++) {
             const auto &extensionName = availableExtensions[i].extensionName;
@@ -72,7 +66,8 @@ namespace Vixen {
         for (const auto &[extensionName, required]: requestedExtensions) {
             if (std::ranges::find(enabledInstanceExtensions.begin(), enabledInstanceExtensions.end(), extensionName) ==
                 enabledInstanceExtensions.end()) {
-                ASSERT_THROW(!required, CantCreateError, "Required extension \"" + extensionName + "\" was not found");
+                if (required)
+                    error<CantCreateError>("Required extension \"" + extensionName + "\" was not found");
 
                 spdlog::debug("Optional extension {} was not found.", extensionName);
             }
@@ -138,31 +133,31 @@ namespace Vixen {
 #endif
 
         const auto res = vkCreateInstance(&instanceInfo, nullptr, &instance);
-        ASSERT_THROW(res != VK_ERROR_INCOMPATIBLE_DRIVER, CantCreateError,
-                     "Cannot find a compatible Vulkan installable client driver (ICD).\n"
-                     "Updating your graphics drivers may resolve this issue.\n"
-                     "vkCreateInstance failed.");
-        ASSERT_THROW(res != VK_ERROR_EXTENSION_NOT_PRESENT, CantCreateError,
-                     "Cannot find a specified extension library.\n"
-                     "Make sure your layers path is set appropriately.\n"
-                     "Updating your graphics drivers may resolve this issue.\n"
-                     "vkCreateInstance failed.");
-        ASSERT_THROW(res == VK_SUCCESS, CantCreateError,
-                     "Failed to create Vulkan instance.\n"
-                     "Do you have a Vulkan compatible graphics driver installed?\n"
-                     "Updating your graphics drivers may resolve this issue.\n"
-                     "vkCreateInstance failed.");
+        if (res == VK_ERROR_INCOMPATIBLE_DRIVER)
+            error<CantCreateError>("Cannot find a compatible Vulkan installable client driver (ICD).\n"
+                "Updating your graphics drivers may resolve this issue.\n"
+                "vkCreateInstance failed.");
+        if (res == VK_ERROR_EXTENSION_NOT_PRESENT)
+            error<CantCreateError>("Cannot find a specified extension library.\n"
+                "Make sure your layers path is set appropriately.\n"
+                "Updating your graphics drivers may resolve this issue.\n"
+                "vkCreateInstance failed.");
+        if (res != VK_SUCCESS)
+            error<CantCreateError>("Failed to create Vulkan instance.\n"
+                "Do you have a Vulkan compatible graphics driver installed?\n"
+                "Updating your graphics drivers may resolve this issue.\n"
+                "vkCreateInstance failed.");
 
         volkLoadInstance(instance);
     }
 
     void VulkanRenderingContext::initializeDevices() {
         uint32_t physicalDeviceCount;
-        ASSERT_THROW(vkEnumeratePhysicalDevices(instance, &physicalDeviceCount, nullptr) == VK_SUCCESS, CantCreateError,
-                     "Failed to enumerate physical devices.");
+        if (vkEnumeratePhysicalDevices(instance, &physicalDeviceCount, nullptr) != VK_SUCCESS)
+            error<CantCreateError>("Failed to enumerate physical devices.");
         std::vector<VkPhysicalDevice> physicalDevices(physicalDeviceCount);
-        ASSERT_THROW(vkEnumeratePhysicalDevices(instance, &physicalDeviceCount, physicalDevices.data()) == VK_SUCCESS,
-                     CantCreateError, "Failed to enumerate physical devices.");
+        if (vkEnumeratePhysicalDevices(instance, &physicalDeviceCount, physicalDevices.data()) != VK_SUCCESS)
+            error<CantCreateError>("Failed to enumerate physical devices.");
 
         for (const auto &device: physicalDevices)
             this->physicalDevices.emplace_back(device);
@@ -173,14 +168,14 @@ namespace Vixen {
         : RenderingContext(),
           instanceApiVersion(VK_API_VERSION_1_0),
           instance(VK_NULL_HANDLE) {
-        ASSERT_THROW(glfwVulkanSupported() == GLFW_TRUE, CantCreateError,
-                     "This device does not report Vulkan support.\n"
-                     "Updating your graphics drivers may resolve this issue.\n"
-                     "glfwVulkanSupported did not return GLFW_TRUE.");
+        if (glfwVulkanSupported() != GLFW_TRUE)
+            error<CantCreateError>("This device does not report Vulkan support.\n"
+                "Updating your graphics drivers may resolve this issue.\n"
+                "glfwVulkanSupported did not return GLFW_TRUE.");
 
-        ASSERT_THROW(volkInitialize() == VK_SUCCESS, CantCreateError,
-                     "Failed to initialize Volk.\n"
-                     "volkInitialize did not return VK_SUCCESS.")
+        if (volkInitialize() != VK_SUCCESS)
+            error<CantCreateError>("Failed to initialize Volk.\n"
+                "volkInitialize did not return VK_SUCCESS.");
 
         initializeVulkanVersion();
 
@@ -214,20 +209,17 @@ namespace Vixen {
     bool VulkanRenderingContext::supportsPresent(VkPhysicalDevice physicalDevice, const uint32_t queueFamilyIndex,
                                                  const VulkanSurface *surface) {
         VkBool32 support = VK_FALSE;
-        ASSERT_THROW(
-            vkGetPhysicalDeviceSurfaceSupportKHR(physicalDevice, queueFamilyIndex, surface->surface, &support) ==
-            VK_SUCCESS,
-            CantCreateError,
-            "Failed to query surface support"
-        );
+        if (vkGetPhysicalDeviceSurfaceSupportKHR(physicalDevice, queueFamilyIndex, surface->surface, &support) !=
+            VK_SUCCESS)
+            error<CantCreateError>("Failed to query surface support");
+
         return support;
     }
 
     Surface *VulkanRenderingContext::createSurface(Window *window) {
         auto *surface = dynamic_cast<VulkanSurface *>(window->surface);
-        ASSERT_THROW(glfwCreateWindowSurface(instance, window->window, nullptr, &surface->surface) == VK_SUCCESS,
-                     CantCreateError,
-                     "Failed to create window surface.");
+        if (glfwCreateWindowSurface(instance, window->window, nullptr, &surface->surface) != VK_SUCCESS)
+            error<CantCreateError>("Failed to create window surface.");
 
         return surface;
     }

@@ -39,7 +39,6 @@ add_library(
         RenderingDevice.h
         error/Macros.h
         error/CantCreateError.h
-        error/Macros.cpp
         buffer/Buffer.h
         MemoryAllocationType.h
         DataFormat.h

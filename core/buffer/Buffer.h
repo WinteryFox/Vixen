@@ -6,7 +6,6 @@
 
 namespace Vixen {
     class Buffer {
-    protected:
         BufferUsage usage;
 
         uint32_t count;

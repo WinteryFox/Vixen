@@ -16,11 +16,11 @@ namespace Vixen {
     class DisplayServer final {
         RenderingDriver driver;
 
-        Window *mainWindow;
+        Window *mainWindow = nullptr;
 
-        RenderingContext *renderingContext;
+        RenderingContext *renderingContext = nullptr;
 
-        RenderingDevice *renderingDevice;
+        RenderingDevice *renderingDevice = nullptr;
 
         Window *createWindow(
             const std::string &title,
@@ -82,7 +82,7 @@ namespace Vixen {
 
         void setWindowedMode(const Window *window, WindowMode mode);
 
-        void setVSyncMode(Window *window, VSyncMode mode);
+        void setVSyncMode(const Window *window, VSyncMode mode);
 
         [[nodiscard]] bool getWindowMonitor(const Window *window, Monitor &m);
 

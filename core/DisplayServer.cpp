@@ -34,7 +34,8 @@ namespace Vixen {
         glfwWindowHint(GLFW_FLOATING, flags & WindowFlags::AlwaysOnTop ? GLFW_TRUE : GLFW_FALSE);
 
         auto *glfwWindow = glfwCreateWindow(resolution.x, resolution.y, title.c_str(), nullptr, nullptr);
-        ASSERT_THROW(glfwWindow != nullptr, CantCreateError, "Failed to create window");
+        if (!glfwWindow)
+            error<CantCreateError>("Failed to create window");
 
         Surface *surface = nullptr;
         switch (driver) {
@@ -60,7 +61,8 @@ namespace Vixen {
                 break;
         }
 
-        ASSERT_THROW(surface != nullptr, CantCreateError, "Failed to detect surface type for current driver.");
+        if (!surface)
+            error<CantCreateError>("Failed to detect surface type for current driver.");
 
         surface->resolution = resolution;
         surface->hasFramebufferSizeChanged = false;
@@ -93,11 +95,10 @@ namespace Vixen {
         const VSyncMode vsyncMode,
         const WindowFlags flags,
         const glm::ivec2 resolution
-    ) : driver(driver),
-        mainWindow(nullptr) {
-        ASSERT_THROW(glfwInit() != GLFW_FALSE, CantCreateError,
-                     "Failed to initialize GLFW.\n"
-                     "glfwInit failed.")
+    ) : driver(driver) {
+        if (glfwInit() != GLFW_TRUE)
+            error<CantCreateError>("Failed to initialize GLFW.\n"
+                "glfwInit failed.");
 
         glfwSetErrorCallback([](int code, const char *message) {
             spdlog::error("[GLFW] {} ({})", message, code);
@@ -123,11 +124,12 @@ namespace Vixen {
 #endif
 
             default:
-                ASSERT_THROW(false, CantCreateError, "Unsupported rendering driver.");
+                error<CantCreateError>("Unsupported rendering driver.");
         }
 
         mainWindow = createWindow(applicationName, windowMode, vsyncMode, flags, resolution);
-        ASSERT_THROW(mainWindow != nullptr, CantCreateError, "Failed to create window.");
+        if (!mainWindow)
+            error<CantCreateError>("Failed to create window.");
 
         renderingDevice = renderingContext->createDevice();
     }
@@ -208,7 +210,7 @@ namespace Vixen {
         const auto &primary = glfwGetPrimaryMonitor();
         const auto &mode = glfwGetVideoMode(monitor);
 
-        m = Monitor(
+        m = {
             std::string(glfwGetMonitorName(monitor)),
             mode->width,
             mode->height,
@@ -217,7 +219,7 @@ namespace Vixen {
             mode->redBits,
             mode->greenBits,
             primary == monitor
-        );
+        };
 
         return true;
     }
@@ -261,8 +263,10 @@ namespace Vixen {
         const auto &videoMode = glfwGetVideoMode(monitor);
 
         switch (mode) {
-            case WindowMode::ExclusiveFullscreen:
-            case WindowMode::BorderlessFullscreen:
+                using enum WindowMode;
+
+            case ExclusiveFullscreen:
+            case BorderlessFullscreen:
                 m = monitor;
                 refreshRate = videoMode->refreshRate;
                 w = videoMode->width;
@@ -272,18 +276,18 @@ namespace Vixen {
                 glfwSetWindowAttrib(window->window, GLFW_FLOATING, true);
                 break;
 
-            case WindowMode::Windowed:
+            case Windowed:
                 glfwGetWindowPos(window->window, &x, &y);
                 glfwGetWindowSize(window->window, &w, &h);
                 glfwSetWindowAttrib(window->window, GLFW_DECORATED, true);
                 glfwSetWindowAttrib(window->window, GLFW_FLOATING, false);
                 break;
 
-            case WindowMode::Minimized:
+            case Minimized:
                 glfwIconifyWindow(window->window);
                 break;
 
-            case WindowMode::Maximized:
+            case Maximized:
                 glfwMaximizeWindow(window->window);
                 break;
         }
@@ -291,18 +295,20 @@ namespace Vixen {
         glfwSetWindowMonitor(window->window, m, x, y, w, h, refreshRate);
     }
 
-    void DisplayServer::setVSyncMode(Window *window, const VSyncMode mode) {
+    void DisplayServer::setVSyncMode(const Window *window, const VSyncMode mode) {
         window->surface->vsyncMode = mode;
 
         if (driver == RenderingDriver::OpenGL) {
             switch (mode) {
-                case VSyncMode::Disabled:
+                    using enum VSyncMode;
+
+                case Disabled:
                     glfwSwapInterval(0);
                     break;
 
-                case VSyncMode::Enabled:
-                case VSyncMode::Adaptive:
-                case VSyncMode::Mailbox:
+                case Enabled:
+                case Adaptive:
+                case Mailbox:
                     glfwSwapInterval(1);
                     break;
             }

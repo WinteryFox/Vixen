@@ -1,21 +1,23 @@
 #pragma once
 
+#include <source_location>
 #include <string>
+#include <spdlog/spdlog.h>
 
 namespace Vixen {
-    void log_error(std::string function, std::string file, int line, std::string message);
-}
-
-#define ASSERT_THROW(CONDITION, ERROR, MESSAGE) \
-    if (!(CONDITION)) { \
-        log_error(__FUNCTION__, __FILE__, __LINE__, "Assertion failed \"" #CONDITION "\"\n" MESSAGE); \
-        throw ERROR(MESSAGE); \
+    template<typename T>
+    constexpr void error(const std::string &message,
+                         const std::source_location location = std::source_location::current()) {
+        spdlog::error("ERROR: {}\n    {} ({}:{})", message, location.function_name(), location.file_name(),
+                      location.line());
+        throw T(message);
     }
+}
 
 #ifdef DEBUG_ENABLED
 #define DEBUG_ASSERT(CONDITION) \
     if (!(CONDITION)) { \
-        log_error(__FUNCTION__, __FILE__, __LINE__, "Debug assertion failed \"" #CONDITION "\"."); \
+        error<CantCreateError>("Debug assertion failed"); \
         __builtin_trap(); \
     }
 #else

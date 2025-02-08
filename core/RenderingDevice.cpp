@@ -61,32 +61,34 @@ namespace Vixen {
                                                                    ShaderLanguage language) {
         EShLanguage glslangLanguage;
         switch (stage) {
-            case ShaderStage::Vertex:
+                using enum ShaderStage;
+
+            case Vertex:
                 glslangLanguage = EShLangVertex;
                 break;
 
-            case ShaderStage::Fragment:
+            case Fragment:
                 glslangLanguage = EShLangFragment;
                 break;
 
-            case ShaderStage::TesselationControl:
+            case TesselationControl:
                 glslangLanguage = EShLangTessControl;
                 break;
 
-            case ShaderStage::TesselationEvaluation:
+            case TesselationEvaluation:
                 glslangLanguage = EShLangTessEvaluation;
                 break;
 
-            case ShaderStage::Compute:
+            case Compute:
                 glslangLanguage = EShLangCompute;
                 break;
 
-            case ShaderStage::Geometry:
+            case Geometry:
                 glslangLanguage = EShLangGeometry;
                 break;
 
             default:
-                ASSERT_THROW(false, CantCreateError, "Unknown shader stage");
+                error<CantCreateError>("Unknown shader stage");
         }
 
         glslang::InitializeProcess();
@@ -107,11 +109,13 @@ namespace Vixen {
 #ifdef DEBUG_ENABLED
         messages = static_cast<EShMessages>(messages | EShMsgDebugInfo);
 #endif
-        ASSERT_THROW(shader.parse(GetDefaultResources(), 160, false, messages), CantCreateError,
-                     "Failed to parse SPIR-V");
+
+        if (!shader.parse(GetDefaultResources(), 160, false, messages))
+            error<CantCreateError>("Failed to parse SPIR-V");
 
         program.addShader(&shader);
-        ASSERT_THROW(program.link(messages), CantCreateError, "Failed to link shader");
+        if (!program.link(messages))
+            error<CantCreateError>("Failed to link shader");
 
         glslang::SpvOptions options{
 #ifdef DEBUG_ENABLED
