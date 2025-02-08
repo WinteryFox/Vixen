@@ -1,5 +1,5 @@
 #define GLFW_INCLUDE_NONE
-#include <glfw/glfw3.h>
+#include <GLFW/glfw3.h>
 
 #include "DisplayServer.h"
 
@@ -8,17 +8,14 @@
 
 #ifdef VULKAN_ENABLED
 #include "platform/vulkan/VulkanRenderingContext.h"
-#include "platform/vulkan/VulkanRenderingDevice.h"
 #endif
 
 #ifdef D3D12_ENABLED
 #include "platform/d3d12/D3D12RenderingContext.h"
-#include "platform/d3d12/D3D12RenderingDevice.h"
 #endif
 
 #ifdef OPENGL_ENABLED
 #include "platform/opengl/OpenGLRenderingContext.h"
-#include "platform/opengl/OpenGLRenderingDevice.h"
 #endif
 
 namespace Vixen {
@@ -109,7 +106,7 @@ namespace Vixen {
         switch (driver) {
 #ifdef VULKAN_ENABLED
             case RenderingDriver::Vulkan:
-                renderingContext = std::make_shared<VulkanRenderingContext>(applicationName, applicationVersion);
+                renderingContext = new VulkanRenderingContext(applicationName, applicationVersion);
                 break;
 #endif
 
@@ -132,30 +129,7 @@ namespace Vixen {
         mainWindow = createWindow(applicationName, windowMode, vsyncMode, flags, resolution);
         ASSERT_THROW(mainWindow != nullptr, CantCreateError, "Failed to create window.");
 
-        switch (driver) {
-#ifdef VULKAN_ENABLED
-            case RenderingDriver::Vulkan:
-                // TODO: Hardcoded physical device index
-                renderingDevice = std::make_shared<VulkanRenderingDevice>(
-                    std::dynamic_pointer_cast<VulkanRenderingContext>(renderingContext), 0);
-                break;
-#endif
-
-#ifdef D3D12_ENABLED
-            case RenderingDriver::D3D12:
-                renderingDevice = std::make_shared<D3D12RenderingDevice>(std::dynamic_pointer_cast<D3D12RenderingContext>(renderingContext));
-                break;
-#endif
-
-#ifdef OPENGL_ENABLED
-            case RenderingDriver::OpenGL:
-                renderingDevice = std::make_shared<OpenGLRenderingDevice>();
-                break;
-#endif
-
-            default:
-                ASSERT_THROW(false, CantCreateError, "Unsupported rendering driver.");
-        }
+        renderingDevice = renderingContext->createDevice();
     }
 
     DisplayServer::~DisplayServer() {
@@ -339,11 +313,11 @@ namespace Vixen {
         glfwGetFramebufferSize(window->window, &width, &height);
     }
 
-    std::shared_ptr<RenderingDevice> DisplayServer::getRenderingDevice() const {
+    RenderingDevice *DisplayServer::getRenderingDevice() const {
         return renderingDevice;
     }
 
-    std::shared_ptr<RenderingContext> DisplayServer::getRenderingContext() const {
+    RenderingContext *DisplayServer::getRenderingContext() const {
         return renderingContext;
     }
 

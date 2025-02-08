@@ -4,6 +4,8 @@
 #include <Vulkan.h>
 #include <GLFW/glfw3.h>
 
+#include "VulkanRenderingDevice.h"
+#include "core/Window.h"
 #include "core/error/CantCreateError.h"
 #include "core/error/Macros.h"
 
@@ -86,7 +88,7 @@ namespace Vixen {
             .applicationVersion = VK_MAKE_VERSION(applicationVersion.x, applicationVersion.y, applicationVersion.z),
             .pEngineName = ENGINE_NAME,
             .engineVersion = VK_MAKE_VERSION(ENGINE_VERSION_MAJOR, ENGINE_VERSION_MINOR, ENGINE_VERSION_PATCH),
-            .apiVersion = instanceApiVersion == VK_API_VERSION_1_0 ? VK_API_VERSION_1_0 : VK_API_VERSION_1_4
+            .apiVersion = instanceApiVersion == VK_API_VERSION_1_0 ? VK_API_VERSION_1_0 : VK_API_VERSION_1_3
         };
 
         uint32_t layerCount;
@@ -191,6 +193,10 @@ namespace Vixen {
 
     VulkanRenderingContext::~VulkanRenderingContext() {
         vkDestroyInstance(instance, nullptr);
+    }
+
+    RenderingDevice *VulkanRenderingContext::createDevice() {
+        return new VulkanRenderingDevice(this, 0);
     }
 
     GraphicsCard VulkanRenderingContext::getPhysicalDevice(const uint32_t index) {

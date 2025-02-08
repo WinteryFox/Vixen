@@ -31,6 +31,8 @@ namespace Vixen {
 
         ~VulkanRenderingContext() override;
 
+        RenderingDevice *createDevice() override;
+
         bool supportsPresent(VkPhysicalDevice physicalDevice, uint32_t queueFamilyIndex, const VulkanSurface *surface);
 
         Surface *createSurface(Window *window) override;

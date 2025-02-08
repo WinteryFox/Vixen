@@ -1,17 +1,6 @@
 find_package(Vulkan 1.3 REQUIRED)
 
 add_library(
-        volk
-        STATIC
-        ${CMAKE_SOURCE_DIR}/thirdparty/volk/volk.c
-)
-target_link_libraries(
-        volk
-        PUBLIC
-        Vulkan::Headers
-)
-
-add_library(
         imgui_vulkan
         STATIC
         ${CMAKE_SOURCE_DIR}/thirdparty/imgui/backends/imgui_impl_vulkan.cpp
@@ -57,8 +46,7 @@ target_link_libraries(
         PUBLIC
         Vixen
         Vulkan::Headers
-        freeimage
-        volk
+        volk::volk
         imgui_vulkan
 )
 target_include_directories(
@@ -74,12 +62,6 @@ if (WIN32)
     set(VOLK_STATIC_DEFINES VK_USE_PLATFORM_WIN32_KHR)
     # TODO: Other platforms
 endif ()
-
-target_include_directories(
-        VkVixen
-        PUBLIC
-        ${CMAKE_SOURCE_DIR}/thirdparty/volk
-)
 
 target_link_libraries(
         VkVixen

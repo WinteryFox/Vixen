@@ -68,10 +68,23 @@ if (ENABLE_OPENGL)
     add_compile_definitions(OPENGL_ENABLED)
 endif ()
 
+add_subdirectory(thirdparty/glfw)
+set(ENABLE_OPT "OFF")
+add_subdirectory(thirdparty/glslang)
+add_subdirectory(thirdparty/SPIRV-Cross)
+add_subdirectory(thirdparty/glm)
+add_subdirectory(thirdparty/spdlog)
+set(ASSIMP_WARNINGS_AS_ERRORS "OFF")
+set(ASSIMP_INSTALL "OFF")
+set(ASSIMP_BUILD_TESTS "OFF")
+set(BUILD_SHARED_LIBS "OFF")
+add_subdirectory(thirdparty/assimp)
+
 add_subdirectory(core)
 
 if (ENABLE_VULKAN)
     add_subdirectory(thirdparty/VulkanMemoryAllocator)
+    add_subdirectory(thirdparty/volk)
     add_subdirectory(platform/vulkan)
 endif ()
 

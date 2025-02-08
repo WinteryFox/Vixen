@@ -1,14 +1,14 @@
 #include "RenderingDevice.h"
 
 #ifdef DEBUG_ENABLED
-#include <glslang/SPIRV/disassemble.h>
+#include <GlslangToSpv.h>
 #endif
 
 #include <glslang/Public/ResourceLimits.h>
 #include <glslang/Public/ShaderLang.h>
-#include <glslang/SPIRV/GlslangToSpv.h>
 #include <spdlog/spdlog.h>
-#include <spirv_cross/spirv_cross.hpp>
+#include <spirv_cross.hpp>
+#include <disassemble.h>
 
 #include "error/CantCreateError.h"
 #include "error/Macros.h"

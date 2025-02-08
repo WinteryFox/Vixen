@@ -24,7 +24,7 @@ namespace Vixen {
             std::mutex submitMutex;
         };
 
-        std::shared_ptr<VulkanRenderingContext> renderingContext;
+        VulkanRenderingContext *renderingContext;
 
         GraphicsCard physicalDevice;
 
@@ -47,7 +47,7 @@ namespace Vixen {
         [[nodiscard]] VkSampleCountFlagBits findClosestSupportedSampleCount(const ImageSamples &samples) const;
 
     public:
-        VulkanRenderingDevice(const std::shared_ptr<VulkanRenderingContext> &renderingContext, uint32_t deviceIndex);
+        VulkanRenderingDevice(VulkanRenderingContext *renderingContext, uint32_t deviceIndex);
 
         VulkanRenderingDevice(const VulkanRenderingDevice &) = delete;
 

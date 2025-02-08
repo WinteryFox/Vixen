@@ -262,7 +262,7 @@ namespace Vixen {
     }
 
     VulkanRenderingDevice::VulkanRenderingDevice(
-        const std::shared_ptr<VulkanRenderingContext> &renderingContext,
+        VulkanRenderingContext *renderingContext,
         const uint32_t deviceIndex
     ) : RenderingDevice(),
         enabledFeatures(),

@@ -2,6 +2,7 @@
 
 #include <map>
 #include <algorithm>
+#include <volk.h>
 
 #include "core/error/Macros.h"
 

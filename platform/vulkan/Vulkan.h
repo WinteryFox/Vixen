@@ -4,7 +4,6 @@
 
 #ifdef DEBUG_ENABLED
 
-#include <fmt/color.h>
 #include <spdlog/sinks/stdout_color_sinks.h>
 
 #endif
@@ -398,12 +397,15 @@ namespace Vixen {
     }
 
     [[maybe_unused]] static std::string getVersionString(glm::ivec3 version) {
-        return fmt::format("{}.{}.{}", version.x, version.y, version.z);
+        return std::to_string(version.x) + "." +
+               std::to_string(version.y) + "." +
+               std::to_string(version.z);
     }
 
     [[maybe_unused]] static std::string getVersionString(const uint32_t version) {
-        return fmt::format("{}.{}.{}", VK_API_VERSION_MAJOR(version), VK_API_VERSION_MINOR(version),
-                           VK_API_VERSION_PATCH(version));
+        return std::to_string(VK_API_VERSION_MAJOR(version)) + "." +
+               std::to_string(VK_API_VERSION_MINOR(version)) + "." +
+               std::to_string(VK_API_VERSION_PATCH(version));
     }
 
 #ifdef DEBUG_ENABLED
@@ -459,7 +461,7 @@ namespace Vixen {
         vkDebugLogger->log(
             level,
             "[{}] {}",
-            format(fg(fmt::terminal_color::magenta), fmt::runtime(source)),
+            source,
             pCallbackData->pMessage
         );
 

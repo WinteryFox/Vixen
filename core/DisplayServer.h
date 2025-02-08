@@ -18,9 +18,9 @@ namespace Vixen {
 
         Window *mainWindow;
 
-        std::shared_ptr<RenderingContext> renderingContext;
+        RenderingContext *renderingContext;
 
-        std::shared_ptr<RenderingDevice> renderingDevice;
+        RenderingDevice *renderingDevice;
 
         Window *createWindow(
             const std::string &title,
@@ -90,8 +90,8 @@ namespace Vixen {
 
         void getFramebufferSize(const Window *window, int &width, int &height);
 
-        [[nodiscard]] std::shared_ptr<RenderingDevice> getRenderingDevice() const;
+        [[nodiscard]] RenderingDevice *getRenderingDevice() const;
 
-        [[nodiscard]] std::shared_ptr<RenderingContext> getRenderingContext() const;
+        [[nodiscard]] RenderingContext *getRenderingContext() const;
     };
 }

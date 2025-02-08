@@ -1,10 +1,3 @@
-find_package(GLFW3 3.3 REQUIRED)
-find_package(assimp REQUIRED)
-find_package(glm REQUIRED)
-pkg_check_modules(SPDLOG REQUIRED IMPORTED_TARGET spdlog)
-
-find_path(stb_image_INCLUDE_DIRS NAMES stb_image.h PATH_SUFFIXES include include/stb stb REQUIRED)
-
 add_library(
         imgui
         STATIC
@@ -20,6 +13,12 @@ target_include_directories(
         imgui
         PUBLIC
         ${CMAKE_SOURCE_DIR}/thirdparty/imgui
+        ${CMAKE_SOURCE_DIR}/thirdparty/glfw/include
+)
+target_link_libraries(
+        imgui
+        PUBLIC
+        glfw
 )
 
 add_library(
@@ -38,7 +37,7 @@ add_library(
         Application.h
         RenderingDevice.cpp
         RenderingDevice.h
-        error/macros.h
+        error/Macros.h
         error/CantCreateError.h
         error/Macros.cpp
         buffer/Buffer.h
@@ -91,49 +90,30 @@ target_link_libraries(
         glfw
         assimp::assimp
         glm::glm
-        PkgConfig::SPDLOG
+        spdlog
         imgui
+        spirv-cross-core
+        spirv-cross-cpp
+        glslang::glslang
+        glslang::glslang-default-resource-limits
+        glslang::SPIRV
 )
 target_include_directories(
         Vixen
         PUBLIC
         ${CMAKE_SOURCE_DIR}
         ${CMAKE_SOURCE_DIR}/thirdparty/imgui
-        ${stb_image_INCLUDE_DIRS}
+        ${CMAKE_SOURCE_DIR}/thirdparty/glslang/SPIRV
+        ${CMAKE_SOURCE_DIR}/thirdparty/glslang/glslang
+        ${CMAKE_SOURCE_DIR}/thirdparty/SPIRV-Cross
+        ${CMAKE_SOURCE_DIR}/thirdparty/SPIRV-Cross/include
+        ${CMAKE_SOURCE_DIR}/thirdparty/stb
 )
 
-find_package(spirv_cross_reflect REQUIRED)
-target_link_libraries(
-        Vixen
-        PUBLIC
-        spirv-cross-core
-        spirv-cross-glsl
-        spirv-cross-reflect
-)
-
-find_package(glslang QUIET)
-if (${glslang_FOUND})
+if (ENABLE_VULKAN)
     target_link_libraries(
             Vixen
             PUBLIC
-            #           glslang::OSDependent
-            glslang::glslang
-            #           glslang::MachineIndependent
-            #           glslang::GenericCodeGen
-            #           glslang::OGLCompiler
-            #           glslang::glslangValidator
-            #           glslang::spirv-remap
-            glslang::glslang-default-resource-limits
-            #           glslang::SPVRemapper
-            glslang::SPIRV
-            #           glslang::HLSL
-    )
-else ()
-    pkg_check_modules(glslang REQUIRED IMPORTED_TARGET glslang)
-    target_link_libraries(
-            Vixen
-            PUBLIC
-            PkgConfig::glslang
-            PkgConfig::SPIRV
+            volk::volk
     )
 endif ()
