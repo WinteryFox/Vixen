@@ -224,7 +224,7 @@ namespace Vixen {
     }
 
     Surface *VulkanRenderingContext::createSurface(Window *window) {
-        auto *surface = reinterpret_cast<VulkanSurface *>(window->surface);
+        auto *surface = dynamic_cast<VulkanSurface *>(window->surface);
         ASSERT_THROW(glfwCreateWindowSurface(instance, window->window, nullptr, &surface->surface) == VK_SUCCESS,
                      CantCreateError,
                      "Failed to create window surface.");
@@ -233,8 +233,9 @@ namespace Vixen {
     }
 
     void VulkanRenderingContext::destroySurface(Surface *surface) {
-        const auto vkSurface = reinterpret_cast<VulkanSurface *>(surface);
-        vkDestroySurfaceKHR(instance, vkSurface->surface, nullptr);
-        delete vkSurface;
+        if (const auto vkSurface = dynamic_cast<VulkanSurface *>(surface)) {
+            vkDestroySurfaceKHR(instance, vkSurface->surface, nullptr);
+            delete vkSurface;
+        }
     }
 }

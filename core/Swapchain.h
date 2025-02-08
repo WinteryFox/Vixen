@@ -1,5 +1,8 @@
 #pragma once
 
 namespace Vixen {
-    struct Swapchain {};
+    class Swapchain {
+    public:
+        virtual ~Swapchain() = default;
+    };
 }

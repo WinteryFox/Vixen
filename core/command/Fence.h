@@ -2,5 +2,7 @@
 
 namespace Vixen {
     class Fence {
+    public:
+        virtual ~Fence() = default;
     };
 }

@@ -11,5 +11,7 @@ namespace Vixen {
         std::vector<ShaderStage> pushConstantStages;
         std::vector<ShaderUniform> uniformSets;
         std::vector<ShaderStage> stages;
+
+        virtual ~Shader() = default;
     };
 }

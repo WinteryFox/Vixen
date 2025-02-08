@@ -6,10 +6,13 @@
 #include "VSyncMode.h"
 
 namespace Vixen {
-    struct Surface {
+    class Surface {
+    public:
         glm::ivec2 resolution;
         bool hasFramebufferSizeChanged;
         WindowMode windowMode;
         VSyncMode vsyncMode;
+
+        virtual ~Surface() = default;
     };
 }

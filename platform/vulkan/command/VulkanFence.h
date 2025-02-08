@@ -3,7 +3,7 @@
 #include "core/command/Fence.h"
 
 namespace Vixen {
-    struct VulkanFence : Fence {
+    struct VulkanFence final : Fence {
         VkFence fence;
     };
 }

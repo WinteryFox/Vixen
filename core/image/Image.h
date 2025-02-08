@@ -1,4 +1,5 @@
 #pragma once
+
 #include "ImageFormat.h"
 #include "ImageView.h"
 
@@ -10,5 +11,7 @@ namespace Vixen {
         ImageFormat format{};
 
         ImageView view{};
+
+        virtual ~Image() = default;
     };
 }

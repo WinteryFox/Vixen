@@ -16,7 +16,7 @@
 namespace Vixen {
     bool RenderingDevice::reflectShader(const std::vector<ShaderStageData> &stages, Shader *shader) {
         for (const auto &[stage, spirv]: stages) {
-            const auto compiler = spirv_cross::Compiler(reinterpret_cast<const uint32_t *>(spirv.data()),
+            const auto compiler = spirv_cross::Compiler(std::bit_cast<const uint32_t *>(spirv.data()),
                                                         spirv.size() / sizeof(uint32_t));
             auto resources = compiler.get_shader_resources();
 

@@ -8,7 +8,7 @@
 namespace Vixen {
     struct VulkanImage;
 
-    struct VulkanSwapchain : Swapchain {
+    struct VulkanSwapchain final : Swapchain {
         VkSwapchainKHR swapchain;
         VulkanSurface *surface;
         VkFormat format;
