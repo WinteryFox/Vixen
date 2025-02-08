@@ -339,8 +339,14 @@ namespace Vixen {
         DEBUG_ASSERT(swapchain != nullptr);
 
         const auto vkSwapchain = reinterpret_cast<VulkanSwapchain *>(swapchain);
+        _destroySwapchain(vkSwapchain);
 
         const auto surface = vkSwapchain->surface;
+        ASSERT_THROW(
+            renderingContext->supportsPresent(physicalDevice.device, commandQueue->queueFamilyIndex, surface) == true,
+            CantCreateError,
+            "Surface is not supported by device.");
+
         const auto surfaceCapabilities = physicalDevice.getSurfaceCapabilities(surface->surface);
 
         VkSwapchainCreateInfoKHR swapchainInfo{
@@ -369,21 +375,9 @@ namespace Vixen {
         };
 
         // TODO: Queue family index and image sharing mode should be set dynamically if the graphics queue family
-        //  and present queue family are not the same.
-        // if (device->getGraphicsQueueFamily().index != device->getPresentQueueFamily().index) {
-        //     const std::vector indices = {
-        //         device->getGraphicsQueueFamily().index,
-        //         device->getPresentQueueFamily().index
-        //     };
-        //
-        //     info.imageSharingMode = VK_SHARING_MODE_CONCURRENT;
-        //     info.queueFamilyIndexCount = indices.size();
-        //     info.pQueueFamilyIndices = indices.data();
-        // } else {
-        //     info.imageSharingMode = VK_SHARING_MODE_EXCLUSIVE;
-        //     info.queueFamilyIndexCount = 0;
-        //     info.pQueueFamilyIndices = nullptr;
-        // }
+        //  and present queue family are not the same. In that case the imageSharingMode should be
+        //  VK_SHARING_MODE_CONCURRENT and both the graphics and present queue indices should be passed to
+        //  pQueueFamilyIndices.
 
         std::vector<VkPresentModeKHR> supportedPresentModes{};
         uint32_t presentModeCount;
@@ -513,17 +507,20 @@ namespace Vixen {
         }
     }
 
+    void VulkanRenderingDevice::_destroySwapchain(const VulkanSwapchain *swapchain) {
+        for (uint32_t i = 0; i < swapchain->resolveImages.size(); i++) {
+            destroyImage(swapchain->colorTargets[i]);
+            destroyImage(swapchain->depthTargets[i]);
+            vkDestroyImageView(device, swapchain->resolveImageViews[i], nullptr);
+        }
+        vkDestroySwapchainKHR(device, swapchain->swapchain, nullptr);
+    }
+
     void VulkanRenderingDevice::destroySwapchain(Swapchain *swapchain) {
         DEBUG_ASSERT(swapchain != nullptr);
 
         const auto vkSwapchain = reinterpret_cast<VulkanSwapchain *>(swapchain);
-
-        for (uint32_t i = 0; i < vkSwapchain->resolveImages.size(); i++) {
-            destroyImage(vkSwapchain->colorTargets[i]);
-            destroyImage(vkSwapchain->depthTargets[i]);
-            vkDestroyImageView(device, vkSwapchain->resolveImageViews[i], nullptr);
-        }
-        vkDestroySwapchainKHR(device, vkSwapchain->swapchain, nullptr);
+        _destroySwapchain(vkSwapchain);
         delete vkSwapchain;
     }
 
@@ -720,7 +717,7 @@ namespace Vixen {
         for (const auto &swapchain: swapchains)
             vkSwapchains.push_back(reinterpret_cast<VulkanSwapchain *>(swapchain)->swapchain);
 
-        VkPresentInfoKHR presentInfo{
+        const VkPresentInfoKHR presentInfo{
             .sType = VK_STRUCTURE_TYPE_PRESENT_INFO_KHR,
             .pNext = nullptr,
             .waitSemaphoreCount = 0,
@@ -732,8 +729,6 @@ namespace Vixen {
         };
 
         vkQueuePresentKHR(queue, &presentInfo);
-
-        // TODO: Present to swapchain
     }
 
     void VulkanRenderingDevice::destroyCommandQueue(CommandQueue *commandQueue) {

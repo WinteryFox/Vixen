@@ -70,6 +70,8 @@ int main() {
         device->destroyShader(shader);
         const auto commandPool = device->createCommandPool(0, Vixen::CommandBufferType::Primary);
         const auto commandBuffer = device->createCommandBuffer(commandPool);
+        device->beginCommandBuffer(commandBuffer);
+        device->endCommandBuffer(commandBuffer);
         device->resetCommandPool(commandPool);
         device->destroyCommandPool(commandPool);
 

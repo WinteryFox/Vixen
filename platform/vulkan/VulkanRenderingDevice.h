@@ -10,6 +10,7 @@
 typedef struct VmaAllocator_T *VmaAllocator;
 
 namespace Vixen {
+    struct VulkanSwapchain;
     class VulkanRenderingContext;
 
     class VulkanRenderingDevice final : public RenderingDevice {
@@ -63,6 +64,10 @@ namespace Vixen {
 
         void resizeSwapchain(CommandQueue *commandQueue, Swapchain *swapchain, uint32_t imageCount) override;
 
+    private:
+        void _destroySwapchain(const VulkanSwapchain *swapchain);
+
+    public:
         void destroySwapchain(Swapchain *swapchain) override;
 
         uint32_t getQueueFamily(QueueFamilyFlags queueFamilyFlags, Surface *surface) override;
