@@ -128,9 +128,6 @@ namespace Vixen {
         }
 
         mainWindow = createWindow(applicationName, windowMode, vsyncMode, flags, resolution);
-        if (!mainWindow)
-            error<CantCreateError>("Failed to create window.");
-
         renderingDevice = renderingContext->createDevice();
     }
 

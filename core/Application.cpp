@@ -7,6 +7,8 @@
 #include <DisplayServer.h>
 #include <utility>
 
+#include "RenderingDevice.h"
+
 namespace Vixen {
     Application::Application(
         RenderingDriver renderingDriver,
@@ -40,9 +42,32 @@ namespace Vixen {
 
     void Application::run() const {
         const auto mainWindow = displayServer->getMainWindow();
+        const auto context = displayServer->getRenderingContext();
+        const auto device = displayServer->getRenderingDevice();
+
+        const auto surface = context->createSurface(displayServer->getMainWindow());
+        const auto commandQueue = device->createCommandQueue();
+
+        const auto swapchain = device->createSwapchain(surface);
+        device->resizeSwapchain(commandQueue, swapchain, 3);
+
         while (!displayServer->shouldClose(mainWindow)) {
             displayServer->update(mainWindow);
+
+            // TODO: Do rendering stuff
+
+            device->executeCommandQueueAndPresent(
+                commandQueue,
+                {},
+                {},
+                {},
+                nullptr,
+                {swapchain}
+            );
         }
+
+        device->destroySwapchain(swapchain);
+        context->destroySurface(surface);
     }
 
     std::shared_ptr<DisplayServer> Application::getDisplayServer() const {

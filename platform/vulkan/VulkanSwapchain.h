@@ -4,10 +4,9 @@
 #include <volk.h>
 
 #include "core/Swapchain.h"
+#include "image/VulkanImage.h"
 
 namespace Vixen {
-    struct VulkanImage;
-
     struct VulkanSwapchain final : Swapchain {
         VkSwapchainKHR swapchain;
         VulkanSurface *surface;

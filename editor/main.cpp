@@ -13,33 +13,6 @@ int main() {
         );
 
         const auto device = application.getDisplayServer()->getRenderingDevice();
-        const auto context = application.getDisplayServer()->getRenderingContext();
-        const auto buffer = device->createBuffer(
-            Vixen::BufferUsage::Vertex, 1, sizeof(float) * 3);
-        const auto image = device->createImage(
-            {
-                .format = Vixen::R8G8B8A8_SRGB,
-                .width = 1,
-                .height = 1,
-                .depth = 1,
-                .layerCount = 1,
-                .mipmapCount = 1,
-                .type = Vixen::ImageType::TwoD,
-                .samples = Vixen::ImageSamples::One,
-                .usage = Vixen::ImageUsage::ColorAttachment
-            },
-            {
-                .format = Vixen::R8G8B8A8_SRGB,
-                .swizzleRed = Vixen::ImageSwizzle::Identity,
-                .swizzleGreen = Vixen::ImageSwizzle::Identity,
-                .swizzleBlue = Vixen::ImageSwizzle::Identity,
-                .swizzleAlpha = Vixen::ImageSwizzle::Identity
-            }
-        );
-        spdlog::error(buffer->getCount());
-        spdlog::error(image->format.width);
-        device->destroyBuffer(buffer);
-        device->destroyImage(image);
 
         std::ifstream vertexFile("../../editor/resources/shaders/pbr.vertex.glsl");
         std::string vertexSource = (std::stringstream{} << vertexFile.rdbuf()).str();
@@ -68,23 +41,8 @@ int main() {
         );
         spdlog::error("Shader compiled successfully");
         device->destroyShader(shader);
-        const auto commandPool = device->createCommandPool(0, Vixen::CommandBufferType::Primary);
-        const auto commandBuffer = device->createCommandBuffer(commandPool);
-        device->beginCommandBuffer(commandBuffer);
-        device->endCommandBuffer(commandBuffer);
-        device->resetCommandPool(commandPool);
-        device->destroyCommandPool(commandPool);
-
-        const auto surface = context->createSurface(application.getDisplayServer()->getMainWindow());
-        const auto commandQueue = device->createCommandQueue();
-
-        const auto swapchain = device->createSwapchain(surface);
-        device->resizeSwapchain(commandQueue, swapchain, 3);
 
         application.run();
-
-        device->destroySwapchain(swapchain);
-        context->destroySurface(surface);
     } catch (const std::runtime_error &e) {
         spdlog::error(e.what());
         return EXIT_FAILURE;

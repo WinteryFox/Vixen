@@ -1,6 +1,5 @@
 #pragma once
 
-#include <memory>
 #include <vector>
 #include <volk.h>
 
@@ -20,9 +19,8 @@ namespace Vixen {
         } enabledFeatures;
 
         struct Queue {
-            VkQueue queue;
-            uint32_t count;
-            std::mutex submitMutex;
+            VkQueue queue = VK_NULL_HANDLE;
+            uint32_t count = 0;
         };
 
         VulkanRenderingContext *renderingContext;
@@ -127,5 +125,42 @@ namespace Vixen {
         void destroyShader(Shader *shader) override;
 
         [[nodiscard]] GraphicsCard getPhysicalDevice() const;
+
+        static VkImageSubresourceLayers _imageSubresourceLayers(const ImageSubresourceLayers &layers);
+
+        static VkBufferImageCopy _bufferImageCopyRegion(const BufferImageCopyRegion &region);
+
+        void commandPipelineBarrier(CommandBuffer *commandBuffer,
+                                    PipelineStageFlags sourceStages,
+                                    PipelineStageFlags destinationStages,
+                                    const std::vector<MemoryBarrier> &memoryBarriers,
+                                    const std::vector<BufferBarrier> &bufferBarriers,
+                                    const std::vector<ImageBarrier> &imageBarriers) override;
+
+        void commandClearBuffer(CommandBuffer *commandBuffer, Buffer *buffer, uint64_t offset, uint64_t size) override;
+
+        void commandCopyBuffer(CommandBuffer *commandBuffer, Buffer *source, Buffer *destination,
+                               const std::vector<BufferCopyRegion> &regions) override;
+
+        void commandCopyImage(CommandBuffer *commandBuffer, Image *source, ImageLayout sourceLayout, Image *destination,
+                              ImageLayout destinationLayout, const std::vector<ImageCopyRegion> &regions) override;
+
+        void commandResolveImage(CommandBuffer *commandBuffer, Image *source, ImageLayout sourceLayout,
+                                 uint32_t sourceLayer, uint32_t sourceMipmap, Image *destination,
+                                 ImageLayout destinationLayout,
+                                 uint32_t destinationLayer, uint32_t destinationMipmap) override;
+
+        void commandClearColorImage(CommandBuffer *commandBuffer, Image *image, ImageLayout imageLayout,
+                                    const glm::vec4 &color, const ImageSubresourceRange &subresource) override;
+
+        void commandCopyBufferToImage(CommandBuffer *commandBuffer, Buffer *buffer, Image *image, ImageLayout layout,
+                                      const std::vector<BufferImageCopyRegion> &regions) override;
+
+        void commandCopyImageToBuffer(CommandBuffer *commandBuffer, Image *image, ImageLayout layout, Buffer *buffer,
+                                      const std::vector<BufferImageCopyRegion> &regions) override;
+
+        void commandBeginLabel(CommandBuffer *commandBuffer, const std::string &label, const glm::vec3 &color) override;
+
+        void commandEndLabel(CommandBuffer *commandBuffer) override;
     };
 }

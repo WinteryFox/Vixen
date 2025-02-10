@@ -183,9 +183,13 @@ namespace Vixen {
         if (vkCreateDevice(physicalDevice.device, &deviceInfo, nullptr, &device) != VK_SUCCESS)
             error<CantCreateError>("Failed to create VkDevice");
 
-        for (uint32_t i = 0; i < queueFamilies.size(); i++)
-            for (uint32_t j = 0; j < queueFamilies[i].size(); j++)
-                vkGetDeviceQueue(device, i, j, &queueFamilies[i][j].queue);
+        queueFamilies.resize(queueCreateInfos.size());
+        for (uint32_t i = 0; i < queueFamilies.size(); i++) {
+            queueFamilies[i].resize(queueCreateInfos[i].queueCount);
+            for (uint32_t j = 0; j < queueFamilies[i].size(); j++) {
+                vkGetDeviceQueue(device, queueCreateInfos[i].queueFamilyIndex, j, &queueFamilies[i][j].queue);
+            }
+        }
 
         volkLoadDevice(device);
 
@@ -462,7 +466,7 @@ namespace Vixen {
             ));
             vkSwapchain->depthTargets[i] = dynamic_cast<VulkanImage *>(createImage(
                 {
-                    // TODO: Actually error for a supported depth format instead of blindly picking our preferred one.
+                    // TODO: Actually search for a supported depth format instead of blindly picking our preferred one.
                     .format = D32_SFLOAT_S8_UINT,
                     .width = swapchainInfo.imageExtent.width,
                     .height = swapchainInfo.imageExtent.height,
@@ -481,6 +485,8 @@ namespace Vixen {
                     .swizzleAlpha = ImageSwizzle::Identity
                 }
             ));
+
+            // TODO: Transition color targets
         }
     }
 
@@ -650,59 +656,196 @@ namespace Vixen {
         return commandQueue;
     }
 
-    void VulkanRenderingDevice::executeCommandQueueAndPresent(CommandQueue *commandQueue,
-                                                              const std::vector<Semaphore *> &waitSemaphores,
-                                                              const std::vector<CommandBuffer *> &commandBuffers,
-                                                              const std::vector<Semaphore *> &semaphores,
-                                                              Fence *fence,
-                                                              const std::vector<Swapchain *> &swapchains) {
+    void VulkanRenderingDevice::executeCommandQueueAndPresent(
+        CommandQueue *commandQueue,
+        const std::vector<Semaphore *> &waitSemaphores,
+        const std::vector<CommandBuffer *> &commandBuffers,
+        const std::vector<Semaphore *> &semaphores,
+        Fence *fence,
+        const std::vector<Swapchain *> &swapchains
+    ) {
         const auto vkCommandQueue = dynamic_cast<VulkanCommandQueue *>(commandQueue);
-
-        const VkQueue queue = VK_NULL_HANDLE;
+        const Queue queue = queueFamilies[vkCommandQueue->queueFamilyIndex][vkCommandQueue->queueIndex];
+        const auto vkFence = dynamic_cast<VulkanFence *>(fence);
 
         std::vector<VkSemaphore> vkWaitSemaphores{};
         vkWaitSemaphores.reserve(waitSemaphores.size());
-        for (const auto &semaphore: waitSemaphores)
+        std::vector<VkPipelineStageFlags> vkWaitStages{};
+        vkWaitSemaphores.reserve(vkWaitSemaphores.size());
+        for (const auto &semaphore: waitSemaphores) {
             vkWaitSemaphores.push_back(dynamic_cast<VulkanSemaphore *>(semaphore)->semaphore);
+            vkWaitStages.push_back(VK_PIPELINE_STAGE_ALL_COMMANDS_BIT);
+        }
 
-        std::vector<VkCommandBuffer> vkCommandBuffers{};
-        vkCommandBuffers.reserve(commandBuffers.size());
-        for (const auto &commandBuffer: commandBuffers)
-            vkCommandBuffers.push_back(dynamic_cast<VulkanCommandBuffer *>(commandBuffer)->commandBuffer);
+        if (!commandBuffers.empty()) {
+            std::vector<VkCommandBuffer> vkCommandBuffers{};
+            vkCommandBuffers.reserve(commandBuffers.size());
+            for (const auto &commandBuffer: commandBuffers)
+                vkCommandBuffers.push_back(dynamic_cast<VulkanCommandBuffer *>(commandBuffer)->commandBuffer);
 
-        VkSemaphoreWaitFlags waitFlags = VK_SEMAPHORE_WAIT_ANY_BIT;
+            std::vector<VkSemaphore> signalSemaphores{};
+            signalSemaphores.reserve(semaphores.size());
+            for (const auto &semaphore: semaphores)
+                signalSemaphores.push_back(dynamic_cast<VulkanSemaphore *>(semaphore)->semaphore);
 
-        const VkSubmitInfo submitInfo{
-            .sType = VK_STRUCTURE_TYPE_SUBMIT_INFO,
-            .pNext = nullptr,
-            .waitSemaphoreCount = static_cast<uint32_t>(vkWaitSemaphores.size()),
-            .pWaitSemaphores = vkWaitSemaphores.data(),
-            .pWaitDstStageMask = &waitFlags,
-            .commandBufferCount = static_cast<uint32_t>(vkCommandBuffers.size()),
-            .pCommandBuffers = vkCommandBuffers.data(),
-            .signalSemaphoreCount = 0,
-            .pSignalSemaphores = nullptr
-        };
+            const VkSubmitInfo submitInfo{
+                .sType = VK_STRUCTURE_TYPE_SUBMIT_INFO,
+                .pNext = nullptr,
+                .waitSemaphoreCount = static_cast<uint32_t>(vkWaitSemaphores.size()),
+                .pWaitSemaphores = vkWaitSemaphores.data(),
+                .pWaitDstStageMask = vkWaitStages.data(),
+                .commandBufferCount = static_cast<uint32_t>(vkCommandBuffers.size()),
+                .pCommandBuffers = vkCommandBuffers.data(),
+                .signalSemaphoreCount = static_cast<uint32_t>(signalSemaphores.size()),
+                .pSignalSemaphores = signalSemaphores.data()
+            };
 
-        vkQueueSubmit(queue, 1, &submitInfo, nullptr);
+            const auto submitResult = vkQueueSubmit(
+                queue.queue,
+                1,
+                &submitInfo,
+                vkFence != nullptr ? vkFence->fence : VK_NULL_HANDLE
+            );
+            if (submitResult == VK_ERROR_DEVICE_LOST) {
+                // TODO: Print crash log
+                CRASH("Vulkan device lost");
+            }
+            if (submitResult != VK_SUCCESS)
+                error<CantCreateError>("Call to vkQueueSubmit failed.");
+        }
 
-        std::vector<VkSwapchainKHR> vkSwapchains{};
-        vkSwapchains.reserve(swapchains.size());
-        for (const auto &swapchain: swapchains)
-            vkSwapchains.push_back(dynamic_cast<VulkanSwapchain *>(swapchain)->swapchain);
+        if (!swapchains.empty()) {
+            std::vector<VkSwapchainKHR> vkSwapchains{};
+            vkSwapchains.reserve(swapchains.size());
+            std::vector<uint32_t> imageIndices{};
+            imageIndices.reserve(swapchains.size());
 
-        const VkPresentInfoKHR presentInfo{
-            .sType = VK_STRUCTURE_TYPE_PRESENT_INFO_KHR,
-            .pNext = nullptr,
-            .waitSemaphoreCount = 0,
-            .pWaitSemaphores = nullptr,
-            .swapchainCount = static_cast<uint32_t>(vkSwapchains.size()),
-            .pSwapchains = vkSwapchains.data(),
-            .pImageIndices = nullptr,
-            .pResults = nullptr
-        };
+            for (const auto &swapchain: swapchains) {
+                const auto vkSwapchain = dynamic_cast<VulkanSwapchain *>(swapchain);
+                vkSwapchains.push_back(vkSwapchain->swapchain);
+                // TODO: Need to vkAcquireNextImageKHR before doing this
+                DEBUG_ASSERT(vkSwapchain->imageIndex < vkSwapchain->colorTargets.size());
+                imageIndices.push_back(vkSwapchain->imageIndex);
 
-        vkQueuePresentKHR(queue, &presentInfo);
+                // TODO: Bad.
+                auto pool = createCommandPool(vkCommandQueue->queueFamilyIndex, CommandBufferType::Primary);
+                CommandBuffer *commandBuffer = createCommandBuffer(pool);
+                auto vkCommandBuffer = dynamic_cast<VulkanCommandBuffer *>(commandBuffer)->commandBuffer;
+
+                beginCommandBuffer(commandBuffer);
+                VkImageMemoryBarrier barrier{
+                    .sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER,
+                    .pNext = nullptr,
+                    .srcAccessMask = VK_ACCESS_NONE,
+                    .dstAccessMask = VK_ACCESS_TRANSFER_WRITE_BIT,
+                    .oldLayout = VK_IMAGE_LAYOUT_UNDEFINED,
+                    .newLayout = VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
+                    .srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED,
+                    .dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED,
+                    .image = vkSwapchain->resolveImages[vkSwapchain->imageIndex],
+                    .subresourceRange = {
+                        .aspectMask = VK_IMAGE_ASPECT_COLOR_BIT,
+                        .baseMipLevel = 0,
+                        .levelCount = 1,
+                        .baseArrayLayer = 0,
+                        .layerCount = 1
+                    }
+                };
+
+                vkCmdPipelineBarrier(
+                    vkCommandBuffer,
+                    VK_PIPELINE_STAGE_TRANSFER_BIT,
+                    VK_PIPELINE_STAGE_TRANSFER_BIT,
+                    0,
+                    0,
+                    nullptr,
+                    0,
+                    nullptr,
+                    1,
+                    &barrier
+                );
+
+                const VkImageCopy copy{
+                    .srcSubresource = {
+                        .aspectMask = VK_IMAGE_ASPECT_COLOR_BIT,
+                        .mipLevel = 0,
+                        .baseArrayLayer = 0,
+                        .layerCount = 1
+                    },
+                    .srcOffset = {
+                        .x = 0,
+                        .y = 0,
+                        .z = 0
+                    },
+                    .dstSubresource = {
+                        .aspectMask = VK_IMAGE_ASPECT_COLOR_BIT,
+                        .mipLevel = 0,
+                        .baseArrayLayer = 0,
+                        .layerCount = 1
+                    },
+                    .dstOffset = {
+                        .x = 0,
+                        .y = 0,
+                        .z = 0
+                    },
+                    .extent = {
+                        .width = 1280, // TODO
+                        .height = 720, // TODO
+                        .depth = 1
+                    }
+                };
+
+                vkCmdCopyImage(
+                    vkCommandBuffer,
+                    vkSwapchain->colorTargets[vkSwapchain->imageIndex]->image,
+                    VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL,
+                    vkSwapchain->resolveImages[vkSwapchain->imageIndex],
+                    barrier.newLayout,
+                    1,
+                    &copy
+                );
+
+                barrier.oldLayout = barrier.newLayout;
+                barrier.newLayout = VK_IMAGE_LAYOUT_PRESENT_SRC_KHR;
+                barrier.srcAccessMask = VK_ACCESS_NONE;
+                barrier.dstAccessMask = VK_ACCESS_NONE;
+
+                vkCmdPipelineBarrier(
+                    vkCommandBuffer,
+                    VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT,
+                    VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT,
+                    0,
+                    0,
+                    nullptr,
+                    0,
+                    nullptr,
+                    1,
+                    &barrier
+                );
+
+                endCommandBuffer(commandBuffer);
+                executeCommandQueueAndPresent(commandQueue, {}, {commandBuffer}, {}, nullptr, {});
+
+                // TODO: Bad.
+                vkDeviceWaitIdle(device);
+                destroyCommandPool(pool);
+            }
+
+            const VkPresentInfoKHR presentInfo{
+                .sType = VK_STRUCTURE_TYPE_PRESENT_INFO_KHR,
+                .pNext = nullptr,
+                .waitSemaphoreCount = 0,
+                .pWaitSemaphores = nullptr,
+                .swapchainCount = static_cast<uint32_t>(vkSwapchains.size()),
+                .pSwapchains = vkSwapchains.data(),
+                .pImageIndices = imageIndices.data(),
+                .pResults = nullptr // TODO: Check results for every swapchain
+            };
+
+            // TODO: Handle suboptimal and out of date errors?
+            if (vkQueuePresentKHR(queue.queue, &presentInfo) != VK_SUCCESS)
+                error<CantCreateError>("Call to vkQueuePresentKHR failed.");
+        }
     }
 
     void VulkanRenderingDevice::destroyCommandQueue(CommandQueue *commandQueue) {
@@ -1113,5 +1256,256 @@ namespace Vixen {
 
     GraphicsCard VulkanRenderingDevice::getPhysicalDevice() const {
         return physicalDevice;
+    }
+
+    VkImageSubresourceLayers VulkanRenderingDevice::_imageSubresourceLayers(const ImageSubresourceLayers &layers) {
+        return {
+            .aspectMask = toVkImageAspectFlags(layers.aspect),
+            .mipLevel = layers.mipmap,
+            .baseArrayLayer = layers.baseLayer,
+            .layerCount = layers.layerCount
+        };
+    }
+
+    VkBufferImageCopy VulkanRenderingDevice::_bufferImageCopyRegion(const BufferImageCopyRegion &region) {
+        return {
+            .bufferOffset = region.bufferOffset,
+            .bufferRowLength = {},
+            .bufferImageHeight = {},
+            .imageSubresource = _imageSubresourceLayers(region.imageSubresourceLayers),
+            .imageOffset = {
+                .x = region.imageOffset.x,
+                .y = region.imageOffset.y,
+                .z = region.imageOffset.z,
+            },
+            .imageExtent = {
+                .width = region.imageRegionSize.x,
+                .height = region.imageRegionSize.y,
+                .depth = region.imageRegionSize.z,
+            }
+        };
+    }
+
+    void VulkanRenderingDevice::commandPipelineBarrier(
+        CommandBuffer *commandBuffer,
+        const PipelineStageFlags sourceStages,
+        const PipelineStageFlags destinationStages,
+        const std::vector<MemoryBarrier> &memoryBarriers,
+        const std::vector<BufferBarrier> &bufferBarriers,
+        const std::vector<ImageBarrier> &imageBarriers
+    ) {
+        std::vector<VkMemoryBarrier> vkMemoryBarriers{};
+        vkMemoryBarriers.reserve(memoryBarriers.size());
+        for (const auto &[sourceAccess, targetAccess]: memoryBarriers) {
+            vkMemoryBarriers.push_back({
+                .sType = VK_STRUCTURE_TYPE_MEMORY_BARRIER,
+                .pNext = nullptr,
+                .srcAccessMask = toVkAccessFlags(sourceAccess),
+                .dstAccessMask = toVkAccessFlags(targetAccess)
+            });
+        }
+
+        std::vector<VkBufferMemoryBarrier> vkBufferMemoryBarriers{};
+        vkBufferMemoryBarriers.reserve(bufferBarriers.size());
+        for (const auto &bufferBarrier: bufferBarriers) {
+            vkBufferMemoryBarriers.push_back({
+                .sType = VK_STRUCTURE_TYPE_BUFFER_MEMORY_BARRIER,
+                .pNext = nullptr,
+                .srcAccessMask = toVkAccessFlags(bufferBarrier.sourceAccess),
+                .dstAccessMask = toVkAccessFlags(bufferBarrier.destinationAccess),
+                .srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED,
+                .dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED,
+                .buffer = dynamic_cast<VulkanBuffer *>(bufferBarrier.buffer)->buffer,
+                .offset = bufferBarrier.offset,
+                .size = bufferBarrier.size
+            });
+        }
+
+        std::vector<VkImageMemoryBarrier> vkImageMemoryBarriers{};
+        vkImageMemoryBarriers.reserve(imageBarriers.size());
+        for (const auto &imageBarrier: imageBarriers) {
+            vkImageMemoryBarriers.push_back({
+                .sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER,
+                .pNext = nullptr,
+                .srcAccessMask = toVkAccessFlags(imageBarrier.sourceAccess),
+                .dstAccessMask = toVkAccessFlags(imageBarrier.destinationAccess),
+                .oldLayout = toVkImageLayout(imageBarrier.oldLayout),
+                .newLayout = toVkImageLayout(imageBarrier.newLayout),
+                .srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED,
+                .dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED,
+                .image = dynamic_cast<VulkanImage *>(imageBarrier.image)->image,
+                .subresourceRange = {
+                    .aspectMask = toVkImageAspectFlags(imageBarrier.subresources.aspect),
+                    .baseMipLevel = imageBarrier.subresources.baseMipmap,
+                    .levelCount = imageBarrier.subresources.mipmapCount,
+                    .baseArrayLayer = imageBarrier.subresources.baseLayer,
+                    .layerCount = imageBarrier.subresources.layerCount
+                }
+            });
+        }
+
+        vkCmdPipelineBarrier(
+            dynamic_cast<VulkanCommandBuffer *>(commandBuffer)->commandBuffer,
+            toVkPipelineStages(sourceStages),
+            toVkPipelineStages(destinationStages),
+            0,
+            static_cast<uint32_t>(vkMemoryBarriers.size()),
+            vkMemoryBarriers.data(),
+            static_cast<uint32_t>(vkBufferMemoryBarriers.size()),
+            vkBufferMemoryBarriers.data(),
+            static_cast<uint32_t>(vkImageMemoryBarriers.size()),
+            vkImageMemoryBarriers.data()
+        );
+    }
+
+    void VulkanRenderingDevice::commandClearBuffer(CommandBuffer *commandBuffer, Buffer *buffer, const uint64_t offset,
+                                                   const uint64_t size) {
+        vkCmdFillBuffer(
+            dynamic_cast<VulkanCommandBuffer *>(commandBuffer)->commandBuffer,
+            dynamic_cast<VulkanBuffer *>(buffer)->buffer,
+            offset,
+            size,
+            0
+        );
+    }
+
+    void VulkanRenderingDevice::commandCopyBuffer(CommandBuffer *commandBuffer, Buffer *source, Buffer *destination,
+                                                  const std::vector<BufferCopyRegion> &regions) {
+        std::vector<VkBufferCopy> vkRegions{};
+        vkRegions.reserve(regions.size());
+        for (const auto &[sourceOffset, destinationOffset, size]: regions) {
+            vkRegions.push_back({
+                .srcOffset = sourceOffset,
+                .dstOffset = destinationOffset,
+                .size = size
+            });
+        }
+
+        vkCmdCopyBuffer(
+            dynamic_cast<VulkanCommandBuffer *>(commandBuffer)->commandBuffer,
+            dynamic_cast<VulkanBuffer *>(source)->buffer,
+            dynamic_cast<VulkanBuffer *>(destination)->buffer,
+            vkRegions.size(),
+            vkRegions.data()
+        );
+    }
+
+    void VulkanRenderingDevice::commandCopyImage(CommandBuffer *commandBuffer, Image *source, ImageLayout sourceLayout,
+                                                 Image *destination, ImageLayout destinationLayout,
+                                                 const std::vector<ImageCopyRegion> &regions) {
+        std::vector<VkImageCopy> vkRegions{};
+        vkRegions.reserve(regions.size());
+        for (const auto &[sourceSubresources, sourceOffset, destinationSubresources, destinationOffset, size]:
+             regions) {
+            vkRegions.push_back({
+                .srcSubresource = _imageSubresourceLayers(sourceSubresources),
+                .srcOffset = {
+                    .x = sourceOffset.x,
+                    .y = sourceOffset.y,
+                    .z = sourceOffset.z
+                },
+                .dstSubresource = _imageSubresourceLayers(destinationSubresources),
+                .dstOffset = {
+                    .x = destinationOffset.x,
+                    .y = destinationOffset.y,
+                    .z = destinationOffset.z
+                },
+                .extent = {
+                    .width = size.x,
+                    .height = size.y,
+                    .depth = size.z
+                }
+            });
+        }
+
+        vkCmdCopyImage(
+            dynamic_cast<VulkanCommandBuffer *>(commandBuffer)->commandBuffer,
+            dynamic_cast<VulkanImage *>(source)->image,
+            static_cast<VkImageLayout>(sourceLayout),
+            dynamic_cast<VulkanImage *>(destination)->image,
+            static_cast<VkImageLayout>(destinationLayout),
+            vkRegions.size(),
+            vkRegions.data()
+        );
+    }
+
+    void VulkanRenderingDevice::commandResolveImage(CommandBuffer *commandBuffer, Image *source,
+                                                    ImageLayout sourceLayout, uint32_t sourceLayer,
+                                                    uint32_t sourceMipmap, Image *destination,
+                                                    ImageLayout destinationLayout, uint32_t destinationLayer,
+                                                    uint32_t destinationMipmap) {
+        // TODO
+    }
+
+    void VulkanRenderingDevice::commandClearColorImage(CommandBuffer *commandBuffer, Image *image,
+                                                       ImageLayout imageLayout, const glm::vec4 &color,
+                                                       const ImageSubresourceRange &subresource) {
+        const VkClearColorValue vkColor = {
+            color.r,
+            color.b,
+            color.g,
+            color.a
+        };
+        const VkImageSubresourceRange vkSubresource{
+            .aspectMask = toVkImageAspectFlags(subresource.aspect),
+            .baseMipLevel = subresource.baseMipmap,
+            .levelCount = subresource.mipmapCount,
+            .baseArrayLayer = subresource.baseLayer,
+            .layerCount = subresource.layerCount
+        };
+
+        vkCmdClearColorImage(
+            dynamic_cast<VulkanCommandBuffer *>(commandBuffer)->commandBuffer,
+            dynamic_cast<VulkanImage *>(image)->image,
+            static_cast<VkImageLayout>(imageLayout),
+            &vkColor,
+            1,
+            &vkSubresource
+        );
+    }
+
+    void VulkanRenderingDevice::commandCopyBufferToImage(CommandBuffer *commandBuffer, Buffer *buffer, Image *image,
+                                                         ImageLayout layout,
+                                                         const std::vector<BufferImageCopyRegion> &regions) {
+        std::vector<VkBufferImageCopy> vkRegions{};
+        vkRegions.reserve(regions.size());
+        for (const auto &region: regions)
+            vkRegions.push_back(_bufferImageCopyRegion(region));
+
+        vkCmdCopyBufferToImage(
+            dynamic_cast<VulkanCommandBuffer *>(commandBuffer)->commandBuffer,
+            dynamic_cast<VulkanBuffer *>(buffer)->buffer,
+            dynamic_cast<VulkanImage *>(image)->image,
+            static_cast<VkImageLayout>(layout),
+            vkRegions.size(),
+            vkRegions.data()
+        );
+    }
+
+    void VulkanRenderingDevice::commandCopyImageToBuffer(CommandBuffer *commandBuffer, Image *image, ImageLayout layout,
+                                                         Buffer *buffer,
+                                                         const std::vector<BufferImageCopyRegion> &regions) {
+        std::vector<VkBufferImageCopy> vkRegions{};
+        vkRegions.reserve(regions.size());
+        for (const auto &region: regions)
+            vkRegions.push_back(_bufferImageCopyRegion(region));
+
+        vkCmdCopyImageToBuffer(
+            dynamic_cast<VulkanCommandBuffer *>(commandBuffer)->commandBuffer,
+            dynamic_cast<VulkanImage *>(image)->image,
+            static_cast<VkImageLayout>(layout),
+            dynamic_cast<VulkanBuffer *>(buffer)->buffer,
+            vkRegions.size(),
+            vkRegions.data()
+        );
+    }
+
+    void VulkanRenderingDevice::commandBeginLabel(CommandBuffer *commandBuffer, const std::string &label,
+                                                  const glm::vec3 &color) {
+        // TODO
+    }
+
+    void VulkanRenderingDevice::commandEndLabel(CommandBuffer *commandBuffer) {
+        // TODO
     }
 }

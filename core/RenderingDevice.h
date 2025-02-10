@@ -2,18 +2,27 @@
 
 #include <string>
 
+#include "BufferBarrier.h"
+#include "ImageBarrier.h"
+#include "MemoryBarrier.h"
+#include "PipelineStageFlags.h"
 #include "QueueFamilyFlags.h"
 #include "Surface.h"
 #include "Swapchain.h"
 #include "command/CommandPool.h"
 #include "command/CommandBuffer.h"
 #include "buffer/Buffer.h"
+#include "buffer/BufferCopyRegion.h"
+#include "buffer/BufferImageCopyRegion.h"
 #include "buffer/BufferUsage.h"
 #include "command/CommandQueue.h"
 #include "command/Fence.h"
 #include "command/Semaphore.h"
 #include "image/Image.h"
+#include "image/ImageCopyRegion.h"
 #include "image/ImageFormat.h"
+#include "image/ImageLayout.h"
+#include "image/ImageSubresourceRange.h"
 #include "image/ImageView.h"
 #include "image/Sampler.h"
 #include "image/SamplerState.h"
@@ -94,5 +103,42 @@ namespace Vixen {
         virtual void destroyShaderModules(Shader *shader) = 0;
 
         virtual void destroyShader(Shader *shader) = 0;
+
+        virtual void commandPipelineBarrier(CommandBuffer *commandBuffer,
+                                            PipelineStageFlags sourceStages,
+                                            PipelineStageFlags destinationStages,
+                                            const std::vector<MemoryBarrier> &memoryBarriers,
+                                            const std::vector<BufferBarrier> &bufferBarriers,
+                                            const std::vector<ImageBarrier> &imageBarriers) = 0;
+
+        virtual void commandClearBuffer(CommandBuffer *commandBuffer, Buffer *buffer, uint64_t offset,
+                                        uint64_t size) = 0;
+
+        virtual void commandCopyBuffer(CommandBuffer *commandBuffer, Buffer *source, Buffer *destination,
+                                       const std::vector<BufferCopyRegion> &regions) = 0;
+
+        virtual void commandCopyImage(CommandBuffer *commandBuffer, Image *source, ImageLayout sourceLayout,
+                                      Image *destination, ImageLayout destinationLayout,
+                                      const std::vector<ImageCopyRegion> &regions) = 0;
+
+        virtual void commandResolveImage(CommandBuffer *commandBuffer, Image *source, ImageLayout sourceLayout,
+                                         uint32_t sourceLayer, uint32_t sourceMipmap, Image *destination,
+                                         ImageLayout destinationLayout, uint32_t destinationLayer,
+                                         uint32_t destinationMipmap) = 0;
+
+        virtual void commandClearColorImage(CommandBuffer *commandBuffer, Image *image, ImageLayout imageLayout,
+                                            const glm::vec4 &color, const ImageSubresourceRange &subresource) = 0;
+
+        virtual void commandCopyBufferToImage(CommandBuffer *commandBuffer, Buffer *buffer, Image *image,
+                                              ImageLayout layout,
+                                              const std::vector<BufferImageCopyRegion> &regions) = 0;
+
+        virtual void commandCopyImageToBuffer(CommandBuffer *commandBuffer, Image *image, ImageLayout layout,
+                                              Buffer *buffer, const std::vector<BufferImageCopyRegion> &regions) = 0;
+
+        virtual void commandBeginLabel(CommandBuffer *commandBuffer, const std::string &label,
+                                       const glm::vec3 &color) = 0;
+
+        virtual void commandEndLabel(CommandBuffer *commandBuffer) = 0;
     };
 }

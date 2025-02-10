@@ -44,8 +44,7 @@ add_library(
         DataFormat.h
         image/ImageSwizzle.h
         image/ImageLayout.h
-        image/ImageAspect.h
-        image/ImageSubresource.h
+        image/ImageAspectFlags.h
         image/ImageFormat.h
         image/ImageSamples.h
         image/ImageType.h
@@ -82,6 +81,16 @@ add_library(
         QueueFamilyFlags.h
         Window.h
         command/CommandBufferType.h
+        buffer/BufferCopyRegion.h
+        image/ImageCopyRegion.h
+        image/ImageSubresourceLayers.h
+        buffer/BufferImageCopyRegion.h
+        image/ImageSubresourceRange.h
+        PipelineStageFlags.h
+        MemoryBarrier.h
+        BufferBarrier.h
+        ImageBarrier.h
+        BarrierAccessFlags.h
 )
 target_link_libraries(
         Vixen
