@@ -91,6 +91,7 @@ add_library(
         BufferBarrier.h
         ImageBarrier.h
         BarrierAccessFlags.h
+        Framebuffer.h
 )
 target_link_libraries(
         Vixen

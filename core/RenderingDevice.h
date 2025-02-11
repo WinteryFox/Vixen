@@ -3,6 +3,7 @@
 #include <string>
 
 #include "BufferBarrier.h"
+#include "Framebuffer.h"
 #include "ImageBarrier.h"
 #include "MemoryBarrier.h"
 #include "PipelineStageFlags.h"
@@ -41,6 +42,9 @@ namespace Vixen {
         virtual Swapchain *createSwapchain(Surface *surface) = 0;
 
         virtual void resizeSwapchain(CommandQueue *commandQueue, Swapchain *swapchain, uint32_t imageCount) = 0;
+
+        virtual Framebuffer* acquireSwapchainFramebuffer(CommandQueue *commandQueue, Swapchain *swapchain,
+                                                 bool &resizeRequired) = 0;
 
         virtual void destroySwapchain(Swapchain *swapchain) = 0;
 

@@ -40,6 +40,7 @@ add_library(
         command/VulkanSemaphore.h
         command/VulkanCommandQueue.h
         VulkanSurface.h
+        VulkanFramebuffer.h
 )
 target_link_libraries(
         VkVixen

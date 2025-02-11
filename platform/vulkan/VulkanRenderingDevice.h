@@ -15,6 +15,7 @@ namespace Vixen {
     class VulkanRenderingDevice final : public RenderingDevice {
         struct Features {
             bool dynamicRendering;
+            bool synchronization2;
             bool deviceFault;
         } enabledFeatures;
 
@@ -27,7 +28,7 @@ namespace Vixen {
 
         GraphicsCard physicalDevice;
 
-        std::vector<const char *> enabledExtensionNames;
+        std::vector<std::string> enabledExtensionNames;
 
         VkDevice device;
 
@@ -61,6 +62,9 @@ namespace Vixen {
         Swapchain *createSwapchain(Surface *surface) override;
 
         void resizeSwapchain(CommandQueue *commandQueue, Swapchain *swapchain, uint32_t imageCount) override;
+
+        Framebuffer *acquireSwapchainFramebuffer(CommandQueue *commandQueue, Swapchain *swapchain,
+                                                 bool &resizeRequired) override;
 
     private:
         void _destroySwapchain(const VulkanSwapchain *swapchain);
