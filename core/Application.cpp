@@ -47,9 +47,11 @@ namespace Vixen {
 
         const auto surface = context->createSurface(displayServer->getMainWindow());
         const auto commandQueue = device->createCommandQueue();
+        if (!commandQueue.has_value())
+            throw std::runtime_error("failed to create command queue");
 
         const auto swapchain = device->createSwapchain(surface);
-        device->resizeSwapchain(commandQueue, swapchain, 3);
+        device->resizeSwapchain(commandQueue.value(), swapchain, 3);
 
         while (!displayServer->shouldClose(mainWindow)) {
             displayServer->update(mainWindow);
@@ -57,7 +59,7 @@ namespace Vixen {
             // TODO: Do rendering stuff
 
             device->executeCommandQueueAndPresent(
-                commandQueue,
+                commandQueue.value(),
                 {},
                 {},
                 {},

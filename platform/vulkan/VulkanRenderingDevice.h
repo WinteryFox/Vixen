@@ -22,6 +22,7 @@ namespace Vixen {
         struct Queue {
             VkQueue queue = VK_NULL_HANDLE;
             uint32_t count = 0;
+            std::mutex submitMutex{};
         };
 
         VulkanRenderingContext *renderingContext;
@@ -96,7 +97,7 @@ namespace Vixen {
 
         void endCommandBuffer(CommandBuffer *commandBuffer) override;
 
-        CommandQueue *createCommandQueue() override;
+        auto createCommandQueue() -> std::expected<CommandQueue *, Error> override;
 
         void executeCommandQueueAndPresent(CommandQueue *commandQueue,
                                            const std::vector<Semaphore *> &waitSemaphores,

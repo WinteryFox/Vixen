@@ -47,7 +47,7 @@ namespace Vixen {
             const auto &extensionName = availableExtensions[i].extensionName;
             spdlog::trace("VULKAN: Found device extension {}.", extensionName);
             if (requestedExtensions.contains(extensionName))
-                enabledExtensionNames.push_back(strdup(extensionName));
+                enabledExtensionNames.emplace_back(strdup(extensionName));
         }
 
         for (const auto &[extensionName, required]: requestedExtensions) {
@@ -118,8 +118,8 @@ namespace Vixen {
 
         auto enabledExtensions = std::vector<const char *>{};
         enabledExtensions.reserve(enabledExtensionNames.size());
-        for (auto i = 0; i < enabledExtensionNames.size(); i++)
-            enabledExtensions.push_back(enabledExtensionNames[i].c_str());
+        for (const auto &enabledExtensionName: enabledExtensionNames)
+            enabledExtensions.push_back(enabledExtensionName.c_str());
 
         const VkDeviceCreateInfo deviceInfo{
             .sType = VK_STRUCTURE_TYPE_DEVICE_CREATE_INFO,
@@ -139,7 +139,7 @@ namespace Vixen {
 
         queueFamilies.resize(queueCreateInfos.size());
         for (uint32_t i = 0; i < queueFamilies.size(); i++) {
-            queueFamilies[i].resize(queueCreateInfos[i].queueCount);
+            queueFamilies[i] = std::vector<Queue>(queueCreateInfos[i].queueCount);
             for (uint32_t j = 0; j < queueFamilies[i].size(); j++) {
                 vkGetDeviceQueue(device, queueCreateInfos[i].queueFamilyIndex, j, &queueFamilies[i][j].queue);
             }
@@ -290,7 +290,9 @@ namespace Vixen {
         _destroySwapchain(vkSwapchain);
 
         const auto surface = vkSwapchain->surface;
-        if (renderingContext->supportsPresent(physicalDevice.device, commandQueue->queueFamilyIndex, surface) != true)
+        if (renderingContext->supportsPresent(physicalDevice.device,
+                                              dynamic_cast<VulkanCommandQueue *>(commandQueue)->queueFamily,
+                                              surface) != true)
             error<CantCreateError>("Surface is not supported by device.");
 
         const auto surfaceCapabilities = physicalDevice.getSurfaceCapabilities(surface->surface);
@@ -373,6 +375,7 @@ namespace Vixen {
 
         vkSwapchain->colorTargets.resize(swapchainImageCount);
         vkSwapchain->depthTargets.resize(swapchainImageCount);
+        vkSwapchain->framebuffers.resize(swapchainImageCount);
         for (uint32_t i = 0; i < swapchainImageCount; i++) {
             VkImageViewCreateInfo imageViewInfo{
                 .sType = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO,
@@ -440,6 +443,20 @@ namespace Vixen {
                 }
             ));
 
+            VulkanFramebuffer framebuffer{};
+            // TODO: Set appropriately if using Vulkan 1.0 fallback.
+            framebuffer.framebuffer = VK_NULL_HANDLE;
+            framebuffer.swapchainImage = vkSwapchain->resolveImages[i];
+            framebuffer.subresourceRange = {
+                .aspectMask = VK_IMAGE_ASPECT_COLOR_BIT,
+                .baseMipLevel = 0,
+                .levelCount = 1,
+                .baseArrayLayer = 0,
+                .layerCount = 1
+            };
+            framebuffer.swapchainAcquired = false;
+            vkSwapchain->framebuffers[i] = framebuffer;
+
             // TODO: Transition color targets
         }
     }
@@ -452,8 +469,11 @@ namespace Vixen {
         auto vkCommandQueue = dynamic_cast<VulkanCommandQueue *>(commandQueue);
         auto vkSwapchain = dynamic_cast<VulkanSwapchain *>(swapchain);
 
-        vkAcquireNextImageKHR(device, vkSwapchain->swapchain, std::numeric_limits<uint64_t>::max(), VK_NULL_HANDLE,
-                              VK_NULL_HANDLE, &vkSwapchain->imageIndex);
+        const auto result = vkAcquireNextImageKHR(device, vkSwapchain->swapchain, std::numeric_limits<uint64_t>::max(),
+                                                  VK_NULL_HANDLE,
+                                                  VK_NULL_HANDLE, &vkSwapchain->imageIndex);
+        if (result != VK_SUCCESS)
+            error<CantCreateError>("Failed to acquire swapchain image.");
 
         vkSwapchain->framebuffers[vkSwapchain->imageIndex].swapchainAcquired = true;
         return &vkSwapchain->framebuffers[vkSwapchain->imageIndex];
@@ -617,7 +637,7 @@ namespace Vixen {
         vkEndCommandBuffer(o->commandBuffer);
     }
 
-    CommandQueue *VulkanRenderingDevice::createCommandQueue() {
+    auto VulkanRenderingDevice::createCommandQueue() -> std::expected<CommandQueue *, Error> {
         auto commandQueue = new VulkanCommandQueue();
 
         // TODO
@@ -634,7 +654,7 @@ namespace Vixen {
         const std::vector<Swapchain *> &swapchains
     ) {
         const auto vkCommandQueue = dynamic_cast<VulkanCommandQueue *>(commandQueue);
-        const Queue queue = queueFamilies[vkCommandQueue->queueFamilyIndex][vkCommandQueue->queueIndex];
+        const Queue &queue = queueFamilies[vkCommandQueue->queueFamily][vkCommandQueue->queueIndex];
         const auto vkFence = dynamic_cast<VulkanFence *>(fence);
 
         std::vector<VkSemaphore> vkWaitSemaphores{};
@@ -690,14 +710,20 @@ namespace Vixen {
             imageIndices.reserve(swapchains.size());
 
             for (const auto &swapchain: swapchains) {
+                bool resizeRequired;
+                auto framebuffer = dynamic_cast<VulkanFramebuffer *>(acquireSwapchainFramebuffer(
+                    commandQueue, swapchain, resizeRequired));
+                if (!framebuffer)
+                    error<CantCreateError>("Call to acquireSwapchainFramebuffer failed.");
+
                 const auto vkSwapchain = dynamic_cast<VulkanSwapchain *>(swapchain);
                 vkSwapchains.push_back(vkSwapchain->swapchain);
-                // TODO: Need to vkAcquireNextImageKHR before doing this
+
                 DEBUG_ASSERT(vkSwapchain->imageIndex < vkSwapchain->colorTargets.size());
                 imageIndices.push_back(vkSwapchain->imageIndex);
 
                 // TODO: Bad.
-                auto pool = createCommandPool(vkCommandQueue->queueFamilyIndex, CommandBufferType::Primary);
+                auto pool = createCommandPool(vkCommandQueue->queueFamily, CommandBufferType::Primary);
                 CommandBuffer *commandBuffer = createCommandBuffer(pool);
                 auto vkCommandBuffer = dynamic_cast<VulkanCommandBuffer *>(commandBuffer)->commandBuffer;
 
@@ -1362,7 +1388,9 @@ namespace Vixen {
                 vkImageBarriers.push_back({
                     .sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER_2,
                     .pNext = nullptr,
+                    .srcStageMask = static_cast<VkPipelineStageFlags2>(toVkPipelineStages(sourceStages)),
                     .srcAccessMask = toVkAccessFlags(sourceAccess),
+                    .dstStageMask = static_cast<VkPipelineStageFlags2>(toVkPipelineStages(destinationStages)),
                     .dstAccessMask = toVkAccessFlags(destinationAccess),
                     .oldLayout = toVkImageLayout(oldLayout),
                     .newLayout = toVkImageLayout(newLayout),
@@ -1533,7 +1561,7 @@ namespace Vixen {
         vkCmdCopyImageToBuffer(
             dynamic_cast<VulkanCommandBuffer *>(commandBuffer)->commandBuffer,
             dynamic_cast<VulkanImage *>(image)->image,
-            static_cast<VkImageLayout>(layout),
+            toVkImageLayout(layout),
             dynamic_cast<VulkanBuffer *>(buffer)->buffer,
             vkRegions.size(),
             vkRegions.data()

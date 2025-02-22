@@ -1,5 +1,6 @@
 #pragma once
 
+#include <expected>
 #include <string>
 
 #include "BufferBarrier.h"
@@ -19,6 +20,7 @@
 #include "command/CommandQueue.h"
 #include "command/Fence.h"
 #include "command/Semaphore.h"
+#include "error/Error.h"
 #include "image/Image.h"
 #include "image/ImageCopyRegion.h"
 #include "image/ImageFormat.h"
@@ -76,7 +78,7 @@ namespace Vixen {
 
         virtual uint32_t getQueueFamily(QueueFamilyFlags queueFamilyFlags, Surface *surface) = 0;
 
-        virtual CommandQueue *createCommandQueue() = 0;
+        virtual auto createCommandQueue() -> std::expected<CommandQueue *, Error> = 0;
 
         virtual void executeCommandQueueAndPresent(CommandQueue *commandQueue,
                                                    const std::vector<Semaphore *> &waitSemaphores,

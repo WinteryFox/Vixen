@@ -3,7 +3,6 @@
 
 namespace Vixen {
     enum class ImageSwizzle;
-    enum DataFormat;
 
     struct ImageView {
         DataFormat format;

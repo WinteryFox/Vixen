@@ -400,7 +400,7 @@ namespace Vixen {
         throw std::runtime_error("Unsupported store action");
     }
 
-    static VkPipelineStageFlags toVkPipelineStages(PipelineStageFlags flags) {
+    static VkPipelineStageFlags toVkPipelineStages(const PipelineStageFlags flags) {
         VkPipelineStageFlags vkFlags = 0;
 
         if (flags & PipelineStageFlags::Top)
@@ -512,9 +512,9 @@ namespace Vixen {
             vkFlags |= VK_ACCESS_FRAGMENT_SHADING_RATE_ATTACHMENT_READ_BIT_KHR;
 
         // TODO
-        if (flags & BarrierAccessFlags::ResolveRead);
-        if (flags & BarrierAccessFlags::ResolveWrite);
-        if (flags & BarrierAccessFlags::StorageClear);
+        if (flags & BarrierAccessFlags::ResolveRead) {}
+        if (flags & BarrierAccessFlags::ResolveWrite) {}
+        if (flags & BarrierAccessFlags::StorageClear) {}
 
         return vkFlags;
     }

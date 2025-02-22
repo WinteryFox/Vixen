@@ -19,6 +19,7 @@ target_link_libraries(
         imgui
         PUBLIC
         glfw
+        Threads::Threads
 )
 
 add_library(
@@ -92,6 +93,7 @@ add_library(
         ImageBarrier.h
         BarrierAccessFlags.h
         Framebuffer.h
+        error/Error.h
 )
 target_link_libraries(
         Vixen
