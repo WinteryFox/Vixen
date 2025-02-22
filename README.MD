@@ -77,6 +77,6 @@ sudo apt install -y \
     libpulse-dev \
     libvulkan-dev \
     vulkan-tools \
-    vulkan-utility-libraries \
+    vulkan-utility-libraries-dev \
     vulkan-validationlayers
 ```
