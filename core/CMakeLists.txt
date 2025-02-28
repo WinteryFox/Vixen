@@ -1,28 +1,4 @@
 add_library(
-        imgui
-        STATIC
-        ${CMAKE_SOURCE_DIR}/thirdparty/imgui/imgui.cpp
-        ${CMAKE_SOURCE_DIR}/thirdparty/imgui/imgui_demo.cpp
-        ${CMAKE_SOURCE_DIR}/thirdparty/imgui/imgui_draw.cpp
-        ${CMAKE_SOURCE_DIR}/thirdparty/imgui/imgui_tables.cpp
-        ${CMAKE_SOURCE_DIR}/thirdparty/imgui/imgui_widgets.cpp
-        ${CMAKE_SOURCE_DIR}/thirdparty/imgui/misc/cpp/imgui_stdlib.cpp
-        ${CMAKE_SOURCE_DIR}/thirdparty/imgui/backends/imgui_impl_glfw.cpp
-)
-target_include_directories(
-        imgui
-        PUBLIC
-        ${CMAKE_SOURCE_DIR}/thirdparty/imgui
-        ${CMAKE_SOURCE_DIR}/thirdparty/glfw/include
-)
-target_link_libraries(
-        imgui
-        PUBLIC
-        glfw
-        Threads::Threads
-)
-
-add_library(
         Vixen
         STATIC
         ${IMGUI_SOURCES}
@@ -102,12 +78,12 @@ target_link_libraries(
         assimp::assimp
         glm::glm
         spdlog
-        imgui
         spirv-cross-core
         spirv-cross-cpp
         glslang::glslang
         glslang::glslang-default-resource-limits
         glslang::SPIRV
+        Threads::Threads
 )
 target_include_directories(
         Vixen

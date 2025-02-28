@@ -4,7 +4,6 @@
 
 #include <vk_mem_alloc.h>
 #include <Vulkan.h>
-#include <spirv_reflect.hpp>
 
 #include "VulkanRenderingContext.h"
 #include "VulkanSwapchain.h"
@@ -62,9 +61,9 @@ namespace Vixen {
     }
 
     void VulkanRenderingDevice::checkFeatures() const {
-        if (!physicalDevice.features.imageCubeArray)
+        if (physicalDevice.features.imageCubeArray != VK_TRUE)
             error<CantCreateError>("Device lacks image cube array feature.");
-        if (!physicalDevice.features.independentBlend)
+        if (physicalDevice.features.independentBlend != VK_TRUE)
             error<CantCreateError>("Device lacks independent blend feature.");
     }
 
@@ -72,11 +71,11 @@ namespace Vixen {
         if (std::ranges::find(enabledExtensionNames, VK_KHR_DYNAMIC_RENDERING_EXTENSION_NAME) != enabledExtensionNames.
             end())
             enabledFeatures.dynamicRendering = true;
-        if (std::ranges::find(enabledExtensionNames, VK_EXT_DEVICE_FAULT_EXTENSION_NAME) != enabledExtensionNames.end())
-            enabledFeatures.deviceFault = true;
         if (std::ranges::find(enabledExtensionNames, VK_KHR_SYNCHRONIZATION_2_EXTENSION_NAME) != enabledExtensionNames.
             end())
             enabledFeatures.synchronization2 = true;
+        if (std::ranges::find(enabledExtensionNames, VK_EXT_DEVICE_FAULT_EXTENSION_NAME) != enabledExtensionNames.end())
+            enabledFeatures.deviceFault = true;
     }
 
     void VulkanRenderingDevice::initializeDevice() {
@@ -112,7 +111,7 @@ namespace Vixen {
             .sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_FAULT_FEATURES_EXT,
             .pNext = nullptr,
             .deviceFault = enabledFeatures.deviceFault ? VK_TRUE : VK_FALSE,
-            .deviceFaultVendorBinary = enabledFeatures.deviceFault ? VK_TRUE : VK_FALSE
+            .deviceFaultVendorBinary = VK_FALSE
         };
         synchronization2Features.pNext = &faultFeatures;
 

@@ -1,27 +1,6 @@
 find_package(Vulkan 1.3 REQUIRED)
 
 add_library(
-        imgui_vulkan
-        STATIC
-        ${CMAKE_SOURCE_DIR}/thirdparty/imgui/backends/imgui_impl_vulkan.cpp
-)
-target_link_libraries(
-        imgui_vulkan
-        PUBLIC
-        Vulkan::Headers
-)
-target_include_directories(
-        imgui_vulkan
-        PUBLIC
-        ${CMAKE_SOURCE_DIR}/thirdparty/imgui
-)
-target_compile_definitions(
-        imgui
-        PUBLIC
-        IMGUI_IMPL_VULKAN_USE_VOLK
-)
-
-add_library(
         VkVixen
         STATIC
         image/VulkanImage.h
@@ -48,7 +27,6 @@ target_link_libraries(
         Vixen
         Vulkan::Headers
         volk::volk
-        imgui_vulkan
 )
 target_include_directories(
         VkVixen
