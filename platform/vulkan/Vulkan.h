@@ -413,56 +413,56 @@ namespace Vixen {
         throw std::runtime_error("Unsupported store action");
     }
 
-    static VkPipelineStageFlags toVkPipelineStages(const PipelineStageFlags flags) {
+    static VkPipelineStageFlags2 toVkPipelineStages(const PipelineStageFlags flags) {
         VkPipelineStageFlags vkFlags = 0;
 
         if (flags & PipelineStageFlags::Top)
-            vkFlags |= VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT;
+            vkFlags |= VK_PIPELINE_STAGE_2_TOP_OF_PIPE_BIT;
 
         if (flags & PipelineStageFlags::DrawIndirect)
-            vkFlags |= VK_PIPELINE_STAGE_DRAW_INDIRECT_BIT;
+            vkFlags |= VK_PIPELINE_STAGE_2_DRAW_INDIRECT_BIT;
 
         if (flags & PipelineStageFlags::VertexInput)
-            vkFlags |= VK_PIPELINE_STAGE_VERTEX_INPUT_BIT;
+            vkFlags |= VK_PIPELINE_STAGE_2_VERTEX_INPUT_BIT;
 
         if (flags & PipelineStageFlags::VertexShader)
-            vkFlags |= VK_PIPELINE_STAGE_VERTEX_SHADER_BIT;
+            vkFlags |= VK_PIPELINE_STAGE_2_VERTEX_SHADER_BIT;
 
         if (flags & PipelineStageFlags::TessellationControl)
-            vkFlags |= VK_PIPELINE_STAGE_TESSELLATION_CONTROL_SHADER_BIT;
+            vkFlags |= VK_PIPELINE_STAGE_2_TESSELLATION_CONTROL_SHADER_BIT;
 
         if (flags & PipelineStageFlags::TessellationEvaluation)
-            vkFlags |= VK_PIPELINE_STAGE_TESSELLATION_EVALUATION_SHADER_BIT;
+            vkFlags |= VK_PIPELINE_STAGE_2_TESSELLATION_EVALUATION_SHADER_BIT;
 
         if (flags & PipelineStageFlags::GeometryShader)
-            vkFlags |= VK_PIPELINE_STAGE_GEOMETRY_SHADER_BIT;
+            vkFlags |= VK_PIPELINE_STAGE_2_GEOMETRY_SHADER_BIT;
 
         if (flags & PipelineStageFlags::FragmentShader)
-            vkFlags |= VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT;
+            vkFlags |= VK_PIPELINE_STAGE_2_FRAGMENT_SHADER_BIT;
 
         if (flags & PipelineStageFlags::EarlyFragmentTests)
-            vkFlags |= VK_PIPELINE_STAGE_EARLY_FRAGMENT_TESTS_BIT;
+            vkFlags |= VK_PIPELINE_STAGE_2_EARLY_FRAGMENT_TESTS_BIT;
 
         if (flags & PipelineStageFlags::LateFragmentTests)
-            vkFlags |= VK_PIPELINE_STAGE_LATE_FRAGMENT_TESTS_BIT;
+            vkFlags |= VK_PIPELINE_STAGE_2_LATE_FRAGMENT_TESTS_BIT;
 
         if (flags & PipelineStageFlags::ColorAttachmentOutput)
-            vkFlags |= VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT;
+            vkFlags |= VK_PIPELINE_STAGE_2_COLOR_ATTACHMENT_OUTPUT_BIT;
 
         if (flags & PipelineStageFlags::ComputeShader)
-            vkFlags |= VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT;
+            vkFlags |= VK_PIPELINE_STAGE_2_COMPUTE_SHADER_BIT;
 
         if (flags & PipelineStageFlags::Copy || flags & PipelineStageFlags::Resolve)
-            vkFlags |= VK_PIPELINE_STAGE_TRANSFER_BIT;
+            vkFlags |= VK_PIPELINE_STAGE_2_TRANSFER_BIT;
 
         if (flags & PipelineStageFlags::Bottom)
-            vkFlags |= VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT;
+            vkFlags |= VK_PIPELINE_STAGE_2_BOTTOM_OF_PIPE_BIT;
 
         if (flags & PipelineStageFlags::AllGraphics)
-            vkFlags |= VK_PIPELINE_STAGE_ALL_GRAPHICS_BIT;
+            vkFlags |= VK_PIPELINE_STAGE_2_ALL_GRAPHICS_BIT;
 
         if (flags & PipelineStageFlags::AllCommands)
-            vkFlags |= VK_PIPELINE_STAGE_ALL_COMMANDS_BIT;
+            vkFlags |= VK_PIPELINE_STAGE_2_ALL_COMMANDS_BIT;
 
         return vkFlags;
     }

@@ -1575,9 +1575,9 @@ namespace Vixen {
                 vkImageBarriers.push_back({
                     .sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER_2,
                     .pNext = nullptr,
-                    .srcStageMask = static_cast<VkPipelineStageFlags2>(toVkPipelineStages(sourceStages)),
+                    .srcStageMask = toVkPipelineStages(sourceStages),
                     .srcAccessMask = toVkAccessFlags(sourceAccess),
-                    .dstStageMask = static_cast<VkPipelineStageFlags2>(toVkPipelineStages(destinationStages)),
+                    .dstStageMask = toVkPipelineStages(destinationStages),
                     .dstAccessMask = toVkAccessFlags(destinationAccess),
                     .oldLayout = toVkImageLayout(oldLayout),
                     .newLayout = toVkImageLayout(newLayout),
@@ -1679,9 +1679,9 @@ namespace Vixen {
         vkCmdCopyImage(
             dynamic_cast<VulkanCommandBuffer *>(commandBuffer)->commandBuffer,
             dynamic_cast<VulkanImage *>(source)->image,
-            static_cast<VkImageLayout>(sourceLayout),
+            toVkImageLayout(sourceLayout),
             dynamic_cast<VulkanImage *>(destination)->image,
-            static_cast<VkImageLayout>(destinationLayout),
+            toVkImageLayout(destinationLayout),
             vkRegions.size(),
             vkRegions.data()
         );
@@ -1715,7 +1715,7 @@ namespace Vixen {
         vkCmdClearColorImage(
             dynamic_cast<VulkanCommandBuffer *>(commandBuffer)->commandBuffer,
             dynamic_cast<VulkanImage *>(image)->image,
-            static_cast<VkImageLayout>(imageLayout),
+            toVkImageLayout(imageLayout),
             &vkColor,
             1,
             &vkSubresource
@@ -1735,7 +1735,7 @@ namespace Vixen {
             dynamic_cast<VulkanCommandBuffer *>(commandBuffer)->commandBuffer,
             dynamic_cast<VulkanBuffer *>(buffer)->buffer,
             dynamic_cast<VulkanImage *>(image)->image,
-            static_cast<VkImageLayout>(layout),
+            toVkImageLayout(layout),
             vkRegions.size(),
             vkRegions.data()
         );
