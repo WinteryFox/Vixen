@@ -311,6 +311,21 @@ namespace Vixen {
         throw std::runtime_error("Unsupported sample count");
     }
 
+    static constexpr VkQueueFlags toVkQueueFlags(const QueueFamilyFlags flags) {
+        VkQueueFlags converted = 0;
+
+        if (flags & QueueFamilyFlags::Graphics)
+            converted |= VK_QUEUE_GRAPHICS_BIT;
+
+        if (flags & QueueFamilyFlags::Transfer)
+            converted |= VK_QUEUE_TRANSFER_BIT;
+
+        if (flags & QueueFamilyFlags::Compute)
+            converted |= VK_QUEUE_COMPUTE_BIT;
+
+        return converted;
+    }
+
     static constexpr VkShaderStageFlagBits toVkShaderStageFlag(const ShaderStage &stage) {
         switch (stage) {
             case ShaderStage::Vertex:
@@ -338,19 +353,17 @@ namespace Vixen {
     static constexpr VkImageType toVkImageType(const ImageType &type) {
         switch (type) {
             case ImageType::OneD:
-                return VK_IMAGE_TYPE_1D;
-            case ImageType::TwoD:
-                return VK_IMAGE_TYPE_2D;
-            case ImageType::ThreeD:
-                return VK_IMAGE_TYPE_3D;
-            case ImageType::Cube:
-                return VK_IMAGE_TYPE_2D;
             case ImageType::OneDArray:
                 return VK_IMAGE_TYPE_1D;
+
+            case ImageType::TwoD:
+            case ImageType::Cube:
             case ImageType::TwoDArray:
-                return VK_IMAGE_TYPE_2D;
             case ImageType::CubeArray:
                 return VK_IMAGE_TYPE_2D;
+
+            case ImageType::ThreeD:
+                return VK_IMAGE_TYPE_3D;
         }
 
         throw std::runtime_error("Unsupported image type");
@@ -512,9 +525,12 @@ namespace Vixen {
             vkFlags |= VK_ACCESS_FRAGMENT_SHADING_RATE_ATTACHMENT_READ_BIT_KHR;
 
         // TODO
-        if (flags & BarrierAccessFlags::ResolveRead) {}
-        if (flags & BarrierAccessFlags::ResolveWrite) {}
-        if (flags & BarrierAccessFlags::StorageClear) {}
+        if (flags & BarrierAccessFlags::ResolveRead) {
+        }
+        if (flags & BarrierAccessFlags::ResolveWrite) {
+        }
+        if (flags & BarrierAccessFlags::StorageClear) {
+        }
 
         return vkFlags;
     }

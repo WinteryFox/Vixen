@@ -2,7 +2,7 @@
 
 #include <vk_mem_alloc.h>
 
-#include "VulkanRenderingDevice.h"
+#include "VulkanRenderingDeviceDriver.h"
 #include "core/image/Image.h"
 
 namespace Vixen {

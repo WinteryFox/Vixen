@@ -5,9 +5,10 @@
 
 #include "error/CantCreateError.h"
 #include "error/Macros.h"
+#include "platform/vulkan/VulkanSurface.h"
 
 #ifdef VULKAN_ENABLED
-#include "platform/vulkan/VulkanRenderingContext.h"
+#include "platform/vulkan/VulkanRenderingContextDriver.h"
 #endif
 
 #ifdef D3D12_ENABLED
@@ -104,31 +105,7 @@ namespace Vixen {
             spdlog::error("[GLFW] {} ({})", message, code);
         });
 
-        switch (driver) {
-#ifdef VULKAN_ENABLED
-            case RenderingDriver::Vulkan:
-                renderingContext = new VulkanRenderingContext(applicationName, applicationVersion);
-                break;
-#endif
-
-#ifdef D3D12_ENABLED
-            case RenderingDriver::D3D12:
-                renderingContext = std::make_shared<D3D12RenderingContext>();
-                break;
-#endif
-
-#ifdef OPENGL_ENABLED
-            case RenderingDriver::OpenGL:
-                renderingContext = std::make_shared<OpenGLRenderingContext>();
-                break;
-#endif
-
-            default:
-                error<CantCreateError>("Unsupported rendering driver.");
-        }
-
         mainWindow = createWindow(applicationName, windowMode, vsyncMode, flags, resolution);
-        renderingDevice = renderingContext->createDevice();
     }
 
     DisplayServer::~DisplayServer() {
@@ -314,14 +291,6 @@ namespace Vixen {
 
     void DisplayServer::getFramebufferSize(const Window *window, int &width, int &height) {
         glfwGetFramebufferSize(window->window, &width, &height);
-    }
-
-    RenderingDevice *DisplayServer::getRenderingDevice() const {
-        return renderingDevice;
-    }
-
-    RenderingContext *DisplayServer::getRenderingContext() const {
-        return renderingContext;
     }
 
     void DisplayServer::maximize(const Window *window) {

@@ -1,16 +1,17 @@
-#include "VulkanRenderingContext.h"
+#include "VulkanRenderingContextDriver.h"
 
 #include <map>
 #include <Vulkan.h>
 #include <GLFW/glfw3.h>
 
-#include "VulkanRenderingDevice.h"
+#include "VulkanRenderingDeviceDriver.h"
+#include "VulkanSurface.h"
 #include "core/Window.h"
 #include "core/error/CantCreateError.h"
 #include "core/error/Macros.h"
 
 namespace Vixen {
-    void VulkanRenderingContext::initializeVulkanVersion() {
+    void VulkanRenderingContextDriver::initializeVulkanVersion() {
         if (const auto func = reinterpret_cast<PFN_vkEnumerateInstanceVersion>(vkGetInstanceProcAddr(
             nullptr, "vkEnumerateInstanceVersion")); func != nullptr) {
             uint32_t api_version;
@@ -26,7 +27,7 @@ namespace Vixen {
         }
     }
 
-    void VulkanRenderingContext::initializeInstanceExtensions() {
+    void VulkanRenderingContextDriver::initializeInstanceExtensions() {
         enabledInstanceExtensions.clear();
 
         std::map<std::string, bool> requestedExtensions{}; {
@@ -74,8 +75,8 @@ namespace Vixen {
         }
     }
 
-    void VulkanRenderingContext::initializeInstance(const std::string &applicationName,
-                                                    const glm::ivec3 &applicationVersion) {
+    void VulkanRenderingContextDriver::initializeInstance(const std::string &applicationName,
+                                                          const glm::ivec3 &applicationVersion) {
         VkApplicationInfo applicationInfo{
             .sType = VK_STRUCTURE_TYPE_APPLICATION_INFO,
             .pNext = nullptr,
@@ -151,21 +152,38 @@ namespace Vixen {
         volkLoadInstance(instance);
     }
 
-    void VulkanRenderingContext::initializeDevices() {
+    void VulkanRenderingContextDriver::initializeDevices() {
         uint32_t physicalDeviceCount;
         if (vkEnumeratePhysicalDevices(instance, &physicalDeviceCount, nullptr) != VK_SUCCESS)
             error<CantCreateError>("Failed to enumerate physical devices.");
-        std::vector<VkPhysicalDevice> physicalDevices(physicalDeviceCount);
+        physicalDevices.resize(physicalDeviceCount);
+        deviceQueueFamilyProperties.resize(physicalDeviceCount);
         if (vkEnumeratePhysicalDevices(instance, &physicalDeviceCount, physicalDevices.data()) != VK_SUCCESS)
             error<CantCreateError>("Failed to enumerate physical devices.");
 
-        for (const auto &device: physicalDevices)
-            this->physicalDevices.emplace_back(device);
+        driverDevices.reserve(physicalDeviceCount);
+        for (uint32_t i = 0; i < physicalDevices.size(); i++) {
+            VkPhysicalDeviceProperties properties;
+            vkGetPhysicalDeviceProperties(physicalDevices[i], &properties);
+
+            driverDevices.push_back({
+                .name = properties.deviceName
+            });
+
+            uint32_t queueFamilyPropertiesCount;
+            vkGetPhysicalDeviceQueueFamilyProperties(physicalDevices[i], &queueFamilyPropertiesCount, nullptr);
+
+            if (queueFamilyPropertiesCount > 0) {
+                deviceQueueFamilyProperties[i].resize(queueFamilyPropertiesCount);
+                vkGetPhysicalDeviceQueueFamilyProperties(physicalDevices[i], &queueFamilyPropertiesCount,
+                                                         deviceQueueFamilyProperties[i].data());
+            }
+        }
     }
 
-    VulkanRenderingContext::VulkanRenderingContext(const std::string &applicationName,
-                                                   const glm::ivec3 &applicationVersion)
-        : RenderingContext(),
+    VulkanRenderingContextDriver::VulkanRenderingContextDriver(const std::string &applicationName,
+                                                               const glm::ivec3 &applicationVersion)
+        : RenderingContextDriver(),
           instanceApiVersion(VK_API_VERSION_1_0),
           instance(VK_NULL_HANDLE) {
         if (glfwVulkanSupported() != GLFW_TRUE)
@@ -186,37 +204,71 @@ namespace Vixen {
         initializeDevices();
     }
 
-    VulkanRenderingContext::~VulkanRenderingContext() {
+    VulkanRenderingContextDriver::~VulkanRenderingContextDriver() {
         vkDestroyInstance(instance, nullptr);
     }
 
-    RenderingDevice *VulkanRenderingContext::createDevice() {
-        return new VulkanRenderingDevice(this, 0);
+    std::vector<DriverDevice> VulkanRenderingContextDriver::getDevices() {
+        return driverDevices;
     }
 
-    GraphicsCard VulkanRenderingContext::getPhysicalDevice(const uint32_t index) {
-        return physicalDevices[index];
-    }
+    bool VulkanRenderingContextDriver::deviceSupportsPresent(const uint32_t deviceIndex, Surface *surface) {
+        DEBUG_ASSERT(deviceIndex < physicalDevices.size());
+        DEBUG_ASSERT(surface != nullptr);
 
-    VkInstance VulkanRenderingContext::getInstance() const {
-        return instance;
-    }
-
-    uint32_t VulkanRenderingContext::getInstanceApiVersion() const {
-        return instanceApiVersion;
-    }
-
-    bool VulkanRenderingContext::supportsPresent(VkPhysicalDevice physicalDevice, const uint32_t queueFamilyIndex,
-                                                 const VulkanSurface *surface) {
         VkBool32 support = VK_FALSE;
-        if (vkGetPhysicalDeviceSurfaceSupportKHR(physicalDevice, queueFamilyIndex, surface->surface, &support) !=
-            VK_SUCCESS)
-            error<CantCreateError>("Failed to query surface support");
+        for (uint32_t i = 0; i < deviceQueueFamilyProperties[deviceIndex].size(); i++) {
+            if (vkGetPhysicalDeviceSurfaceSupportKHR(physicalDevices[deviceIndex], i,
+                                                     dynamic_cast<VulkanSurface *>(surface)->surface,
+                                                     &support) != VK_SUCCESS)
+                error<CantCreateError>("Failed to query surface support");
+        }
 
         return support;
     }
 
-    Surface *VulkanRenderingContext::createSurface(Window *window) {
+    uint32_t VulkanRenderingContextDriver::getQueueFamilyCount(const uint32_t deviceIndex) const {
+        DEBUG_ASSERT(deviceIndex < deviceQueueFamilyProperties.size());
+
+        return deviceQueueFamilyProperties[deviceIndex].size();
+    }
+
+    VkQueueFamilyProperties VulkanRenderingContextDriver::getQueueFamilyProperties(const uint32_t deviceIndex,
+        const uint32_t queueFamilyIndex) const {
+        DEBUG_ASSERT(deviceIndex < deviceQueueFamilyProperties.size());
+        DEBUG_ASSERT(queueFamilyIndex < deviceQueueFamilyProperties[deviceIndex].size());
+
+        return deviceQueueFamilyProperties[deviceIndex][queueFamilyIndex];
+    }
+
+    bool VulkanRenderingContextDriver::queueFamilySupportsPresent(VkPhysicalDevice physicalDevice,
+        const uint32_t queueFamilyIndex, const VulkanSurface *surface) {
+        VkBool32 supportsPresent = VK_FALSE;
+        const auto result = vkGetPhysicalDeviceSurfaceSupportKHR(physicalDevice, queueFamilyIndex, surface->surface, &supportsPresent);
+
+        return result == VK_SUCCESS && supportsPresent;
+    }
+
+    VkPhysicalDevice VulkanRenderingContextDriver::getPhysicalDevice(const uint32_t deviceIndex) const {
+        DEBUG_ASSERT(deviceIndex < physicalDevices.size());
+
+        return physicalDevices[deviceIndex];
+    }
+
+    RenderingDeviceDriver *VulkanRenderingContextDriver::createRenderingDeviceDriver(
+        const uint32_t deviceIndex, const uint32_t frameCount) {
+        return new VulkanRenderingDeviceDriver(this, deviceIndex, frameCount);
+    }
+
+    VkInstance VulkanRenderingContextDriver::getInstance() const {
+        return instance;
+    }
+
+    uint32_t VulkanRenderingContextDriver::getInstanceApiVersion() const {
+        return instanceApiVersion;
+    }
+
+    Surface *VulkanRenderingContextDriver::createSurface(Window *window) {
         auto *surface = dynamic_cast<VulkanSurface *>(window->surface);
         if (glfwCreateWindowSurface(instance, window->window, nullptr, &surface->surface) != VK_SUCCESS)
             error<CantCreateError>("Failed to create window surface.");
@@ -224,7 +276,7 @@ namespace Vixen {
         return surface;
     }
 
-    void VulkanRenderingContext::destroySurface(Surface *surface) {
+    void VulkanRenderingContextDriver::destroySurface(Surface *surface) {
         if (const auto vkSurface = dynamic_cast<VulkanSurface *>(surface)) {
             vkDestroySurfaceKHR(instance, vkSurface->surface, nullptr);
             delete vkSurface;

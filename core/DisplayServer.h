@@ -3,7 +3,6 @@
 #include <spdlog/spdlog.h>
 
 #include "Monitor.h"
-#include "RenderingContext.h"
 #include "RenderingDriver.h"
 #include "VSyncMode.h"
 #include "Window.h"
@@ -17,10 +16,6 @@ namespace Vixen {
         RenderingDriver driver;
 
         Window *mainWindow = nullptr;
-
-        RenderingContext *renderingContext = nullptr;
-
-        RenderingDevice *renderingDevice = nullptr;
 
         Window *createWindow(
             const std::string &title,
@@ -89,9 +84,5 @@ namespace Vixen {
         std::vector<Monitor> getMonitors();
 
         void getFramebufferSize(const Window *window, int &width, int &height);
-
-        [[nodiscard]] RenderingDevice *getRenderingDevice() const;
-
-        [[nodiscard]] RenderingContext *getRenderingContext() const;
     };
 }

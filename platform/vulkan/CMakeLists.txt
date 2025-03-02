@@ -4,14 +4,13 @@ add_library(
         VkVixen
         STATIC
         image/VulkanImage.h
-        VulkanRenderingContext.cpp
-        VulkanRenderingContext.h
-        VulkanRenderingDevice.cpp
-        VulkanRenderingDevice.h
+        VulkanRenderingContextDriver.cpp
+        VulkanRenderingContextDriver.h
+        VulkanRenderingDeviceDriver.cpp
+        VulkanRenderingDeviceDriver.h
         image/VulkanSampler.h
         buffer/VulkanBuffer.h
         VulkanSwapchain.h
-        GraphicsCard.h
         command/VulkanCommandPool.h
         command/VulkanCommandBuffer.h
         shader/VulkanShader.h

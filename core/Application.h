@@ -1,10 +1,15 @@
 #pragma once
 
+#include "RenderingContextDriver.h"
 #include "DisplayServer.h"
 
 namespace Vixen {
     class Application final {
         std::shared_ptr<DisplayServer> displayServer;
+
+        RenderingContextDriver *renderingContext;
+
+        RenderingDevice *renderingDevice;
 
         std::string applicationTitle;
 
@@ -25,5 +30,9 @@ namespace Vixen {
         void run() const;
 
         [[nodiscard]] std::shared_ptr<DisplayServer> getDisplayServer() const;
+
+        RenderingContextDriver *getRenderingContext() const;
+
+        RenderingDevice *getRenderingDevice() const;
     };
 }

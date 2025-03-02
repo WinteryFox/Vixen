@@ -12,8 +12,8 @@ add_library(
         buffer/BufferUsage.h
         Application.cpp
         Application.h
-        RenderingDevice.cpp
-        RenderingDevice.h
+        RenderingDeviceDriver.cpp
+        RenderingDeviceDriver.h
         error/Macros.h
         error/CantCreateError.h
         buffer/Buffer.h
@@ -70,6 +70,10 @@ add_library(
         BarrierAccessFlags.h
         Framebuffer.h
         error/Error.h
+        Frame.h
+        RenderingDevice.cpp
+        RenderingDevice.h
+        DriverDevice.h
 )
 target_link_libraries(
         Vixen

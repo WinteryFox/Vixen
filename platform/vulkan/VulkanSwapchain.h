@@ -4,6 +4,8 @@
 #include <volk.h>
 
 #include "VulkanFramebuffer.h"
+#include "VulkanSurface.h"
+#include "command/VulkanCommandQueue.h"
 #include "core/Swapchain.h"
 #include "image/VulkanImage.h"
 
@@ -15,7 +17,9 @@ namespace Vixen {
         VkColorSpaceKHR colorSpace;
         std::vector<VkImage> resolveImages;
         std::vector<VkImageView> resolveImageViews;
-        std::vector<VulkanFramebuffer> framebuffers;
+        std::vector<VulkanFramebuffer*> framebuffers;
+        std::vector<VulkanCommandQueue*> commandQueuesAcquired;
+        std::vector<uint32_t> commandQueuesAcquiredSemaphores;
         std::vector<VulkanImage *> colorTargets;
         std::vector<VulkanImage *> depthTargets;
         uint32_t imageIndex;

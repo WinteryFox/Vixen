@@ -2,6 +2,7 @@
 
 #include "core/Application.h"
 #include "core/RenderingDevice.h"
+#include "core/RenderingDeviceDriver.h"
 #include "core/command/CommandBufferType.h"
 
 int main() {
@@ -12,7 +13,7 @@ int main() {
             {ENGINE_VERSION_MAJOR, ENGINE_VERSION_MINOR, ENGINE_VERSION_PATCH}
         );
 
-        const auto device = application.getDisplayServer()->getRenderingDevice();
+        const auto device = application.getRenderingDevice()->getRenderingDeviceDriver();
 
         std::ifstream vertexFile("../../editor/resources/shaders/pbr.vertex.glsl");
         std::string vertexSource = (std::stringstream{} << vertexFile.rdbuf()).str();

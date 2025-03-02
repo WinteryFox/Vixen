@@ -8,6 +8,9 @@
 #include <utility>
 
 #include "RenderingDevice.h"
+#include "error/CantCreateError.h"
+#include "error/Macros.h"
+#include "platform/vulkan/VulkanRenderingContextDriver.h"
 
 namespace Vixen {
     Application::Application(
@@ -36,43 +39,59 @@ namespace Vixen {
             WindowFlags::Resizable,
             glm::ivec2{1920, 1080}
         );
+
+        switch (renderingDriver) {
+#ifdef VULKAN_ENABLED
+            case RenderingDriver::Vulkan:
+                renderingContext = new VulkanRenderingContextDriver(applicationTitle, applicationVersion);
+                break;
+#endif
+
+#ifdef D3D12_ENABLED
+            case RenderingDriver::D3D12:
+                renderingContext = new D3D12RenderingContext();
+            break;
+#endif
+
+#ifdef OPENGL_ENABLED
+            case RenderingDriver::OpenGL:
+                renderingContext = new OpenGLRenderingContext();
+            break;
+#endif
+
+            default:
+                error<CantCreateError>("Unsupported rendering driver.");
+        }
+
+        displayServer->getMainWindow()->surface = renderingContext->createSurface(displayServer->getMainWindow());
+        renderingDevice = new RenderingDevice(renderingContext, displayServer->getMainWindow());
     }
 
-    Application::~Application() = default;
+    Application::~Application() {
+        delete renderingDevice;
+        delete renderingContext;
+    }
 
     void Application::run() const {
         const auto mainWindow = displayServer->getMainWindow();
-        const auto context = displayServer->getRenderingContext();
-        const auto device = displayServer->getRenderingDevice();
-
-        const auto surface = context->createSurface(displayServer->getMainWindow());
-        const auto commandQueue = device->createCommandQueue();
-        if (!commandQueue.has_value())
-            throw std::runtime_error("failed to create command queue");
-
-        const auto swapchain = device->createSwapchain(surface);
-        device->resizeSwapchain(commandQueue.value(), swapchain, 3);
 
         while (!displayServer->shouldClose(mainWindow)) {
             displayServer->update(mainWindow);
 
-            // TODO: Do rendering stuff
-
-            device->executeCommandQueueAndPresent(
-                commandQueue.value(),
-                {},
-                {},
-                {},
-                nullptr,
-                {swapchain}
-            );
+            renderingDevice->submit();
+            renderingDevice->swapBuffers(true);
         }
-
-        device->destroySwapchain(swapchain);
-        context->destroySurface(surface);
     }
 
     std::shared_ptr<DisplayServer> Application::getDisplayServer() const {
         return displayServer;
+    }
+
+    RenderingContextDriver *Application::getRenderingContext() const {
+        return renderingContext;
+    }
+
+    RenderingDevice *Application::getRenderingDevice() const {
+        return renderingDevice;
     }
 }

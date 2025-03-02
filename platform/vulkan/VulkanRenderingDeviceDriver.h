@@ -1,18 +1,19 @@
 #pragma once
 
+#include <mutex>
 #include <vector>
 #include <volk.h>
 
-#include "core/RenderingDevice.h"
-#include "GraphicsCard.h"
+#include "core/RenderingDeviceDriver.h"
 
 typedef struct VmaAllocator_T *VmaAllocator;
 
 namespace Vixen {
+    struct VulkanCommandQueue;
     struct VulkanSwapchain;
-    class VulkanRenderingContext;
+    class VulkanRenderingContextDriver;
 
-    class VulkanRenderingDevice final : public RenderingDevice {
+    class VulkanRenderingDeviceDriver final : public RenderingDeviceDriver {
         struct Features {
             bool dynamicRendering;
             bool synchronization2;
@@ -21,25 +22,31 @@ namespace Vixen {
 
         struct Queue {
             VkQueue queue = VK_NULL_HANDLE;
-            uint32_t count = 0;
+            uint32_t virtualCount = 0;
             std::mutex submitMutex{};
         };
 
-        VulkanRenderingContext *renderingContext;
+        VulkanRenderingContextDriver *renderingContext;
 
-        GraphicsCard physicalDevice;
+        uint32_t deviceIndex;
+        VkPhysicalDevice physicalDevice;
+        VkPhysicalDeviceFeatures physicalDeviceFeatures;
+        VkPhysicalDeviceProperties physicalDeviceProperties;
 
         std::vector<std::string> enabledExtensionNames;
 
         VkDevice device;
 
         std::vector<std::vector<Queue> > queueFamilies;
+        std::vector<VkQueueFamilyProperties> queueFamilyProperties;
 
         VmaAllocator allocator;
 
+        uint32_t frameCount;
+
         void initializeExtensions();
 
-        void checkFeatures() const;
+        void checkFeatures();
 
         void checkCapabilities();
 
@@ -48,17 +55,18 @@ namespace Vixen {
         [[nodiscard]] VkSampleCountFlagBits findClosestSupportedSampleCount(const ImageSamples &samples) const;
 
     public:
-        VulkanRenderingDevice(VulkanRenderingContext *renderingContext, uint32_t deviceIndex);
+        VulkanRenderingDeviceDriver(VulkanRenderingContextDriver *renderingContext, uint32_t deviceIndex,
+                                    uint32_t frameCount);
 
-        VulkanRenderingDevice(const VulkanRenderingDevice &) = delete;
+        VulkanRenderingDeviceDriver(const VulkanRenderingDeviceDriver &) = delete;
 
-        VulkanRenderingDevice &operator=(const VulkanRenderingDevice &) = delete;
+        VulkanRenderingDeviceDriver &operator=(const VulkanRenderingDeviceDriver &) = delete;
 
-        VulkanRenderingDevice(VulkanRenderingDevice &&) = delete;
+        VulkanRenderingDeviceDriver(VulkanRenderingDeviceDriver &&) = delete;
 
-        VulkanRenderingDevice &operator=(VulkanRenderingDevice &&) = delete;
+        VulkanRenderingDeviceDriver &operator=(VulkanRenderingDeviceDriver &&) = delete;
 
-        ~VulkanRenderingDevice() override;
+        ~VulkanRenderingDeviceDriver() override;
 
         Swapchain *createSwapchain(Surface *surface) override;
 
@@ -70,10 +78,17 @@ namespace Vixen {
     private:
         void _destroySwapchain(const VulkanSwapchain *swapchain);
 
+        static auto _releaseImageSemaphore(VulkanCommandQueue *commandQueue, uint32_t semaphoreIndex,
+                                           bool releaseOnSwapchain) -> std::expected<void, Error>;
+
+        auto _recreateImageSemaphore(VulkanCommandQueue *commandQueue, uint32_t semaphoreIndex,
+                                     bool releaseOnSwapchain) const -> std::expected<void, Error>;
+
     public:
         void destroySwapchain(Swapchain *swapchain) override;
 
-        uint32_t getQueueFamily(QueueFamilyFlags queueFamilyFlags, Surface *surface) override;
+        auto getQueueFamily(QueueFamilyFlags queueFamilyFlags,
+                            Surface *surface) -> std::expected<uint32_t, Error> override;
 
         Fence *createFence() override;
 
@@ -97,7 +112,7 @@ namespace Vixen {
 
         void endCommandBuffer(CommandBuffer *commandBuffer) override;
 
-        auto createCommandQueue() -> std::expected<CommandQueue *, Error> override;
+        auto createCommandQueue(uint32_t queueFamilyIndex) -> std::expected<CommandQueue *, Error> override;
 
         void executeCommandQueueAndPresent(CommandQueue *commandQueue,
                                            const std::vector<Semaphore *> &waitSemaphores,
@@ -128,8 +143,6 @@ namespace Vixen {
         void destroyShaderModules(Shader *shader) override;
 
         void destroyShader(Shader *shader) override;
-
-        [[nodiscard]] GraphicsCard getPhysicalDevice() const;
 
         static VkImageSubresourceLayers _imageSubresourceLayers(const ImageSubresourceLayers &layers);
 

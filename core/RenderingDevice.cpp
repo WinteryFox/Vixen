@@ -1,154 +1,105 @@
 #include "RenderingDevice.h"
 
-#ifdef DEBUG_ENABLED
-#include <GlslangToSpv.h>
-#endif
-
-#include <glslang/Public/ResourceLimits.h>
-#include <glslang/Public/ShaderLang.h>
 #include <spdlog/spdlog.h>
-#include <spirv_cross.hpp>
-#include <disassemble.h>
-
-#include "error/CantCreateError.h"
-#include "error/Macros.h"
 
 namespace Vixen {
-    bool RenderingDevice::reflectShader(const std::vector<ShaderStageData> &stages, Shader *shader) {
-        for (const auto &[stage, spirv]: stages) {
-            const auto compiler = spirv_cross::Compiler(std::bit_cast<const uint32_t *>(spirv.data()),
-                                                        spirv.size() / sizeof(uint32_t));
-            auto resources = compiler.get_shader_resources();
+    void RenderingDevice::beginFrame() {
 
-            shader->stages.push_back(stage);
-
-            if (!resources.push_constant_buffers.empty()) {
-                const auto pushConstant = resources.push_constant_buffers[0];
-                shader->pushConstantSize = compiler.get_active_buffer_ranges(pushConstant.id)[0].range;
-                shader->pushConstantStages.push_back(stage);
-            }
-
-            for (const auto &uniformBuffer: resources.uniform_buffers) {
-                shader->uniformSets.push_back({
-                    .type = ShaderUniformType::UniformBuffer,
-                    .binding = compiler.get_decoration(uniformBuffer.id, spv::DecorationBinding),
-                    .length = static_cast<uint32_t>(compiler.get_declared_struct_size(
-                        compiler.get_type(uniformBuffer.base_type_id)))
-                });
-            }
-
-            for (const auto &sampler: resources.separate_samplers) {
-                shader->uniformSets.push_back({
-                    .type = ShaderUniformType::Sampler,
-                    .binding = compiler.get_decoration(sampler.id, spv::DecorationBinding),
-                    .length = 0
-                });
-            }
-
-            for (const auto &sampledImage: resources.sampled_images) {
-                shader->uniformSets.push_back({
-                    .type = ShaderUniformType::CombinedImageSampler,
-                    .binding = compiler.get_decoration(sampledImage.id, spv::DecorationBinding),
-                    .length = 0
-                });
-            }
-        }
-
-        return true;
     }
 
-    std::vector<std::byte> RenderingDevice::compileSpirvFromSource(ShaderStage stage, const std::string &source,
-                                                                   ShaderLanguage language) {
-        EShLanguage glslangLanguage;
-        switch (stage) {
-                using enum ShaderStage;
+    void RenderingDevice::endFrame() {
 
-            case Vertex:
-                glslangLanguage = EShLangVertex;
-                break;
+    }
 
-            case Fragment:
-                glslangLanguage = EShLangFragment;
-                break;
+    void RenderingDevice::executeFrame(bool present) {
+        renderingDeviceDriver->executeCommandQueueAndPresent(graphicsQueue, {}, {}, {}, nullptr, {});
+    }
 
-            case TesselationControl:
-                glslangLanguage = EShLangTessControl;
-                break;
+    RenderingDevice::RenderingDevice(RenderingContextDriver *renderingContext, Window *window)
+        : renderingContextDriver(renderingContext) {
+        spdlog::trace("Found devices:");
+        uint32_t deviceIndex = 0;
+        uint32_t deviceScore = 0;
+        const auto devices = renderingContextDriver->getDevices();
+        for (uint32_t i = 0; i < devices.size(); i++) {
+            auto deviceOption = devices[i];
+            bool supportsPresent = window->surface != nullptr
+                                       ? renderingContext->deviceSupportsPresent(i, window->surface)
+                                       : false;
+            spdlog::trace("    {} - Supports present? {}", deviceOption.name, supportsPresent);
 
-            case TesselationEvaluation:
-                glslangLanguage = EShLangTessEvaluation;
-                break;
-
-            case Compute:
-                glslangLanguage = EShLangCompute;
-                break;
-
-            case Geometry:
-                glslangLanguage = EShLangGeometry;
-                break;
-
-            default:
-                error<CantCreateError>("Unknown shader stage");
+            // TODO: Score devices
         }
 
-        glslang::InitializeProcess();
+        uint32_t frameCount = 1;
 
-        glslang::TShader shader(glslangLanguage);
-        auto src = source.data();
-        shader.setStrings(&src, 1);
-        shader.setEnvInput(glslang::EShSourceGlsl, glslangLanguage, glslang::EShClientVulkan, 160);
-        shader.setEnvClient(glslang::EShClientVulkan, glslang::EShTargetVulkan_1_4);
-        shader.setEnvTarget(glslang::EShTargetSpv, glslang::EShTargetSpv_1_6);
+        device = devices[deviceIndex];
+        renderingDeviceDriver = renderingContext->createRenderingDeviceDriver(deviceIndex, frameCount);
 
-        glslang::TProgram program;
+        graphicsQueueFamily = renderingDeviceDriver->getQueueFamily(
+            QueueFamilyFlags::Graphics | QueueFamilyFlags::Compute, nullptr).value();
+        graphicsQueue = renderingDeviceDriver->createCommandQueue(graphicsQueueFamily).value();
 
-        // TODO: Add actual includer
-        glslang::TShader::ForbidIncluder includer;
+        transferQueueFamily = renderingDeviceDriver->getQueueFamily(QueueFamilyFlags::Transfer, nullptr).value();
+        transferQueue = renderingDeviceDriver->createCommandQueue(transferQueueFamily).value();
 
-        auto messages = static_cast<EShMessages>(EShMsgSpvRules | EShMsgVulkanRules);
-#ifdef DEBUG_ENABLED
-        messages = static_cast<EShMessages>(messages | EShMsgDebugInfo);
-#endif
+        presentQueueFamily = renderingDeviceDriver->getQueueFamily(static_cast<QueueFamilyFlags>(0), window->surface).value();
+        presentQueue = renderingDeviceDriver->createCommandQueue(presentQueueFamily).value();
 
-        if (!shader.parse(GetDefaultResources(), 160, false, messages))
-            error<CantCreateError>("Failed to parse SPIR-V");
+        const auto commandPool = renderingDeviceDriver->createCommandPool(
+            graphicsQueueFamily, CommandBufferType::Primary);
 
-        program.addShader(&shader);
-        if (!program.link(messages))
-            error<CantCreateError>("Failed to link shader");
+        frame = 0;
+        frames.reserve(frameCount);
+        for (uint32_t i = 0; i < frameCount; i++) {
+            frames.push_back({
+                .commandPool = commandPool,
+                .commandBuffer = renderingDeviceDriver->createCommandBuffer(commandPool),
+                .semaphore = renderingDeviceDriver->createSemaphore(),
+                .fence = renderingDeviceDriver->createFence(),
+                .fenceSignaled = false
+            });
+        }
+        framesDrawn = frames.size();
+    }
 
-        glslang::SpvOptions options{
-#ifdef DEBUG_ENABLED
-            .generateDebugInfo = true,
-            .stripDebugInfo = false,
-            .disableOptimizer = true,
-            .optimizeSize = false,
-            .disassemble = true,
-#else
-            .generateDebugInfo = false,
-            .stripDebugInfo = true,
-            .disableOptimizer = false,
-            .optimizeSize = true,
-            .disassemble = false,
-#endif
-            .validate = true,
-        };
+    RenderingDevice::~RenderingDevice() {
+        for (const auto &frame: frames) {
+            renderingDeviceDriver->destroySemaphore(frame.semaphore);
+            renderingDeviceDriver->destroyFence(frame.fence);
+            renderingDeviceDriver->destroyCommandPool(frame.commandPool);
+        }
 
-        spv::SpvBuildLogger logger;
-        std::vector<uint32_t> binary{};
-        GlslangToSpv(*program.getIntermediate(glslangLanguage), binary, &logger, &options);
+        renderingDeviceDriver->destroyCommandQueue(graphicsQueue);
+        renderingDeviceDriver->destroyCommandQueue(transferQueue);
+        renderingDeviceDriver->destroyCommandQueue(presentQueue);
+        delete renderingDeviceDriver;
+        delete renderingContextDriver;
+    }
 
-#ifdef DEBUG_ENABLED
-        std::stringstream stream;
-        spv::Disassemble(stream, binary);
-        spdlog::debug("Passed in GLSL source string:\n{}\n\nDisassembled SPIR-V:\n{}",
-                      std::string_view(source.begin(), source.end()), stream.str());
-#endif
-        glslang::FinalizeProcess();
+    void RenderingDevice::swapBuffers(const bool present) {
+        endFrame();
+        executeFrame(present);
 
-        std::vector<std::byte> result{binary.size() * sizeof(uint32_t)};
-        memcpy(result.data(), binary.data(), binary.size() * sizeof(uint32_t));
+        frame = (frame + 1) % frames.size();
 
-        return result;
+        beginFrame();
+    }
+
+    void RenderingDevice::submit() {
+        endFrame();
+        executeFrame(false);
+    }
+
+    void RenderingDevice::sync() {
+        beginFrame();
+    }
+
+    RenderingContextDriver *RenderingDevice::getRenderingContextDriver() const {
+        return renderingContextDriver;
+    }
+
+    RenderingDeviceDriver *RenderingDevice::getRenderingDeviceDriver() const {
+        return renderingDeviceDriver;
     }
 }

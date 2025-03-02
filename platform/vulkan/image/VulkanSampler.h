@@ -5,7 +5,7 @@
 #include "core/image/Sampler.h"
 
 namespace Vixen {
-    class VulkanRenderingDevice;
+    class VulkanRenderingDeviceDriver;
 
     struct VulkanSampler final : Sampler {
         VkSampler sampler;
