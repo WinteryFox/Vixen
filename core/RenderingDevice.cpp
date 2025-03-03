@@ -4,15 +4,20 @@
 
 namespace Vixen {
     void RenderingDevice::beginFrame() {
-
     }
 
     void RenderingDevice::endFrame() {
-
     }
 
     void RenderingDevice::executeFrame(bool present) {
-        renderingDeviceDriver->executeCommandQueueAndPresent(graphicsQueue, {}, {}, {}, nullptr, {});
+        renderingDeviceDriver->executeCommandQueueAndPresent(
+            graphicsQueue,
+            {},
+            {},
+            {},
+            nullptr,
+            {}
+        );
     }
 
     RenderingDevice::RenderingDevice(RenderingContextDriver *renderingContext, Window *window)
@@ -43,7 +48,8 @@ namespace Vixen {
         transferQueueFamily = renderingDeviceDriver->getQueueFamily(QueueFamilyFlags::Transfer, nullptr).value();
         transferQueue = renderingDeviceDriver->createCommandQueue(transferQueueFamily).value();
 
-        presentQueueFamily = renderingDeviceDriver->getQueueFamily(static_cast<QueueFamilyFlags>(0), window->surface).value();
+        presentQueueFamily = renderingDeviceDriver->getQueueFamily(static_cast<QueueFamilyFlags>(0), window->surface).
+                value();
         presentQueue = renderingDeviceDriver->createCommandQueue(presentQueueFamily).value();
 
         const auto commandPool = renderingDeviceDriver->createCommandPool(

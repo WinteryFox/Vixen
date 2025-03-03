@@ -62,7 +62,7 @@ namespace Vixen {
         }
     }
 
-    void VulkanRenderingDeviceDriver::checkFeatures() {
+    void VulkanRenderingDeviceDriver::checkFeatures() const {
         if (physicalDeviceFeatures.imageCubeArray != VK_TRUE)
             error<CantCreateError>("Device lacks image cube array feature.");
 
@@ -83,7 +83,7 @@ namespace Vixen {
             enabledFeatures.deviceFault = true;
     }
 
-    void VulkanRenderingDeviceDriver::initializeDevice() {
+    auto VulkanRenderingDeviceDriver::initializeDevice() -> std::expected<void, Error> {
         std::vector<VkDeviceQueueCreateInfo> queueCreateInfos{};
         static constexpr float queuePriorities[1] = {0.0f};
         for (uint32_t i = 0; i < queueFamilyProperties.size(); i++) {
@@ -141,7 +141,7 @@ namespace Vixen {
         };
 
         if (vkCreateDevice(physicalDevice, &deviceInfo, nullptr, &device) != VK_SUCCESS)
-            error<CantCreateError>("Failed to create VkDevice");
+            return std::unexpected(Error::CantCreate);
 
         queueFamilies.resize(queueCreateInfos.size());
         for (uint32_t i = 0; i < queueFamilies.size(); i++) {
@@ -196,8 +196,11 @@ namespace Vixen {
             .vulkanApiVersion = renderingContext->getInstanceApiVersion(),
             .pTypeExternalMemoryHandleTypes = nullptr
         };
+
         if (vmaCreateAllocator(&allocatorInfo, &allocator) != VK_SUCCESS)
-            error<CantCreateError>("Call to vmaCreateAllocator failed.");
+            return std::unexpected(Error::CantCreate);
+
+        return {};
     }
 
     VkSampleCountFlagBits VulkanRenderingDeviceDriver::findClosestSupportedSampleCount(
@@ -248,7 +251,8 @@ namespace Vixen {
 
         checkCapabilities();
 
-        initializeDevice();
+        if (!initializeDevice())
+            error<CantCreateError>("Failed to initialize Vulkan device");
     }
 
     VulkanRenderingDeviceDriver::~VulkanRenderingDeviceDriver() {

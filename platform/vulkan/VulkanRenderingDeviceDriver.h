@@ -46,11 +46,11 @@ namespace Vixen {
 
         void initializeExtensions();
 
-        void checkFeatures();
+        void checkFeatures() const;
 
         void checkCapabilities();
 
-        void initializeDevice();
+        auto initializeDevice() -> std::expected<void, Error>;
 
         [[nodiscard]] VkSampleCountFlagBits findClosestSupportedSampleCount(const ImageSamples &samples) const;
 

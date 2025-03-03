@@ -18,7 +18,8 @@ namespace Vixen {
         const std::string &applicationTitle,
         const glm::vec3 applicationVersion,
         std::string workingDirectory
-    ) : applicationTitle(applicationTitle),
+    ) : renderingContext(nullptr),
+        applicationTitle(applicationTitle),
         applicationVersion(applicationVersion),
         workingDirectory(std::move(workingDirectory)) {
 #ifdef _WIN32
@@ -50,13 +51,13 @@ namespace Vixen {
 #ifdef D3D12_ENABLED
             case RenderingDriver::D3D12:
                 renderingContext = new D3D12RenderingContext();
-            break;
+                break;
 #endif
 
 #ifdef OPENGL_ENABLED
             case RenderingDriver::OpenGL:
                 renderingContext = new OpenGLRenderingContext();
-            break;
+                break;
 #endif
 
             default:
@@ -78,7 +79,6 @@ namespace Vixen {
         while (!displayServer->shouldClose(mainWindow)) {
             displayServer->update(mainWindow);
 
-            renderingDevice->submit();
             renderingDevice->swapBuffers(true);
         }
     }
