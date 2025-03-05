@@ -1,5 +1,7 @@
 #include "RenderingDevice.h"
 
+#include <ranges>
+#include <bits/ranges_algo.h>
 #include <spdlog/spdlog.h>
 
 namespace Vixen {
@@ -22,16 +24,37 @@ namespace Vixen {
 
     RenderingDevice::RenderingDevice(RenderingContextDriver *renderingContext, Window *window)
         : renderingContextDriver(renderingContext) {
-        spdlog::trace("Found devices:");
+        const auto devices = renderingContextDriver->getDevices();
+
+        spdlog::trace(
+            "Found the following devices.\n{}",
+            std::ranges::fold_left(
+                std::views::iota(0) |
+                std::views::take(devices.size()) |
+                std::views::transform([&](const std::size_t i) {
+                    const auto &[deviceName] = devices[i];
+                    return std::format(
+                        "    [{}] - {}\n"
+                        "            * Supports presentation? {}",
+                        std::to_string(i),
+                        deviceName,
+                        renderingContext->deviceSupportsPresent(i, window->surface) ? "Yes" : "No"
+                    );
+                }),
+                std::string{},
+                [](const auto &a, const auto &b) {
+                    return a.empty() ? std::move(b) : std::move(a) + "\n" + b;
+                }
+            )
+        );
+
         uint32_t deviceIndex = 0;
         uint32_t deviceScore = 0;
-        const auto devices = renderingContextDriver->getDevices();
         for (uint32_t i = 0; i < devices.size(); i++) {
-            auto deviceOption = devices[i];
-            bool supportsPresent = window->surface != nullptr
-                                       ? renderingContext->deviceSupportsPresent(i, window->surface)
-                                       : false;
-            spdlog::trace("    {} - Supports present? {}", deviceOption.name, supportsPresent);
+            const auto &deviceOption = devices[i];
+            const bool supportsPresent = window->surface != nullptr
+                                             ? renderingContext->deviceSupportsPresent(i, window->surface)
+                                             : false;
 
             // TODO: Score devices
         }
@@ -48,16 +71,16 @@ namespace Vixen {
         transferQueueFamily = renderingDeviceDriver->getQueueFamily(QueueFamilyFlags::Transfer, nullptr).value();
         transferQueue = renderingDeviceDriver->createCommandQueue(transferQueueFamily).value();
 
-        presentQueueFamily = renderingDeviceDriver->getQueueFamily(static_cast<QueueFamilyFlags>(0), window->surface).
-                value();
+        presentQueueFamily = renderingDeviceDriver->getQueueFamily(static_cast<QueueFamilyFlags>(0), window->surface)
+                .value();
         presentQueue = renderingDeviceDriver->createCommandQueue(presentQueueFamily).value();
-
-        const auto commandPool = renderingDeviceDriver->createCommandPool(
-            graphicsQueueFamily, CommandBufferType::Primary);
 
         frame = 0;
         frames.reserve(frameCount);
         for (uint32_t i = 0; i < frameCount; i++) {
+            const auto commandPool = renderingDeviceDriver->createCommandPool(
+                graphicsQueueFamily, CommandBufferType::Primary);
+
             frames.push_back({
                 .commandPool = commandPool,
                 .commandBuffer = renderingDeviceDriver->createCommandBuffer(commandPool),

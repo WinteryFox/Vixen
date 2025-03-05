@@ -1,7 +1,9 @@
 #include "VulkanRenderingContextDriver.h"
 
 #include <map>
+#include <ranges>
 #include <Vulkan.h>
+#include <bits/ranges_algo.h>
 #include <GLFW/glfw3.h>
 
 #include "VulkanRenderingDeviceDriver.h"
@@ -57,10 +59,25 @@ namespace Vixen {
         if (vkEnumerateInstanceExtensionProperties(nullptr, &extensionCount, availableExtensions.data()) != VK_SUCCESS)
             error<CantCreateError>("Call to vkEnumerateInstanceExtensions failed.");
 
+
+        spdlog::trace(
+            "Found the following Vulkan instance extensions.\n{}",
+            std::ranges::fold_left(
+                availableExtensions |
+                std::views::transform(
+                    [](const auto &extension) {
+                        return "    - " + std::string(extension.extensionName);
+                    }
+                ),
+                std::string{},
+                [](const auto &a, const auto &b) {
+                    return a.empty() ? std::move(b) : std::move(a) + "\n" + std::move(b);
+                }
+            )
+        );
         for (uint32_t i = 0; i < extensionCount; i++) {
-            const auto &extensionName = availableExtensions[i].extensionName;
-            spdlog::trace("VULKAN: Found instance extension {}.", extensionName);
-            if (requestedExtensions.contains(extensionName))
+            if (const auto &extensionName = availableExtensions[i].extensionName;
+                requestedExtensions.contains(extensionName))
                 enabledInstanceExtensions.push_back(strdup(extensionName));
         }
 
@@ -242,9 +259,11 @@ namespace Vixen {
     }
 
     bool VulkanRenderingContextDriver::queueFamilySupportsPresent(VkPhysicalDevice physicalDevice,
-        const uint32_t queueFamilyIndex, const VulkanSurface *surface) {
+                                                                  const uint32_t queueFamilyIndex,
+                                                                  const VulkanSurface *surface) {
         VkBool32 supportsPresent = VK_FALSE;
-        const auto result = vkGetPhysicalDeviceSurfaceSupportKHR(physicalDevice, queueFamilyIndex, surface->surface, &supportsPresent);
+        const auto result = vkGetPhysicalDeviceSurfaceSupportKHR(physicalDevice, queueFamilyIndex, surface->surface,
+                                                                 &supportsPresent);
 
         return result == VK_SUCCESS && supportsPresent;
     }

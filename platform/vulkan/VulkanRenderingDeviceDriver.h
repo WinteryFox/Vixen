@@ -44,7 +44,7 @@ namespace Vixen {
 
         uint32_t frameCount;
 
-        void initializeExtensions();
+        auto initializeExtensions() -> std::expected<void, Error>;
 
         void checkFeatures() const;
 

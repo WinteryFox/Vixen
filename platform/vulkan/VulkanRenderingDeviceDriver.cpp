@@ -3,6 +3,7 @@
 #include "VulkanRenderingDeviceDriver.h"
 
 #include <map>
+#include <ranges>
 #include <vk_mem_alloc.h>
 #include <Vulkan.h>
 
@@ -21,7 +22,7 @@
 #include "shader/VulkanShader.h"
 
 namespace Vixen {
-    void VulkanRenderingDeviceDriver::initializeExtensions() {
+    auto VulkanRenderingDeviceDriver::initializeExtensions() -> std::expected<void, Error> {
         std::map<std::string, bool> requestedExtensions;
 
         requestedExtensions[VK_KHR_SWAPCHAIN_EXTENSION_NAME] = true;
@@ -44,10 +45,24 @@ namespace Vixen {
                                                  data()) != VK_SUCCESS)
             error<CantCreateError>("Call to vkEnumerateDeviceExtensionProperties failed.");
 
+        spdlog::info(
+            "Using device {}\n"
+            "    * Supported device extensions\n"
+            "{}",
+            physicalDeviceProperties.deviceName,
+            std::ranges::fold_left_first(
+                availableExtensions |
+                std::views::transform([](const auto &extension) {
+                    return std::format("        - {}", extension.extensionName);
+                }),
+                [](const auto &a, const auto &b) {
+                    return a + "\n" + b;
+                }
+            ).value_or("")
+        );
         for (uint32_t i = 0; i < extensionCount; i++) {
-            const auto &extensionName = availableExtensions[i].extensionName;
-            spdlog::trace("VULKAN: Found device extension {}.", extensionName);
-            if (requestedExtensions.contains(extensionName))
+            if (const auto &extensionName = availableExtensions[i].extensionName;
+                requestedExtensions.contains(extensionName))
                 enabledExtensionNames.emplace_back(strdup(extensionName));
         }
 
@@ -55,11 +70,13 @@ namespace Vixen {
             if (std::ranges::find(enabledExtensionNames.begin(), enabledExtensionNames.end(), extensionName) ==
                 enabledExtensionNames.end()) {
                 if (required)
-                    error<CantCreateError>("Required extension \"" + extensionName + "\" was not found");
+                    return std::unexpected(Error::CantCreate);
 
                 spdlog::debug("Optional extension {} was not found.", extensionName);
             }
         }
+
+        return {};
     }
 
     void VulkanRenderingDeviceDriver::checkFeatures() const {
@@ -245,14 +262,15 @@ namespace Vixen {
         for (uint32_t i = 0; i < queueFamilyCount; i++)
             queueFamilyProperties[i] = renderingContext->getQueueFamilyProperties(deviceIndex, i);
 
-        initializeExtensions();
+        if (!initializeExtensions())
+            error<CantCreateError>("A required extension is not supported by the requested device.");
 
         checkFeatures();
 
         checkCapabilities();
 
         if (!initializeDevice())
-            error<CantCreateError>("Failed to initialize Vulkan device");
+            error<CantCreateError>("Failed to create virtual device.");
     }
 
     VulkanRenderingDeviceDriver::~VulkanRenderingDeviceDriver() {
