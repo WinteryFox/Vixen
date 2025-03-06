@@ -323,8 +323,11 @@ namespace Vixen {
         return swapchain;
     }
 
-    void VulkanRenderingDeviceDriver::resizeSwapchain(CommandQueue *commandQueue, Swapchain *swapchain,
-                                                      const uint32_t imageCount) {
+    void VulkanRenderingDeviceDriver::resizeSwapchain(
+        CommandQueue *commandQueue,
+        Swapchain *swapchain,
+        const uint32_t imageCount
+    ) {
         DEBUG_ASSERT(commandQueue != nullptr);
         DEBUG_ASSERT(swapchain != nullptr);
 
@@ -505,8 +508,10 @@ namespace Vixen {
     }
 
     Framebuffer *VulkanRenderingDeviceDriver::acquireSwapchainFramebuffer(
-        CommandQueue *commandQueue, Swapchain *swapchain,
-        bool &resizeRequired) {
+        CommandQueue *commandQueue,
+        Swapchain *swapchain,
+        bool &resizeRequired
+    ) {
         DEBUG_ASSERT(commandQueue != nullptr);
         DEBUG_ASSERT(swapchain != nullptr);
 
@@ -570,10 +575,11 @@ namespace Vixen {
         vkDestroySwapchainKHR(device, swapchain->swapchain, nullptr);
     }
 
-    auto VulkanRenderingDeviceDriver::_releaseImageSemaphore(VulkanCommandQueue *commandQueue,
-                                                             const uint32_t semaphoreIndex,
-                                                             const bool releaseOnSwapchain) -> std::expected<void,
-        Error> {
+    auto VulkanRenderingDeviceDriver::_releaseImageSemaphore(
+        VulkanCommandQueue *commandQueue,
+        const uint32_t semaphoreIndex,
+        const bool releaseOnSwapchain
+    ) -> std::expected<void, Error> {
         if (const auto swapchain = dynamic_cast<VulkanSwapchain *>(commandQueue->imageSemaphoresSwapchains[
             semaphoreIndex]); swapchain != nullptr) {
             commandQueue->imageSemaphoresSwapchains[semaphoreIndex] = nullptr;
@@ -595,12 +601,13 @@ namespace Vixen {
         return std::unexpected(Error::CantCreate);
     }
 
-    auto VulkanRenderingDeviceDriver::_recreateImageSemaphore(VulkanCommandQueue *commandQueue,
-                                                              const uint32_t semaphoreIndex,
-                                                              const bool releaseOnSwapchain) const -> std::expected<void
-        ,
-        Error> {
-        _releaseImageSemaphore(commandQueue, semaphoreIndex, releaseOnSwapchain);
+    auto VulkanRenderingDeviceDriver::_recreateImageSemaphore(
+        VulkanCommandQueue *commandQueue,
+        const uint32_t semaphoreIndex,
+        const bool releaseOnSwapchain
+    ) const -> std::expected<void, Error> {
+        if (!_releaseImageSemaphore(commandQueue, semaphoreIndex, releaseOnSwapchain))
+            return std::unexpected(Error::CantCreate);
 
         constexpr VkSemaphoreCreateInfo semaphoreInfo{
             .sType = VK_STRUCTURE_TYPE_SEMAPHORE_CREATE_INFO,
@@ -628,8 +635,10 @@ namespace Vixen {
         delete vkSwapchain;
     }
 
-    auto VulkanRenderingDeviceDriver::getQueueFamily(const QueueFamilyFlags queueFamilyFlags,
-                                                     Surface *surface) -> std::expected<uint32_t, Error> {
+    auto VulkanRenderingDeviceDriver::getQueueFamily(
+        const QueueFamilyFlags queueFamilyFlags,
+        Surface *surface
+    ) -> std::expected<uint32_t, Error> {
         VkQueueFlags pickedQueueFlags = VK_QUEUE_FLAG_BITS_MAX_ENUM;
         uint32_t pickedQueueFamilyIndex = std::numeric_limits<uint32_t>::max();
 
@@ -772,7 +781,8 @@ namespace Vixen {
     }
 
     auto VulkanRenderingDeviceDriver::createCommandQueue(
-        const uint32_t queueFamilyIndex) -> std::expected<CommandQueue *, Error> {
+        const uint32_t queueFamilyIndex
+    ) -> std::expected<CommandQueue *, Error> {
         auto commandQueue = new VulkanCommandQueue();
 
         std::vector<Queue> &queueFamily = queueFamilies[queueFamilyIndex];
@@ -1062,8 +1072,11 @@ namespace Vixen {
         delete o;
     }
 
-    Buffer *VulkanRenderingDeviceDriver::createBuffer(const BufferUsage usage, const uint32_t count,
-                                                      const uint32_t stride) {
+    Buffer *VulkanRenderingDeviceDriver::createBuffer(
+        const BufferUsage usage,
+        const uint32_t count,
+        const uint32_t stride
+    ) {
         if (count <= 0)
             throw std::runtime_error("Count cannot be equal to or less than 0");
         if (stride <= 0)
@@ -1336,8 +1349,10 @@ namespace Vixen {
         delete o;
     }
 
-    Shader *VulkanRenderingDeviceDriver::createShaderFromSpirv(const std::string &name,
-                                                               const std::vector<ShaderStageData> &stages) {
+    Shader *VulkanRenderingDeviceDriver::createShaderFromSpirv(
+        const std::string &name,
+        const std::vector<ShaderStageData> &stages
+    ) {
         const auto o = new VulkanShader();
         if (!reflectShader(stages, o)) {
             delete o;
@@ -1635,9 +1650,12 @@ namespace Vixen {
         }
     }
 
-    void VulkanRenderingDeviceDriver::commandClearBuffer(CommandBuffer *commandBuffer, Buffer *buffer,
-                                                         const uint64_t offset,
-                                                         const uint64_t size) {
+    void VulkanRenderingDeviceDriver::commandClearBuffer(
+        CommandBuffer *commandBuffer,
+        Buffer *buffer,
+        const uint64_t offset,
+        const uint64_t size
+    ) {
         vkCmdFillBuffer(
             dynamic_cast<VulkanCommandBuffer *>(commandBuffer)->commandBuffer,
             dynamic_cast<VulkanBuffer *>(buffer)->buffer,
@@ -1647,9 +1665,12 @@ namespace Vixen {
         );
     }
 
-    void VulkanRenderingDeviceDriver::commandCopyBuffer(CommandBuffer *commandBuffer, Buffer *source,
-                                                        Buffer *destination,
-                                                        const std::vector<BufferCopyRegion> &regions) {
+    void VulkanRenderingDeviceDriver::commandCopyBuffer(
+        CommandBuffer *commandBuffer,
+        Buffer *source,
+        Buffer *destination,
+        const std::vector<BufferCopyRegion> &regions
+    ) {
         std::vector<VkBufferCopy> vkRegions{};
         vkRegions.reserve(regions.size());
         for (const auto &[sourceOffset, destinationOffset, size]: regions) {
@@ -1669,10 +1690,14 @@ namespace Vixen {
         );
     }
 
-    void VulkanRenderingDeviceDriver::commandCopyImage(CommandBuffer *commandBuffer, Image *source,
-                                                       ImageLayout sourceLayout,
-                                                       Image *destination, ImageLayout destinationLayout,
-                                                       const std::vector<ImageCopyRegion> &regions) {
+    void VulkanRenderingDeviceDriver::commandCopyImage(
+        CommandBuffer *commandBuffer,
+        Image *source,
+        const ImageLayout sourceLayout,
+        Image *destination,
+        const ImageLayout destinationLayout,
+        const std::vector<ImageCopyRegion> &regions
+    ) {
         std::vector<VkImageCopy> vkRegions{};
         vkRegions.reserve(regions.size());
         for (const auto &[sourceSubresources, sourceOffset, destinationSubresources, destinationOffset, size]:
@@ -1709,17 +1734,65 @@ namespace Vixen {
         );
     }
 
-    void VulkanRenderingDeviceDriver::commandResolveImage(CommandBuffer *commandBuffer, Image *source,
-                                                          ImageLayout sourceLayout, uint32_t sourceLayer,
-                                                          uint32_t sourceMipmap, Image *destination,
-                                                          ImageLayout destinationLayout, uint32_t destinationLayer,
-                                                          uint32_t destinationMipmap) {
-        // TODO
+    void VulkanRenderingDeviceDriver::commandResolveImage(
+        CommandBuffer *commandBuffer,
+        Image *source,
+        const ImageLayout sourceLayout,
+        const uint32_t sourceLayer,
+        const uint32_t sourceMipmap,
+        Image *destination,
+        const ImageLayout destinationLayout,
+        const uint32_t destinationLayer,
+        const uint32_t destinationMipmap
+    ) {
+        const VkImageResolve region{
+            .srcSubresource = {
+                .aspectMask = VK_IMAGE_ASPECT_COLOR_BIT,
+                .mipLevel = sourceMipmap,
+                .baseArrayLayer = sourceLayer,
+                .layerCount = 1
+            },
+            .srcOffset = {
+                .x = 0,
+                .y = 0,
+                .z = 0
+            },
+            .dstSubresource = {
+                .aspectMask = VK_IMAGE_ASPECT_COLOR_BIT,
+                .mipLevel = destinationMipmap,
+                .baseArrayLayer = destinationLayer,
+                .layerCount = 1
+            },
+            .dstOffset = {
+                .x = 0,
+                .y = 0,
+                .z = 0
+            },
+            .extent = {
+                .width = std::max(1u, source->format.width >> sourceMipmap),
+                .height = std::max(1u, source->format.height >> sourceMipmap),
+                .depth = std::max(1u, source->format.depth >> sourceMipmap)
+            }
+        };
+
+        vkCmdResolveImage(
+            dynamic_cast<VulkanCommandBuffer *>(commandBuffer)->commandBuffer,
+            dynamic_cast<VulkanImage *>(source)->image,
+            toVkImageLayout(sourceLayout),
+            dynamic_cast<VulkanImage *>(destination)->image,
+            toVkImageLayout(destinationLayout),
+            1,
+            &region
+        );
     }
 
-    void VulkanRenderingDeviceDriver::commandClearColorImage(CommandBuffer *commandBuffer, Image *image,
-                                                             ImageLayout imageLayout, const glm::vec4 &color,
-                                                             const ImageSubresourceRange &subresource) {
+    void VulkanRenderingDeviceDriver::commandClearColorImage(
+        CommandBuffer *commandBuffer,
+        Image *image,
+        const ImageLayout imageLayout,
+        const glm::vec4 &color,
+        const ImageSubresourceRange &subresource
+    ) {
         const VkClearColorValue vkColor = {
             color.r,
             color.b,
@@ -1744,10 +1817,13 @@ namespace Vixen {
         );
     }
 
-    void VulkanRenderingDeviceDriver::commandCopyBufferToImage(CommandBuffer *commandBuffer, Buffer *buffer,
-                                                               Image *image,
-                                                               ImageLayout layout,
-                                                               const std::vector<BufferImageCopyRegion> &regions) {
+    void VulkanRenderingDeviceDriver::commandCopyBufferToImage(
+        CommandBuffer *commandBuffer,
+        Buffer *buffer,
+        Image *image,
+        const ImageLayout layout,
+        const std::vector<BufferImageCopyRegion> &regions
+    ) {
         std::vector<VkBufferImageCopy> vkRegions{};
         vkRegions.reserve(regions.size());
         for (const auto &region: regions)
@@ -1763,10 +1839,13 @@ namespace Vixen {
         );
     }
 
-    void VulkanRenderingDeviceDriver::commandCopyImageToBuffer(CommandBuffer *commandBuffer, Image *image,
-                                                               ImageLayout layout,
-                                                               Buffer *buffer,
-                                                               const std::vector<BufferImageCopyRegion> &regions) {
+    void VulkanRenderingDeviceDriver::commandCopyImageToBuffer(
+        CommandBuffer *commandBuffer,
+        Image *image,
+        const ImageLayout layout,
+        Buffer *buffer,
+        const std::vector<BufferImageCopyRegion> &regions
+    ) {
         std::vector<VkBufferImageCopy> vkRegions{};
         vkRegions.reserve(regions.size());
         for (const auto &region: regions)
