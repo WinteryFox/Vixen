@@ -40,7 +40,6 @@ int main() {
                 }
             }
         );
-        spdlog::error("Shader compiled successfully");
         device->destroyShader(shader);
 
         application.run();

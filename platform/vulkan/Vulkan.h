@@ -282,6 +282,18 @@ namespace Vixen {
         VK_FORMAT_G16_B16_R16_3PLANE_444_UNORM
     };
 
+    static VkCommandBufferLevel toVkCommandBufferLevel(const CommandBufferType type) {
+        switch (type) {
+            case CommandBufferType::Primary:
+                return VK_COMMAND_BUFFER_LEVEL_PRIMARY;
+
+            case CommandBufferType::Secondary:
+                return VK_COMMAND_BUFFER_LEVEL_SECONDARY;
+        }
+
+        return VK_COMMAND_BUFFER_LEVEL_PRIMARY;
+    }
+
     static VkSampleCountFlagBits toVkSampleCountFlagBits(const ImageSamples &samples) {
         switch (samples) {
                 using enum ImageSamples;

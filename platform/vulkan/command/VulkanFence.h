@@ -5,5 +5,6 @@
 namespace Vixen {
     struct VulkanFence final : Fence {
         VkFence fence;
+        VulkanCommandQueue *queueSignaledFrom;
     };
 }

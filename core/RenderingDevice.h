@@ -9,6 +9,8 @@
 
 namespace Vixen {
     class RenderingDevice {
+        Window *window;
+
         RenderingContextDriver *renderingContextDriver;
         RenderingDeviceDriver *renderingDeviceDriver;
 
@@ -21,13 +23,17 @@ namespace Vixen {
         CommandQueue *transferQueue;
         CommandQueue *presentQueue;
 
-        uint32_t frame;
+        uint32_t frameIndex;
         std::vector<Frame> frames;
         uint64_t framesDrawn;
 
-        void beginFrame();
+        void waitForFrame(uint32_t frameIndex);
+
+        void beginFrame(bool presented);
 
         void endFrame();
+
+        void executeChainedCommands(bool present, Fence *drawFence, Semaphore *drawSemaphoresToSignal);
 
         void executeFrame(bool present);
 

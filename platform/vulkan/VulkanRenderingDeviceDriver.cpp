@@ -317,8 +317,10 @@ namespace Vixen {
             }
         }
 
-        if (swapchain->format == VK_FORMAT_UNDEFINED)
+        if (swapchain->format == VK_FORMAT_UNDEFINED) {
+            delete swapchain;
             error<CantCreateError>("Surface does not have any supported formats.");
+        }
 
         return swapchain;
     }
@@ -667,7 +669,7 @@ namespace Vixen {
     }
 
     Fence *VulkanRenderingDeviceDriver::createFence() {
-        const auto o = new VulkanFence();
+        const auto fence = new VulkanFence();
 
         constexpr VkFenceCreateInfo fenceInfo{
             .sType = VK_STRUCTURE_TYPE_FENCE_CREATE_INFO,
@@ -675,15 +677,40 @@ namespace Vixen {
             .flags = 0
         };
 
-        if (vkCreateFence(device, &fenceInfo, nullptr, &o->fence) != VK_SUCCESS)
+        if (vkCreateFence(device, &fenceInfo, nullptr, &fence->fence) != VK_SUCCESS) {
+            delete fence;
             error<CantCreateError>("Call to vkCreateFence failed.");
+        }
 
-        return o;
+        return fence;
     }
 
-    void VulkanRenderingDeviceDriver::waitOnFence(const Fence *fence) {
+    auto VulkanRenderingDeviceDriver::waitOnFence(const Fence *fence) -> std::expected<void, Error> {
         const auto o = dynamic_cast<const VulkanFence *>(fence);
-        vkWaitForFences(device, 1, &o->fence, VK_TRUE, std::numeric_limits<uint64_t>::max());
+
+        if (vkWaitForFences(device, 1, &o->fence, VK_TRUE, std::numeric_limits<uint64_t>::max()) != VK_SUCCESS)
+            return std::unexpected(Error::CantCreate);
+
+        if (vkResetFences(device, 1, &o->fence) != VK_SUCCESS)
+            return std::unexpected(Error::CantCreate);
+
+        if (o->queueSignaledFrom) {
+            auto &pairs = o->queueSignaledFrom->imageSemaphoresForFences;
+            uint32_t i = 0;
+            while (i < pairs.size()) {
+                if (pairs[i].first == o) {
+                    if (!_releaseImageSemaphore(o->queueSignaledFrom, pairs[i].second, true))
+                        return std::unexpected(Error::CantCreate);
+
+                    o->queueSignaledFrom->freeImageSemaphores.push_back(pairs[i].second);
+                    pairs.erase(pairs.begin() + i);
+                } else {
+                    i++;
+                }
+            }
+        }
+
+        return {};
     }
 
     void VulkanRenderingDeviceDriver::destroyFence(Fence *fence) {
@@ -693,17 +720,19 @@ namespace Vixen {
     }
 
     Semaphore *VulkanRenderingDeviceDriver::createSemaphore() {
-        const auto o = new VulkanSemaphore();
+        const auto semaphore = new VulkanSemaphore();
 
         constexpr VkSemaphoreCreateInfo semaphoreInfo{
             .sType = VK_STRUCTURE_TYPE_SEMAPHORE_CREATE_INFO,
             .pNext = nullptr,
             .flags = 0
         };
-        if (vkCreateSemaphore(device, &semaphoreInfo, nullptr, &o->semaphore) != VK_SUCCESS)
+        if (vkCreateSemaphore(device, &semaphoreInfo, nullptr, &semaphore->semaphore) != VK_SUCCESS) {
+            delete semaphore;
             error<CantCreateError>("Call to vkCreateSemaphore failed.");
+        }
 
-        return o;
+        return semaphore;
     }
 
     void VulkanRenderingDeviceDriver::destroySemaphore(Semaphore *semaphore) {
@@ -731,8 +760,7 @@ namespace Vixen {
     }
 
     void VulkanRenderingDeviceDriver::resetCommandPool(CommandPool *pool) {
-        const auto *o = dynamic_cast<VulkanCommandPool *>(pool);
-        if (vkResetCommandPool(device, o->pool, 0) != VK_SUCCESS)
+        if (vkResetCommandPool(device, dynamic_cast<VulkanCommandPool *>(pool)->pool, 0) != VK_SUCCESS)
             error<CantCreateError>("Call to vkResetCommandPool failed.");
     }
 
@@ -749,14 +777,15 @@ namespace Vixen {
             .sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO,
             .pNext = nullptr,
             .commandPool = p->pool,
-            .level = static_cast<VkCommandBufferLevel>(p->type),
+            .level = toVkCommandBufferLevel(p->type),
             .commandBufferCount = 1
         };
 
-        VkCommandBuffer commandBuffer;
+        VkCommandBuffer commandBuffer = VK_NULL_HANDLE;
         if (vkAllocateCommandBuffers(device, &commandBufferInfo, &commandBuffer) != VK_SUCCESS)
             error<CantCreateError>("Call to vkAllocateCommandBuffers failed.");
-        const auto o = new VulkanCommandBuffer{};
+
+        const auto o = new VulkanCommandBuffer();
         o->commandBuffer = commandBuffer;
 
         return o;
@@ -830,7 +859,7 @@ namespace Vixen {
             vkCommandQueue->pendingSemaphoresForExecute.clear();
         }
 
-        for (auto waitSemaphore: waitSemaphores) {
+        for (const auto &waitSemaphore: waitSemaphores) {
             vkWaitSemaphores.push_back(dynamic_cast<VulkanSemaphore *>(waitSemaphore)->semaphore);
             vkWaitStages.push_back(VK_PIPELINE_STAGE_ALL_COMMANDS_BIT);
         }
@@ -838,13 +867,15 @@ namespace Vixen {
         if (!commandBuffers.empty()) {
             std::vector<VkCommandBuffer> vkCommandBuffers{};
             vkCommandBuffers.reserve(commandBuffers.size());
-            for (const auto &commandBuffer: commandBuffers)
+            for (const auto &commandBuffer: commandBuffers) {
                 vkCommandBuffers.push_back(dynamic_cast<VulkanCommandBuffer *>(commandBuffer)->commandBuffer);
+            }
 
             std::vector<VkSemaphore> signalSemaphores{};
             signalSemaphores.reserve(semaphores.size());
-            for (const auto &semaphore: semaphores)
+            for (const auto &semaphore: semaphores) {
                 signalSemaphores.push_back(dynamic_cast<VulkanSemaphore *>(semaphore)->semaphore);
+            }
 
             VkSemaphore presentSemaphore = VK_NULL_HANDLE;
             std::vector<VkSemaphore> vkSignalSemaphores{};
@@ -901,6 +932,8 @@ namespace Vixen {
                 error<CantCreateError>("Call to vkQueueSubmit failed.");
 
             if (vkFence != nullptr && !vkCommandQueue->pendingSemaphoresForPresent.empty()) {
+                vkFence->queueSignaledFrom = vkCommandQueue;
+
                 for (uint32_t i = 0; i < vkCommandQueue->pendingSemaphoresForPresent.size(); i++)
                     vkCommandQueue->imageSemaphoresForFences.emplace_back(
                         vkFence, vkCommandQueue->pendingSemaphoresForPresent[i]);
@@ -921,120 +954,11 @@ namespace Vixen {
             imageIndices.reserve(swapchains.size());
 
             for (const auto &swapchain: swapchains) {
-                bool resizeRequired;
-                auto framebuffer = dynamic_cast<VulkanFramebuffer *>(acquireSwapchainFramebuffer(
-                    commandQueue, swapchain, resizeRequired));
-                if (!framebuffer)
-                    error<CantCreateError>("Call to acquireSwapchainFramebuffer failed.");
-
                 const auto vkSwapchain = dynamic_cast<VulkanSwapchain *>(swapchain);
                 vkSwapchains.push_back(vkSwapchain->swapchain);
 
                 DEBUG_ASSERT(vkSwapchain->imageIndex < vkSwapchain->colorTargets.size());
                 imageIndices.push_back(vkSwapchain->imageIndex);
-
-                // TODO: Bad.
-                auto pool = createCommandPool(vkCommandQueue->queueFamily, CommandBufferType::Primary);
-                CommandBuffer *commandBuffer = createCommandBuffer(pool);
-                auto vkCommandBuffer = dynamic_cast<VulkanCommandBuffer *>(commandBuffer)->commandBuffer;
-
-                beginCommandBuffer(commandBuffer);
-                VkImageMemoryBarrier barrier{
-                    .sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER,
-                    .pNext = nullptr,
-                    .srcAccessMask = VK_ACCESS_NONE,
-                    .dstAccessMask = VK_ACCESS_TRANSFER_WRITE_BIT,
-                    .oldLayout = VK_IMAGE_LAYOUT_UNDEFINED,
-                    .newLayout = VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
-                    .srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED,
-                    .dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED,
-                    .image = vkSwapchain->resolveImages[vkSwapchain->imageIndex],
-                    .subresourceRange = {
-                        .aspectMask = VK_IMAGE_ASPECT_COLOR_BIT,
-                        .baseMipLevel = 0,
-                        .levelCount = 1,
-                        .baseArrayLayer = 0,
-                        .layerCount = 1
-                    }
-                };
-
-                vkCmdPipelineBarrier(
-                    vkCommandBuffer,
-                    VK_PIPELINE_STAGE_TRANSFER_BIT,
-                    VK_PIPELINE_STAGE_TRANSFER_BIT,
-                    0,
-                    0,
-                    nullptr,
-                    0,
-                    nullptr,
-                    1,
-                    &barrier
-                );
-
-                const VkImageCopy copy{
-                    .srcSubresource = {
-                        .aspectMask = VK_IMAGE_ASPECT_COLOR_BIT,
-                        .mipLevel = 0,
-                        .baseArrayLayer = 0,
-                        .layerCount = 1
-                    },
-                    .srcOffset = {
-                        .x = 0,
-                        .y = 0,
-                        .z = 0
-                    },
-                    .dstSubresource = {
-                        .aspectMask = VK_IMAGE_ASPECT_COLOR_BIT,
-                        .mipLevel = 0,
-                        .baseArrayLayer = 0,
-                        .layerCount = 1
-                    },
-                    .dstOffset = {
-                        .x = 0,
-                        .y = 0,
-                        .z = 0
-                    },
-                    .extent = {
-                        .width = 1280, // TODO
-                        .height = 720, // TODO
-                        .depth = 1
-                    }
-                };
-
-                vkCmdCopyImage(
-                    vkCommandBuffer,
-                    vkSwapchain->colorTargets[vkSwapchain->imageIndex]->image,
-                    VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL,
-                    vkSwapchain->resolveImages[vkSwapchain->imageIndex],
-                    barrier.newLayout,
-                    1,
-                    &copy
-                );
-
-                barrier.oldLayout = barrier.newLayout;
-                barrier.newLayout = VK_IMAGE_LAYOUT_PRESENT_SRC_KHR;
-                barrier.srcAccessMask = VK_ACCESS_NONE;
-                barrier.dstAccessMask = VK_ACCESS_NONE;
-
-                vkCmdPipelineBarrier(
-                    vkCommandBuffer,
-                    VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT,
-                    VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT,
-                    0,
-                    0,
-                    nullptr,
-                    0,
-                    nullptr,
-                    1,
-                    &barrier
-                );
-
-                endCommandBuffer(commandBuffer);
-                executeCommandQueueAndPresent(commandQueue, {}, {commandBuffer}, {}, nullptr, {});
-
-                // TODO: Bad.
-                vkDeviceWaitIdle(device);
-                destroyCommandPool(pool);
             }
 
             const VkPresentInfoKHR presentInfo{

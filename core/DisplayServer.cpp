@@ -226,35 +226,35 @@ namespace Vixen {
     void DisplayServer::setWindowedMode(const Window *window, const WindowMode mode) {
         window->surface->windowMode = mode;
 
-        int w;
-        int h;
+        int width;
+        int height;
         int x;
         int y;
-        int refreshRate = 0;
-        GLFWmonitor *m = nullptr;
 
-        const auto monitor = glfwGetPrimaryMonitor();
-        const auto &videoMode = glfwGetVideoMode(monitor);
+        int refreshRate = 0;
+        GLFWmonitor *monitor = nullptr;
+        const GLFWvidmode *videoMode = nullptr;
 
         switch (mode) {
                 using enum WindowMode;
 
             case ExclusiveFullscreen:
             case BorderlessFullscreen:
-                m = monitor;
+                monitor = glfwGetPrimaryMonitor();
+                videoMode = glfwGetVideoMode(monitor);
                 refreshRate = videoMode->refreshRate;
-                w = videoMode->width;
-                h = videoMode->height;
+                width = videoMode->width;
+                height = videoMode->height;
 
-                glfwSetWindowAttrib(window->window, GLFW_DECORATED, false);
-                glfwSetWindowAttrib(window->window, GLFW_FLOATING, true);
+                glfwSetWindowAttrib(window->window, GLFW_DECORATED, GLFW_FALSE);
+                glfwSetWindowAttrib(window->window, GLFW_FLOATING, GLFW_TRUE);
                 break;
 
             case Windowed:
                 glfwGetWindowPos(window->window, &x, &y);
-                glfwGetWindowSize(window->window, &w, &h);
-                glfwSetWindowAttrib(window->window, GLFW_DECORATED, true);
-                glfwSetWindowAttrib(window->window, GLFW_FLOATING, false);
+                glfwGetWindowSize(window->window, &width, &height);
+                glfwSetWindowAttrib(window->window, GLFW_DECORATED, GLFW_TRUE);
+                glfwSetWindowAttrib(window->window, GLFW_FLOATING, GLFW_FALSE);
                 break;
 
             case Minimized:
@@ -266,7 +266,7 @@ namespace Vixen {
                 break;
         }
 
-        glfwSetWindowMonitor(window->window, m, x, y, w, h, refreshRate);
+        glfwSetWindowMonitor(window->window, monitor, x, y, width, height, refreshRate);
     }
 
     void DisplayServer::setVSyncMode(const Window *window, const VSyncMode mode) {

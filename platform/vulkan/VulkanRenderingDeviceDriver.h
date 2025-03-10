@@ -92,7 +92,7 @@ namespace Vixen {
 
         Fence *createFence() override;
 
-        void waitOnFence(const Fence *fence) override;
+        auto waitOnFence(const Fence *fence) -> std::expected<void, Error> override;
 
         void destroyFence(Fence *fence) override;
 

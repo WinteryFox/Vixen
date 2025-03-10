@@ -1,5 +1,6 @@
 #pragma once
 
+#include "Swapchain.h"
 #include "command/CommandBuffer.h"
 #include "command/CommandPool.h"
 #include "command/Fence.h"
@@ -12,5 +13,8 @@ namespace Vixen {
         Semaphore* semaphore;
         Fence* fence;
         bool fenceSignaled;
+        std::vector<Semaphore*> waitSemaphores;
+        std::vector<Swapchain*> swapchainsToPresent;
+        std::vector<Semaphore*> transferSemaphores;
     };
 }
