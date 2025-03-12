@@ -342,7 +342,7 @@ namespace Vixen {
             error<CantCreateError>("Call to vkGetPhysicalDeviceSurfaceCapabilitiesKHR failed.");
 
         const auto surface = vkSwapchain->surface;
-        if (renderingContext->deviceSupportsPresent(deviceIndex, surface) != true)
+        if (!renderingContext->deviceSupportsPresent(deviceIndex, surface))
             error<CantCreateError>("Surface is not supported by device.");
 
         VkSwapchainCreateInfoKHR swapchainInfo{
@@ -812,8 +812,6 @@ namespace Vixen {
     auto VulkanRenderingDeviceDriver::createCommandQueue(
         const uint32_t queueFamilyIndex
     ) -> std::expected<CommandQueue *, Error> {
-        auto commandQueue = new VulkanCommandQueue();
-
         std::vector<Queue> &queueFamily = queueFamilies[queueFamilyIndex];
         uint32_t pickedQueueFamilyIndex = std::numeric_limits<uint32_t>::max();
         uint32_t pickedVirtualCount = std::numeric_limits<uint32_t>::max();
@@ -827,6 +825,7 @@ namespace Vixen {
         if (pickedQueueFamilyIndex >= queueFamily.size())
             return std::unexpected(Error::CantCreate);
 
+        auto commandQueue = new VulkanCommandQueue();
         commandQueue->queueFamily = queueFamilyIndex;
         commandQueue->queueIndex = pickedQueueFamilyIndex;
         queueFamily[pickedQueueFamilyIndex].virtualCount++;
@@ -990,7 +989,7 @@ namespace Vixen {
         for (const auto &swapchain: o->imageSemaphoresSwapchains)
             destroySwapchain(swapchain);
 
-        for (const auto &[fence, _]: o->imageSemaphoresForFences)
+        for (const auto &fence: o->imageSemaphoresForFences | std::views::keys)
             destroyFence(fence);
 
         delete o;
@@ -1343,8 +1342,10 @@ namespace Vixen {
 
             VkDescriptorSetLayout descriptorSetLayout = nullptr;
             if (vkCreateDescriptorSetLayout(device, &descriptorSetLayoutInfo, nullptr, &descriptorSetLayout) !=
-                VK_SUCCESS)
+                VK_SUCCESS) {
+                delete o;
                 error<CantCreateError>("Call to vkCreateDescriptorSetLayout failed.");
+            }
             o->descriptorSetLayouts.push_back(descriptorSetLayout);
 
             o->shaderStageInfos.push_back({
@@ -1375,8 +1376,12 @@ namespace Vixen {
         };
 
         VkPipelineLayout pipelineLayout;
-        if (vkCreatePipelineLayout(device, &pipelineLayoutInfo, nullptr, &pipelineLayout) != VK_SUCCESS)
+        if (vkCreatePipelineLayout(device, &pipelineLayoutInfo, nullptr, &pipelineLayout) != VK_SUCCESS) {
+            for (const auto &descriptorSetLayout: o->descriptorSetLayouts)
+                vkDestroyDescriptorSetLayout(device, descriptorSetLayout, nullptr);
+            delete o;
             error<CantCreateError>("Call to vkCreatePipelineLayout failed.");
+        }
         o->pipelineLayout = pipelineLayout;
 
         return o;

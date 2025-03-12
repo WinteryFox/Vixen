@@ -233,15 +233,23 @@ namespace Vixen {
         DEBUG_ASSERT(deviceIndex < physicalDevices.size());
         DEBUG_ASSERT(surface != nullptr);
 
-        VkBool32 support = VK_FALSE;
-        for (uint32_t i = 0; i < deviceQueueFamilyProperties[deviceIndex].size(); i++) {
-            if (vkGetPhysicalDeviceSurfaceSupportKHR(physicalDevices[deviceIndex], i,
-                                                     dynamic_cast<VulkanSurface *>(surface)->surface,
-                                                     &support) != VK_SUCCESS)
-                error<CantCreateError>("Failed to query surface support");
+        const auto &vkSurface = dynamic_cast<VulkanSurface *>(surface);
+
+        const auto physicalDevice = physicalDevices[deviceIndex];
+        const auto &queueFamilies = deviceQueueFamilyProperties[deviceIndex];
+        for (uint32_t i = 0; i < queueFamilies.size(); i++) {
+            if (queueFamilies[i].queueFlags & VK_QUEUE_GRAPHICS_BIT) {
+                VkBool32 presentSupport = VK_FALSE;
+                if (vkGetPhysicalDeviceSurfaceSupportKHR(physicalDevice, i, vkSurface->surface, &presentSupport) !=
+                    VK_SUCCESS)
+                    continue;
+
+                if (presentSupport)
+                    return true;
+            }
         }
 
-        return support;
+        return false;
     }
 
     uint32_t VulkanRenderingContextDriver::getQueueFamilyCount(const uint32_t deviceIndex) const {

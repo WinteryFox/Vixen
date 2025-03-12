@@ -10,6 +10,7 @@
 namespace Vixen {
     class RenderingDevice {
         Window *window;
+        Swapchain *swapchain;
 
         RenderingContextDriver *renderingContextDriver;
         RenderingDeviceDriver *renderingDeviceDriver;

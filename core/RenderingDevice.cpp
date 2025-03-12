@@ -28,15 +28,9 @@ namespace Vixen {
 
     void RenderingDevice::executeChainedCommands(const bool present, Fence *drawFence,
                                                  Semaphore *drawSemaphoresToSignal) {
-        std::vector<Swapchain *> swapchains{};
-        std::vector<Semaphore *> waitSemaphores = frames[frameIndex].waitSemaphores;
-
-        if (present)
-            swapchains = frames[frameIndex].swapchainsToPresent;
-
         renderingDeviceDriver->executeCommandQueueAndPresent(
             graphicsQueue,
-            waitSemaphores,
+            frames[frameIndex].waitSemaphores,
             frames[frameIndex].commandBuffer
                 ? std::vector{frames[frameIndex].commandBuffer}
                 : std::vector<CommandBuffer *>{},
@@ -44,11 +38,10 @@ namespace Vixen {
                 ? std::vector{drawSemaphoresToSignal}
                 : std::vector<Semaphore *>{},
             drawFence,
-            swapchains
+            present
+                ? frames[frameIndex].swapchainsToPresent
+                : std::vector<Swapchain*>{}
         );
-
-        waitSemaphores.resize(1);
-        waitSemaphores[0] = drawSemaphoresToSignal;
 
         frames[frameIndex].waitSemaphores.clear();
     }
@@ -71,7 +64,7 @@ namespace Vixen {
                     {},
                     {},
                     nullptr,
-                    {frames[frameIndex].swapchainsToPresent}
+                    frames[frameIndex].swapchainsToPresent
                 );
             }
 
