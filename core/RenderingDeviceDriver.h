@@ -6,9 +6,11 @@
 #include "BufferBarrier.h"
 #include "Framebuffer.h"
 #include "ImageBarrier.h"
+#include "IndexFormat.h"
 #include "MemoryBarrier.h"
 #include "PipelineStageFlags.h"
 #include "QueueFamilyFlags.h"
+#include "RenderPass.h"
 #include "Surface.h"
 #include "Swapchain.h"
 #include "command/CommandPool.h"
@@ -45,8 +47,8 @@ namespace Vixen {
 
         virtual void resizeSwapchain(CommandQueue *commandQueue, Swapchain *swapchain, uint32_t imageCount) = 0;
 
-        virtual Framebuffer* acquireSwapchainFramebuffer(CommandQueue *commandQueue, Swapchain *swapchain,
-                                                 bool &resizeRequired) = 0;
+        virtual Framebuffer *acquireSwapchainFramebuffer(CommandQueue *commandQueue, Swapchain *swapchain,
+                                                         bool &resizeRequired) = 0;
 
         virtual void destroySwapchain(Swapchain *swapchain) = 0;
 
@@ -76,7 +78,8 @@ namespace Vixen {
 
         virtual void destroyBuffer(Buffer *buffer) = 0;
 
-        virtual auto getQueueFamily(QueueFamilyFlags queueFamilyFlags, Surface *surface) -> std::expected<uint32_t, Error> = 0;
+        virtual auto getQueueFamily(QueueFamilyFlags queueFamilyFlags,
+                                    Surface *surface) -> std::expected<uint32_t, Error> = 0;
 
         virtual auto createCommandQueue(uint32_t queueFamilyIndex) -> std::expected<CommandQueue *, Error> = 0;
 
@@ -109,6 +112,29 @@ namespace Vixen {
         virtual void destroyShaderModules(Shader *shader) = 0;
 
         virtual void destroyShader(Shader *shader) = 0;
+
+        virtual void commandBeginRenderPass(CommandBuffer *commandBuffer,
+                                            RenderPass *renderPass,
+                                            Framebuffer *framebuffer,
+                                            CommandBufferType commandBufferType,
+                                            const glm::uvec2 &rectangle,
+                                            const std::vector<glm::vec3> &clearValues) = 0;
+
+        virtual void commandEndRenderPass(CommandBuffer *commandBuffer) = 0;
+
+        virtual void commandSetViewport(CommandBuffer *commandBuffer, const std::vector<glm::uvec2> &viewports) = 0;
+
+        virtual void commandSetScissor(CommandBuffer *commandBuffer, const std::vector<glm::uvec2> &scissors) = 0;
+
+        virtual void commandBindVertexBuffers(CommandBuffer *commandBuffer,
+                                              uint32_t count,
+                                              const std::vector<Buffer *> &buffers,
+                                              const std::vector<uint64_t> &offsets) = 0;
+
+        virtual void commandBindIndexBuffers(CommandBuffer *commandBuffer,
+                                             Buffer *buffer,
+                                             IndexFormat format,
+                                             uint64_t offset) = 0;
 
         virtual void commandPipelineBarrier(CommandBuffer *commandBuffer,
                                             PipelineStageFlags sourceStages,

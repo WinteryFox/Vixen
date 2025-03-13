@@ -72,9 +72,8 @@ namespace Vixen {
         }
     }
 
-    RenderingDevice::RenderingDevice(RenderingContextDriver *renderingContext, Window *window)
-        : window(window),
-          renderingContextDriver(renderingContext),
+    RenderingDevice::RenderingDevice(RenderingContextDriver *renderingContext)
+        : renderingContextDriver(renderingContext),
           frameIndex(0) {
         const auto devices = renderingContextDriver->getDevices();
 

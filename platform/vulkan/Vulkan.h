@@ -49,7 +49,7 @@ namespace Vixen {
     static_assert(
         ENUM_MEMBERS_EQUAL(SamplerRepeatMode::MirrorClampToEdge, VK_SAMPLER_ADDRESS_MODE_MIRROR_CLAMP_TO_EDGE));
 
-    [[maybe_unused]] static bool isDepthFormat(const VkFormat format) {
+    [[maybe_unused]] constexpr bool isDepthFormat(const VkFormat format) {
         switch (format) {
             case VK_FORMAT_D32_SFLOAT:
             case VK_FORMAT_D32_SFLOAT_S8_UINT:
@@ -282,7 +282,7 @@ namespace Vixen {
         VK_FORMAT_G16_B16_R16_3PLANE_444_UNORM
     };
 
-    static VkCommandBufferLevel toVkCommandBufferLevel(const CommandBufferType type) {
+    static constexpr VkCommandBufferLevel toVkCommandBufferLevel(const CommandBufferType type) {
         switch (type) {
             case CommandBufferType::Primary:
                 return VK_COMMAND_BUFFER_LEVEL_PRIMARY;
@@ -294,7 +294,19 @@ namespace Vixen {
         return VK_COMMAND_BUFFER_LEVEL_PRIMARY;
     }
 
-    static VkSampleCountFlagBits toVkSampleCountFlagBits(const ImageSamples &samples) {
+    static constexpr VkIndexType toVkIndexType(const IndexFormat format) {
+        switch (format) {
+            case IndexFormat::UnsignedInt16:
+                return VK_INDEX_TYPE_UINT16;
+
+            case IndexFormat::UnsignedInt32:
+                return VK_INDEX_TYPE_UINT32;
+        }
+
+        throw std::runtime_error("Unknown IndexFormat");
+    }
+
+    static constexpr VkSampleCountFlagBits toVkSampleCountFlagBits(const ImageSamples &samples) {
         switch (samples) {
                 using enum ImageSamples;
 
@@ -381,7 +393,7 @@ namespace Vixen {
         throw std::runtime_error("Unsupported image type");
     }
 
-    [[maybe_unused]] static VkAttachmentLoadOp toVkLoadAction(const LoadAction loadAction) {
+    [[maybe_unused]] static constexpr VkAttachmentLoadOp toVkLoadAction(const LoadAction loadAction) {
         switch (loadAction) {
                 using enum LoadAction;
 
@@ -401,7 +413,7 @@ namespace Vixen {
         return VK_ATTACHMENT_LOAD_OP_DONT_CARE;
     }
 
-    [[maybe_unused]] static VkAttachmentStoreOp toVkStoreAction(const StoreAction storeAction) {
+    [[maybe_unused]] static constexpr VkAttachmentStoreOp toVkStoreAction(const StoreAction storeAction) {
         switch (storeAction) {
                 using enum StoreAction;
 
@@ -425,7 +437,7 @@ namespace Vixen {
         throw std::runtime_error("Unsupported store action");
     }
 
-    static VkPipelineStageFlags2 toVkPipelineStages(const PipelineStageFlags flags) {
+    static constexpr VkPipelineStageFlags2 toVkPipelineStages(const PipelineStageFlags flags) {
         VkPipelineStageFlags vkFlags = 0;
 
         if (flags & PipelineStageFlags::Top)
@@ -479,7 +491,7 @@ namespace Vixen {
         return vkFlags;
     }
 
-    static VkAccessFlags toVkAccessFlags(const BarrierAccessFlags flags) {
+    static constexpr VkAccessFlags toVkAccessFlags(const BarrierAccessFlags flags) {
         VkAccessFlags vkFlags = 0;
 
         if (flags & BarrierAccessFlags::IndirectCommandsRead)
@@ -547,7 +559,7 @@ namespace Vixen {
         return vkFlags;
     }
 
-    static VkImageLayout toVkImageLayout(const ImageLayout layout) {
+    static constexpr VkImageLayout toVkImageLayout(const ImageLayout layout) {
         switch (layout) {
                 using enum ImageLayout;
             case Undefined:
@@ -555,50 +567,38 @@ namespace Vixen {
                 break;
 
             case General:
-                return VK_IMAGE_LAYOUT_GENERAL;
-                break;
-
             case StorageOptimal:
                 return VK_IMAGE_LAYOUT_GENERAL;
-                break;
 
             case ColorAttachmentOptimal:
                 return VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
-                break;
 
             case DepthStencilAttachmentOptimal:
                 return VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL;
-                break;
 
             case DepthStencilReadOnlyOptimal:
                 return VK_IMAGE_LAYOUT_DEPTH_STENCIL_READ_ONLY_OPTIMAL;
-                break;
 
             case ShaderReadOnlyOptimal:
                 return VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
-                break;
 
             case CopySourceOptimal:
                 return VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL;
-                break;
 
             case CopyDestinationOptimal:
                 return VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL;
-                break;
 
             case ResolveSourceOptimal:
                 return VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL;
-                break;
 
             case ResolveDestinationOptimal:
                 return VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL;
-                break;
         }
 
         throw std::invalid_argument("Unknown image layout");
     }
 
-    static VkImageAspectFlags toVkImageAspectFlags(ImageAspectFlags flags) {
+    static constexpr VkImageAspectFlags toVkImageAspectFlags(const ImageAspectFlags flags) {
         VkImageAspectFlags vkFlags = 0;
 
         if (flags & ImageAspectFlags::Color)
@@ -613,20 +613,20 @@ namespace Vixen {
         return vkFlags;
     }
 
-    [[maybe_unused]] static std::string getVersionString(glm::ivec3 version) {
+    [[maybe_unused]] static constexpr std::string getVersionString(const glm::uvec3 version) {
         return std::to_string(version.x) + "." +
                std::to_string(version.y) + "." +
                std::to_string(version.z);
     }
 
-    [[maybe_unused]] static std::string getVersionString(const uint32_t version) {
+    [[maybe_unused]] static constexpr std::string getVersionString(const uint32_t version) {
         return std::to_string(VK_API_VERSION_MAJOR(version)) + "." +
                std::to_string(VK_API_VERSION_MINOR(version)) + "." +
                std::to_string(VK_API_VERSION_PATCH(version));
     }
 
 #ifdef DEBUG_ENABLED
-    [[maybe_unused]] static VkBool32 vkDebugCallback(
+    [[maybe_unused]] static constexpr VkBool32 vkDebugCallback(
         const VkDebugUtilsMessageSeverityFlagBitsEXT messageSeverity,
         const VkDebugUtilsMessageTypeFlagsEXT messageTypes,
         const VkDebugUtilsMessengerCallbackDataEXT *pCallbackData,

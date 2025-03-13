@@ -8,6 +8,7 @@
 #include <Vulkan.h>
 
 #include "VulkanRenderingContextDriver.h"
+#include "VulkanRenderPass.h"
 #include "VulkanSwapchain.h"
 #include "buffer/VulkanBuffer.h"
 #include "command/VulkanCommandBuffer.h"
@@ -1434,6 +1435,138 @@ namespace Vixen {
         };
     }
 
+    void VulkanRenderingDeviceDriver::commandBeginRenderPass(
+        CommandBuffer *commandBuffer,
+        RenderPass *renderPass,
+        Framebuffer *framebuffer,
+        CommandBufferType commandBufferType,
+        const glm::uvec2 &rectangle,
+        const std::vector<glm::vec3> &clearValues
+    ) {
+        std::vector<VkClearValue> vkClearValues{};
+        vkClearValues.reserve(clearValues.size());
+        for (const auto &clearValue: clearValues)
+            vkClearValues.push_back({
+                .color = {
+                    clearValue.r,
+                    clearValue.g,
+                    clearValue.b,
+                    0.0f
+                },
+                .depthStencil = {}
+            });
+
+        const VkRenderPassBeginInfo info{
+            .sType = VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO,
+            .pNext = nullptr,
+            .renderPass = dynamic_cast<VulkanRenderPass *>(renderPass)->renderPass,
+            .framebuffer = dynamic_cast<VulkanFramebuffer *>(framebuffer)->framebuffer,
+            .renderArea = {
+                .offset = {
+                    .x = 0,
+                    .y = 0
+                },
+                .extent = {
+                    .width = rectangle.x,
+                    .height = rectangle.y
+                }
+            },
+            .clearValueCount = static_cast<uint32_t>(vkClearValues.size()),
+            .pClearValues = vkClearValues.data()
+        };
+
+        const auto &vkCommandBuffer = dynamic_cast<VulkanCommandBuffer *>(commandBuffer);
+        vkCmdBeginRenderPass(vkCommandBuffer->commandBuffer, &info, VK_SUBPASS_CONTENTS_INLINE);
+    }
+
+    void VulkanRenderingDeviceDriver::commandEndRenderPass(CommandBuffer *commandBuffer) {
+        vkCmdEndRenderPass(dynamic_cast<VulkanCommandBuffer *>(commandBuffer)->commandBuffer);
+    }
+
+    void VulkanRenderingDeviceDriver::commandSetViewport(
+        CommandBuffer *commandBuffer,
+        const std::vector<glm::uvec2> &viewports
+    ) {
+        std::vector<VkViewport> vkViewports{};
+        vkViewports.reserve(viewports.size());
+        for (const auto &viewport: viewports)
+            vkViewports.push_back({
+                .x = 0.0f,
+                .y = 0.0f,
+                .width = static_cast<float>(viewport.x),
+                .height = static_cast<float>(viewport.y),
+                .minDepth = 0.0f,
+                .maxDepth = 1.0f
+            });
+
+        vkCmdSetViewport(
+            dynamic_cast<VulkanCommandBuffer *>(commandBuffer)->commandBuffer,
+            0,
+            vkViewports.size(),
+            vkViewports.data()
+        );
+    }
+
+    void VulkanRenderingDeviceDriver::commandSetScissor(
+        CommandBuffer *commandBuffer,
+        const std::vector<glm::uvec2> &scissors
+    ) {
+        std::vector<VkRect2D> vkScissors{};
+        vkScissors.reserve(scissors.size());
+        for (const auto &scissor: scissors)
+            vkScissors.push_back({
+                .offset = {
+                    .x = 0,
+                    .y = 0
+                },
+                .extent = {
+                    .width = scissor.x,
+                    .height = scissor.y
+                }
+            });
+
+        vkCmdSetScissor(
+            dynamic_cast<VulkanCommandBuffer *>(commandBuffer)->commandBuffer,
+            0,
+            vkScissors.size(),
+            vkScissors.data()
+        );
+    }
+
+    void VulkanRenderingDeviceDriver::commandBindVertexBuffers(
+        CommandBuffer *commandBuffer,
+        uint32_t count,
+        const std::vector<Buffer *> &buffers,
+        const std::vector<uint64_t> &offsets
+    ) {
+        std::vector<VkBuffer> vkBuffers{};
+        vkBuffers.reserve(buffers.size());
+        for (const auto &buffer: buffers)
+            vkBuffers.push_back(dynamic_cast<VulkanBuffer *>(buffer)->buffer);
+
+        vkCmdBindVertexBuffers(
+            dynamic_cast<VulkanCommandBuffer *>(commandBuffer)->commandBuffer,
+            0,
+            vkBuffers.size(),
+            vkBuffers.data(),
+            offsets.data()
+        );
+    }
+
+    void VulkanRenderingDeviceDriver::commandBindIndexBuffers(
+        CommandBuffer *commandBuffer,
+        Buffer *buffer,
+        const IndexFormat format,
+        const uint64_t offset
+    ) {
+        vkCmdBindIndexBuffer(
+            dynamic_cast<VulkanCommandBuffer *>(commandBuffer)->commandBuffer,
+            dynamic_cast<VulkanBuffer *>(buffer)->buffer,
+            offset,
+            toVkIndexType(format)
+        );
+    }
+
     void VulkanRenderingDeviceDriver::commandPipelineBarrier(
         CommandBuffer *commandBuffer,
         const PipelineStageFlags sourceStages,
@@ -1790,12 +1923,29 @@ namespace Vixen {
         );
     }
 
-    void VulkanRenderingDeviceDriver::commandBeginLabel(CommandBuffer *commandBuffer, const std::string &label,
-                                                        const glm::vec3 &color) {
-        // TODO
+    void VulkanRenderingDeviceDriver::commandBeginLabel(
+        CommandBuffer *commandBuffer,
+        const std::string &label,
+        const glm::vec3 &color
+    ) {
+        constexpr VkDebugUtilsLabelEXT info{
+            .sType = VK_STRUCTURE_TYPE_DEBUG_UTILS_LABEL_EXT,
+            .pNext = nullptr,
+            .pLabelName = label.c_str(),
+            .color = {
+                color.r,
+                color.g,
+                color.b
+            }
+        };
+
+        vkCmdBeginDebugUtilsLabelEXT(
+            dynamic_cast<VulkanCommandBuffer *>(commandBuffer)->commandBuffer,
+            &info
+        );
     }
 
     void VulkanRenderingDeviceDriver::commandEndLabel(CommandBuffer *commandBuffer) {
-        // TODO
+        vkCmdEndDebugUtilsLabelEXT(dynamic_cast<VulkanCommandBuffer *>(commandBuffer)->commandBuffer);
     }
 }

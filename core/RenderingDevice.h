@@ -9,9 +9,6 @@
 
 namespace Vixen {
     class RenderingDevice {
-        Window *window;
-        Swapchain *swapchain;
-
         RenderingContextDriver *renderingContextDriver;
         RenderingDeviceDriver *renderingDeviceDriver;
 
@@ -39,7 +36,7 @@ namespace Vixen {
         void executeFrame(bool present);
 
     public:
-        RenderingDevice(RenderingContextDriver *renderingContext, Window *window);
+        RenderingDevice(RenderingContextDriver *renderingContext);
 
         ~RenderingDevice();
 

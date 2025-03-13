@@ -148,6 +148,23 @@ namespace Vixen {
 
         static VkBufferImageCopy _bufferImageCopyRegion(const BufferImageCopyRegion &region);
 
+        void commandBeginRenderPass(CommandBuffer *commandBuffer,RenderPass *renderPass, Framebuffer *framebuffer,
+                                    CommandBufferType commandBufferType, const glm::uvec2 &rectangle,
+                                    const std::vector<glm::vec3> &clearValues) override;
+
+        void commandEndRenderPass(CommandBuffer *commandBuffer) override;
+
+        void commandSetViewport(CommandBuffer *commandBuffer, const std::vector<glm::uvec2> &viewports) override;
+
+        void commandSetScissor(CommandBuffer *commandBuffer, const std::vector<glm::uvec2> &scissors) override;
+
+        void commandBindVertexBuffers(CommandBuffer *commandBuffer, uint32_t count,
+                                      const std::vector<Buffer *> &buffers,
+                                      const std::vector<uint64_t> &offsets) override;
+
+        void commandBindIndexBuffers(CommandBuffer *commandBuffer, Buffer *buffer, IndexFormat format,
+                                     uint64_t offset) override;
+
         void commandPipelineBarrier(CommandBuffer *commandBuffer,
                                     PipelineStageFlags sourceStages,
                                     PipelineStageFlags destinationStages,

@@ -74,6 +74,7 @@ add_library(
         RenderingDevice.cpp
         RenderingDevice.h
         DriverDevice.h
+        RenderPass.h
 )
 target_link_libraries(
         Vixen
