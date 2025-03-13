@@ -31,7 +31,7 @@ namespace Vixen {
 
         void endFrame();
 
-        void executeChainedCommands(bool present, Fence *drawFence, Semaphore *drawSemaphoresToSignal);
+        void executeChainedCommands(bool present, Fence *drawFence, Semaphore *drawSemaphoreToSignal);
 
         void executeFrame(bool present);
 

@@ -27,15 +27,15 @@ namespace Vixen {
     }
 
     void RenderingDevice::executeChainedCommands(const bool present, Fence *drawFence,
-                                                 Semaphore *drawSemaphoresToSignal) {
+                                                 Semaphore *drawSemaphoreToSignal) {
         renderingDeviceDriver->executeCommandQueueAndPresent(
             graphicsQueue,
             frames[frameIndex].waitSemaphores,
             frames[frameIndex].commandBuffer
                 ? std::vector{frames[frameIndex].commandBuffer}
                 : std::vector<CommandBuffer *>{},
-            drawSemaphoresToSignal
-                ? std::vector{drawSemaphoresToSignal}
+            drawSemaphoreToSignal
+                ? std::vector{drawSemaphoreToSignal}
                 : std::vector<Semaphore *>{},
             drawFence,
             present
