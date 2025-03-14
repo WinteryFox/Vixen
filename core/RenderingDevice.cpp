@@ -4,6 +4,8 @@
 #include <bits/ranges_algo.h>
 #include <spdlog/spdlog.h>
 
+#include "error/Macros.h"
+
 namespace Vixen {
     void RenderingDevice::waitForFrame(const uint32_t frameIndex) {
         if (!frames[frameIndex].fenceSignaled)
@@ -40,7 +42,7 @@ namespace Vixen {
             drawFence,
             present
                 ? frames[frameIndex].swapchainsToPresent
-                : std::vector<Swapchain*>{}
+                : std::vector<Swapchain *>{}
         );
 
         frames[frameIndex].waitSemaphores.clear();
@@ -72,9 +74,15 @@ namespace Vixen {
         }
     }
 
-    RenderingDevice::RenderingDevice(RenderingContextDriver *renderingContext)
+    RenderingDevice::RenderingDevice(RenderingContextDriver *renderingContext, Window *mainWindow)
         : renderingContextDriver(renderingContext),
           frameIndex(0) {
+        Surface *mainSurface = nullptr;
+        if (mainWindow) {
+            DEBUG_ASSERT(mainWindow->surface != nullptr);
+            mainSurface = mainWindow->surface;
+        }
+
         const auto devices = renderingContextDriver->getDevices();
 
         spdlog::trace(
@@ -89,7 +97,7 @@ namespace Vixen {
                         "            * Supports presentation? {}",
                         std::to_string(i),
                         deviceName,
-                        renderingContext->deviceSupportsPresent(i, window->surface) ? "Yes" : "No"
+                        renderingContext->deviceSupportsPresent(i, mainSurface) ? "Yes" : "No"
                     );
                 }),
                 std::string{},
@@ -103,8 +111,8 @@ namespace Vixen {
         uint32_t deviceScore = 0;
         for (uint32_t i = 0; i < devices.size(); i++) {
             const auto &deviceOption = devices[i];
-            const bool supportsPresent = window->surface != nullptr
-                                             ? renderingContext->deviceSupportsPresent(i, window->surface)
+            const bool supportsPresent = mainSurface != nullptr
+                                             ? renderingContext->deviceSupportsPresent(i, mainSurface)
                                              : false;
 
             // TODO: Score devices
@@ -122,7 +130,7 @@ namespace Vixen {
         transferQueueFamily = renderingDeviceDriver->getQueueFamily(QueueFamilyFlags::Transfer, nullptr).value();
         transferQueue = renderingDeviceDriver->createCommandQueue(transferQueueFamily).value();
 
-        presentQueueFamily = renderingDeviceDriver->getQueueFamily(static_cast<QueueFamilyFlags>(0), window->surface)
+        presentQueueFamily = renderingDeviceDriver->getQueueFamily(static_cast<QueueFamilyFlags>(0), mainSurface)
                 .value();
         presentQueue = renderingDeviceDriver->createCommandQueue(presentQueueFamily).value();
 
@@ -136,7 +144,10 @@ namespace Vixen {
                 .commandBuffer = renderingDeviceDriver->createCommandBuffer(commandPool),
                 .semaphore = renderingDeviceDriver->createSemaphore(),
                 .fence = renderingDeviceDriver->createFence(),
-                .fenceSignaled = false
+                .fenceSignaled = false,
+                .waitSemaphores = {},
+                .swapchainsToPresent = {},
+                .transferSemaphores = {}
             });
         }
         framesDrawn = frames.size();

@@ -75,6 +75,7 @@ add_library(
         RenderingDevice.h
         DriverDevice.h
         RenderPass.h
+        ClearValue.h
 )
 target_link_libraries(
         Vixen

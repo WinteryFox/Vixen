@@ -4,6 +4,7 @@
 #include <string>
 
 #include "BufferBarrier.h"
+#include "ClearValue.h"
 #include "Framebuffer.h"
 #include "ImageBarrier.h"
 #include "IndexFormat.h"
@@ -118,7 +119,7 @@ namespace Vixen {
                                             Framebuffer *framebuffer,
                                             CommandBufferType commandBufferType,
                                             const glm::uvec2 &rectangle,
-                                            const std::vector<glm::vec3> &clearValues) = 0;
+                                            const std::vector<ClearValue> &clearValues) = 0;
 
         virtual void commandEndRenderPass(CommandBuffer *commandBuffer) = 0;
 

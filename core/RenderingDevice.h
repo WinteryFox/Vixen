@@ -36,7 +36,7 @@ namespace Vixen {
         void executeFrame(bool present);
 
     public:
-        RenderingDevice(RenderingContextDriver *renderingContext);
+        RenderingDevice(RenderingContextDriver *renderingContext, Window *mainWindow);
 
         ~RenderingDevice();
 

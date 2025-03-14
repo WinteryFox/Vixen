@@ -1110,18 +1110,25 @@ namespace Vixen {
 
         if (format.usage & ImageUsage::Sampling)
             imageCreateInfo.usage |= VK_IMAGE_USAGE_SAMPLED_BIT;
+
         if (format.usage & ImageUsage::Storage)
             imageCreateInfo.usage |= VK_IMAGE_USAGE_STORAGE_BIT;
+
         if (format.usage & ImageUsage::ColorAttachment)
             imageCreateInfo.usage |= VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT;
+
         if (format.usage & ImageUsage::DepthStencilAttachment)
             imageCreateInfo.usage |= VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT;
+
         if (format.usage & ImageUsage::InputAttachment)
             imageCreateInfo.usage |= VK_IMAGE_USAGE_INPUT_ATTACHMENT_BIT;
+
         if (format.usage & ImageUsage::Update)
             imageCreateInfo.usage |= VK_IMAGE_USAGE_TRANSFER_DST_BIT;
+
         if (format.usage & ImageUsage::CopySource)
             imageCreateInfo.usage |= VK_IMAGE_USAGE_TRANSFER_SRC_BIT;
+
         if (format.usage & ImageUsage::CopyDestination)
             imageCreateInfo.usage |= VK_IMAGE_USAGE_TRANSFER_DST_BIT;
 
@@ -1441,46 +1448,115 @@ namespace Vixen {
         Framebuffer *framebuffer,
         CommandBufferType commandBufferType,
         const glm::uvec2 &rectangle,
-        const std::vector<glm::vec3> &clearValues
+        const std::vector<ClearValue> &clearValues
     ) {
-        std::vector<VkClearValue> vkClearValues{};
-        vkClearValues.reserve(clearValues.size());
-        for (const auto &clearValue: clearValues)
-            vkClearValues.push_back({
-                .color = {
-                    clearValue.r,
-                    clearValue.g,
-                    clearValue.b,
-                    0.0f
-                },
-                .depthStencil = {}
-            });
+        const auto *vkCommandBuffer = dynamic_cast<VulkanCommandBuffer *>(commandBuffer);
+        auto *vkFramebuffer = dynamic_cast<VulkanFramebuffer *>(framebuffer);
 
-        const VkRenderPassBeginInfo info{
-            .sType = VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO,
-            .pNext = nullptr,
-            .renderPass = dynamic_cast<VulkanRenderPass *>(renderPass)->renderPass,
-            .framebuffer = dynamic_cast<VulkanFramebuffer *>(framebuffer)->framebuffer,
-            .renderArea = {
-                .offset = {
-                    .x = 0,
-                    .y = 0
-                },
-                .extent = {
-                    .width = rectangle.x,
-                    .height = rectangle.y
+        if (vkFramebuffer->swapchainAcquired) {
+            const VkImageMemoryBarrier imageBarrier{
+                .sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER,
+                .pNext = nullptr,
+                .srcAccessMask = VK_ACCESS_NONE,
+                .dstAccessMask = VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT,
+                .oldLayout = VK_IMAGE_LAYOUT_UNDEFINED,
+                .newLayout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL,
+                .srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED,
+                .dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED,
+                .image = vkFramebuffer->swapchainImage,
+                .subresourceRange = vkFramebuffer->subresourceRange
+            };
+            vkCmdPipelineBarrier(
+                vkCommandBuffer->commandBuffer,
+                VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT,
+                VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT,
+                0,
+                0,
+                nullptr,
+                0,
+                nullptr,
+                0,
+                &imageBarrier
+            );
+            vkFramebuffer->swapchainAcquired = false;
+        }
+
+        if (enabledFeatures.dynamicRendering) {
+            std::vector<VkRenderingAttachmentInfo> attachments{
+                {
+                    .sType = VK_STRUCTURE_TYPE_RENDERING_ATTACHMENT_INFO,
+                    .pNext = nullptr,
+                    .imageView = vkFramebuffer->swapchainImageView,
+                    .imageLayout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL,
+                    .resolveMode = VK_RESOLVE_MODE_NONE,
+                    .resolveImageView = VK_NULL_HANDLE,
+                    .resolveImageLayout = VK_IMAGE_LAYOUT_UNDEFINED,
+                    .loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR,
+                    .storeOp = VK_ATTACHMENT_STORE_OP_STORE,
+                    .clearValue = {
+                        .color = {
+                            clearValues[0].color.r,
+                            clearValues[0].color.g,
+                            clearValues[0].color.b,
+                            clearValues[0].color.a
+                        }
+                    }
                 }
-            },
-            .clearValueCount = static_cast<uint32_t>(vkClearValues.size()),
-            .pClearValues = vkClearValues.data()
-        };
+            };
 
-        const auto &vkCommandBuffer = dynamic_cast<VulkanCommandBuffer *>(commandBuffer);
-        vkCmdBeginRenderPass(vkCommandBuffer->commandBuffer, &info, VK_SUBPASS_CONTENTS_INLINE);
+            const VkRenderingInfo info{
+                .sType = VK_STRUCTURE_TYPE_RENDERING_INFO,
+                .pNext = nullptr,
+                .flags = 0,
+                .renderArea = {
+                    .offset = {
+                        .x = 0,
+                        .y = 0
+                    },
+                    .extent = {
+                        .width = rectangle.x,
+                        .height = rectangle.y
+                    }
+                },
+                .layerCount = 1,
+                .viewMask = 0,
+                .colorAttachmentCount = 1,
+                .pColorAttachments = attachments.data(),
+                .pDepthAttachment = nullptr,
+                .pStencilAttachment = nullptr
+            };
+
+            vkCmdBeginRendering(vkCommandBuffer->commandBuffer, &info);
+        } else {
+            const VkRenderPassBeginInfo info{
+                .sType = VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO,
+                .pNext = nullptr,
+                .renderPass = dynamic_cast<VulkanRenderPass *>(renderPass)->renderPass,
+                .framebuffer = dynamic_cast<VulkanFramebuffer *>(framebuffer)->framebuffer,
+                .renderArea = {
+                    .offset = {
+                        .x = 0,
+                        .y = 0
+                    },
+                    .extent = {
+                        .width = rectangle.x,
+                        .height = rectangle.y
+                    }
+                },
+                .clearValueCount = static_cast<uint32_t>(clearValues.size()),
+                .pClearValues = reinterpret_cast<const VkClearValue *>(clearValues.data())
+            };
+
+            vkCmdBeginRenderPass(vkCommandBuffer->commandBuffer, &info, VK_SUBPASS_CONTENTS_INLINE);
+        }
     }
 
     void VulkanRenderingDeviceDriver::commandEndRenderPass(CommandBuffer *commandBuffer) {
-        vkCmdEndRenderPass(dynamic_cast<VulkanCommandBuffer *>(commandBuffer)->commandBuffer);
+        if (enabledFeatures.dynamicRendering) {
+            vkCmdEndRendering(dynamic_cast<VulkanCommandBuffer *>(commandBuffer)->commandBuffer);
+        } else {
+            vkCmdEndRenderPass(dynamic_cast<VulkanCommandBuffer *>(commandBuffer)->commandBuffer);
+        }
     }
 
     void VulkanRenderingDeviceDriver::commandSetViewport(
@@ -1575,7 +1651,7 @@ namespace Vixen {
         const std::vector<BufferBarrier> &bufferBarriers,
         const std::vector<ImageBarrier> &imageBarriers
     ) {
-        if (!enabledFeatures.dynamicRendering) {
+        if (!enabledFeatures.synchronization2) {
             std::vector<VkMemoryBarrier> vkMemoryBarriers{};
             vkMemoryBarriers.reserve(memoryBarriers.size());
             for (const auto &[sourceAccess, targetAccess]: memoryBarriers) {
@@ -1643,10 +1719,12 @@ namespace Vixen {
             std::vector<VkMemoryBarrier2> vkMemoryBarriers{};
             vkMemoryBarriers.reserve(memoryBarriers.size());
             for (const auto &[sourceAccess, targetAccess]: memoryBarriers) {
-                vkMemoryBarriers.push_back({
-                    .sType = VK_STRUCTURE_TYPE_MEMORY_BARRIER_2,
+                vkMemoryBarriers.push_back(VkMemoryBarrier2{
+                    .sType = VK_STRUCTURE_TYPE_MEMORY_BARRIER,
                     .pNext = nullptr,
+                    .srcStageMask = toVkPipelineStages(sourceStages),
                     .srcAccessMask = toVkAccessFlags(sourceAccess),
+                    .dstStageMask = toVkPipelineStages(destinationStages),
                     .dstAccessMask = toVkAccessFlags(targetAccess)
                 });
             }
@@ -1655,9 +1733,11 @@ namespace Vixen {
             vkBufferBarriers.reserve(bufferBarriers.size());
             for (const auto &[buffer, sourceAccess, destinationAccess, offset, size]: bufferBarriers) {
                 vkBufferBarriers.push_back({
-                    .sType = VK_STRUCTURE_TYPE_BUFFER_MEMORY_BARRIER_2,
+                    .sType = VK_STRUCTURE_TYPE_BUFFER_MEMORY_BARRIER,
                     .pNext = nullptr,
+                    .srcStageMask = toVkPipelineStages(sourceStages),
                     .srcAccessMask = toVkAccessFlags(sourceAccess),
+                    .dstStageMask = toVkPipelineStages(destinationStages),
                     .dstAccessMask = toVkAccessFlags(destinationAccess),
                     .srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED,
                     .dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED,
@@ -1928,7 +2008,7 @@ namespace Vixen {
         const std::string &label,
         const glm::vec3 &color
     ) {
-        constexpr VkDebugUtilsLabelEXT info{
+        const VkDebugUtilsLabelEXT info{
             .sType = VK_STRUCTURE_TYPE_DEBUG_UTILS_LABEL_EXT,
             .pNext = nullptr,
             .pLabelName = label.c_str(),

@@ -64,7 +64,7 @@ namespace Vixen {
                 error<CantCreateError>("Unsupported rendering driver.");
         }
 
-        renderingDevice = new RenderingDevice(renderingContext);
+        renderingDevice = new RenderingDevice(renderingContext, displayServer->getMainWindow());
     }
 
     Application::~Application() {

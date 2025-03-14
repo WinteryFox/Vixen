@@ -148,9 +148,9 @@ namespace Vixen {
 
         static VkBufferImageCopy _bufferImageCopyRegion(const BufferImageCopyRegion &region);
 
-        void commandBeginRenderPass(CommandBuffer *commandBuffer,RenderPass *renderPass, Framebuffer *framebuffer,
+        void commandBeginRenderPass(CommandBuffer *commandBuffer, RenderPass *renderPass, Framebuffer *framebuffer,
                                     CommandBufferType commandBufferType, const glm::uvec2 &rectangle,
-                                    const std::vector<glm::vec3> &clearValues) override;
+                                    const std::vector<ClearValue> &clearValues) override;
 
         void commandEndRenderPass(CommandBuffer *commandBuffer) override;
 

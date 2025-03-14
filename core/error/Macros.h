@@ -4,6 +4,8 @@
 #include <string>
 #include <spdlog/spdlog.h>
 
+#include "CantCreateError.h"
+
 namespace Vixen {
     template<typename T>
     constexpr void error(const std::string &message,

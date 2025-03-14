@@ -232,6 +232,7 @@ namespace Vixen {
     bool VulkanRenderingContextDriver::deviceSupportsPresent(const uint32_t deviceIndex, Surface *surface) {
         DEBUG_ASSERT(deviceIndex < physicalDevices.size());
         DEBUG_ASSERT(surface != nullptr);
+        DEBUG_ASSERT(dynamic_cast<VulkanSurface *>(surface)->surface != nullptr);
 
         const auto &vkSurface = dynamic_cast<VulkanSurface *>(surface);
 
