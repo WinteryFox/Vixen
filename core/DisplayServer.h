@@ -1,5 +1,6 @@
 #pragma once
 
+#include <RenderingContextDriver.h>
 #include <spdlog/spdlog.h>
 
 #include "Monitor.h"
@@ -14,6 +15,9 @@ namespace Vixen {
 
     class DisplayServer final {
         RenderingDriver driver;
+
+        RenderingContextDriver *renderingContextDriver;
+        RenderingDevice *renderingDevice;
 
         Window *mainWindow = nullptr;
 

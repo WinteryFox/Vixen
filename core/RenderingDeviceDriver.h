@@ -44,7 +44,7 @@ namespace Vixen {
     public:
         virtual ~RenderingDeviceDriver() = default;
 
-        virtual Swapchain *createSwapchain(Surface *surface) = 0;
+        virtual auto createSwapchain(Surface *surface) -> std::expected<Swapchain*, Error> = 0;
 
         virtual void resizeSwapchain(CommandQueue *commandQueue, Swapchain *swapchain, uint32_t imageCount) = 0;
 

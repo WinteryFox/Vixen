@@ -297,17 +297,19 @@ namespace Vixen {
     }
 
     Surface *VulkanRenderingContextDriver::createSurface(Window *window) {
-        auto *surface = dynamic_cast<VulkanSurface *>(window->surface);
-        if (glfwCreateWindowSurface(instance, window->window, nullptr, &surface->surface) != VK_SUCCESS)
+        VkSurfaceKHR surface = VK_NULL_HANDLE;
+        if (glfwCreateWindowSurface(instance, window->window, nullptr, &surface) != VK_SUCCESS)
             error<CantCreateError>("Failed to create window surface.");
 
-        return surface;
+        const auto o = new VulkanSurface();
+        o->surface = surface;
+
+        return o;
     }
 
     void VulkanRenderingContextDriver::destroySurface(Surface *surface) {
-        if (const auto vkSurface = dynamic_cast<VulkanSurface *>(surface)) {
-            vkDestroySurfaceKHR(instance, vkSurface->surface, nullptr);
-            delete vkSurface;
-        }
+        const auto vkSurface = dynamic_cast<VulkanSurface *>(surface);
+        vkDestroySurfaceKHR(instance, vkSurface->surface, nullptr);
+        delete vkSurface;
     }
 }

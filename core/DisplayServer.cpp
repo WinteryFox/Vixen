@@ -3,6 +3,7 @@
 
 #include "DisplayServer.h"
 
+#include "RenderingDevice.h"
 #include "error/CantCreateError.h"
 #include "error/Macros.h"
 #include "platform/vulkan/VulkanSurface.h"
@@ -49,13 +50,13 @@ namespace Vixen {
 #ifdef D3D12_ENABLED
             case RenderingDriver::D3D12:
                 surface = new D3D12Surface();
-                break;
+            break;
 #endif
 
 #ifdef OPENGL_ENABLED
             case RenderingDriver::OpenGL:
                 surface = new OpenGLSurface();
-                break;
+            break;
 #endif
 
             default:
@@ -105,7 +106,34 @@ namespace Vixen {
             spdlog::error("[GLFW] {} ({})", message, code);
         });
 
+        switch (driver) {
+#ifdef VULKAN_ENABLED
+            case RenderingDriver::Vulkan:
+                renderingContextDriver = new VulkanRenderingContextDriver(applicationName, applicationVersion);
+                break;
+#endif
+
+#ifdef D3D12_ENABLED
+            case RenderingDriver::D3D12:
+                renderingContextDriver = new D3D12Rendering(applicationName, applicationVersion);
+                break;
+#endif
+
+#ifdef OPENGL_ENABLED
+            case RenderingDriver::OpenGL:
+                renderingContextDriver = new VulkanRenderingContextDriver(applicationName, applicationVersion);
+                break;
+            }
+#endif
+
+            default:
+                throw std::runtime_error("Failed to create display server");
+        }
+
         mainWindow = createWindow(applicationName, windowMode, vsyncMode, flags, resolution);
+
+        renderingDevice = new RenderingDevice(renderingContextDriver, mainWindow);
+        renderingDevice->createScreen(mainWindow);
     }
 
     DisplayServer::~DisplayServer() {

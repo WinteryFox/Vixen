@@ -280,7 +280,7 @@ namespace Vixen {
         vkDestroyDevice(device, nullptr);
     }
 
-    Swapchain *VulkanRenderingDeviceDriver::createSwapchain(Surface *surface) {
+    auto VulkanRenderingDeviceDriver::createSwapchain(Surface *surface) -> std::expected<Swapchain *, Error> {
         DEBUG_ASSERT(surface != nullptr);
 
         const auto vkSurface = dynamic_cast<VulkanSurface *>(surface);
@@ -288,29 +288,27 @@ namespace Vixen {
         uint32_t formatCount;
         if (vkGetPhysicalDeviceSurfaceFormatsKHR(physicalDevice, vkSurface->surface, &formatCount, nullptr)
             != VK_SUCCESS)
-            error<CantCreateError>("Call to vkGetPhysicalDeviceSurfaceFormatsKHR failed.");
+            return std::unexpected(Error::CantCreate);
+
         std::vector<VkSurfaceFormatKHR> formats(formatCount);
         if (vkGetPhysicalDeviceSurfaceFormatsKHR(physicalDevice, vkSurface->surface, &formatCount,
                                                  formats.data()) != VK_SUCCESS)
-            error<CantCreateError>("Call to vkGetPhysicalDeviceSurfaceFormatsKHR failed.");
+            return std::unexpected(Error::CantCreate);
 
-        auto *swapchain = new VulkanSwapchain();
-
-        swapchain->surface = vkSurface;
-        swapchain->format = VK_FORMAT_UNDEFINED;
-        swapchain->colorSpace = VK_COLOR_SPACE_SRGB_NONLINEAR_KHR;
+        VkFormat format = VK_FORMAT_UNDEFINED;
+        VkColorSpaceKHR colorSpace = VK_COLOR_SPACE_SRGB_NONLINEAR_KHR;
 
         if (formatCount == 1 && formats[0].format == VK_FORMAT_UNDEFINED) {
-            swapchain->format = VK_FORMAT_B8G8R8A8_SRGB;
-            swapchain->colorSpace = formats[0].colorSpace;
+            format = VK_FORMAT_B8G8R8A8_SRGB;
+            colorSpace = formats[0].colorSpace;
         } else if (formatCount > 0) {
             constexpr VkFormat preferredFormat = VK_FORMAT_B8G8R8A8_UNORM;
             constexpr VkFormat alternativeFormat = VK_FORMAT_R8G8B8A8_UNORM;
 
             for (uint32_t i = 0; i < formatCount; i++) {
                 if (formats[i].format == preferredFormat || formats[i].format == alternativeFormat) {
-                    swapchain->format = formats[i].format;
-                    swapchain->colorSpace = formats[i].colorSpace;
+                    format = formats[i].format;
+                    colorSpace = formats[i].colorSpace;
 
                     if (formats[i].format == preferredFormat)
                         break;
@@ -318,10 +316,13 @@ namespace Vixen {
             }
         }
 
-        if (swapchain->format == VK_FORMAT_UNDEFINED) {
-            delete swapchain;
-            error<CantCreateError>("Surface does not have any supported formats.");
-        }
+        if (format == VK_FORMAT_UNDEFINED)
+            return std::unexpected(Error::CantCreate);
+
+        auto *swapchain = new VulkanSwapchain();
+        swapchain->surface = vkSurface;
+        swapchain->format = format;
+        swapchain->colorSpace = colorSpace;
 
         return swapchain;
     }
@@ -961,6 +962,8 @@ namespace Vixen {
                 imageIndices.push_back(vkSwapchain->imageIndex);
             }
 
+            std::vector<VkResult> results{vkSwapchains.size()};
+
             const VkPresentInfoKHR presentInfo{
                 .sType = VK_STRUCTURE_TYPE_PRESENT_INFO_KHR,
                 .pNext = nullptr,
@@ -969,12 +972,18 @@ namespace Vixen {
                 .swapchainCount = static_cast<uint32_t>(vkSwapchains.size()),
                 .pSwapchains = vkSwapchains.data(),
                 .pImageIndices = imageIndices.data(),
-                .pResults = nullptr // TODO: Check results for every swapchain
+                .pResults = results.data()
             };
 
             // TODO: Handle suboptimal and out of date errors?
             if (vkQueuePresentKHR(queue.queue, &presentInfo) != VK_SUCCESS)
                 error<CantCreateError>("Call to vkQueuePresentKHR failed.");
+
+            for (const auto &result: results) {
+                if (result != VK_SUCCESS) {
+                    error<CantCreateError>("Call to vkQueuePresentKHR failed.");
+                }
+            }
         }
     }
 

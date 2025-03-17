@@ -7,10 +7,6 @@ namespace Vixen {
     class Application final {
         std::shared_ptr<DisplayServer> displayServer;
 
-        RenderingContextDriver *renderingContext;
-
-        RenderingDevice *renderingDevice;
-
         std::string applicationTitle;
 
         glm::vec3 applicationVersion;

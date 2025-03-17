@@ -68,7 +68,7 @@ namespace Vixen {
 
         ~VulkanRenderingDeviceDriver() override;
 
-        Swapchain *createSwapchain(Surface *surface) override;
+        auto createSwapchain(Surface *surface) -> std::expected<Swapchain*, Error> override;
 
         void resizeSwapchain(CommandQueue *commandQueue, Swapchain *swapchain, uint32_t imageCount) override;
 

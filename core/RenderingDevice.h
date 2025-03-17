@@ -46,6 +46,12 @@ namespace Vixen {
 
         void sync();
 
+        auto createScreen(Window* window) -> std::expected<void, Error>;
+
+        auto prepareScreenForDrawing(Window* window) -> std::expected<void, Error>;
+
+        void destroyScreen(Window* window);
+
         [[nodiscard]] RenderingContextDriver *getRenderingContextDriver() const;
 
         [[nodiscard]] RenderingDeviceDriver *getRenderingDeviceDriver() const;

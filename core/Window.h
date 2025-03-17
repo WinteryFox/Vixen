@@ -8,5 +8,6 @@ namespace Vixen {
     struct Window {
         GLFWwindow *window;
         Surface *surface;
+        Swapchain *swapchain;
     };
 }

@@ -18,8 +18,7 @@ namespace Vixen {
         const std::string &applicationTitle,
         const glm::vec3 applicationVersion,
         std::string workingDirectory
-    ) : renderingContext(nullptr),
-        applicationTitle(applicationTitle),
+    ) : applicationTitle(applicationTitle),
         applicationVersion(applicationVersion),
         workingDirectory(std::move(workingDirectory)) {
 #ifdef _WIN32
@@ -40,36 +39,9 @@ namespace Vixen {
             WindowFlags::Resizable,
             glm::ivec2{1920, 1080}
         );
-
-        switch (renderingDriver) {
-#ifdef VULKAN_ENABLED
-            case RenderingDriver::Vulkan:
-                renderingContext = new VulkanRenderingContextDriver(applicationTitle, applicationVersion);
-                break;
-#endif
-
-#ifdef D3D12_ENABLED
-            case RenderingDriver::D3D12:
-                renderingContext = new D3D12RenderingContext();
-                break;
-#endif
-
-#ifdef OPENGL_ENABLED
-            case RenderingDriver::OpenGL:
-                renderingContext = new OpenGLRenderingContext();
-                break;
-#endif
-
-            default:
-                error<CantCreateError>("Unsupported rendering driver.");
-        }
-
-        renderingDevice = new RenderingDevice(renderingContext, displayServer->getMainWindow());
     }
 
     Application::~Application() {
-        delete renderingDevice;
-        delete renderingContext;
     }
 
     void Application::run() const {

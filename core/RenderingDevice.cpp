@@ -185,6 +185,24 @@ namespace Vixen {
         beginFrame(true);
     }
 
+    auto RenderingDevice::createScreen(Window *window) -> std::expected<void, Error> {
+        auto swapchain = renderingDeviceDriver->createSwapchain(window->surface);
+        if (!swapchain)
+            return std::unexpected(Error::CantCreate);
+
+        return {};
+    }
+
+    auto RenderingDevice::prepareScreenForDrawing(Window *window) -> std::expected<void, Error> {
+        // TODO
+        return {};
+    }
+
+    void RenderingDevice::destroyScreen(Window *window) {
+        if (window->swapchain)
+            renderingDeviceDriver->destroySwapchain(window->swapchain);
+    }
+
     RenderingContextDriver *RenderingDevice::getRenderingContextDriver() const {
         return renderingContextDriver;
     }
