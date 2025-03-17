@@ -12,6 +12,7 @@ add_library(
         buffer/BufferUsage.h
         Application.cpp
         Application.h
+        RenderingContextDriver.h
         RenderingDeviceDriver.cpp
         RenderingDeviceDriver.h
         error/Macros.h
@@ -95,6 +96,7 @@ target_include_directories(
         Vixen
         PUBLIC
         ${CMAKE_SOURCE_DIR}
+        ${CMAKE_CURRENT_SOURCE_DIR}
         ${CMAKE_SOURCE_DIR}/thirdparty/imgui
         ${CMAKE_SOURCE_DIR}/thirdparty/glslang/SPIRV
         ${CMAKE_SOURCE_DIR}/thirdparty/glslang/glslang
