@@ -15,6 +15,11 @@ namespace Vixen {
         frames[frameIndex].fenceSignaled = false;
     }
 
+    void RenderingDevice::waitForFrames() {
+        for (uint32_t i = 0; i < frames.size(); i++)
+            waitForFrame(i);
+    }
+
     void RenderingDevice::beginFrame(const bool presented) {
         waitForFrame(frameIndex);
 
@@ -74,7 +79,7 @@ namespace Vixen {
         }
     }
 
-    RenderingDevice::RenderingDevice(RenderingContextDriver *renderingContext, Window *mainWindow)
+    RenderingDevice::RenderingDevice(RenderingContextDriver *renderingContext, const Window *mainWindow)
         : renderingContextDriver(renderingContext),
           frameIndex(0) {
         Surface *mainSurface = nullptr;
@@ -164,7 +169,6 @@ namespace Vixen {
         renderingDeviceDriver->destroyCommandQueue(transferQueue);
         renderingDeviceDriver->destroyCommandQueue(presentQueue);
         delete renderingDeviceDriver;
-        delete renderingContextDriver;
     }
 
     void RenderingDevice::swapBuffers(const bool present) {
@@ -185,16 +189,31 @@ namespace Vixen {
         beginFrame(true);
     }
 
-    auto RenderingDevice::createScreen(Window *window) -> std::expected<void, Error> {
+    auto RenderingDevice::createScreen(const Window *window) const -> std::expected<Swapchain *, Error> {
         auto swapchain = renderingDeviceDriver->createSwapchain(window->surface);
         if (!swapchain)
             return std::unexpected(Error::CantCreate);
 
-        return {};
+        renderingDeviceDriver->resizeSwapchain(graphicsQueue, swapchain.value(), 1);
+
+        return swapchain;
     }
 
-    auto RenderingDevice::prepareScreenForDrawing(Window *window) -> std::expected<void, Error> {
-        // TODO
+    auto RenderingDevice::prepareScreenForDrawing(const Window *window) -> std::expected<void, Error> {
+        DEBUG_ASSERT(window->swapchain != nullptr);
+
+        bool resizeRequired;
+        auto framebuffer = renderingDeviceDriver->acquireSwapchainFramebuffer(graphicsQueue, window->swapchain, resizeRequired);
+
+        if (resizeRequired) {
+            waitForFrames();
+
+            // TODO: Dynamically set image count
+            renderingDeviceDriver->resizeSwapchain(graphicsQueue, window->swapchain, 1);
+        }
+
+        frames[frameIndex].swapchainsToPresent.push_back(window->swapchain);
+
         return {};
     }
 

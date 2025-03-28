@@ -55,7 +55,7 @@ namespace Vixen {
 
         virtual Fence *createFence() = 0;
 
-        virtual auto waitOnFence(const Fence *fence) -> std::expected<void, Error> = 0;
+        virtual auto waitOnFence(Fence *fence) -> std::expected<void, Error> = 0;
 
         virtual void destroyFence(Fence *fence) = 0;
 

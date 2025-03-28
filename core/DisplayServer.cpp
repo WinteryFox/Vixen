@@ -26,7 +26,7 @@ namespace Vixen {
         const WindowMode mode,
         const VSyncMode vsync,
         const WindowFlags flags,
-        const glm::ivec2 resolution
+        const glm::uvec2 resolution
     ) {
         glfwWindowHint(GLFW_CLIENT_API, GLFW_NO_API);
         glfwWindowHint(GLFW_VISIBLE, GLFW_TRUE);
@@ -35,8 +35,9 @@ namespace Vixen {
         glfwWindowHint(GLFW_DECORATED, flags & WindowFlags::Borderless ? GLFW_FALSE : GLFW_TRUE);
         glfwWindowHint(GLFW_FLOATING, flags & WindowFlags::AlwaysOnTop ? GLFW_TRUE : GLFW_FALSE);
 
-        auto *glfwWindow = glfwCreateWindow(resolution.x, resolution.y, title.c_str(), nullptr, nullptr);
-        if (!glfwWindow)
+        auto *handle = glfwCreateWindow(static_cast<int>(resolution.x), static_cast<int>(resolution.y),
+                                            title.c_str(), nullptr, nullptr);
+        if (!handle)
             error<CantCreateError>("Failed to create window");
 
         Surface *surface = nullptr;
@@ -72,7 +73,7 @@ namespace Vixen {
         surface->vsyncMode = vsync;
 
         auto *window = new Window{
-            .window = glfwWindow,
+            .window = handle,
             .surface = surface
         };
 
@@ -96,7 +97,7 @@ namespace Vixen {
         const WindowMode windowMode,
         const VSyncMode vsyncMode,
         const WindowFlags flags,
-        const glm::ivec2 resolution
+        const glm::uvec2 resolution
     ) : driver(driver) {
         if (glfwInit() != GLFW_TRUE)
             error<CantCreateError>("Failed to initialize GLFW.\n"
@@ -131,12 +132,19 @@ namespace Vixen {
         }
 
         mainWindow = createWindow(applicationName, windowMode, vsyncMode, flags, resolution);
+        mainWindow->surface = renderingContextDriver->createSurface(mainWindow);
 
         renderingDevice = new RenderingDevice(renderingContextDriver, mainWindow);
-        renderingDevice->createScreen(mainWindow);
+        const auto swapchain = renderingDevice->createScreen(mainWindow);
+        if (!swapchain)
+            throw CantCreateError("Failed to create rendering device screen");
+        mainWindow->swapchain = swapchain.value();
     }
 
     DisplayServer::~DisplayServer() {
+        delete renderingDevice;
+        delete renderingContextDriver;
+
         glfwSetWindowShouldClose(mainWindow->window, GLFW_TRUE);
         glfwDestroyWindow(mainWindow->window);
         glfwTerminate();
@@ -152,8 +160,11 @@ namespace Vixen {
         return glfwWindowShouldClose(window->window) == GLFW_TRUE;
     }
 
-    bool DisplayServer::update(const Window *window) {
+    void DisplayServer::update(Window *window) {
         glfwPollEvents();
+
+        if (!renderingDevice->prepareScreenForDrawing(window))
+            throw CantCreateError("Failed to prepare screen for drawing.");
 
         if (window->surface->hasFramebufferSizeChanged) {
             window->surface->hasFramebufferSizeChanged = false;
@@ -170,13 +181,11 @@ namespace Vixen {
                     glfwWaitEvents();
                 }
 
-                return false;
+                return;
             }
-
-            return true;
         }
 
-        return false;
+        renderingDevice->swapBuffers(true);
     }
 
     void DisplayServer::setVisible(const Window *window, bool visible) {

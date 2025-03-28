@@ -27,6 +27,8 @@ namespace Vixen {
 
         void waitForFrame(uint32_t frameIndex);
 
+        void waitForFrames();
+
         void beginFrame(bool presented);
 
         void endFrame();
@@ -36,7 +38,7 @@ namespace Vixen {
         void executeFrame(bool present);
 
     public:
-        RenderingDevice(RenderingContextDriver *renderingContext, Window *mainWindow);
+        RenderingDevice(RenderingContextDriver *renderingContext, const Window *mainWindow);
 
         ~RenderingDevice();
 
@@ -46,9 +48,9 @@ namespace Vixen {
 
         void sync();
 
-        auto createScreen(Window* window) -> std::expected<void, Error>;
+        auto createScreen(const Window* window) const -> std::expected<Swapchain*, Error>;
 
-        auto prepareScreenForDrawing(Window* window) -> std::expected<void, Error>;
+        auto prepareScreenForDrawing(const Window* window) -> std::expected<void, Error>;
 
         void destroyScreen(Window* window);
 

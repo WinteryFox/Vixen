@@ -336,7 +336,7 @@ namespace Vixen {
         DEBUG_ASSERT(swapchain != nullptr);
 
         const auto vkSwapchain = dynamic_cast<VulkanSwapchain *>(swapchain);
-        _destroySwapchain(vkSwapchain);
+        releaseSwapchain(vkSwapchain);
 
         VkSurfaceCapabilitiesKHR surfaceCapabilities;
         if (vkGetPhysicalDeviceSurfaceCapabilitiesKHR(physicalDevice, vkSwapchain->surface->surface,
@@ -347,6 +347,37 @@ namespace Vixen {
         if (!renderingContext->deviceSupportsPresent(deviceIndex, surface))
             error<CantCreateError>("Surface is not supported by device.");
 
+        if (!vkSwapchain->swapchain) {
+            if (surfaceCapabilities.currentExtent.width == std::numeric_limits<uint32_t>::max()) {
+                surfaceCapabilities.currentExtent.width = std::clamp(surface->resolution.x,
+                                                                     surfaceCapabilities.minImageExtent.width,
+                                                                     surfaceCapabilities.maxImageExtent.width);
+                surfaceCapabilities.currentExtent.height = std::clamp(surface->resolution.y,
+                                                                      surfaceCapabilities.minImageExtent.height,
+                                                                      surfaceCapabilities.maxImageExtent.height);
+            }
+
+            if (surfaceCapabilities.currentTransform & VK_SURFACE_TRANSFORM_ROTATE_90_BIT_KHR ||
+                surfaceCapabilities.currentTransform & VK_SURFACE_TRANSFORM_ROTATE_270_BIT_KHR) {
+                std::swap(surfaceCapabilities.currentExtent.width, surfaceCapabilities.currentExtent.height);
+            }
+        }
+
+        VkExtent2D extent;
+        if (surfaceCapabilities.currentExtent.width == std::numeric_limits<uint32_t>::max()) {
+            extent.width = std::clamp(surface->resolution.x, surfaceCapabilities.minImageExtent.width,
+                                      surfaceCapabilities.maxImageExtent.width);
+            extent.height = std::clamp(surface->resolution.y, surfaceCapabilities.minImageExtent.height,
+                                       surfaceCapabilities.maxImageExtent.height);
+        } else {
+            extent = surfaceCapabilities.currentExtent;
+            surface->resolution.x = extent.width;
+            surface->resolution.y = extent.height;
+        }
+
+        if (surface->resolution.x == 0 || surface->resolution.y == 0)
+            return;
+
         VkSwapchainCreateInfoKHR swapchainInfo{
             .sType = VK_STRUCTURE_TYPE_SWAPCHAIN_CREATE_INFO_KHR,
             .pNext = nullptr,
@@ -356,8 +387,8 @@ namespace Vixen {
             .imageFormat = vkSwapchain->format,
             .imageColorSpace = vkSwapchain->colorSpace,
             .imageExtent = {
-                .width = static_cast<uint32_t>(surface->resolution.x),
-                .height = static_cast<uint32_t>(surface->resolution.y)
+                .width = surface->resolution.x,
+                .height = surface->resolution.y
             },
             .imageArrayLayers = 1,
             .imageUsage = VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT,
@@ -545,14 +576,14 @@ namespace Vixen {
             semaphore = vkCommandQueue->imageSemaphores[semaphoreIndex];
         }
 
-        vkSwapchain->commandQueuesAcquired.push_back(vkCommandQueue);
-        vkSwapchain->commandQueuesAcquiredSemaphores.push_back(semaphoreIndex);
+        vkSwapchain->acquiredCommandQueues.push_back(vkCommandQueue);
+        vkSwapchain->acquiredCommandQueueSemaphores.push_back(semaphoreIndex);
 
         const auto result = vkAcquireNextImageKHR(device, vkSwapchain->swapchain, std::numeric_limits<uint64_t>::max(),
-                                                  VK_NULL_HANDLE,
+                                                  semaphore,
                                                   VK_NULL_HANDLE, &vkSwapchain->imageIndex);
         if (result == VK_ERROR_OUT_OF_DATE_KHR) {
-            if (!_recreateImageSemaphore(vkCommandQueue, semaphoreIndex, true))
+            if (!recreateImageSemaphore(vkCommandQueue, semaphoreIndex, true))
                 return nullptr;
 
             resizeRequired = true;
@@ -563,23 +594,48 @@ namespace Vixen {
         }
 
         vkCommandQueue->pendingSemaphoresForExecute.push_back(semaphoreIndex);
-        vkCommandQueue->pendingSemaphoresForPresent.push_back(semaphoreIndex);
+        vkCommandQueue->pendingSemaphoresForFence.push_back(semaphoreIndex);
 
         const auto framebuffer = vkSwapchain->framebuffers[vkSwapchain->imageIndex];
         framebuffer->swapchainAcquired = true;
         return framebuffer;
     }
 
-    void VulkanRenderingDeviceDriver::_destroySwapchain(const VulkanSwapchain *swapchain) {
+    void VulkanRenderingDeviceDriver::releaseSwapchain(VulkanSwapchain *swapchain) {
         for (uint32_t i = 0; i < swapchain->resolveImages.size(); i++) {
+            if (const auto framebuffer = swapchain->framebuffers[i];
+                framebuffer != nullptr) {
+                if (framebuffer->framebuffer != nullptr)
+                    vkDestroyFramebuffer(device, swapchain->framebuffers[i]->framebuffer, nullptr);
+
+                delete framebuffer;
+            }
+
             destroyImage(swapchain->colorTargets[i]);
             destroyImage(swapchain->depthTargets[i]);
             vkDestroyImageView(device, swapchain->resolveImageViews[i], nullptr);
         }
-        vkDestroySwapchainKHR(device, swapchain->swapchain, nullptr);
+
+        swapchain->imageIndex = std::numeric_limits<uint32_t>::max();
+        swapchain->resolveImages.clear();
+        swapchain->resolveImageViews.clear();
+        swapchain->framebuffers.clear();
+
+        if (swapchain->swapchain != nullptr) {
+            vkDestroySwapchainKHR(device, swapchain->swapchain, nullptr);
+            swapchain->swapchain = nullptr;
+        }
+
+        for (uint32_t i = 0; i < swapchain->acquiredCommandQueues.size(); i++) {
+            recreateImageSemaphore(swapchain->acquiredCommandQueues[i], swapchain->acquiredCommandQueueSemaphores[i],
+                                   false);
+        }
+
+        swapchain->acquiredCommandQueues.clear();
+        swapchain->acquiredCommandQueueSemaphores.clear();
     }
 
-    auto VulkanRenderingDeviceDriver::_releaseImageSemaphore(
+    auto VulkanRenderingDeviceDriver::releaseImageSemaphore(
         VulkanCommandQueue *commandQueue,
         const uint32_t semaphoreIndex,
         const bool releaseOnSwapchain
@@ -589,12 +645,12 @@ namespace Vixen {
             commandQueue->imageSemaphoresSwapchains[semaphoreIndex] = nullptr;
 
             if (releaseOnSwapchain) {
-                for (uint32_t i = 0; i < swapchain->commandQueuesAcquired.size(); i++) {
-                    if (swapchain->commandQueuesAcquired[i] == commandQueue && swapchain->
-                        commandQueuesAcquiredSemaphores[i] == semaphoreIndex) {
-                        swapchain->commandQueuesAcquired.erase(swapchain->commandQueuesAcquired.begin() + i);
-                        swapchain->commandQueuesAcquiredSemaphores.erase(
-                            swapchain->commandQueuesAcquiredSemaphores.begin() + i);
+                for (uint32_t i = 0; i < swapchain->acquiredCommandQueues.size(); i++) {
+                    if (swapchain->acquiredCommandQueues[i] == commandQueue && swapchain->
+                        acquiredCommandQueueSemaphores[i] == semaphoreIndex) {
+                        swapchain->acquiredCommandQueues.erase(swapchain->acquiredCommandQueues.begin() + i);
+                        swapchain->acquiredCommandQueueSemaphores.erase(
+                            swapchain->acquiredCommandQueueSemaphores.begin() + i);
                     }
                 }
             }
@@ -605,12 +661,12 @@ namespace Vixen {
         return std::unexpected(Error::CantCreate);
     }
 
-    auto VulkanRenderingDeviceDriver::_recreateImageSemaphore(
+    auto VulkanRenderingDeviceDriver::recreateImageSemaphore(
         VulkanCommandQueue *commandQueue,
         const uint32_t semaphoreIndex,
         const bool releaseOnSwapchain
     ) const -> std::expected<void, Error> {
-        if (!_releaseImageSemaphore(commandQueue, semaphoreIndex, releaseOnSwapchain))
+        if (!releaseImageSemaphore(commandQueue, semaphoreIndex, releaseOnSwapchain))
             return std::unexpected(Error::CantCreate);
 
         constexpr VkSemaphoreCreateInfo semaphoreInfo{
@@ -635,7 +691,7 @@ namespace Vixen {
         DEBUG_ASSERT(swapchain != nullptr);
 
         const auto vkSwapchain = dynamic_cast<VulkanSwapchain *>(swapchain);
-        _destroySwapchain(vkSwapchain);
+        releaseSwapchain(vkSwapchain);
         delete vkSwapchain;
     }
 
@@ -687,29 +743,31 @@ namespace Vixen {
         return fence;
     }
 
-    auto VulkanRenderingDeviceDriver::waitOnFence(const Fence *fence) -> std::expected<void, Error> {
-        const auto o = dynamic_cast<const VulkanFence *>(fence);
+    auto VulkanRenderingDeviceDriver::waitOnFence(Fence *fence) -> std::expected<void, Error> {
+        const auto vkFence = dynamic_cast<VulkanFence *>(fence);
 
-        if (vkWaitForFences(device, 1, &o->fence, VK_TRUE, std::numeric_limits<uint64_t>::max()) != VK_SUCCESS)
+        if (vkWaitForFences(device, 1, &vkFence->fence, VK_TRUE, std::numeric_limits<uint64_t>::max()) != VK_SUCCESS)
             return std::unexpected(Error::CantCreate);
 
-        if (vkResetFences(device, 1, &o->fence) != VK_SUCCESS)
+        if (vkResetFences(device, 1, &vkFence->fence) != VK_SUCCESS)
             return std::unexpected(Error::CantCreate);
 
-        if (o->queueSignaledFrom) {
-            auto &pairs = o->queueSignaledFrom->imageSemaphoresForFences;
+        if (vkFence->queueSignaledFrom) {
+            auto &pairs = vkFence->queueSignaledFrom->imageSemaphoresForFences;
             uint32_t i = 0;
             while (i < pairs.size()) {
-                if (pairs[i].first == o) {
-                    if (!_releaseImageSemaphore(o->queueSignaledFrom, pairs[i].second, true))
+                if (pairs[i].first == vkFence) {
+                    if (!releaseImageSemaphore(vkFence->queueSignaledFrom, pairs[i].second, true))
                         return std::unexpected(Error::CantCreate);
 
-                    o->queueSignaledFrom->freeImageSemaphores.push_back(pairs[i].second);
+                    vkFence->queueSignaledFrom->freeImageSemaphores.push_back(pairs[i].second);
                     pairs.erase(pairs.begin() + i);
                 } else {
                     i++;
                 }
             }
+
+            vkFence->queueSignaledFrom = nullptr;
         }
 
         return {};
@@ -852,8 +910,9 @@ namespace Vixen {
         std::vector<VkPipelineStageFlags> vkWaitStages{};
         vkWaitSemaphores.reserve(vkWaitSemaphores.size());
         if (!vkCommandQueue->pendingSemaphoresForExecute.empty()) {
-            for (const auto &semaphore: waitSemaphores) {
-                vkWaitSemaphores.push_back(dynamic_cast<VulkanSemaphore *>(semaphore)->semaphore);
+            for (uint32_t i = 0; i < vkCommandQueue->pendingSemaphoresForExecute.size(); i++) {
+                vkWaitSemaphores.push_back(
+                    vkCommandQueue->imageSemaphores[vkCommandQueue->pendingSemaphoresForExecute[i]]);
                 vkWaitStages.push_back(VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT);
             }
 
@@ -932,14 +991,14 @@ namespace Vixen {
             if (submitResult != VK_SUCCESS)
                 error<CantCreateError>("Call to vkQueueSubmit failed.");
 
-            if (vkFence != nullptr && !vkCommandQueue->pendingSemaphoresForPresent.empty()) {
+            if (vkFence != nullptr && !vkCommandQueue->pendingSemaphoresForFence.empty()) {
                 vkFence->queueSignaledFrom = vkCommandQueue;
 
-                for (uint32_t i = 0; i < vkCommandQueue->pendingSemaphoresForPresent.size(); i++)
+                for (uint32_t i = 0; i < vkCommandQueue->pendingSemaphoresForFence.size(); i++)
                     vkCommandQueue->imageSemaphoresForFences.emplace_back(
-                        vkFence, vkCommandQueue->pendingSemaphoresForPresent[i]);
+                        vkFence, vkCommandQueue->pendingSemaphoresForFence[i]);
 
-                vkCommandQueue->pendingSemaphoresForPresent.clear();
+                vkCommandQueue->pendingSemaphoresForFence.clear();
             }
 
             if (presentSemaphore != VK_NULL_HANDLE) {
@@ -988,21 +1047,17 @@ namespace Vixen {
     }
 
     void VulkanRenderingDeviceDriver::destroyCommandQueue(CommandQueue *commandQueue) {
-        const auto o = dynamic_cast<VulkanCommandQueue *>(commandQueue);
+        const auto vkCommandQueue = dynamic_cast<VulkanCommandQueue *>(commandQueue);
 
-        for (const auto &semaphore: o->presentSemaphores)
+        for (const auto &semaphore: vkCommandQueue->presentSemaphores)
             vkDestroySemaphore(device, semaphore, nullptr);
 
-        for (const auto &semaphore: o->imageSemaphores)
+        for (const auto &semaphore: vkCommandQueue->imageSemaphores)
             vkDestroySemaphore(device, semaphore, nullptr);
 
-        for (const auto &swapchain: o->imageSemaphoresSwapchains)
-            destroySwapchain(swapchain);
+        queueFamilies[vkCommandQueue->queueFamily][vkCommandQueue->queueIndex].virtualCount--;
 
-        for (const auto &fence: o->imageSemaphoresForFences | std::views::keys)
-            destroyFence(fence);
-
-        delete o;
+        delete vkCommandQueue;
     }
 
     Buffer *VulkanRenderingDeviceDriver::createBuffer(

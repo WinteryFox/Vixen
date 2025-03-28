@@ -76,12 +76,12 @@ namespace Vixen {
                                                  bool &resizeRequired) override;
 
     private:
-        void _destroySwapchain(const VulkanSwapchain *swapchain);
+        void releaseSwapchain(VulkanSwapchain *swapchain);
 
-        static auto _releaseImageSemaphore(VulkanCommandQueue *commandQueue, uint32_t semaphoreIndex,
+        static auto releaseImageSemaphore(VulkanCommandQueue *commandQueue, uint32_t semaphoreIndex,
                                            bool releaseOnSwapchain) -> std::expected<void, Error>;
 
-        auto _recreateImageSemaphore(VulkanCommandQueue *commandQueue, uint32_t semaphoreIndex,
+        auto recreateImageSemaphore(VulkanCommandQueue *commandQueue, uint32_t semaphoreIndex,
                                      bool releaseOnSwapchain) const -> std::expected<void, Error>;
 
     public:
@@ -92,7 +92,7 @@ namespace Vixen {
 
         Fence *createFence() override;
 
-        auto waitOnFence(const Fence *fence) -> std::expected<void, Error> override;
+        auto waitOnFence(Fence *fence) -> std::expected<void, Error> override;
 
         void destroyFence(Fence *fence) override;
 

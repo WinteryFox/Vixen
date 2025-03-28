@@ -26,7 +26,7 @@ namespace Vixen {
             WindowMode mode,
             VSyncMode vsync,
             WindowFlags flags,
-            glm::ivec2 resolution
+            glm::uvec2 resolution
         );
 
     public:
@@ -37,7 +37,7 @@ namespace Vixen {
             WindowMode windowMode,
             VSyncMode vsyncMode,
             WindowFlags flags,
-            glm::ivec2 resolution
+            glm::uvec2 resolution
         );
 
         DisplayServer(const DisplayServer &) = delete;
@@ -64,7 +64,7 @@ namespace Vixen {
          * Polls window events and processes them.
          * @return Returns true if the framebuffer size has been resized, false if not.
          */
-        bool update(const Window *window);
+        void update(Window *window);
 
         /**
          * Sets the visibility of the window.

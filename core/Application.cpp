@@ -30,39 +30,24 @@ namespace Vixen {
         spdlog::set_level(spdlog::level::trace);
 #endif
 
-        this->displayServer = std::make_shared<DisplayServer>(
+        displayServer = std::make_unique<DisplayServer>(
             applicationTitle,
             applicationVersion,
             renderingDriver,
             WindowMode::Windowed,
             VSyncMode::Disabled,
             WindowFlags::Resizable,
-            glm::ivec2{1920, 1080}
+            glm::uvec2{1920, 1080}
         );
     }
 
-    Application::~Application() {
-    }
+    Application::~Application() = default;
 
     void Application::run() const {
         const auto mainWindow = displayServer->getMainWindow();
 
         while (!displayServer->shouldClose(mainWindow)) {
             displayServer->update(mainWindow);
-
-            renderingDevice->swapBuffers(true);
         }
-    }
-
-    std::shared_ptr<DisplayServer> Application::getDisplayServer() const {
-        return displayServer;
-    }
-
-    RenderingContextDriver *Application::getRenderingContext() const {
-        return renderingContext;
-    }
-
-    RenderingDevice *Application::getRenderingDevice() const {
-        return renderingDevice;
     }
 }
