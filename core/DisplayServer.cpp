@@ -36,7 +36,7 @@ namespace Vixen {
         glfwWindowHint(GLFW_FLOATING, flags & WindowFlags::AlwaysOnTop ? GLFW_TRUE : GLFW_FALSE);
 
         auto *handle = glfwCreateWindow(static_cast<int>(resolution.x), static_cast<int>(resolution.y),
-                                            title.c_str(), nullptr, nullptr);
+                                        title.c_str(), nullptr, nullptr);
         if (!handle)
             error<CantCreateError>("Failed to create window");
 
@@ -142,6 +142,8 @@ namespace Vixen {
     }
 
     DisplayServer::~DisplayServer() {
+        renderingDevice->destroyScreen(mainWindow);
+
         delete renderingDevice;
         delete renderingContextDriver;
 

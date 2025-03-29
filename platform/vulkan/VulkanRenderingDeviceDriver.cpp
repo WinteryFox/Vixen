@@ -943,7 +943,7 @@ namespace Vixen {
                 if (vkCommandQueue->presentSemaphores.empty()) {
                     VkSemaphore semaphore = VK_NULL_HANDLE;
 
-                    VkSemaphoreCreateInfo semaphoreInfo{
+                    constexpr VkSemaphoreCreateInfo semaphoreInfo{
                         .sType = VK_STRUCTURE_TYPE_SEMAPHORE_CREATE_INFO,
                         .pNext = nullptr,
                         .flags = 0
@@ -1022,7 +1022,6 @@ namespace Vixen {
             }
 
             std::vector<VkResult> results{vkSwapchains.size()};
-
             const VkPresentInfoKHR presentInfo{
                 .sType = VK_STRUCTURE_TYPE_PRESENT_INFO_KHR,
                 .pNext = nullptr,
