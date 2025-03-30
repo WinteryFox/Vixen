@@ -143,6 +143,7 @@ namespace Vixen {
 
     DisplayServer::~DisplayServer() {
         renderingDevice->destroyScreen(mainWindow);
+        renderingContextDriver->destroySurface(mainWindow->surface);
 
         delete renderingDevice;
         delete renderingContextDriver;
