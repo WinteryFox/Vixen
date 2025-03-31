@@ -68,21 +68,21 @@ namespace Vixen {
 
         ~VulkanRenderingDeviceDriver() override;
 
-        auto createSwapchain(Surface *surface) -> std::expected<Swapchain*, Error> override;
+        auto createSwapchain(Surface *surface) -> std::expected<Swapchain *, Error> override;
 
         void resizeSwapchain(CommandQueue *commandQueue, Swapchain *swapchain, uint32_t imageCount) override;
 
-        Framebuffer *acquireSwapchainFramebuffer(CommandQueue *commandQueue, Swapchain *swapchain,
-                                                 bool &resizeRequired) override;
+        auto acquireSwapchainFramebuffer(CommandQueue *commandQueue, Swapchain *swapchain)
+            -> std::expected<Framebuffer *, SwapchainError> override;
 
     private:
         void releaseSwapchain(VulkanSwapchain *swapchain);
 
         static auto releaseImageSemaphore(VulkanCommandQueue *commandQueue, uint32_t semaphoreIndex,
-                                           bool releaseOnSwapchain) -> std::expected<void, Error>;
+                                          bool releaseOnSwapchain) -> std::expected<void, Error>;
 
         auto recreateImageSemaphore(VulkanCommandQueue *commandQueue, uint32_t semaphoreIndex,
-                                     bool releaseOnSwapchain) const -> std::expected<void, Error>;
+                                    bool releaseOnSwapchain) const -> std::expected<void, Error>;
 
     public:
         void destroySwapchain(Swapchain *swapchain) override;

@@ -24,6 +24,7 @@
 #include "command/Fence.h"
 #include "command/Semaphore.h"
 #include "error/Error.h"
+#include "error/SwapchainError.h"
 #include "image/Image.h"
 #include "image/ImageCopyRegion.h"
 #include "image/ImageFormat.h"
@@ -44,12 +45,12 @@ namespace Vixen {
     public:
         virtual ~RenderingDeviceDriver() = default;
 
-        virtual auto createSwapchain(Surface *surface) -> std::expected<Swapchain*, Error> = 0;
+        virtual auto createSwapchain(Surface *surface) -> std::expected<Swapchain *, Error> = 0;
 
         virtual void resizeSwapchain(CommandQueue *commandQueue, Swapchain *swapchain, uint32_t imageCount) = 0;
 
-        virtual Framebuffer *acquireSwapchainFramebuffer(CommandQueue *commandQueue, Swapchain *swapchain,
-                                                         bool &resizeRequired) = 0;
+        virtual auto acquireSwapchainFramebuffer(CommandQueue *commandQueue, Swapchain *swapchain)
+            -> std::expected<Framebuffer *, SwapchainError> = 0;
 
         virtual void destroySwapchain(Swapchain *swapchain) = 0;
 

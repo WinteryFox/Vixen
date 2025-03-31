@@ -8,7 +8,6 @@
 #include <utility>
 
 #include "RenderingDevice.h"
-#include "error/CantCreateError.h"
 #include "error/Macros.h"
 #include "platform/vulkan/VulkanRenderingContextDriver.h"
 

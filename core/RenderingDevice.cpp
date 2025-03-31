@@ -20,6 +20,13 @@ namespace Vixen {
             waitForFrame(i);
     }
 
+    void RenderingDevice::flushAndWaitForFrames() {
+        waitForFrames();
+        endFrame();
+        executeFrame(false);
+        beginFrame(false);
+    }
+
     void RenderingDevice::beginFrame(const bool presented) {
         waitForFrame(frameIndex);
 
@@ -194,7 +201,7 @@ namespace Vixen {
         if (!swapchain)
             return std::unexpected(Error::CantCreate);
 
-        renderingDeviceDriver->resizeSwapchain(graphicsQueue, swapchain.value(), 1);
+        renderingDeviceDriver->resizeSwapchain(graphicsQueue, swapchain.value(), frames.size());
 
         return swapchain;
     }
@@ -202,15 +209,17 @@ namespace Vixen {
     auto RenderingDevice::prepareScreenForDrawing(const Window *window) -> std::expected<void, Error> {
         DEBUG_ASSERT(window->swapchain != nullptr);
 
-        bool resizeRequired;
-        auto framebuffer = renderingDeviceDriver->acquireSwapchainFramebuffer(graphicsQueue, window->swapchain, resizeRequired);
+        auto framebuffer = renderingDeviceDriver->acquireSwapchainFramebuffer(graphicsQueue, window->swapchain);
 
-        if (resizeRequired) {
-            waitForFrames();
+        if (!framebuffer && framebuffer.error() == SwapchainError::ResizeRequired) {
+            flushAndWaitForFrames();
 
-            // TODO: Dynamically set image count
-            renderingDeviceDriver->resizeSwapchain(graphicsQueue, window->swapchain, 1);
+            renderingDeviceDriver->resizeSwapchain(graphicsQueue, window->swapchain, frames.size());
+            framebuffer = renderingDeviceDriver->acquireSwapchainFramebuffer(graphicsQueue, window->swapchain);
         }
+
+        if (!framebuffer)
+            return std::unexpected(Error::CantCreate);
 
         frames[frameIndex].swapchainsToPresent.push_back(window->swapchain);
 

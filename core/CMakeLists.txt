@@ -77,6 +77,7 @@ add_library(
         DriverDevice.h
         RenderPass.h
         ClearValue.h
+        error/SwapchainError.h
 )
 target_link_libraries(
         Vixen

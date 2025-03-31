@@ -29,6 +29,8 @@ namespace Vixen {
 
         void waitForFrames();
 
+        void flushAndWaitForFrames();
+
         void beginFrame(bool presented);
 
         void endFrame();

@@ -1,9 +1,4 @@
-#include <fstream>
-
 #include "core/Application.h"
-#include "core/RenderingDevice.h"
-#include "core/RenderingDeviceDriver.h"
-#include "core/command/CommandBufferType.h"
 
 int main() {
     try {

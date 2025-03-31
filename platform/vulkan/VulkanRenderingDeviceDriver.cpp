@@ -542,11 +542,8 @@ namespace Vixen {
         }
     }
 
-    Framebuffer *VulkanRenderingDeviceDriver::acquireSwapchainFramebuffer(
-        CommandQueue *commandQueue,
-        Swapchain *swapchain,
-        bool &resizeRequired
-    ) {
+    auto VulkanRenderingDeviceDriver::acquireSwapchainFramebuffer(CommandQueue *commandQueue, Swapchain *swapchain)
+        -> std::expected<Framebuffer *, SwapchainError> {
         DEBUG_ASSERT(commandQueue != nullptr);
         DEBUG_ASSERT(swapchain != nullptr);
 
@@ -563,7 +560,7 @@ namespace Vixen {
             };
 
             if (vkCreateSemaphore(device, &semaphoreInfo, nullptr, &semaphore) != VK_SUCCESS)
-                error<CantCreateError>("Failed to create semaphores.");
+                return std::unexpected(SwapchainError::Failed);
 
             semaphoreIndex = vkCommandQueue->imageSemaphores.size();
             vkCommandQueue->imageSemaphores.push_back(semaphore);
@@ -584,14 +581,12 @@ namespace Vixen {
                                                   VK_NULL_HANDLE, &vkSwapchain->imageIndex);
         if (result == VK_ERROR_OUT_OF_DATE_KHR) {
             if (!recreateImageSemaphore(vkCommandQueue, semaphoreIndex, true))
-                return nullptr;
+                return std::unexpected(SwapchainError::Failed);
 
-            resizeRequired = true;
-            return nullptr;
+            return std::unexpected(SwapchainError::ResizeRequired);
         }
-        if (result != VK_SUCCESS && result != VK_SUBOPTIMAL_KHR) {
-            error<CantCreateError>("Failed to acquire swapchain image.");
-        }
+        if (result != VK_SUCCESS && result != VK_SUBOPTIMAL_KHR)
+            return std::unexpected(SwapchainError::Failed);
 
         vkCommandQueue->pendingSemaphoresForExecute.push_back(semaphoreIndex);
         vkCommandQueue->pendingSemaphoresForFence.push_back(semaphoreIndex);
