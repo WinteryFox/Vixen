@@ -80,3 +80,27 @@ sudo apt install -y \
     vulkan-utility-libraries-dev \
     vulkan-validationlayers
 ```
+
+#### Void
+
+```
+sudo xbps-install -Sy \
+    base-devel \
+    cmake \
+    wayland-devel \
+    libxkbcommon-devel \
+    libX11-devel \
+    libXrandr-devel \
+    libXinerama-devel \
+    libXcursor-devel \
+    libXi-devel \
+    zlib-devel \
+    pulseaudio-devel \
+    mesa \
+    libglvnd-devel \
+    Vulkan-Headers \
+    Vulkan-Tools \
+    Vulkan-Utility-Libraries \
+    Vulkan-ValidationLayers \
+    Vulkan-Tools
+```
