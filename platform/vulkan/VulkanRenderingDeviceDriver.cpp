@@ -83,7 +83,7 @@ namespace Vixen {
             if (std::ranges::find(enabledExtensionNames.begin(), enabledExtensionNames.end(), extensionName) ==
                 enabledExtensionNames.end()) {
                 if (required)
-                    return std::unexpected(Error::CantCreate);
+                    return std::unexpected(Error::InitializationFailed);
 
                 spdlog::debug("Optional extension {} was not found.", extensionName);
             }
@@ -173,7 +173,7 @@ namespace Vixen {
         };
 
         if (vkCreateDevice(physicalDevice, &deviceInfo, nullptr, &device) != VK_SUCCESS)
-            return std::unexpected(Error::CantCreate);
+            return std::unexpected(Error::InitializationFailed);
 
         queueFamilies.resize(queueCreateInfos.size());
         for (uint32_t i = 0; i < queueFamilies.size(); i++) {
@@ -230,7 +230,7 @@ namespace Vixen {
         };
 
         if (vmaCreateAllocator(&allocatorInfo, &allocator) != VK_SUCCESS)
-            return std::unexpected(Error::CantCreate);
+            return std::unexpected(Error::InitializationFailed);
 
         return {};
     }
@@ -305,7 +305,7 @@ namespace Vixen {
         uint32_t formatCount;
         if (vkGetPhysicalDeviceSurfaceFormatsKHR(physicalDevice, vkSurface->surface, &formatCount, nullptr)
             != VK_SUCCESS)
-            return std::unexpected(Error::CantCreate);
+            return std::unexpected(Error::InitializationFailed);
 
         std::vector<VkSurfaceFormatKHR> formats(formatCount);
         if (vkGetPhysicalDeviceSurfaceFormatsKHR(
@@ -314,7 +314,7 @@ namespace Vixen {
             &formatCount,
             formats.data()
         ) != VK_SUCCESS)
-            return std::unexpected(Error::CantCreate);
+            return std::unexpected(Error::InitializationFailed);
 
         VkFormat format = VK_FORMAT_UNDEFINED;
         VkColorSpaceKHR colorSpace = VK_COLOR_SPACE_SRGB_NONLINEAR_KHR;
@@ -338,7 +338,7 @@ namespace Vixen {
         }
 
         if (format == VK_FORMAT_UNDEFINED)
-            return std::unexpected(Error::CantCreate);
+            return std::unexpected(Error::InitializationFailed);
 
         auto *swapchain = new VulkanSwapchain();
         swapchain->surface = vkSurface;
@@ -365,11 +365,11 @@ namespace Vixen {
             vkSwapchain->surface->surface,
             &surfaceCapabilities
         ) != VK_SUCCESS)
-            return std::unexpected(Error::CantCreate);
+            return std::unexpected(Error::InitializationFailed);
 
         const auto surface = vkSwapchain->surface;
         if (!renderingContext->deviceSupportsPresent(deviceIndex, surface))
-            return std::unexpected(Error::CantCreate);
+            return std::unexpected(Error::InitializationFailed);
 
         if (!vkSwapchain->swapchain) {
             if (surfaceCapabilities.currentExtent.width == std::numeric_limits<uint32_t>::max()) {
@@ -450,7 +450,7 @@ namespace Vixen {
             &presentModeCount,
             nullptr
         ) != VK_SUCCESS)
-            return std::unexpected(Error::CantCreate);
+            return std::unexpected(Error::InitializationFailed);
         supportedPresentModes.resize(presentModeCount);
         if (vkGetPhysicalDeviceSurfacePresentModesKHR(
             physicalDevice,
@@ -458,7 +458,7 @@ namespace Vixen {
             &presentModeCount,
             supportedPresentModes.data()
         ) != VK_SUCCESS)
-            return std::unexpected(Error::CantCreate);
+            return std::unexpected(Error::InitializationFailed);
 
         switch (surface->vsyncMode) {
             case VSyncMode::Disabled:
@@ -485,11 +485,11 @@ namespace Vixen {
         }
 
         if (vkCreateSwapchainKHR(device, &swapchainInfo, nullptr, &vkSwapchain->swapchain) != VK_SUCCESS)
-            return std::unexpected(Error::CantCreate);
+            return std::unexpected(Error::InitializationFailed);
 
         uint32_t swapchainImageCount;
         if (vkGetSwapchainImagesKHR(device, vkSwapchain->swapchain, &swapchainImageCount, nullptr) != VK_SUCCESS)
-            return std::unexpected(Error::CantCreate);
+            return std::unexpected(Error::InitializationFailed);
         vkSwapchain->resolveImages.resize(swapchainImageCount);
         vkSwapchain->resolveImageViews.resize(swapchainImageCount);
         if (vkGetSwapchainImagesKHR(
@@ -499,7 +499,7 @@ namespace Vixen {
             vkSwapchain->resolveImages.
                          data()
         ) != VK_SUCCESS)
-            return std::unexpected(Error::CantCreate);
+            return std::unexpected(Error::InitializationFailed);
 
         vkSwapchain->colorTargets.resize(swapchainImageCount);
         vkSwapchain->depthTargets.resize(swapchainImageCount);
@@ -527,7 +527,7 @@ namespace Vixen {
                 }
             };
             if (vkCreateImageView(device, &imageViewInfo, nullptr, &vkSwapchain->resolveImageViews[i]) != VK_SUCCESS)
-                return std::unexpected(Error::CantCreate);
+                return std::unexpected(Error::InitializationFailed);
 
             auto colorTarget = createImage(
                 {
@@ -719,7 +719,7 @@ namespace Vixen {
             return {};
         }
 
-        return std::unexpected(Error::CantCreate);
+        return std::unexpected(Error::InitializationFailed);
     }
 
     auto VulkanRenderingDeviceDriver::recreateImageSemaphore(
@@ -728,7 +728,7 @@ namespace Vixen {
         const bool releaseOnSwapchain
     ) const -> std::expected<void, Error> {
         if (!releaseImageSemaphore(commandQueue, semaphoreIndex, releaseOnSwapchain))
-            return std::unexpected(Error::CantCreate);
+            return std::unexpected(Error::InitializationFailed);
 
         constexpr VkSemaphoreCreateInfo semaphoreInfo{
             .sType = VK_STRUCTURE_TYPE_SEMAPHORE_CREATE_INFO,
@@ -738,7 +738,7 @@ namespace Vixen {
 
         VkSemaphore semaphore;
         if (vkCreateSemaphore(device, &semaphoreInfo, nullptr, &semaphore) != VK_SUCCESS)
-            return std::unexpected(Error::CantCreate);
+            return std::unexpected(Error::InitializationFailed);
 
         vkDestroySemaphore(device, semaphore, nullptr);
 
@@ -788,7 +788,7 @@ namespace Vixen {
         }
 
         if (pickedQueueFamilyIndex >= queueFamilyProperties.size())
-            return std::unexpected(Error::CantCreate);
+            return std::unexpected(Error::InitializationFailed);
 
         return pickedQueueFamilyIndex;
     }
@@ -802,7 +802,7 @@ namespace Vixen {
 
         VkFence o;
         if (vkCreateFence(device, &fenceInfo, nullptr, &o) != VK_SUCCESS)
-            return std::unexpected(Error::CantCreate);
+            return std::unexpected(Error::InitializationFailed);
 
         const auto fence = new VulkanFence();
         fence->fence = o;
@@ -815,10 +815,10 @@ namespace Vixen {
         const auto vkFence = dynamic_cast<VulkanFence *>(fence);
 
         if (vkWaitForFences(device, 1, &vkFence->fence, VK_TRUE, std::numeric_limits<uint64_t>::max()) != VK_SUCCESS)
-            return std::unexpected(Error::CantCreate);
+            return std::unexpected(Error::InitializationFailed);
 
         if (vkResetFences(device, 1, &vkFence->fence) != VK_SUCCESS)
-            return std::unexpected(Error::CantCreate);
+            return std::unexpected(Error::InitializationFailed);
 
         if (vkFence->queueSignaledFrom) {
             auto &pairs = vkFence->queueSignaledFrom->imageSemaphoresForFences;
@@ -826,7 +826,7 @@ namespace Vixen {
             while (i < pairs.size()) {
                 if (pairs[i].first == vkFence) {
                     if (!releaseImageSemaphore(vkFence->queueSignaledFrom, pairs[i].second, true))
-                        return std::unexpected(Error::CantCreate);
+                        return std::unexpected(Error::InitializationFailed);
 
                     vkFence->queueSignaledFrom->freeImageSemaphores.push_back(pairs[i].second);
                     pairs.erase(pairs.begin() + i);
@@ -858,7 +858,7 @@ namespace Vixen {
 
         VkSemaphore o;
         if (vkCreateSemaphore(device, &semaphoreInfo, nullptr, &o) != VK_SUCCESS)
-            return std::unexpected(Error::CantCreate);
+            return std::unexpected(Error::InitializationFailed);
 
         const auto semaphore = new VulkanSemaphore();
         semaphore->semaphore = o;
@@ -886,7 +886,7 @@ namespace Vixen {
 
         VkCommandPool o;
         if (vkCreateCommandPool(device, &commandPoolInfo, nullptr, &o) != VK_SUCCESS)
-            return std::unexpected(Error::CantCreate);
+            return std::unexpected(Error::InitializationFailed);
 
         const auto commandPool = new VulkanCommandPool{};
         commandPool->pool = o;
@@ -899,7 +899,7 @@ namespace Vixen {
         CommandPool *pool
     ) -> std::expected<void, Error> {
         if (vkResetCommandPool(device, dynamic_cast<VulkanCommandPool *>(pool)->pool, 0) != VK_SUCCESS)
-            return std::unexpected(Error::CantCreate);
+            return std::unexpected(Error::InitializationFailed);
 
         return {};
     }
@@ -927,7 +927,7 @@ namespace Vixen {
 
         VkCommandBuffer commandBuffer = VK_NULL_HANDLE;
         if (vkAllocateCommandBuffers(device, &commandBufferInfo, &commandBuffer) != VK_SUCCESS)
-            return std::unexpected(Error::CantCreate);
+            return std::unexpected(Error::InitializationFailed);
 
         const auto o = new VulkanCommandBuffer();
         o->commandBuffer = commandBuffer;
@@ -947,7 +947,7 @@ namespace Vixen {
             .pInheritanceInfo = nullptr
         };
         if (vkBeginCommandBuffer(o->commandBuffer, &beginInfo) != VK_SUCCESS)
-            return std::unexpected(Error::CantCreate);
+            return std::unexpected(Error::InitializationFailed);
 
         return {};
     }
@@ -973,7 +973,7 @@ namespace Vixen {
         }
 
         if (pickedQueueFamilyIndex >= queueFamily.size())
-            return std::unexpected(Error::CantCreate);
+            return std::unexpected(Error::InitializationFailed);
 
         auto commandQueue = new VulkanCommandQueue();
         commandQueue->queueFamily = queueFamilyIndex;
@@ -1042,7 +1042,7 @@ namespace Vixen {
 
                     for (uint32_t i = 0; i < frameCount; i++) {
                         if (!vkCreateSemaphore(device, &semaphoreInfo, nullptr, &semaphore))
-                            return std::unexpected(Error::CantCreate);
+                            return std::unexpected(Error::InitializationFailed);
 
                         vkCommandQueue->presentSemaphores.push_back(semaphore);
                     }
@@ -1080,7 +1080,7 @@ namespace Vixen {
                 CRASH("Vulkan device lost");
             }
             if (submitResult != VK_SUCCESS)
-                return std::unexpected(Error::CantCreate);
+                return std::unexpected(Error::InitializationFailed);
 
             if (vkFence != nullptr && !vkCommandQueue->pendingSemaphoresForFence.empty()) {
                 vkFence->queueSignaledFrom = vkCommandQueue;
@@ -1128,11 +1128,11 @@ namespace Vixen {
 
             // TODO: Handle suboptimal and out of date errors?
             if (vkQueuePresentKHR(queue.queue, &presentInfo) != VK_SUCCESS)
-                return std::unexpected(Error::CantCreate);
+                return std::unexpected(Error::InitializationFailed);
 
             for (const auto &result: results)
                 if (result != VK_SUCCESS)
-                    return std::unexpected(Error::CantCreate);
+                    return std::unexpected(Error::InitializationFailed);
         }
 
         return {};
@@ -1223,7 +1223,7 @@ namespace Vixen {
             &allocation,
             &allocationInfo
         ) != VK_SUCCESS)
-            return std::unexpected(Error::CantCreate);
+            return std::unexpected(Error::InitializationFailed);
 
         return new VulkanBuffer(
             usage,
@@ -1345,7 +1345,7 @@ namespace Vixen {
             &allocation,
             nullptr
         ) != VK_SUCCESS)
-            return std::unexpected(Error::CantCreate);
+            return std::unexpected(Error::InitializationFailed);
 
         VkImageView imageView;
         const VkImageViewCreateInfo imageViewInfo{
@@ -1376,7 +1376,7 @@ namespace Vixen {
         if (const auto e = vkCreateImageView(device, &imageViewInfo, nullptr, &imageView);
             e != VK_SUCCESS) {
             vmaDestroyImage(allocator, image, allocation);
-            return std::unexpected(Error::CantCreate);
+            return std::unexpected(Error::InitializationFailed);
         }
 
         const auto o = new VulkanImage();
@@ -1441,7 +1441,7 @@ namespace Vixen {
 
         VkSampler sampler;
         if (vkCreateSampler(device, &samplerInfo, nullptr, &sampler) != VK_SUCCESS)
-            return std::unexpected(Error::CantCreate);
+            return std::unexpected(Error::InitializationFailed);
 
         const auto o = new VulkanSampler{};
         o->state = state;

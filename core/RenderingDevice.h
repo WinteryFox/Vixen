@@ -25,36 +25,57 @@ namespace Vixen {
         std::vector<Frame> frames;
         uint64_t framesDrawn;
 
-        void waitForFrame(uint32_t frameIndex);
+        void waitForFrame(
+            uint32_t frameIndex
+        );
 
         void waitForFrames();
 
         void flushAndWaitForFrames();
 
-        void beginFrame(bool presented);
+        void beginFrame(
+            bool presented
+        );
 
         void endFrame();
 
-        void executeChainedCommands(bool present, Fence *drawFence, Semaphore *drawSemaphoreToSignal);
+        void executeChainedCommands(
+            bool present,
+            Fence *drawFence,
+            Semaphore *drawSemaphoreToSignal
+        );
 
-        void executeFrame(bool present);
+        void executeFrame(
+            bool present
+        );
 
     public:
-        RenderingDevice(RenderingContextDriver *renderingContext, const Window *mainWindow);
+        RenderingDevice(
+            RenderingContextDriver *renderingContext,
+            const Window *mainWindow
+        );
 
         ~RenderingDevice();
 
-        void swapBuffers(bool present);
+        void swapBuffers(
+            bool present
+        );
 
         void submit();
 
         void sync();
 
-        auto createScreen(const Window* window) const -> std::expected<Swapchain*, Error>;
+        auto createScreen(
+            const Window *window
+        ) const -> std::expected<Swapchain *, Error>;
 
-        auto prepareScreenForDrawing(const Window* window) -> std::expected<void, Error>;
+        auto prepareScreenForDrawing(
+            const Window *window
+        ) -> std::expected<void, Error>;
 
-        void destroyScreen(Window* window);
+        void destroyScreen(
+            Window *window
+        );
 
         [[nodiscard]] RenderingContextDriver *getRenderingContextDriver() const;
 

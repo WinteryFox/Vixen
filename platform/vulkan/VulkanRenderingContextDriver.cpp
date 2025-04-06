@@ -15,7 +15,9 @@
 namespace Vixen {
     void VulkanRenderingContextDriver::initializeVulkanVersion() {
         if (const auto func = reinterpret_cast<PFN_vkEnumerateInstanceVersion>(vkGetInstanceProcAddr(
-            nullptr, "vkEnumerateInstanceVersion")); func != nullptr) {
+            nullptr,
+            "vkEnumerateInstanceVersion"
+        )); func != nullptr) {
             uint32_t api_version;
 
             if (const VkResult res = func(&api_version); res == VK_SUCCESS) {
@@ -65,12 +67,17 @@ namespace Vixen {
             std::ranges::fold_left(
                 availableExtensions |
                 std::views::transform(
-                    [](const auto &extension) {
+                    [](
+                const auto &extension
+            ) {
                         return "    - " + std::string(extension.extensionName);
                     }
                 ),
                 std::string{},
-                [](const auto &a, const auto &b) {
+                [](
+            const auto &a,
+            const auto &b
+        ) {
                     return a.empty() ? std::move(b) : std::move(a) + "\n" + std::move(b);
                 }
             )
@@ -92,8 +99,10 @@ namespace Vixen {
         }
     }
 
-    void VulkanRenderingContextDriver::initializeInstance(const std::string &applicationName,
-                                                          const glm::ivec3 &applicationVersion) {
+    void VulkanRenderingContextDriver::initializeInstance(
+        const std::string &applicationName,
+        const glm::ivec3 &applicationVersion
+    ) {
         VkApplicationInfo applicationInfo{
             .sType = VK_STRUCTURE_TYPE_APPLICATION_INFO,
             .pNext = nullptr,
@@ -134,16 +143,19 @@ namespace Vixen {
 
 #ifdef DEBUG_ENABLED
         VkDebugUtilsMessengerCreateInfoEXT debugMessengerInfo = {};
-        if (std::ranges::find(enabledInstanceExtensions.begin(), enabledInstanceExtensions.end(),
-                              VK_EXT_DEBUG_UTILS_EXTENSION_NAME) != enabledInstanceExtensions.end()) {
+        if (std::ranges::find(
+            enabledInstanceExtensions.begin(),
+            enabledInstanceExtensions.end(),
+            VK_EXT_DEBUG_UTILS_EXTENSION_NAME
+        ) != enabledInstanceExtensions.end()) {
             debugMessengerInfo.sType = VK_STRUCTURE_TYPE_DEBUG_UTILS_MESSENGER_CREATE_INFO_EXT;
             debugMessengerInfo.pNext = nullptr;
             debugMessengerInfo.flags = 0;
             debugMessengerInfo.messageSeverity =
                     VK_DEBUG_UTILS_MESSAGE_SEVERITY_WARNING_BIT_EXT | VK_DEBUG_UTILS_MESSAGE_SEVERITY_ERROR_BIT_EXT;
             debugMessengerInfo.messageType = VK_DEBUG_UTILS_MESSAGE_TYPE_GENERAL_BIT_EXT |
-                                             VK_DEBUG_UTILS_MESSAGE_TYPE_VALIDATION_BIT_EXT |
-                                             VK_DEBUG_UTILS_MESSAGE_TYPE_PERFORMANCE_BIT_EXT;
+                    VK_DEBUG_UTILS_MESSAGE_TYPE_VALIDATION_BIT_EXT |
+                    VK_DEBUG_UTILS_MESSAGE_TYPE_PERFORMANCE_BIT_EXT;
             debugMessengerInfo.pfnUserCallback = vkDebugCallback;
             debugMessengerInfo.pUserData = this;
             instanceInfo.pNext = &debugMessengerInfo;
@@ -152,19 +164,25 @@ namespace Vixen {
 
         const auto res = vkCreateInstance(&instanceInfo, nullptr, &instance);
         if (res == VK_ERROR_INCOMPATIBLE_DRIVER)
-            error<CantCreateError>("Cannot find a compatible Vulkan installable client driver (ICD).\n"
+            error<CantCreateError>(
+                "Cannot find a compatible Vulkan installable client driver (ICD).\n"
                 "Updating your graphics drivers may resolve this issue.\n"
-                "vkCreateInstance failed.");
+                "vkCreateInstance failed."
+            );
         if (res == VK_ERROR_EXTENSION_NOT_PRESENT)
-            error<CantCreateError>("Cannot find a specified extension library.\n"
+            error<CantCreateError>(
+                "Cannot find a specified extension library.\n"
                 "Make sure your layers path is set appropriately.\n"
                 "Updating your graphics drivers may resolve this issue.\n"
-                "vkCreateInstance failed.");
+                "vkCreateInstance failed."
+            );
         if (res != VK_SUCCESS)
-            error<CantCreateError>("Failed to create Vulkan instance.\n"
+            error<CantCreateError>(
+                "Failed to create Vulkan instance.\n"
                 "Do you have a Vulkan compatible graphics driver installed?\n"
                 "Updating your graphics drivers may resolve this issue.\n"
-                "vkCreateInstance failed.");
+                "vkCreateInstance failed."
+            );
 
         volkLoadInstance(instance);
     }
@@ -183,34 +201,44 @@ namespace Vixen {
             VkPhysicalDeviceProperties properties;
             vkGetPhysicalDeviceProperties(physicalDevices[i], &properties);
 
-            driverDevices.push_back({
-                .name = properties.deviceName
-            });
+            driverDevices.push_back(
+                {
+                    .name = properties.deviceName
+                }
+            );
 
             uint32_t queueFamilyPropertiesCount;
             vkGetPhysicalDeviceQueueFamilyProperties(physicalDevices[i], &queueFamilyPropertiesCount, nullptr);
 
             if (queueFamilyPropertiesCount > 0) {
                 deviceQueueFamilyProperties[i].resize(queueFamilyPropertiesCount);
-                vkGetPhysicalDeviceQueueFamilyProperties(physicalDevices[i], &queueFamilyPropertiesCount,
-                                                         deviceQueueFamilyProperties[i].data());
+                vkGetPhysicalDeviceQueueFamilyProperties(
+                    physicalDevices[i],
+                    &queueFamilyPropertiesCount,
+                    deviceQueueFamilyProperties[i].data()
+                );
             }
         }
     }
 
-    VulkanRenderingContextDriver::VulkanRenderingContextDriver(const std::string &applicationName,
-                                                               const glm::ivec3 &applicationVersion)
-        : RenderingContextDriver(),
-          instanceApiVersion(VK_API_VERSION_1_0),
-          instance(VK_NULL_HANDLE) {
+    VulkanRenderingContextDriver::VulkanRenderingContextDriver(
+        const std::string &applicationName,
+        const glm::ivec3 &applicationVersion
+    ) : RenderingContextDriver(),
+        instanceApiVersion(VK_API_VERSION_1_0),
+        instance(VK_NULL_HANDLE) {
         if (glfwVulkanSupported() != GLFW_TRUE)
-            error<CantCreateError>("This device does not report Vulkan support.\n"
+            error<CantCreateError>(
+                "This device does not report Vulkan support.\n"
                 "Updating your graphics drivers may resolve this issue.\n"
-                "glfwVulkanSupported did not return GLFW_TRUE.");
+                "glfwVulkanSupported did not return GLFW_TRUE."
+            );
 
         if (volkInitialize() != VK_SUCCESS)
-            error<CantCreateError>("Failed to initialize Volk.\n"
-                "volkInitialize did not return VK_SUCCESS.");
+            error<CantCreateError>(
+                "Failed to initialize Volk.\n"
+                "volkInitialize did not return VK_SUCCESS."
+            );
 
         initializeVulkanVersion();
 
@@ -229,7 +257,10 @@ namespace Vixen {
         return driverDevices;
     }
 
-    bool VulkanRenderingContextDriver::deviceSupportsPresent(const uint32_t deviceIndex, Surface *surface) {
+    bool VulkanRenderingContextDriver::deviceSupportsPresent(
+        const uint32_t deviceIndex,
+        Surface *surface
+    ) {
         DEBUG_ASSERT(deviceIndex < physicalDevices.size());
         DEBUG_ASSERT(surface != nullptr);
         DEBUG_ASSERT(dynamic_cast<VulkanSurface *>(surface)->surface != nullptr);
@@ -253,38 +284,52 @@ namespace Vixen {
         return false;
     }
 
-    uint32_t VulkanRenderingContextDriver::getQueueFamilyCount(const uint32_t deviceIndex) const {
+    uint32_t VulkanRenderingContextDriver::getQueueFamilyCount(
+        const uint32_t deviceIndex
+    ) const {
         DEBUG_ASSERT(deviceIndex < deviceQueueFamilyProperties.size());
 
         return deviceQueueFamilyProperties[deviceIndex].size();
     }
 
-    VkQueueFamilyProperties VulkanRenderingContextDriver::getQueueFamilyProperties(const uint32_t deviceIndex,
-        const uint32_t queueFamilyIndex) const {
+    VkQueueFamilyProperties VulkanRenderingContextDriver::getQueueFamilyProperties(
+        const uint32_t deviceIndex,
+        const uint32_t queueFamilyIndex
+    ) const {
         DEBUG_ASSERT(deviceIndex < deviceQueueFamilyProperties.size());
         DEBUG_ASSERT(queueFamilyIndex < deviceQueueFamilyProperties[deviceIndex].size());
 
         return deviceQueueFamilyProperties[deviceIndex][queueFamilyIndex];
     }
 
-    bool VulkanRenderingContextDriver::queueFamilySupportsPresent(VkPhysicalDevice physicalDevice,
-                                                                  const uint32_t queueFamilyIndex,
-                                                                  const VulkanSurface *surface) {
+    bool VulkanRenderingContextDriver::queueFamilySupportsPresent(
+        VkPhysicalDevice physicalDevice,
+        const uint32_t queueFamilyIndex,
+        const VulkanSurface *surface
+    ) {
         VkBool32 supportsPresent = VK_FALSE;
-        const auto result = vkGetPhysicalDeviceSurfaceSupportKHR(physicalDevice, queueFamilyIndex, surface->surface,
-                                                                 &supportsPresent);
+        const auto result = vkGetPhysicalDeviceSurfaceSupportKHR(
+            physicalDevice,
+            queueFamilyIndex,
+            surface->surface,
+            &supportsPresent
+        );
 
         return result == VK_SUCCESS && supportsPresent;
     }
 
-    VkPhysicalDevice VulkanRenderingContextDriver::getPhysicalDevice(const uint32_t deviceIndex) const {
+    VkPhysicalDevice VulkanRenderingContextDriver::getPhysicalDevice(
+        const uint32_t deviceIndex
+    ) const {
         DEBUG_ASSERT(deviceIndex < physicalDevices.size());
 
         return physicalDevices[deviceIndex];
     }
 
     RenderingDeviceDriver *VulkanRenderingContextDriver::createRenderingDeviceDriver(
-        const uint32_t deviceIndex, const uint32_t frameCount) {
+        const uint32_t deviceIndex,
+        const uint32_t frameCount
+    ) {
         return new VulkanRenderingDeviceDriver(this, deviceIndex, frameCount);
     }
 
@@ -296,7 +341,9 @@ namespace Vixen {
         return instanceApiVersion;
     }
 
-    Surface *VulkanRenderingContextDriver::createSurface(Window *window) {
+    Surface *VulkanRenderingContextDriver::createSurface(
+        Window *window
+    ) {
         VkSurfaceKHR surface = VK_NULL_HANDLE;
         if (glfwCreateWindowSurface(instance, window->window, nullptr, &surface) != VK_SUCCESS)
             error<CantCreateError>("Failed to create window surface.");
@@ -307,7 +354,9 @@ namespace Vixen {
         return o;
     }
 
-    void VulkanRenderingContextDriver::destroySurface(Surface *surface) {
+    void VulkanRenderingContextDriver::destroySurface(
+        Surface *surface
+    ) {
         const auto vkSurface = dynamic_cast<VulkanSurface *>(surface);
         vkDestroySurfaceKHR(instance, vkSurface->surface, nullptr);
         delete vkSurface;

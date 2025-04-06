@@ -233,10 +233,10 @@ namespace Vixen {
     ) const -> std::expected<Swapchain *, Error> {
         auto swapchain = renderingDeviceDriver->createSwapchain(window->surface);
         if (!swapchain)
-            return std::unexpected(Error::CantCreate);
+            return std::unexpected(Error::InitializationFailed);
 
         if (!renderingDeviceDriver->resizeSwapchain(graphicsQueue, swapchain.value(), frames.size()))
-            return std::unexpected(Error::CantCreate);
+            return std::unexpected(Error::InitializationFailed);
 
         return swapchain;
     }
@@ -252,13 +252,13 @@ namespace Vixen {
             flushAndWaitForFrames();
 
             if (!renderingDeviceDriver->resizeSwapchain(graphicsQueue, window->swapchain, frames.size()))
-                return std::unexpected(Error::CantCreate);
+                return std::unexpected(Error::InitializationFailed);
 
             framebuffer = renderingDeviceDriver->acquireSwapchainFramebuffer(graphicsQueue, window->swapchain);
         }
 
         if (!framebuffer)
-            return std::unexpected(Error::CantCreate);
+            return std::unexpected(Error::InitializationFailed);
 
         frames[frameIndex].swapchainsToPresent.push_back(window->swapchain);
 

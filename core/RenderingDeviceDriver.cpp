@@ -12,12 +12,18 @@
 
 #include "error/CantCreateError.h"
 #include "error/Macros.h"
+#include "shader/ShaderUniformType.h"
 
 namespace Vixen {
-    bool RenderingDeviceDriver::reflectShader(const std::vector<ShaderStageData> &stages, Shader *shader) {
+    bool RenderingDeviceDriver::reflectShader(
+        const std::vector<ShaderStageData> &stages,
+        Shader *shader
+    ) {
         for (const auto &[stage, spirv]: stages) {
-            const auto compiler = spirv_cross::Compiler(std::bit_cast<const uint32_t *>(spirv.data()),
-                                                        spirv.size() / sizeof(uint32_t));
+            const auto compiler = spirv_cross::Compiler(
+                std::bit_cast<const uint32_t *>(spirv.data()),
+                spirv.size() / sizeof(uint32_t)
+            );
             auto resources = compiler.get_shader_resources();
 
             shader->stages.push_back(stage);
@@ -29,36 +35,46 @@ namespace Vixen {
             }
 
             for (const auto &uniformBuffer: resources.uniform_buffers) {
-                shader->uniformSets.push_back({
-                    .type = ShaderUniformType::UniformBuffer,
-                    .binding = compiler.get_decoration(uniformBuffer.id, spv::DecorationBinding),
-                    .length = static_cast<uint32_t>(compiler.get_declared_struct_size(
-                        compiler.get_type(uniformBuffer.base_type_id)))
-                });
+                shader->uniformSets.push_back(
+                    {
+                        .type = ShaderUniformType::UniformBuffer,
+                        .binding = compiler.get_decoration(uniformBuffer.id, spv::DecorationBinding),
+                        .length = static_cast<uint32_t>(compiler.get_declared_struct_size(
+                            compiler.get_type(uniformBuffer.base_type_id)
+                        ))
+                    }
+                );
             }
 
             for (const auto &sampler: resources.separate_samplers) {
-                shader->uniformSets.push_back({
-                    .type = ShaderUniformType::Sampler,
-                    .binding = compiler.get_decoration(sampler.id, spv::DecorationBinding),
-                    .length = 0
-                });
+                shader->uniformSets.push_back(
+                    {
+                        .type = ShaderUniformType::Sampler,
+                        .binding = compiler.get_decoration(sampler.id, spv::DecorationBinding),
+                        .length = 0
+                    }
+                );
             }
 
             for (const auto &sampledImage: resources.sampled_images) {
-                shader->uniformSets.push_back({
-                    .type = ShaderUniformType::CombinedImageSampler,
-                    .binding = compiler.get_decoration(sampledImage.id, spv::DecorationBinding),
-                    .length = 0
-                });
+                shader->uniformSets.push_back(
+                    {
+                        .type = ShaderUniformType::CombinedImageSampler,
+                        .binding = compiler.get_decoration(sampledImage.id, spv::DecorationBinding),
+                        .length = 0
+                    }
+                );
             }
         }
 
         return true;
     }
 
-    std::vector<std::byte> RenderingDeviceDriver::compileSpirvFromSource(ShaderStage stage, const std::string &source,
-                                                                   ShaderLanguage language) {
+    std::vector<std::byte> RenderingDeviceDriver::compileSpirvFromSource(
+        ShaderStage stage,
+        const std::string &source,
+        ShaderLanguage language
+    ) {
         EShLanguage glslangLanguage;
         switch (stage) {
                 using enum ShaderStage;
@@ -141,8 +157,11 @@ namespace Vixen {
 #ifdef DEBUG_ENABLED
         std::stringstream stream;
         spv::Disassemble(stream, binary);
-        spdlog::debug("Passed in GLSL source string:\n{}\n\nDisassembled SPIR-V:\n{}",
-                      std::string_view(source.begin(), source.end()), stream.str());
+        spdlog::debug(
+            "Passed in GLSL source string:\n{}\n\nDisassembled SPIR-V:\n{}",
+            std::string_view(source.begin(), source.end()),
+            stream.str()
+        );
 #endif
         glslang::FinalizeProcess();
 

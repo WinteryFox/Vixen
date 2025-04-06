@@ -2,6 +2,6 @@
 
 namespace Vixen {
     enum class Error {
-        CantCreate
+        InitializationFailed
     };
 }

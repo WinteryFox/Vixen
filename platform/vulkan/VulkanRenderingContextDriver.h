@@ -17,38 +17,65 @@ namespace Vixen {
 
         std::vector<DriverDevice> driverDevices;
         std::vector<VkPhysicalDevice> physicalDevices;
-        std::vector<std::vector<VkQueueFamilyProperties>> deviceQueueFamilyProperties;
+        std::vector<std::vector<VkQueueFamilyProperties> > deviceQueueFamilyProperties;
 
         void initializeVulkanVersion();
 
         void initializeInstanceExtensions();
 
-        void initializeInstance(const std::string &applicationName, const glm::ivec3 &applicationVersion);
+        void initializeInstance(
+            const std::string &applicationName,
+            const glm::ivec3 &applicationVersion
+        );
 
         void initializeDevices();
 
     public:
-        explicit VulkanRenderingContextDriver(const std::string &applicationName, const glm::ivec3 &applicationVersion);
+        explicit VulkanRenderingContextDriver(
+            const std::string &applicationName,
+            const glm::ivec3 &applicationVersion
+        );
 
         ~VulkanRenderingContextDriver() override;
 
         std::vector<DriverDevice> getDevices() override;
 
-        bool deviceSupportsPresent(uint32_t deviceIndex, Surface *surface) override;
+        bool deviceSupportsPresent(
+            uint32_t deviceIndex,
+            Surface *surface
+        ) override;
 
-        [[nodiscard]] uint32_t getQueueFamilyCount(uint32_t deviceIndex) const;
+        [[nodiscard]] uint32_t getQueueFamilyCount(
+            uint32_t deviceIndex
+        ) const;
 
-        [[nodiscard]] VkQueueFamilyProperties getQueueFamilyProperties(uint32_t deviceIndex, uint32_t queueFamilyIndex) const;
+        [[nodiscard]] VkQueueFamilyProperties getQueueFamilyProperties(
+            uint32_t deviceIndex,
+            uint32_t queueFamilyIndex
+        ) const;
 
-        static bool queueFamilySupportsPresent(VkPhysicalDevice physicalDevice, uint32_t queueFamilyIndex, const VulkanSurface *surface);
+        static bool queueFamilySupportsPresent(
+            VkPhysicalDevice physicalDevice,
+            uint32_t queueFamilyIndex,
+            const VulkanSurface *surface
+        );
 
-        [[nodiscard]] VkPhysicalDevice getPhysicalDevice(uint32_t deviceIndex) const;
+        [[nodiscard]] VkPhysicalDevice getPhysicalDevice(
+            uint32_t deviceIndex
+        ) const;
 
-        RenderingDeviceDriver *createRenderingDeviceDriver(uint32_t deviceIndex, uint32_t frameCount) override;
+        RenderingDeviceDriver *createRenderingDeviceDriver(
+            uint32_t deviceIndex,
+            uint32_t frameCount
+        ) override;
 
-        Surface *createSurface(Window *window) override;
+        Surface *createSurface(
+            Window *window
+        ) override;
 
-        void destroySurface(Surface *surface) override;
+        void destroySurface(
+            Surface *surface
+        ) override;
 
         [[nodiscard]] VkInstance getInstance() const;
 

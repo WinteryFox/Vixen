@@ -17,8 +17,8 @@ namespace Vixen {
         VkColorSpaceKHR colorSpace;
         std::vector<VkImage> resolveImages;
         std::vector<VkImageView> resolveImageViews;
-        std::vector<VulkanFramebuffer*> framebuffers;
-        std::vector<VulkanCommandQueue*> acquiredCommandQueues;
+        std::vector<VulkanFramebuffer *> framebuffers;
+        std::vector<VulkanCommandQueue *> acquiredCommandQueues;
         std::vector<uint32_t> acquiredCommandQueueSemaphores;
         std::vector<VulkanImage *> colorTargets;
         std::vector<VulkanImage *> depthTargets;
