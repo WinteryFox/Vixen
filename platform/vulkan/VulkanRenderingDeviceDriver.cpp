@@ -42,8 +42,13 @@ namespace Vixen {
             VK_SUCCESS)
             error<CantCreateError>("Call to vkEnumerateDeviceExtensionProperties failed.");
         std::vector<VkExtensionProperties> availableExtensions{extensionCount};
-        if (vkEnumerateDeviceExtensionProperties(physicalDevice, nullptr, &extensionCount, availableExtensions.
-                                                 data()) != VK_SUCCESS)
+        if (vkEnumerateDeviceExtensionProperties(
+            physicalDevice,
+            nullptr,
+            &extensionCount,
+            availableExtensions.
+            data()
+        ) != VK_SUCCESS)
             error<CantCreateError>("Call to vkEnumerateDeviceExtensionProperties failed.");
 
         spdlog::info(
@@ -53,10 +58,17 @@ namespace Vixen {
             physicalDeviceProperties.deviceName,
             std::ranges::fold_left_first(
                 availableExtensions |
-                std::views::transform([](const auto &extension) {
-                    return std::format("        - {}", extension.extensionName);
-                }),
-                [](const auto &a, const auto &b) {
+                std::views::transform(
+                    [](
+                const auto &extension
+            ) {
+                        return std::format("        - {}", extension.extensionName);
+                    }
+                ),
+                [](
+            const auto &a,
+            const auto &b
+        ) {
                     return a + "\n" + b;
                 }
             ).value_or("")
@@ -106,17 +118,19 @@ namespace Vixen {
         static constexpr float queuePriorities[1] = {0.0f};
         for (uint32_t i = 0; i < queueFamilyProperties.size(); i++) {
             if ((queueFamilyProperties[i].queueFlags & (
-                     VK_QUEUE_GRAPHICS_BIT | VK_QUEUE_COMPUTE_BIT | VK_QUEUE_TRANSFER_BIT)) == 0)
+                VK_QUEUE_GRAPHICS_BIT | VK_QUEUE_COMPUTE_BIT | VK_QUEUE_TRANSFER_BIT)) == 0)
                 continue;
 
-            queueCreateInfos.push_back({
-                .sType = VK_STRUCTURE_TYPE_DEVICE_QUEUE_CREATE_INFO,
-                .pNext = nullptr,
-                .flags = 0,
-                .queueFamilyIndex = i,
-                .queueCount = std::min(queueFamilyProperties[i].queueCount, static_cast<uint32_t>(1)),
-                .pQueuePriorities = queuePriorities
-            });
+            queueCreateInfos.push_back(
+                {
+                    .sType = VK_STRUCTURE_TYPE_DEVICE_QUEUE_CREATE_INFO,
+                    .pNext = nullptr,
+                    .flags = 0,
+                    .queueFamilyIndex = i,
+                    .queueCount = std::min(queueFamilyProperties[i].queueCount, static_cast<uint32_t>(1)),
+                    .pQueuePriorities = queuePriorities
+                }
+            );
         }
 
         VkPhysicalDeviceDynamicRenderingFeatures dynamicRenderingFeatures{
@@ -222,7 +236,8 @@ namespace Vixen {
     }
 
     VkSampleCountFlagBits VulkanRenderingDeviceDriver::findClosestSupportedSampleCount(
-        const ImageSamples &samples) const {
+        const ImageSamples &samples
+    ) const {
         const auto limits = physicalDeviceProperties.limits;
 
         const VkSampleCountFlags flags = limits.framebufferColorSampleCounts & limits.framebufferDepthSampleCounts;
@@ -280,7 +295,9 @@ namespace Vixen {
         vkDestroyDevice(device, nullptr);
     }
 
-    auto VulkanRenderingDeviceDriver::createSwapchain(Surface *surface) -> std::expected<Swapchain *, Error> {
+    auto VulkanRenderingDeviceDriver::createSwapchain(
+        Surface *surface
+    ) -> std::expected<Swapchain *, Error> {
         DEBUG_ASSERT(surface != nullptr);
 
         const auto vkSurface = dynamic_cast<VulkanSurface *>(surface);
@@ -291,8 +308,12 @@ namespace Vixen {
             return std::unexpected(Error::CantCreate);
 
         std::vector<VkSurfaceFormatKHR> formats(formatCount);
-        if (vkGetPhysicalDeviceSurfaceFormatsKHR(physicalDevice, vkSurface->surface, &formatCount,
-                                                 formats.data()) != VK_SUCCESS)
+        if (vkGetPhysicalDeviceSurfaceFormatsKHR(
+            physicalDevice,
+            vkSurface->surface,
+            &formatCount,
+            formats.data()
+        ) != VK_SUCCESS)
             return std::unexpected(Error::CantCreate);
 
         VkFormat format = VK_FORMAT_UNDEFINED;
@@ -327,11 +348,11 @@ namespace Vixen {
         return swapchain;
     }
 
-    void VulkanRenderingDeviceDriver::resizeSwapchain(
+    auto VulkanRenderingDeviceDriver::resizeSwapchain(
         CommandQueue *commandQueue,
         Swapchain *swapchain,
         const uint32_t imageCount
-    ) {
+    ) -> std::expected<void, Error> {
         DEBUG_ASSERT(commandQueue != nullptr);
         DEBUG_ASSERT(swapchain != nullptr);
 
@@ -339,22 +360,29 @@ namespace Vixen {
         releaseSwapchain(vkSwapchain);
 
         VkSurfaceCapabilitiesKHR surfaceCapabilities;
-        if (vkGetPhysicalDeviceSurfaceCapabilitiesKHR(physicalDevice, vkSwapchain->surface->surface,
-                                                      &surfaceCapabilities) != VK_SUCCESS)
-            error<CantCreateError>("Call to vkGetPhysicalDeviceSurfaceCapabilitiesKHR failed.");
+        if (vkGetPhysicalDeviceSurfaceCapabilitiesKHR(
+            physicalDevice,
+            vkSwapchain->surface->surface,
+            &surfaceCapabilities
+        ) != VK_SUCCESS)
+            return std::unexpected(Error::CantCreate);
 
         const auto surface = vkSwapchain->surface;
         if (!renderingContext->deviceSupportsPresent(deviceIndex, surface))
-            error<CantCreateError>("Surface is not supported by device.");
+            return std::unexpected(Error::CantCreate);
 
         if (!vkSwapchain->swapchain) {
             if (surfaceCapabilities.currentExtent.width == std::numeric_limits<uint32_t>::max()) {
-                surfaceCapabilities.currentExtent.width = std::clamp(surface->resolution.x,
-                                                                     surfaceCapabilities.minImageExtent.width,
-                                                                     surfaceCapabilities.maxImageExtent.width);
-                surfaceCapabilities.currentExtent.height = std::clamp(surface->resolution.y,
-                                                                      surfaceCapabilities.minImageExtent.height,
-                                                                      surfaceCapabilities.maxImageExtent.height);
+                surfaceCapabilities.currentExtent.width = std::clamp(
+                    surface->resolution.x,
+                    surfaceCapabilities.minImageExtent.width,
+                    surfaceCapabilities.maxImageExtent.width
+                );
+                surfaceCapabilities.currentExtent.height = std::clamp(
+                    surface->resolution.y,
+                    surfaceCapabilities.minImageExtent.height,
+                    surfaceCapabilities.maxImageExtent.height
+                );
             }
 
             if (surfaceCapabilities.currentTransform & VK_SURFACE_TRANSFORM_ROTATE_90_BIT_KHR ||
@@ -365,10 +393,16 @@ namespace Vixen {
 
         VkExtent2D extent;
         if (surfaceCapabilities.currentExtent.width == std::numeric_limits<uint32_t>::max()) {
-            extent.width = std::clamp(surface->resolution.x, surfaceCapabilities.minImageExtent.width,
-                                      surfaceCapabilities.maxImageExtent.width);
-            extent.height = std::clamp(surface->resolution.y, surfaceCapabilities.minImageExtent.height,
-                                       surfaceCapabilities.maxImageExtent.height);
+            extent.width = std::clamp(
+                surface->resolution.x,
+                surfaceCapabilities.minImageExtent.width,
+                surfaceCapabilities.maxImageExtent.width
+            );
+            extent.height = std::clamp(
+                surface->resolution.y,
+                surfaceCapabilities.minImageExtent.height,
+                surfaceCapabilities.maxImageExtent.height
+            );
         } else {
             extent = surfaceCapabilities.currentExtent;
             surface->resolution.x = extent.width;
@@ -376,7 +410,7 @@ namespace Vixen {
         }
 
         if (surface->resolution.x == 0 || surface->resolution.y == 0)
-            return;
+            return {};
 
         VkSwapchainCreateInfoKHR swapchainInfo{
             .sType = VK_STRUCTURE_TYPE_SWAPCHAIN_CREATE_INFO_KHR,
@@ -410,13 +444,21 @@ namespace Vixen {
 
         std::vector<VkPresentModeKHR> supportedPresentModes{};
         uint32_t presentModeCount;
-        if (vkGetPhysicalDeviceSurfacePresentModesKHR(physicalDevice, surface->surface, &presentModeCount,
-                                                      nullptr) != VK_SUCCESS)
-            error<CantCreateError>("Call to vkGetPhysicalDeviceSurfacePresentModesKHR failed.");
+        if (vkGetPhysicalDeviceSurfacePresentModesKHR(
+            physicalDevice,
+            surface->surface,
+            &presentModeCount,
+            nullptr
+        ) != VK_SUCCESS)
+            return std::unexpected(Error::CantCreate);
         supportedPresentModes.resize(presentModeCount);
-        if (vkGetPhysicalDeviceSurfacePresentModesKHR(physicalDevice, surface->surface, &presentModeCount,
-                                                      supportedPresentModes.data()) != VK_SUCCESS)
-            error<CantCreateError>("Call to vkGetPhysicalDeviceSurfacePresentModesKHR failed.");
+        if (vkGetPhysicalDeviceSurfacePresentModesKHR(
+            physicalDevice,
+            surface->surface,
+            &presentModeCount,
+            supportedPresentModes.data()
+        ) != VK_SUCCESS)
+            return std::unexpected(Error::CantCreate);
 
         switch (surface->vsyncMode) {
             case VSyncMode::Disabled:
@@ -443,16 +485,21 @@ namespace Vixen {
         }
 
         if (vkCreateSwapchainKHR(device, &swapchainInfo, nullptr, &vkSwapchain->swapchain) != VK_SUCCESS)
-            error<CantCreateError>("Call to vkCreateSwapchainKHR failed.");
+            return std::unexpected(Error::CantCreate);
 
         uint32_t swapchainImageCount;
         if (vkGetSwapchainImagesKHR(device, vkSwapchain->swapchain, &swapchainImageCount, nullptr) != VK_SUCCESS)
-            error<CantCreateError>("Call to vkGetSwapchainImagesKHR failed.");
+            return std::unexpected(Error::CantCreate);
         vkSwapchain->resolveImages.resize(swapchainImageCount);
         vkSwapchain->resolveImageViews.resize(swapchainImageCount);
-        if (vkGetSwapchainImagesKHR(device, vkSwapchain->swapchain, &swapchainImageCount, vkSwapchain->resolveImages.
-                                    data()) != VK_SUCCESS)
-            error<CantCreateError>("Call to vkGetSwapchainImagesKHR failed.");
+        if (vkGetSwapchainImagesKHR(
+            device,
+            vkSwapchain->swapchain,
+            &swapchainImageCount,
+            vkSwapchain->resolveImages.
+                         data()
+        ) != VK_SUCCESS)
+            return std::unexpected(Error::CantCreate);
 
         vkSwapchain->colorTargets.resize(swapchainImageCount);
         vkSwapchain->depthTargets.resize(swapchainImageCount);
@@ -480,9 +527,9 @@ namespace Vixen {
                 }
             };
             if (vkCreateImageView(device, &imageViewInfo, nullptr, &vkSwapchain->resolveImageViews[i]) != VK_SUCCESS)
-                error<CantCreateError>("Failed to create image views for swap chain acquired images.");
+                return std::unexpected(Error::CantCreate);
 
-            vkSwapchain->colorTargets[i] = dynamic_cast<VulkanImage *>(createImage(
+            auto colorTarget = createImage(
                 {
                     .format = static_cast<DataFormat>(vkSwapchain->format - 1),
                     .width = swapchainInfo.imageExtent.width,
@@ -501,8 +548,8 @@ namespace Vixen {
                     .swizzleBlue = ImageSwizzle::Blue,
                     .swizzleAlpha = ImageSwizzle::Alpha
                 }
-            ));
-            vkSwapchain->depthTargets[i] = dynamic_cast<VulkanImage *>(createImage(
+            );
+            auto depthTarget = createImage(
                 {
                     // TODO: Actually search for a supported depth format instead of blindly picking our preferred one.
                     .format = D32_SFLOAT_S8_UINT,
@@ -522,7 +569,10 @@ namespace Vixen {
                     .swizzleBlue = ImageSwizzle::Blue,
                     .swizzleAlpha = ImageSwizzle::Alpha
                 }
-            ));
+            );
+
+            vkSwapchain->colorTargets[i] = dynamic_cast<VulkanImage *>(colorTarget.value());
+            vkSwapchain->depthTargets[i] = dynamic_cast<VulkanImage *>(depthTarget.value());
 
             const auto framebuffer = new VulkanFramebuffer();
             // TODO: Set appropriately if using Vulkan 1.0 fallback.
@@ -540,10 +590,14 @@ namespace Vixen {
 
             // TODO: Transition color targets
         }
+
+        return {};
     }
 
-    auto VulkanRenderingDeviceDriver::acquireSwapchainFramebuffer(CommandQueue *commandQueue, Swapchain *swapchain)
-        -> std::expected<Framebuffer *, SwapchainError> {
+    auto VulkanRenderingDeviceDriver::acquireSwapchainFramebuffer(
+        CommandQueue *commandQueue,
+        Swapchain *swapchain
+    ) -> std::expected<Framebuffer *, SwapchainError> {
         DEBUG_ASSERT(commandQueue != nullptr);
         DEBUG_ASSERT(swapchain != nullptr);
 
@@ -576,9 +630,14 @@ namespace Vixen {
         vkSwapchain->acquiredCommandQueues.push_back(vkCommandQueue);
         vkSwapchain->acquiredCommandQueueSemaphores.push_back(semaphoreIndex);
 
-        const auto result = vkAcquireNextImageKHR(device, vkSwapchain->swapchain, std::numeric_limits<uint64_t>::max(),
-                                                  semaphore,
-                                                  VK_NULL_HANDLE, &vkSwapchain->imageIndex);
+        const auto result = vkAcquireNextImageKHR(
+            device,
+            vkSwapchain->swapchain,
+            std::numeric_limits<uint64_t>::max(),
+            semaphore,
+            VK_NULL_HANDLE,
+            &vkSwapchain->imageIndex
+        );
         if (result == VK_ERROR_OUT_OF_DATE_KHR) {
             if (!recreateImageSemaphore(vkCommandQueue, semaphoreIndex, true))
                 return std::unexpected(SwapchainError::Failed);
@@ -596,7 +655,9 @@ namespace Vixen {
         return framebuffer;
     }
 
-    void VulkanRenderingDeviceDriver::releaseSwapchain(VulkanSwapchain *swapchain) {
+    void VulkanRenderingDeviceDriver::releaseSwapchain(
+        VulkanSwapchain *swapchain
+    ) {
         for (uint32_t i = 0; i < swapchain->resolveImages.size(); i++) {
             if (const auto framebuffer = swapchain->framebuffers[i];
                 framebuffer != nullptr) {
@@ -622,8 +683,11 @@ namespace Vixen {
         }
 
         for (uint32_t i = 0; i < swapchain->acquiredCommandQueues.size(); i++) {
-            recreateImageSemaphore(swapchain->acquiredCommandQueues[i], swapchain->acquiredCommandQueueSemaphores[i],
-                                   false);
+            recreateImageSemaphore(
+                swapchain->acquiredCommandQueues[i],
+                swapchain->acquiredCommandQueueSemaphores[i],
+                false
+            );
         }
 
         swapchain->acquiredCommandQueues.clear();
@@ -635,8 +699,9 @@ namespace Vixen {
         const uint32_t semaphoreIndex,
         const bool releaseOnSwapchain
     ) -> std::expected<void, Error> {
-        if (const auto swapchain = dynamic_cast<VulkanSwapchain *>(commandQueue->imageSemaphoresSwapchains[
-            semaphoreIndex]); swapchain != nullptr) {
+        if (const auto swapchain = dynamic_cast<VulkanSwapchain *>(
+                commandQueue->imageSemaphoresSwapchains[semaphoreIndex]);
+            swapchain != nullptr) {
             commandQueue->imageSemaphoresSwapchains[semaphoreIndex] = nullptr;
 
             if (releaseOnSwapchain) {
@@ -645,7 +710,8 @@ namespace Vixen {
                         acquiredCommandQueueSemaphores[i] == semaphoreIndex) {
                         swapchain->acquiredCommandQueues.erase(swapchain->acquiredCommandQueues.begin() + i);
                         swapchain->acquiredCommandQueueSemaphores.erase(
-                            swapchain->acquiredCommandQueueSemaphores.begin() + i);
+                            swapchain->acquiredCommandQueueSemaphores.begin() + i
+                        );
                     }
                 }
             }
@@ -682,7 +748,9 @@ namespace Vixen {
         return {};
     }
 
-    void VulkanRenderingDeviceDriver::destroySwapchain(Swapchain *swapchain) {
+    void VulkanRenderingDeviceDriver::destroySwapchain(
+        Swapchain *swapchain
+    ) {
         DEBUG_ASSERT(swapchain != nullptr);
 
         const auto vkSwapchain = dynamic_cast<VulkanSwapchain *>(swapchain);
@@ -701,8 +769,12 @@ namespace Vixen {
             if (queueFamilies[i].empty())
                 continue;
 
-            if (surface != nullptr && !VulkanRenderingContextDriver::queueFamilySupportsPresent(
-                    physicalDevice, i, dynamic_cast<VulkanSurface *>(surface)))
+            if (surface != nullptr &&
+                !VulkanRenderingContextDriver::queueFamilySupportsPresent(
+                    physicalDevice,
+                    i,
+                    dynamic_cast<VulkanSurface *>(surface)
+                ))
                 continue;
 
             const VkQueueFlags optionQueueFlags = queueFamilyProperties[i].queueFlags;
@@ -721,24 +793,25 @@ namespace Vixen {
         return pickedQueueFamilyIndex;
     }
 
-    Fence *VulkanRenderingDeviceDriver::createFence() {
-        const auto fence = new VulkanFence();
-
+    auto VulkanRenderingDeviceDriver::createFence() -> std::expected<Fence *, Error> {
         constexpr VkFenceCreateInfo fenceInfo{
             .sType = VK_STRUCTURE_TYPE_FENCE_CREATE_INFO,
             .pNext = nullptr,
             .flags = 0
         };
 
-        if (vkCreateFence(device, &fenceInfo, nullptr, &fence->fence) != VK_SUCCESS) {
-            delete fence;
-            error<CantCreateError>("Call to vkCreateFence failed.");
-        }
+        VkFence o;
+        if (vkCreateFence(device, &fenceInfo, nullptr, &o) != VK_SUCCESS)
+            return std::unexpected(Error::CantCreate);
 
+        const auto fence = new VulkanFence();
+        fence->fence = o;
         return fence;
     }
 
-    auto VulkanRenderingDeviceDriver::waitOnFence(Fence *fence) -> std::expected<void, Error> {
+    auto VulkanRenderingDeviceDriver::waitOnFence(
+        Fence *fence
+    ) -> std::expected<void, Error> {
         const auto vkFence = dynamic_cast<VulkanFence *>(fence);
 
         if (vkWaitForFences(device, 1, &vkFence->fence, VK_TRUE, std::numeric_limits<uint64_t>::max()) != VK_SUCCESS)
@@ -768,35 +841,42 @@ namespace Vixen {
         return {};
     }
 
-    void VulkanRenderingDeviceDriver::destroyFence(Fence *fence) {
+    void VulkanRenderingDeviceDriver::destroyFence(
+        Fence *fence
+    ) {
         const auto o = dynamic_cast<VulkanFence *>(fence);
         vkDestroyFence(device, o->fence, nullptr);
         delete o;
     }
 
-    Semaphore *VulkanRenderingDeviceDriver::createSemaphore() {
-        const auto semaphore = new VulkanSemaphore();
-
+    auto VulkanRenderingDeviceDriver::createSemaphore() -> std::expected<Semaphore *, Error> {
         constexpr VkSemaphoreCreateInfo semaphoreInfo{
             .sType = VK_STRUCTURE_TYPE_SEMAPHORE_CREATE_INFO,
             .pNext = nullptr,
             .flags = 0
         };
-        if (vkCreateSemaphore(device, &semaphoreInfo, nullptr, &semaphore->semaphore) != VK_SUCCESS) {
-            delete semaphore;
-            error<CantCreateError>("Call to vkCreateSemaphore failed.");
-        }
 
+        VkSemaphore o;
+        if (vkCreateSemaphore(device, &semaphoreInfo, nullptr, &o) != VK_SUCCESS)
+            return std::unexpected(Error::CantCreate);
+
+        const auto semaphore = new VulkanSemaphore();
+        semaphore->semaphore = o;
         return semaphore;
     }
 
-    void VulkanRenderingDeviceDriver::destroySemaphore(Semaphore *semaphore) {
+    void VulkanRenderingDeviceDriver::destroySemaphore(
+        Semaphore *semaphore
+    ) {
         const auto o = dynamic_cast<VulkanSemaphore *>(semaphore);
         vkDestroySemaphore(device, o->semaphore, nullptr);
         delete o;
     }
 
-    CommandPool *VulkanRenderingDeviceDriver::createCommandPool(const uint32_t queueFamily, CommandBufferType type) {
+    auto VulkanRenderingDeviceDriver::createCommandPool(
+        const uint32_t queueFamily,
+        const CommandBufferType type
+    ) -> std::expected<CommandPool *, Error> {
         const VkCommandPoolCreateInfo commandPoolInfo{
             .sType = VK_STRUCTURE_TYPE_COMMAND_POOL_CREATE_INFO,
             .pNext = nullptr,
@@ -804,28 +884,37 @@ namespace Vixen {
             .queueFamilyIndex = queueFamily
         };
 
-        VkCommandPool commandPool;
-        if (vkCreateCommandPool(device, &commandPoolInfo, nullptr, &commandPool) != VK_SUCCESS)
-            error<CantCreateError>("Call to vkCreateCommandPool failed.");
-        const auto o = new VulkanCommandPool{};
-        o->pool = commandPool;
-        o->type = type;
-        o->queueFamily = queueFamily;
-        return o;
+        VkCommandPool o;
+        if (vkCreateCommandPool(device, &commandPoolInfo, nullptr, &o) != VK_SUCCESS)
+            return std::unexpected(Error::CantCreate);
+
+        const auto commandPool = new VulkanCommandPool{};
+        commandPool->pool = o;
+        commandPool->type = type;
+        commandPool->queueFamily = queueFamily;
+        return commandPool;
     }
 
-    void VulkanRenderingDeviceDriver::resetCommandPool(CommandPool *pool) {
+    auto VulkanRenderingDeviceDriver::resetCommandPool(
+        CommandPool *pool
+    ) -> std::expected<void, Error> {
         if (vkResetCommandPool(device, dynamic_cast<VulkanCommandPool *>(pool)->pool, 0) != VK_SUCCESS)
-            error<CantCreateError>("Call to vkResetCommandPool failed.");
+            return std::unexpected(Error::CantCreate);
+
+        return {};
     }
 
-    void VulkanRenderingDeviceDriver::destroyCommandPool(CommandPool *pool) {
+    void VulkanRenderingDeviceDriver::destroyCommandPool(
+        CommandPool *pool
+    ) {
         const auto *o = dynamic_cast<VulkanCommandPool *>(pool);
         vkDestroyCommandPool(device, o->pool, nullptr);
         delete o;
     }
 
-    CommandBuffer *VulkanRenderingDeviceDriver::createCommandBuffer(CommandPool *pool) {
+    auto VulkanRenderingDeviceDriver::createCommandBuffer(
+        CommandPool *pool
+    ) -> std::expected<CommandBuffer *, Error> {
         const auto *p = dynamic_cast<VulkanCommandPool *>(pool);
 
         const VkCommandBufferAllocateInfo commandBufferInfo{
@@ -838,7 +927,7 @@ namespace Vixen {
 
         VkCommandBuffer commandBuffer = VK_NULL_HANDLE;
         if (vkAllocateCommandBuffers(device, &commandBufferInfo, &commandBuffer) != VK_SUCCESS)
-            error<CantCreateError>("Call to vkAllocateCommandBuffers failed.");
+            return std::unexpected(Error::CantCreate);
 
         const auto o = new VulkanCommandBuffer();
         o->commandBuffer = commandBuffer;
@@ -846,7 +935,9 @@ namespace Vixen {
         return o;
     }
 
-    void VulkanRenderingDeviceDriver::beginCommandBuffer(CommandBuffer *commandBuffer) {
+    auto VulkanRenderingDeviceDriver::beginCommandBuffer(
+        CommandBuffer *commandBuffer
+    ) -> std::expected<void, Error> {
         const auto o = dynamic_cast<VulkanCommandBuffer *>(commandBuffer);
 
         constexpr VkCommandBufferBeginInfo beginInfo{
@@ -856,10 +947,14 @@ namespace Vixen {
             .pInheritanceInfo = nullptr
         };
         if (vkBeginCommandBuffer(o->commandBuffer, &beginInfo) != VK_SUCCESS)
-            error<CantCreateError>("Call to vkBeginCommandBuffer failed.");
+            return std::unexpected(Error::CantCreate);
+
+        return {};
     }
 
-    void VulkanRenderingDeviceDriver::endCommandBuffer(CommandBuffer *commandBuffer) {
+    void VulkanRenderingDeviceDriver::endCommandBuffer(
+        CommandBuffer *commandBuffer
+    ) {
         const auto o = dynamic_cast<VulkanCommandBuffer *>(commandBuffer);
         vkEndCommandBuffer(o->commandBuffer);
     }
@@ -888,14 +983,14 @@ namespace Vixen {
         return commandQueue;
     }
 
-    void VulkanRenderingDeviceDriver::executeCommandQueueAndPresent(
+    auto VulkanRenderingDeviceDriver::executeCommandQueueAndPresent(
         CommandQueue *commandQueue,
         const std::vector<Semaphore *> &waitSemaphores,
         const std::vector<CommandBuffer *> &commandBuffers,
         const std::vector<Semaphore *> &semaphores,
         Fence *fence,
         const std::vector<Swapchain *> &swapchains
-    ) {
+    ) -> std::expected<void, Error> {
         const auto vkCommandQueue = dynamic_cast<VulkanCommandQueue *>(commandQueue);
         Queue &queue = queueFamilies[vkCommandQueue->queueFamily][vkCommandQueue->queueIndex];
         const auto vkFence = dynamic_cast<VulkanFence *>(fence);
@@ -907,7 +1002,8 @@ namespace Vixen {
         if (!vkCommandQueue->pendingSemaphoresForExecute.empty()) {
             for (uint32_t i = 0; i < vkCommandQueue->pendingSemaphoresForExecute.size(); i++) {
                 vkWaitSemaphores.push_back(
-                    vkCommandQueue->imageSemaphores[vkCommandQueue->pendingSemaphoresForExecute[i]]);
+                    vkCommandQueue->imageSemaphores[vkCommandQueue->pendingSemaphoresForExecute[i]]
+                );
                 vkWaitStages.push_back(VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT);
             }
 
@@ -946,7 +1042,7 @@ namespace Vixen {
 
                     for (uint32_t i = 0; i < frameCount; i++) {
                         if (!vkCreateSemaphore(device, &semaphoreInfo, nullptr, &semaphore))
-                            error<CantCreateError>("Call to vkCreateSemaphore failed.");
+                            return std::unexpected(Error::CantCreate);
 
                         vkCommandQueue->presentSemaphores.push_back(semaphore);
                     }
@@ -984,14 +1080,16 @@ namespace Vixen {
                 CRASH("Vulkan device lost");
             }
             if (submitResult != VK_SUCCESS)
-                error<CantCreateError>("Call to vkQueueSubmit failed.");
+                return std::unexpected(Error::CantCreate);
 
             if (vkFence != nullptr && !vkCommandQueue->pendingSemaphoresForFence.empty()) {
                 vkFence->queueSignaledFrom = vkCommandQueue;
 
                 for (uint32_t i = 0; i < vkCommandQueue->pendingSemaphoresForFence.size(); i++)
                     vkCommandQueue->imageSemaphoresForFences.emplace_back(
-                        vkFence, vkCommandQueue->pendingSemaphoresForFence[i]);
+                        vkFence,
+                        vkCommandQueue->pendingSemaphoresForFence[i]
+                    );
 
                 vkCommandQueue->pendingSemaphoresForFence.clear();
             }
@@ -1030,17 +1128,19 @@ namespace Vixen {
 
             // TODO: Handle suboptimal and out of date errors?
             if (vkQueuePresentKHR(queue.queue, &presentInfo) != VK_SUCCESS)
-                error<CantCreateError>("Call to vkQueuePresentKHR failed.");
+                return std::unexpected(Error::CantCreate);
 
-            for (const auto &result: results) {
-                if (result != VK_SUCCESS) {
-                    error<CantCreateError>("Call to vkQueuePresentKHR failed.");
-                }
-            }
+            for (const auto &result: results)
+                if (result != VK_SUCCESS)
+                    return std::unexpected(Error::CantCreate);
         }
+
+        return {};
     }
 
-    void VulkanRenderingDeviceDriver::destroyCommandQueue(CommandQueue *commandQueue) {
+    void VulkanRenderingDeviceDriver::destroyCommandQueue(
+        CommandQueue *commandQueue
+    ) {
         const auto vkCommandQueue = dynamic_cast<VulkanCommandQueue *>(commandQueue);
 
         for (const auto &semaphore: vkCommandQueue->presentSemaphores)
@@ -1054,11 +1154,11 @@ namespace Vixen {
         delete vkCommandQueue;
     }
 
-    Buffer *VulkanRenderingDeviceDriver::createBuffer(
+    auto VulkanRenderingDeviceDriver::createBuffer(
         const BufferUsage usage,
         const uint32_t count,
         const uint32_t stride
-    ) {
+    ) -> std::expected<Buffer *, Error> {
         if (count <= 0)
             throw std::runtime_error("Count cannot be equal to or less than 0");
         if (stride <= 0)
@@ -1116,14 +1216,14 @@ namespace Vixen {
         VmaAllocation allocation;
         VmaAllocationInfo allocationInfo;
         if (vmaCreateBuffer(
-                allocator,
-                &bufferCreateInfo,
-                &allocationCreateInfo,
-                &buffer,
-                &allocation,
-                &allocationInfo
-            ) != VK_SUCCESS)
-            error<CantCreateError>("Failed to create buffer");
+            allocator,
+            &bufferCreateInfo,
+            &allocationCreateInfo,
+            &buffer,
+            &allocation,
+            &allocationInfo
+        ) != VK_SUCCESS)
+            return std::unexpected(Error::CantCreate);
 
         return new VulkanBuffer(
             usage,
@@ -1134,13 +1234,18 @@ namespace Vixen {
         );
     }
 
-    void VulkanRenderingDeviceDriver::destroyBuffer(Buffer *buffer) {
+    void VulkanRenderingDeviceDriver::destroyBuffer(
+        Buffer *buffer
+    ) {
         const auto o = dynamic_cast<VulkanBuffer *>(buffer);
         vmaDestroyBuffer(allocator, o->buffer, o->allocation);
         delete o;
     }
 
-    Image *VulkanRenderingDeviceDriver::createImage(const ImageFormat &format, const ImageView &view) {
+    auto VulkanRenderingDeviceDriver::createImage(
+        const ImageFormat &format,
+        const ImageView &view
+    ) -> std::expected<Image *, Error> {
         VkImageCreateInfo imageCreateInfo{
             .sType = VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO,
             .pNext = nullptr,
@@ -1209,8 +1314,12 @@ namespace Vixen {
             uint32_t memoryTypeIndex = 0;
             VmaAllocationCreateInfo lazyMemoryRequirements = allocationCreateInfo;
             lazyMemoryRequirements.usage = VMA_MEMORY_USAGE_GPU_LAZILY_ALLOCATED;
-            if (const VkResult result = vmaFindMemoryTypeIndex(allocator, UINT32_MAX, &lazyMemoryRequirements,
-                                                               &memoryTypeIndex);
+            if (const VkResult result = vmaFindMemoryTypeIndex(
+                    allocator,
+                    UINT32_MAX,
+                    &lazyMemoryRequirements,
+                    &memoryTypeIndex
+                );
                 result == VK_SUCCESS) {
                 allocationCreateInfo = lazyMemoryRequirements;
                 imageCreateInfo.usage |= VK_IMAGE_USAGE_TRANSIENT_ATTACHMENT_BIT;
@@ -1229,14 +1338,14 @@ namespace Vixen {
         VkImage image;
         VmaAllocation allocation;
         if (vmaCreateImage(
-                allocator,
-                &imageCreateInfo,
-                &allocationCreateInfo,
-                &image,
-                &allocation,
-                nullptr
-            ) != VK_SUCCESS)
-            error<CantCreateError>("Failed to create image");
+            allocator,
+            &imageCreateInfo,
+            &allocationCreateInfo,
+            &image,
+            &allocation,
+            nullptr
+        ) != VK_SUCCESS)
+            return std::unexpected(Error::CantCreate);
 
         VkImageView imageView;
         const VkImageViewCreateInfo imageViewInfo{
@@ -1255,7 +1364,7 @@ namespace Vixen {
             .subresourceRange = {
                 .aspectMask = static_cast<VkImageAspectFlags>(format.usage & ImageUsage::DepthStencilAttachment
                                                                   ? VK_IMAGE_ASPECT_DEPTH_BIT |
-                                                                    VK_IMAGE_ASPECT_STENCIL_BIT
+                                                                  VK_IMAGE_ASPECT_STENCIL_BIT
                                                                   : VK_IMAGE_ASPECT_COLOR_BIT),
                 .baseMipLevel = 0,
                 .levelCount = imageCreateInfo.mipLevels,
@@ -1267,7 +1376,7 @@ namespace Vixen {
         if (const auto e = vkCreateImageView(device, &imageViewInfo, nullptr, &imageView);
             e != VK_SUCCESS) {
             vmaDestroyImage(allocator, image, allocation);
-            error<CantCreateError>("Call to vkCreateImageView failed.");
+            return std::unexpected(Error::CantCreate);
         }
 
         const auto o = new VulkanImage();
@@ -1279,26 +1388,34 @@ namespace Vixen {
         return o;
     }
 
-    std::byte *VulkanRenderingDeviceDriver::mapImage(Image *image) {
+    std::byte *VulkanRenderingDeviceDriver::mapImage(
+        Image *image
+    ) {
         const auto o = dynamic_cast<VulkanImage *>(image);
         std::byte *data;
         vmaMapMemory(allocator, o->allocation, std::bit_cast<void **>(&data));
         return data;
     }
 
-    void VulkanRenderingDeviceDriver::unmapImage(Image *image) {
+    void VulkanRenderingDeviceDriver::unmapImage(
+        Image *image
+    ) {
         const auto o = dynamic_cast<VulkanImage *>(image);
         vmaUnmapMemory(allocator, o->allocation);
     }
 
-    void VulkanRenderingDeviceDriver::destroyImage(Image *image) {
+    void VulkanRenderingDeviceDriver::destroyImage(
+        Image *image
+    ) {
         const auto o = dynamic_cast<VulkanImage *>(image);
         vkDestroyImageView(device, o->imageView, nullptr);
         vmaDestroyImage(allocator, o->image, o->allocation);
         delete o;
     }
 
-    Sampler *VulkanRenderingDeviceDriver::createSampler(SamplerState state) {
+    auto VulkanRenderingDeviceDriver::createSampler(
+        SamplerState state
+    ) -> std::expected<Sampler *, Error> {
         const VkSamplerCreateInfo samplerInfo{
             .sType = VK_STRUCTURE_TYPE_SAMPLER_CREATE_INFO,
             .pNext = nullptr,
@@ -1324,7 +1441,7 @@ namespace Vixen {
 
         VkSampler sampler;
         if (vkCreateSampler(device, &samplerInfo, nullptr, &sampler) != VK_SUCCESS)
-            error<CantCreateError>("Call to vkCreateSampler failed.");
+            return std::unexpected(Error::CantCreate);
 
         const auto o = new VulkanSampler{};
         o->state = state;
@@ -1332,7 +1449,9 @@ namespace Vixen {
         return o;
     }
 
-    void VulkanRenderingDeviceDriver::destroySampler(Sampler *sampler) {
+    void VulkanRenderingDeviceDriver::destroySampler(
+        Sampler *sampler
+    ) {
         const auto o = dynamic_cast<VulkanSampler *>(sampler);
         vkDestroySampler(device, o->sampler, nullptr);
         delete o;
@@ -1414,15 +1533,17 @@ namespace Vixen {
             }
             o->descriptorSetLayouts.push_back(descriptorSetLayout);
 
-            o->shaderStageInfos.push_back({
-                .sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO,
-                .pNext = nullptr,
-                .flags = 0,
-                .stage = static_cast<VkShaderStageFlagBits>(stageFlag),
-                .module = module,
-                .pName = nullptr,
-                .pSpecializationInfo = nullptr
-            });
+            o->shaderStageInfos.push_back(
+                {
+                    .sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO,
+                    .pNext = nullptr,
+                    .flags = 0,
+                    .stage = static_cast<VkShaderStageFlagBits>(stageFlag),
+                    .module = module,
+                    .pName = nullptr,
+                    .pSpecializationInfo = nullptr
+                }
+            );
         }
 
         const VkPushConstantRange pushConstantRange{
@@ -1453,14 +1574,18 @@ namespace Vixen {
         return o;
     }
 
-    void VulkanRenderingDeviceDriver::destroyShaderModules(Shader *shader) {
+    void VulkanRenderingDeviceDriver::destroyShaderModules(
+        Shader *shader
+    ) {
         const auto o = dynamic_cast<VulkanShader *>(shader);
         for (const auto &stageInfo: o->shaderStageInfos)
             vkDestroyShaderModule(device, stageInfo.module, nullptr);
         o->shaderStageInfos.clear();
     }
 
-    void VulkanRenderingDeviceDriver::destroyShader(Shader *shader) {
+    void VulkanRenderingDeviceDriver::destroyShader(
+        Shader *shader
+    ) {
         const auto o = dynamic_cast<VulkanShader *>(shader);
 
         destroyShaderModules(o);
@@ -1471,8 +1596,9 @@ namespace Vixen {
         delete o;
     }
 
-    VkImageSubresourceLayers
-    VulkanRenderingDeviceDriver::_imageSubresourceLayers(const ImageSubresourceLayers &layers) {
+    VkImageSubresourceLayers VulkanRenderingDeviceDriver::_imageSubresourceLayers(
+        const ImageSubresourceLayers &layers
+    ) {
         return {
             .aspectMask = toVkImageAspectFlags(layers.aspect),
             .mipLevel = layers.mipmap,
@@ -1481,7 +1607,9 @@ namespace Vixen {
         };
     }
 
-    VkBufferImageCopy VulkanRenderingDeviceDriver::_bufferImageCopyRegion(const BufferImageCopyRegion &region) {
+    VkBufferImageCopy VulkanRenderingDeviceDriver::_bufferImageCopyRegion(
+        const BufferImageCopyRegion &region
+    ) {
         return {
             .bufferOffset = region.bufferOffset,
             .bufferRowLength = {},
@@ -1609,7 +1737,9 @@ namespace Vixen {
         }
     }
 
-    void VulkanRenderingDeviceDriver::commandEndRenderPass(CommandBuffer *commandBuffer) {
+    void VulkanRenderingDeviceDriver::commandEndRenderPass(
+        CommandBuffer *commandBuffer
+    ) {
         if (enabledFeatures.dynamicRendering) {
             vkCmdEndRendering(dynamic_cast<VulkanCommandBuffer *>(commandBuffer)->commandBuffer);
         } else {
@@ -1624,14 +1754,16 @@ namespace Vixen {
         std::vector<VkViewport> vkViewports{};
         vkViewports.reserve(viewports.size());
         for (const auto &viewport: viewports)
-            vkViewports.push_back({
-                .x = 0.0f,
-                .y = 0.0f,
-                .width = static_cast<float>(viewport.x),
-                .height = static_cast<float>(viewport.y),
-                .minDepth = 0.0f,
-                .maxDepth = 1.0f
-            });
+            vkViewports.push_back(
+                {
+                    .x = 0.0f,
+                    .y = 0.0f,
+                    .width = static_cast<float>(viewport.x),
+                    .height = static_cast<float>(viewport.y),
+                    .minDepth = 0.0f,
+                    .maxDepth = 1.0f
+                }
+            );
 
         vkCmdSetViewport(
             dynamic_cast<VulkanCommandBuffer *>(commandBuffer)->commandBuffer,
@@ -1648,16 +1780,18 @@ namespace Vixen {
         std::vector<VkRect2D> vkScissors{};
         vkScissors.reserve(scissors.size());
         for (const auto &scissor: scissors)
-            vkScissors.push_back({
-                .offset = {
-                    .x = 0,
-                    .y = 0
-                },
-                .extent = {
-                    .width = scissor.x,
-                    .height = scissor.y
+            vkScissors.push_back(
+                {
+                    .offset = {
+                        .x = 0,
+                        .y = 0
+                    },
+                    .extent = {
+                        .width = scissor.x,
+                        .height = scissor.y
+                    }
                 }
-            });
+            );
 
         vkCmdSetScissor(
             dynamic_cast<VulkanCommandBuffer *>(commandBuffer)->commandBuffer,
@@ -1713,52 +1847,58 @@ namespace Vixen {
             std::vector<VkMemoryBarrier> vkMemoryBarriers{};
             vkMemoryBarriers.reserve(memoryBarriers.size());
             for (const auto &[sourceAccess, targetAccess]: memoryBarriers) {
-                vkMemoryBarriers.push_back({
-                    .sType = VK_STRUCTURE_TYPE_MEMORY_BARRIER,
-                    .pNext = nullptr,
-                    .srcAccessMask = toVkAccessFlags(sourceAccess),
-                    .dstAccessMask = toVkAccessFlags(targetAccess)
-                });
+                vkMemoryBarriers.push_back(
+                    {
+                        .sType = VK_STRUCTURE_TYPE_MEMORY_BARRIER,
+                        .pNext = nullptr,
+                        .srcAccessMask = toVkAccessFlags(sourceAccess),
+                        .dstAccessMask = toVkAccessFlags(targetAccess)
+                    }
+                );
             }
 
             std::vector<VkBufferMemoryBarrier> vkBufferBarriers{};
             vkBufferBarriers.reserve(bufferBarriers.size());
             for (const auto &[buffer, sourceAccess, destinationAccess, offset, size]: bufferBarriers) {
-                vkBufferBarriers.push_back({
-                    .sType = VK_STRUCTURE_TYPE_BUFFER_MEMORY_BARRIER,
-                    .pNext = nullptr,
-                    .srcAccessMask = toVkAccessFlags(sourceAccess),
-                    .dstAccessMask = toVkAccessFlags(destinationAccess),
-                    .srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED,
-                    .dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED,
-                    .buffer = dynamic_cast<VulkanBuffer *>(buffer)->buffer,
-                    .offset = offset,
-                    .size = size
-                });
+                vkBufferBarriers.push_back(
+                    {
+                        .sType = VK_STRUCTURE_TYPE_BUFFER_MEMORY_BARRIER,
+                        .pNext = nullptr,
+                        .srcAccessMask = toVkAccessFlags(sourceAccess),
+                        .dstAccessMask = toVkAccessFlags(destinationAccess),
+                        .srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED,
+                        .dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED,
+                        .buffer = dynamic_cast<VulkanBuffer *>(buffer)->buffer,
+                        .offset = offset,
+                        .size = size
+                    }
+                );
             }
 
             std::vector<VkImageMemoryBarrier> vkImageBarriers{};
             vkImageBarriers.reserve(imageBarriers.size());
             for (const auto &[image, sourceAccess, destinationAccess, oldLayout, newLayout, subresources]:
                  imageBarriers) {
-                vkImageBarriers.push_back({
-                    .sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER,
-                    .pNext = nullptr,
-                    .srcAccessMask = toVkAccessFlags(sourceAccess),
-                    .dstAccessMask = toVkAccessFlags(destinationAccess),
-                    .oldLayout = toVkImageLayout(oldLayout),
-                    .newLayout = toVkImageLayout(newLayout),
-                    .srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED,
-                    .dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED,
-                    .image = dynamic_cast<VulkanImage *>(image)->image,
-                    .subresourceRange = {
-                        .aspectMask = toVkImageAspectFlags(subresources.aspect),
-                        .baseMipLevel = subresources.baseMipmap,
-                        .levelCount = subresources.mipmapCount,
-                        .baseArrayLayer = subresources.baseLayer,
-                        .layerCount = subresources.layerCount
+                vkImageBarriers.push_back(
+                    {
+                        .sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER,
+                        .pNext = nullptr,
+                        .srcAccessMask = toVkAccessFlags(sourceAccess),
+                        .dstAccessMask = toVkAccessFlags(destinationAccess),
+                        .oldLayout = toVkImageLayout(oldLayout),
+                        .newLayout = toVkImageLayout(newLayout),
+                        .srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED,
+                        .dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED,
+                        .image = dynamic_cast<VulkanImage *>(image)->image,
+                        .subresourceRange = {
+                            .aspectMask = toVkImageAspectFlags(subresources.aspect),
+                            .baseMipLevel = subresources.baseMipmap,
+                            .levelCount = subresources.mipmapCount,
+                            .baseArrayLayer = subresources.baseLayer,
+                            .layerCount = subresources.layerCount
+                        }
                     }
-                });
+                );
             }
 
             vkCmdPipelineBarrier(
@@ -1777,58 +1917,64 @@ namespace Vixen {
             std::vector<VkMemoryBarrier2> vkMemoryBarriers{};
             vkMemoryBarriers.reserve(memoryBarriers.size());
             for (const auto &[sourceAccess, targetAccess]: memoryBarriers) {
-                vkMemoryBarriers.push_back(VkMemoryBarrier2{
-                    .sType = VK_STRUCTURE_TYPE_MEMORY_BARRIER,
-                    .pNext = nullptr,
-                    .srcStageMask = toVkPipelineStages(sourceStages),
-                    .srcAccessMask = toVkAccessFlags(sourceAccess),
-                    .dstStageMask = toVkPipelineStages(destinationStages),
-                    .dstAccessMask = toVkAccessFlags(targetAccess)
-                });
+                vkMemoryBarriers.push_back(
+                    VkMemoryBarrier2{
+                        .sType = VK_STRUCTURE_TYPE_MEMORY_BARRIER,
+                        .pNext = nullptr,
+                        .srcStageMask = toVkPipelineStages(sourceStages),
+                        .srcAccessMask = toVkAccessFlags(sourceAccess),
+                        .dstStageMask = toVkPipelineStages(destinationStages),
+                        .dstAccessMask = toVkAccessFlags(targetAccess)
+                    }
+                );
             }
 
             std::vector<VkBufferMemoryBarrier2> vkBufferBarriers{};
             vkBufferBarriers.reserve(bufferBarriers.size());
             for (const auto &[buffer, sourceAccess, destinationAccess, offset, size]: bufferBarriers) {
-                vkBufferBarriers.push_back({
-                    .sType = VK_STRUCTURE_TYPE_BUFFER_MEMORY_BARRIER,
-                    .pNext = nullptr,
-                    .srcStageMask = toVkPipelineStages(sourceStages),
-                    .srcAccessMask = toVkAccessFlags(sourceAccess),
-                    .dstStageMask = toVkPipelineStages(destinationStages),
-                    .dstAccessMask = toVkAccessFlags(destinationAccess),
-                    .srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED,
-                    .dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED,
-                    .buffer = dynamic_cast<VulkanBuffer *>(buffer)->buffer,
-                    .offset = offset,
-                    .size = size
-                });
+                vkBufferBarriers.push_back(
+                    {
+                        .sType = VK_STRUCTURE_TYPE_BUFFER_MEMORY_BARRIER,
+                        .pNext = nullptr,
+                        .srcStageMask = toVkPipelineStages(sourceStages),
+                        .srcAccessMask = toVkAccessFlags(sourceAccess),
+                        .dstStageMask = toVkPipelineStages(destinationStages),
+                        .dstAccessMask = toVkAccessFlags(destinationAccess),
+                        .srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED,
+                        .dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED,
+                        .buffer = dynamic_cast<VulkanBuffer *>(buffer)->buffer,
+                        .offset = offset,
+                        .size = size
+                    }
+                );
             }
 
             std::vector<VkImageMemoryBarrier2> vkImageBarriers{};
             vkImageBarriers.reserve(imageBarriers.size());
             for (const auto &[image, sourceAccess, destinationAccess, oldLayout, newLayout, subresources]:
                  imageBarriers) {
-                vkImageBarriers.push_back({
-                    .sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER_2,
-                    .pNext = nullptr,
-                    .srcStageMask = toVkPipelineStages(sourceStages),
-                    .srcAccessMask = toVkAccessFlags(sourceAccess),
-                    .dstStageMask = toVkPipelineStages(destinationStages),
-                    .dstAccessMask = toVkAccessFlags(destinationAccess),
-                    .oldLayout = toVkImageLayout(oldLayout),
-                    .newLayout = toVkImageLayout(newLayout),
-                    .srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED,
-                    .dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED,
-                    .image = dynamic_cast<VulkanImage *>(image)->image,
-                    .subresourceRange = {
-                        .aspectMask = toVkImageAspectFlags(subresources.aspect),
-                        .baseMipLevel = subresources.baseMipmap,
-                        .levelCount = subresources.mipmapCount,
-                        .baseArrayLayer = subresources.baseLayer,
-                        .layerCount = subresources.layerCount
+                vkImageBarriers.push_back(
+                    {
+                        .sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER_2,
+                        .pNext = nullptr,
+                        .srcStageMask = toVkPipelineStages(sourceStages),
+                        .srcAccessMask = toVkAccessFlags(sourceAccess),
+                        .dstStageMask = toVkPipelineStages(destinationStages),
+                        .dstAccessMask = toVkAccessFlags(destinationAccess),
+                        .oldLayout = toVkImageLayout(oldLayout),
+                        .newLayout = toVkImageLayout(newLayout),
+                        .srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED,
+                        .dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED,
+                        .image = dynamic_cast<VulkanImage *>(image)->image,
+                        .subresourceRange = {
+                            .aspectMask = toVkImageAspectFlags(subresources.aspect),
+                            .baseMipLevel = subresources.baseMipmap,
+                            .levelCount = subresources.mipmapCount,
+                            .baseArrayLayer = subresources.baseLayer,
+                            .layerCount = subresources.layerCount
+                        }
                     }
-                });
+                );
             }
 
             const VkDependencyInfo dependencyInfo{
@@ -1874,11 +2020,13 @@ namespace Vixen {
         std::vector<VkBufferCopy> vkRegions{};
         vkRegions.reserve(regions.size());
         for (const auto &[sourceOffset, destinationOffset, size]: regions) {
-            vkRegions.push_back({
-                .srcOffset = sourceOffset,
-                .dstOffset = destinationOffset,
-                .size = size
-            });
+            vkRegions.push_back(
+                {
+                    .srcOffset = sourceOffset,
+                    .dstOffset = destinationOffset,
+                    .size = size
+                }
+            );
         }
 
         vkCmdCopyBuffer(
@@ -1902,25 +2050,27 @@ namespace Vixen {
         vkRegions.reserve(regions.size());
         for (const auto &[sourceSubresources, sourceOffset, destinationSubresources, destinationOffset, size]:
              regions) {
-            vkRegions.push_back({
-                .srcSubresource = _imageSubresourceLayers(sourceSubresources),
-                .srcOffset = {
-                    .x = sourceOffset.x,
-                    .y = sourceOffset.y,
-                    .z = sourceOffset.z
-                },
-                .dstSubresource = _imageSubresourceLayers(destinationSubresources),
-                .dstOffset = {
-                    .x = destinationOffset.x,
-                    .y = destinationOffset.y,
-                    .z = destinationOffset.z
-                },
-                .extent = {
-                    .width = size.x,
-                    .height = size.y,
-                    .depth = size.z
+            vkRegions.push_back(
+                {
+                    .srcSubresource = _imageSubresourceLayers(sourceSubresources),
+                    .srcOffset = {
+                        .x = sourceOffset.x,
+                        .y = sourceOffset.y,
+                        .z = sourceOffset.z
+                    },
+                    .dstSubresource = _imageSubresourceLayers(destinationSubresources),
+                    .dstOffset = {
+                        .x = destinationOffset.x,
+                        .y = destinationOffset.y,
+                        .z = destinationOffset.z
+                    },
+                    .extent = {
+                        .width = size.x,
+                        .height = size.y,
+                        .depth = size.z
+                    }
                 }
-            });
+            );
         }
 
         vkCmdCopyImage(
@@ -2083,7 +2233,9 @@ namespace Vixen {
         );
     }
 
-    void VulkanRenderingDeviceDriver::commandEndLabel(CommandBuffer *commandBuffer) {
+    void VulkanRenderingDeviceDriver::commandEndLabel(
+        CommandBuffer *commandBuffer
+    ) {
         vkCmdEndDebugUtilsLabelEXT(dynamic_cast<VulkanCommandBuffer *>(commandBuffer)->commandBuffer);
     }
 }

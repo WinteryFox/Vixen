@@ -1,7 +1,7 @@
 #pragma once
 
-#include "RenderingContextDriver.h"
 #include "DisplayServer.h"
+#include "RenderingContextDriver.h"
 
 namespace Vixen {
     class Application final {

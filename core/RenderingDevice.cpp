@@ -7,7 +7,9 @@
 #include "error/Macros.h"
 
 namespace Vixen {
-    void RenderingDevice::waitForFrame(const uint32_t frameIndex) {
+    void RenderingDevice::waitForFrame(
+        const uint32_t frameIndex
+    ) {
         if (!frames[frameIndex].fenceSignaled)
             return;
 
@@ -27,11 +29,15 @@ namespace Vixen {
         beginFrame(false);
     }
 
-    void RenderingDevice::beginFrame(const bool presented) {
+    void RenderingDevice::beginFrame(
+        const bool presented
+    ) {
         waitForFrame(frameIndex);
 
-        renderingDeviceDriver->resetCommandPool(frames[frameIndex].commandPool);
-        renderingDeviceDriver->beginCommandBuffer(frames[frameIndex].commandBuffer);
+        if (!renderingDeviceDriver->resetCommandPool(frames[frameIndex].commandPool))
+            throw std::runtime_error("Failed to reset command pool");
+        if (!renderingDeviceDriver->beginCommandBuffer(frames[frameIndex].commandBuffer))
+            throw std::runtime_error("Failed to begin command buffer");
 
         // TODO: Free this frame's resources
     }
@@ -40,9 +46,12 @@ namespace Vixen {
         renderingDeviceDriver->endCommandBuffer(frames[frameIndex].commandBuffer);
     }
 
-    void RenderingDevice::executeChainedCommands(const bool present, Fence *drawFence,
-                                                 Semaphore *drawSemaphoreToSignal) {
-        renderingDeviceDriver->executeCommandQueueAndPresent(
+    void RenderingDevice::executeChainedCommands(
+        const bool present,
+        Fence *drawFence,
+        Semaphore *drawSemaphoreToSignal
+    ) {
+        if (!renderingDeviceDriver->executeCommandQueueAndPresent(
             graphicsQueue,
             frames[frameIndex].waitSemaphores,
             frames[frameIndex].commandBuffer
@@ -55,12 +64,15 @@ namespace Vixen {
             present
                 ? frames[frameIndex].swapchainsToPresent
                 : std::vector<Swapchain *>{}
-        );
+        ))
+            throw std::runtime_error("Failed to execute chained commands");
 
         frames[frameIndex].waitSemaphores.clear();
     }
 
-    void RenderingDevice::executeFrame(const bool present) {
+    void RenderingDevice::executeFrame(
+        const bool present
+    ) {
         const bool canPresent = present && !frames[frameIndex].swapchainsToPresent.empty();
         const bool separatePresentQueue = graphicsQueue != presentQueue;
 
@@ -72,23 +84,26 @@ namespace Vixen {
 
         if (canPresent) {
             if (separatePresentQueue) {
-                renderingDeviceDriver->executeCommandQueueAndPresent(
+                if (!renderingDeviceDriver->executeCommandQueueAndPresent(
                     presentQueue,
                     {frames[frameIndex].semaphore},
                     {},
                     {},
                     nullptr,
                     frames[frameIndex].swapchainsToPresent
-                );
+                ))
+                    throw std::runtime_error("Command execution failed");
             }
 
             frames[frameIndex].swapchainsToPresent.clear();
         }
     }
 
-    RenderingDevice::RenderingDevice(RenderingContextDriver *renderingContext, const Window *mainWindow)
-        : renderingContextDriver(renderingContext),
-          frameIndex(0) {
+    RenderingDevice::RenderingDevice(
+        RenderingContextDriver *renderingContext,
+        const Window *mainWindow
+    ) : renderingContextDriver(renderingContext),
+        frameIndex(0) {
         Surface *mainSurface = nullptr;
         if (mainWindow) {
             DEBUG_ASSERT(mainWindow->surface != nullptr);
@@ -102,18 +117,25 @@ namespace Vixen {
             std::ranges::fold_left(
                 std::views::iota(0) |
                 std::views::take(devices.size()) |
-                std::views::transform([&](const std::size_t i) {
-                    const auto &[deviceName] = devices[i];
-                    return std::format(
-                        "    [{}] - {}\n"
-                        "            * Supports presentation? {}",
-                        std::to_string(i),
-                        deviceName,
-                        renderingContext->deviceSupportsPresent(i, mainSurface) ? "Yes" : "No"
-                    );
-                }),
+                std::views::transform(
+                    [&](
+                const std::size_t i
+            ) {
+                        const auto &[deviceName] = devices[i];
+                        return std::format(
+                            "    [{}] - {}\n"
+                            "            * Supports presentation? {}",
+                            std::to_string(i),
+                            deviceName,
+                            renderingContext->deviceSupportsPresent(i, mainSurface) ? "Yes" : "No"
+                        );
+                    }
+                ),
                 std::string{},
-                [](const auto &a, const auto &b) {
+                [](
+            const auto &a,
+            const auto &b
+        ) {
                     return a.empty() ? std::move(b) : std::move(a) + "\n" + b;
                 }
             )
@@ -136,31 +158,39 @@ namespace Vixen {
         renderingDeviceDriver = renderingContext->createRenderingDeviceDriver(deviceIndex, frameCount);
 
         graphicsQueueFamily = renderingDeviceDriver->getQueueFamily(
-            QueueFamilyFlags::Graphics | QueueFamilyFlags::Compute, nullptr).value();
+            QueueFamilyFlags::Graphics | QueueFamilyFlags::Compute,
+            nullptr
+        ).value();
         graphicsQueue = renderingDeviceDriver->createCommandQueue(graphicsQueueFamily).value();
 
         transferQueueFamily = renderingDeviceDriver->getQueueFamily(QueueFamilyFlags::Transfer, nullptr).value();
         transferQueue = renderingDeviceDriver->createCommandQueue(transferQueueFamily).value();
 
         presentQueueFamily = renderingDeviceDriver->getQueueFamily(static_cast<QueueFamilyFlags>(0), mainSurface)
-                .value();
+                                                  .value();
         presentQueue = renderingDeviceDriver->createCommandQueue(presentQueueFamily).value();
 
         frames.reserve(frameCount);
         for (uint32_t i = 0; i < frameCount; i++) {
             const auto commandPool = renderingDeviceDriver->createCommandPool(
-                graphicsQueueFamily, CommandBufferType::Primary);
+                graphicsQueueFamily,
+                CommandBufferType::Primary
+            );
+            if (!commandPool)
+                throw CantCreateError("Failed to allocate command pool for frame");
 
-            frames.push_back({
-                .commandPool = commandPool,
-                .commandBuffer = renderingDeviceDriver->createCommandBuffer(commandPool),
-                .semaphore = renderingDeviceDriver->createSemaphore(),
-                .fence = renderingDeviceDriver->createFence(),
-                .fenceSignaled = false,
-                .waitSemaphores = {},
-                .swapchainsToPresent = {},
-                .transferSemaphores = {}
-            });
+            frames.push_back(
+                {
+                    .commandPool = commandPool.value(),
+                    .commandBuffer = renderingDeviceDriver->createCommandBuffer(commandPool.value()).value(),
+                    .semaphore = renderingDeviceDriver->createSemaphore().value(),
+                    .fence = renderingDeviceDriver->createFence().value(),
+                    .fenceSignaled = false,
+                    .waitSemaphores = {},
+                    .swapchainsToPresent = {},
+                    .transferSemaphores = {}
+                }
+            );
         }
         framesDrawn = frames.size();
     }
@@ -178,7 +208,9 @@ namespace Vixen {
         delete renderingDeviceDriver;
     }
 
-    void RenderingDevice::swapBuffers(const bool present) {
+    void RenderingDevice::swapBuffers(
+        const bool present
+    ) {
         endFrame();
         executeFrame(present);
 
@@ -196,17 +228,22 @@ namespace Vixen {
         beginFrame(true);
     }
 
-    auto RenderingDevice::createScreen(const Window *window) const -> std::expected<Swapchain *, Error> {
+    auto RenderingDevice::createScreen(
+        const Window *window
+    ) const -> std::expected<Swapchain *, Error> {
         auto swapchain = renderingDeviceDriver->createSwapchain(window->surface);
         if (!swapchain)
             return std::unexpected(Error::CantCreate);
 
-        renderingDeviceDriver->resizeSwapchain(graphicsQueue, swapchain.value(), frames.size());
+        if (!renderingDeviceDriver->resizeSwapchain(graphicsQueue, swapchain.value(), frames.size()))
+            return std::unexpected(Error::CantCreate);
 
         return swapchain;
     }
 
-    auto RenderingDevice::prepareScreenForDrawing(const Window *window) -> std::expected<void, Error> {
+    auto RenderingDevice::prepareScreenForDrawing(
+        const Window *window
+    ) -> std::expected<void, Error> {
         DEBUG_ASSERT(window->swapchain != nullptr);
 
         auto framebuffer = renderingDeviceDriver->acquireSwapchainFramebuffer(graphicsQueue, window->swapchain);
@@ -214,7 +251,9 @@ namespace Vixen {
         if (!framebuffer && framebuffer.error() == SwapchainError::ResizeRequired) {
             flushAndWaitForFrames();
 
-            renderingDeviceDriver->resizeSwapchain(graphicsQueue, window->swapchain, frames.size());
+            if (!renderingDeviceDriver->resizeSwapchain(graphicsQueue, window->swapchain, frames.size()))
+                return std::unexpected(Error::CantCreate);
+
             framebuffer = renderingDeviceDriver->acquireSwapchainFramebuffer(graphicsQueue, window->swapchain);
         }
 
@@ -226,7 +265,9 @@ namespace Vixen {
         return {};
     }
 
-    void RenderingDevice::destroyScreen(Window *window) {
+    void RenderingDevice::destroyScreen(
+        Window *window
+    ) {
         if (window->swapchain)
             renderingDeviceDriver->destroySwapchain(window->swapchain);
     }

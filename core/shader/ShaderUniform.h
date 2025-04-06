@@ -2,7 +2,6 @@
 
 #include <cstdint>
 
-#include "ShaderStage.h"
 #include "ShaderUniformType.h"
 
 namespace Vixen {
