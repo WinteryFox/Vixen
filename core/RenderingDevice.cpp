@@ -1,7 +1,7 @@
 #include "RenderingDevice.h"
 
+#include <algorithm>
 #include <ranges>
-#include <bits/ranges_algo.h>
 #include <spdlog/spdlog.h>
 
 #include "error/Macros.h"
