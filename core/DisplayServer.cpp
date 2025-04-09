@@ -169,25 +169,7 @@ namespace Vixen {
         if (!renderingDevice->prepareScreenForDrawing(window))
             throw CantCreateError("Failed to prepare screen for drawing.");
 
-        if (window->surface->hasFramebufferSizeChanged) {
-            window->surface->hasFramebufferSizeChanged = false;
-
-            int width;
-            int height;
-            glfwGetFramebufferSize(window->window, &width, &height);
-
-            spdlog::trace("Framebuffer resized to {}x{}", width, height);
-
-            if (width == 0 || height == 0) {
-                while (width == 0 || height == 0) {
-                    glfwGetFramebufferSize(window->window, &width, &height);
-                    glfwWaitEvents();
-                }
-
-                return;
-            }
-        }
-
+        renderingDevice->sync();
         renderingDevice->swapBuffers(true);
     }
 

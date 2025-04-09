@@ -1,9 +1,7 @@
 #pragma once
 
-#include <vk_mem_alloc.h>
-
-#include "VulkanRenderingDeviceDriver.h"
-#include "core/image/Image.h"
+struct VmaAllocation_T;
+typedef VmaAllocation_T* VmaAllocation;
 
 namespace Vixen {
     struct VulkanImage final : Image {
