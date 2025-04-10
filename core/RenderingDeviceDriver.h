@@ -41,262 +41,262 @@ namespace Vixen {
     class RenderingDeviceDriver {
     protected:
         static bool reflectShader(
-            const std::vector<ShaderStageData> &stages,
-            Shader *shader
+            const std::vector<ShaderStageData>& stages,
+            Shader* shader
         );
 
     public:
         virtual ~RenderingDeviceDriver() = default;
 
         virtual auto createSwapchain(
-            Surface *surface
-        ) -> std::expected<Swapchain *, Error> = 0;
+            Surface* surface
+        ) -> std::expected<Swapchain*, Error> = 0;
 
         virtual auto resizeSwapchain(
-            CommandQueue *commandQueue,
-            Swapchain *swapchain,
+            CommandQueue* commandQueue,
+            Swapchain* swapchain,
             uint32_t imageCount
         ) -> std::expected<void, Error> = 0;
 
         virtual auto acquireSwapchainFramebuffer(
-            CommandQueue *commandQueue,
-            Swapchain *swapchain
-        ) -> std::expected<Framebuffer *, SwapchainError> = 0;
+            CommandQueue* commandQueue,
+            Swapchain* swapchain
+        ) -> std::expected<Framebuffer*, SwapchainError> = 0;
 
         virtual void destroySwapchain(
-            Swapchain *swapchain
+            Swapchain* swapchain
         ) = 0;
 
-        virtual auto createFence() -> std::expected<Fence *, Error> = 0;
+        virtual auto createFence() -> std::expected<Fence*, Error> = 0;
 
         virtual auto waitOnFence(
-            Fence *fence
+            Fence* fence
         ) -> std::expected<void, Error> = 0;
 
         virtual void destroyFence(
-            Fence *fence
+            Fence* fence
         ) = 0;
 
-        virtual auto createSemaphore() -> std::expected<Semaphore *, Error> = 0;
+        virtual auto createSemaphore() -> std::expected<Semaphore*, Error> = 0;
 
         virtual void destroySemaphore(
-            Semaphore *semaphore
+            Semaphore* semaphore
         ) = 0;
 
         virtual auto createCommandPool(
             uint32_t queueFamily,
             CommandBufferType type
-        ) -> std::expected<CommandPool *, Error> = 0;
+        ) -> std::expected<CommandPool*, Error> = 0;
 
         virtual auto resetCommandPool(
-            CommandPool *pool
+            CommandPool* pool
         ) -> std::expected<void, Error> = 0;
 
         virtual void destroyCommandPool(
-            CommandPool *pool
+            CommandPool* pool
         ) = 0;
 
         virtual auto createCommandBuffer(
-            CommandPool *pool
-        ) -> std::expected<CommandBuffer *, Error> = 0;
+            CommandPool* pool
+        ) -> std::expected<CommandBuffer*, Error> = 0;
 
         virtual auto beginCommandBuffer(
-            CommandBuffer *commandBuffer
+            CommandBuffer* commandBuffer
         ) -> std::expected<void, Error> = 0;
 
         virtual void endCommandBuffer(
-            CommandBuffer *commandBuffer
+            CommandBuffer* commandBuffer
         ) = 0;
 
         virtual auto createBuffer(
             BufferUsage usage,
             uint32_t count,
             uint32_t stride
-        ) -> std::expected<Buffer *, Error> = 0;
+        ) -> std::expected<Buffer*, Error> = 0;
 
         virtual void destroyBuffer(
-            Buffer *buffer
+            Buffer* buffer
         ) = 0;
 
         virtual auto getQueueFamily(
             QueueFamilyFlags queueFamilyFlags,
-            Surface *surface
+            Surface* surface
         ) -> std::expected<uint32_t, Error> = 0;
 
         virtual auto createCommandQueue(
             uint32_t queueFamilyIndex
-        ) -> std::expected<CommandQueue *, Error> = 0;
+        ) -> std::expected<CommandQueue*, Error> = 0;
 
         virtual auto executeCommandQueueAndPresent(
-            CommandQueue *commandQueue,
-            const std::vector<Semaphore *> &waitSemaphores,
-            const std::vector<CommandBuffer *> &commandBuffers,
-            const std::vector<Semaphore *> &semaphores,
-            Fence *fence,
-            const std::vector<Swapchain *> &swapchains
+            CommandQueue* commandQueue,
+            const std::vector<Semaphore*>& waitSemaphores,
+            const std::vector<CommandBuffer*>& commandBuffers,
+            const std::vector<Semaphore*>& semaphores,
+            Fence* fence,
+            const std::vector<Swapchain*>& swapchains
         ) -> std::expected<void, Error> = 0;
 
         virtual void destroyCommandQueue(
-            CommandQueue *commandQueue
+            CommandQueue* commandQueue
         ) = 0;
 
         virtual auto createImage(
-            const ImageFormat &format,
-            const ImageView &view
-        ) -> std::expected<Image *, Error> = 0;
+            const ImageFormat& format,
+            const ImageView& view
+        ) -> std::expected<Image*, Error> = 0;
 
-        virtual std::byte *mapImage(
-            Image *image
+        virtual std::byte* mapImage(
+            Image* image
         ) = 0;
 
         virtual void unmapImage(
-            Image *image
+            Image* image
         ) = 0;
 
         virtual void destroyImage(
-            Image *image
+            Image* image
         ) = 0;
 
         virtual auto createSampler(
             SamplerState state
-        ) -> std::expected<Sampler *, Error> = 0;
+        ) -> std::expected<Sampler*, Error> = 0;
 
         virtual void destroySampler(
-            Sampler *sampler
+            Sampler* sampler
         ) = 0;
 
         virtual std::vector<std::byte> compileSpirvFromSource(
             ShaderStage stage,
-            const std::string &source,
+            const std::string& source,
             ShaderLanguage language
         );
 
-        virtual Shader *createShaderFromSpirv(
-            const std::string &name,
-            const std::vector<ShaderStageData> &stages
+        virtual Shader* createShaderFromSpirv(
+            const std::string& name,
+            const std::vector<ShaderStageData>& stages
         ) = 0;
 
         virtual void destroyShaderModules(
-            Shader *shader
+            Shader* shader
         ) = 0;
 
         virtual void destroyShader(
-            Shader *shader
+            Shader* shader
         ) = 0;
 
         virtual void commandBeginRenderPass(
-            CommandBuffer *commandBuffer,
-            RenderPass *renderPass,
-            Framebuffer *framebuffer,
+            CommandBuffer* commandBuffer,
+            RenderPass* renderPass,
+            Framebuffer* framebuffer,
             CommandBufferType commandBufferType,
-            const glm::uvec2 &rectangle,
-            const std::vector<ClearValue> &clearValues
+            const glm::uvec2& rectangle,
+            const std::vector<ClearValue>& clearValues
         ) = 0;
 
         virtual void commandEndRenderPass(
-            CommandBuffer *commandBuffer
+            CommandBuffer* commandBuffer
         ) = 0;
 
         virtual void commandSetViewport(
-            CommandBuffer *commandBuffer,
-            const std::vector<glm::uvec2> &viewports
+            CommandBuffer* commandBuffer,
+            const std::vector<glm::uvec2>& viewports
         ) = 0;
 
         virtual void commandSetScissor(
-            CommandBuffer *commandBuffer,
-            const std::vector<glm::uvec2> &scissors
+            CommandBuffer* commandBuffer,
+            const std::vector<glm::uvec2>& scissors
         ) = 0;
 
         virtual void commandBindVertexBuffers(
-            CommandBuffer *commandBuffer,
+            CommandBuffer* commandBuffer,
             uint32_t count,
-            const std::vector<Buffer *> &buffers,
-            const std::vector<uint64_t> &offsets
+            const std::vector<Buffer*>& buffers,
+            const std::vector<uint64_t>& offsets
         ) = 0;
 
         virtual void commandBindIndexBuffers(
-            CommandBuffer *commandBuffer,
-            Buffer *buffer,
+            CommandBuffer* commandBuffer,
+            Buffer* buffer,
             IndexFormat format,
             uint64_t offset
         ) = 0;
 
         virtual void commandPipelineBarrier(
-            CommandBuffer *commandBuffer,
+            CommandBuffer* commandBuffer,
             PipelineStageFlags sourceStages,
             PipelineStageFlags destinationStages,
-            const std::vector<MemoryBarrier> &memoryBarriers,
-            const std::vector<BufferBarrier> &bufferBarriers,
-            const std::vector<ImageBarrier> &imageBarriers
+            const std::vector<MemoryBarrier>& memoryBarriers,
+            const std::vector<BufferBarrier>& bufferBarriers,
+            const std::vector<ImageBarrier>& imageBarriers
         ) = 0;
 
         virtual void commandClearBuffer(
-            CommandBuffer *commandBuffer,
-            Buffer *buffer,
+            CommandBuffer* commandBuffer,
+            Buffer* buffer,
             uint64_t offset,
             uint64_t size
         ) = 0;
 
         virtual void commandCopyBuffer(
-            CommandBuffer *commandBuffer,
-            Buffer *source,
-            Buffer *destination,
-            const std::vector<BufferCopyRegion> &regions
+            CommandBuffer* commandBuffer,
+            Buffer* source,
+            Buffer* destination,
+            const std::vector<BufferCopyRegion>& regions
         ) = 0;
 
         virtual void commandCopyImage(
-            CommandBuffer *commandBuffer,
-            Image *source,
+            CommandBuffer* commandBuffer,
+            Image* source,
             ImageLayout sourceLayout,
-            Image *destination,
+            Image* destination,
             ImageLayout destinationLayout,
-            const std::vector<ImageCopyRegion> &regions
+            const std::vector<ImageCopyRegion>& regions
         ) = 0;
 
         virtual void commandResolveImage(
-            CommandBuffer *commandBuffer,
-            Image *source,
+            CommandBuffer* commandBuffer,
+            Image* source,
             ImageLayout sourceLayout,
             uint32_t sourceLayer,
             uint32_t sourceMipmap,
-            Image *destination,
+            Image* destination,
             ImageLayout destinationLayout,
             uint32_t destinationLayer,
             uint32_t destinationMipmap
         ) = 0;
 
         virtual void commandClearColorImage(
-            CommandBuffer *commandBuffer,
-            Image *image,
+            CommandBuffer* commandBuffer,
+            Image* image,
             ImageLayout imageLayout,
-            const glm::vec4 &color,
-            const ImageSubresourceRange &subresource
+            const glm::vec4& color,
+            const ImageSubresourceRange& subresource
         ) = 0;
 
         virtual void commandCopyBufferToImage(
-            CommandBuffer *commandBuffer,
-            Buffer *buffer,
-            Image *image,
+            CommandBuffer* commandBuffer,
+            Buffer* buffer,
+            Image* image,
             ImageLayout layout,
-            const std::vector<BufferImageCopyRegion> &regions
+            const std::vector<BufferImageCopyRegion>& regions
         ) = 0;
 
         virtual void commandCopyImageToBuffer(
-            CommandBuffer *commandBuffer,
-            Image *image,
+            CommandBuffer* commandBuffer,
+            Image* image,
             ImageLayout layout,
-            Buffer *buffer,
-            const std::vector<BufferImageCopyRegion> &regions
+            Buffer* buffer,
+            const std::vector<BufferImageCopyRegion>& regions
         ) = 0;
 
         virtual void commandBeginLabel(
-            CommandBuffer *commandBuffer,
-            const std::string &label,
-            const glm::vec3 &color
+            CommandBuffer* commandBuffer,
+            const std::string& label,
+            const glm::vec3& color
         ) = 0;
 
         virtual void commandEndLabel(
-            CommandBuffer *commandBuffer
+            CommandBuffer* commandBuffer
         ) = 0;
     };
 }

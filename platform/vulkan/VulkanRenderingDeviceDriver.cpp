@@ -60,26 +60,26 @@ namespace Vixen {
                 availableExtensions |
                 std::views::transform(
                     [](
-                const auto &extension
-            ) {
+                    const auto& extension
+                ) {
                         return std::format("        - {}", extension.extensionName);
                     }
                 ),
                 [](
-            const auto &a,
-            const auto &b
-        ) {
+                const auto& a,
+                const auto& b
+            ) {
                     return a + "\n" + b;
                 }
             ).value_or("")
         );
         for (uint32_t i = 0; i < extensionCount; i++) {
-            if (const auto &extensionName = availableExtensions[i].extensionName;
+            if (const auto& extensionName = availableExtensions[i].extensionName;
                 requestedExtensions.contains(extensionName))
                 enabledExtensionNames.emplace_back(strdup(extensionName));
         }
 
-        for (const auto &[extensionName, required]: requestedExtensions) {
+        for (const auto& [extensionName, required] : requestedExtensions) {
             if (std::ranges::find(enabledExtensionNames.begin(), enabledExtensionNames.end(), extensionName) ==
                 enabledExtensionNames.end()) {
                 if (required)
@@ -154,9 +154,9 @@ namespace Vixen {
         };
         synchronization2Features.pNext = &faultFeatures;
 
-        auto enabledExtensions = std::vector<const char *>{};
+        auto enabledExtensions = std::vector<const char*>{};
         enabledExtensions.reserve(enabledExtensionNames.size());
-        for (const auto &enabledExtensionName: enabledExtensionNames)
+        for (const auto& enabledExtensionName : enabledExtensionNames)
             enabledExtensions.push_back(enabledExtensionName.c_str());
 
         const VkDeviceCreateInfo deviceInfo{
@@ -236,7 +236,7 @@ namespace Vixen {
     }
 
     VkSampleCountFlagBits VulkanRenderingDeviceDriver::findClosestSupportedSampleCount(
-        const ImageSamples &samples
+        const ImageSamples& samples
     ) const {
         const auto limits = physicalDeviceProperties.limits;
 
@@ -257,7 +257,7 @@ namespace Vixen {
     }
 
     VulkanRenderingDeviceDriver::VulkanRenderingDeviceDriver(
-        VulkanRenderingContextDriver *renderingContext,
+        VulkanRenderingContextDriver* renderingContext,
         const uint32_t deviceIndex,
         const uint32_t frameCount
     ) : RenderingDeviceDriver(),
@@ -296,11 +296,11 @@ namespace Vixen {
     }
 
     auto VulkanRenderingDeviceDriver::createSwapchain(
-        Surface *surface
-    ) -> std::expected<Swapchain *, Error> {
+        Surface* surface
+    ) -> std::expected<Swapchain*, Error> {
         DEBUG_ASSERT(surface != nullptr);
 
-        const auto vkSurface = dynamic_cast<VulkanSurface *>(surface);
+        const auto vkSurface = dynamic_cast<VulkanSurface*>(surface);
 
         uint32_t formatCount;
         if (vkGetPhysicalDeviceSurfaceFormatsKHR(physicalDevice, vkSurface->surface, &formatCount, nullptr)
@@ -322,7 +322,8 @@ namespace Vixen {
         if (formatCount == 1 && formats[0].format == VK_FORMAT_UNDEFINED) {
             format = VK_FORMAT_B8G8R8A8_SRGB;
             colorSpace = formats[0].colorSpace;
-        } else if (formatCount > 0) {
+        }
+        else if (formatCount > 0) {
             constexpr VkFormat preferredFormat = VK_FORMAT_B8G8R8A8_UNORM;
             constexpr VkFormat alternativeFormat = VK_FORMAT_R8G8B8A8_UNORM;
 
@@ -340,7 +341,7 @@ namespace Vixen {
         if (format == VK_FORMAT_UNDEFINED)
             return std::unexpected(Error::InitializationFailed);
 
-        auto *swapchain = new VulkanSwapchain();
+        auto* swapchain = new VulkanSwapchain();
         swapchain->surface = vkSurface;
         swapchain->format = format;
         swapchain->colorSpace = colorSpace;
@@ -349,14 +350,14 @@ namespace Vixen {
     }
 
     auto VulkanRenderingDeviceDriver::resizeSwapchain(
-        CommandQueue *commandQueue,
-        Swapchain *swapchain,
+        CommandQueue* commandQueue,
+        Swapchain* swapchain,
         const uint32_t imageCount
     ) -> std::expected<void, Error> {
         DEBUG_ASSERT(commandQueue != nullptr);
         DEBUG_ASSERT(swapchain != nullptr);
 
-        const auto vkSwapchain = dynamic_cast<VulkanSwapchain *>(swapchain);
+        const auto vkSwapchain = dynamic_cast<VulkanSwapchain*>(swapchain);
         releaseSwapchain(vkSwapchain);
 
         VkSurfaceCapabilitiesKHR surfaceCapabilities;
@@ -403,7 +404,8 @@ namespace Vixen {
                 surfaceCapabilities.minImageExtent.height,
                 surfaceCapabilities.maxImageExtent.height
             );
-        } else {
+        }
+        else {
             extent = surfaceCapabilities.currentExtent;
             surface->resolution.x = extent.width;
             surface->resolution.y = extent.height;
@@ -461,21 +463,21 @@ namespace Vixen {
             return std::unexpected(Error::InitializationFailed);
 
         switch (surface->vsyncMode) {
-            case VSyncMode::Disabled:
-                swapchainInfo.presentMode = VK_PRESENT_MODE_IMMEDIATE_KHR;
-                break;
+        case VSyncMode::Disabled:
+            swapchainInfo.presentMode = VK_PRESENT_MODE_IMMEDIATE_KHR;
+            break;
 
-            case VSyncMode::Enabled:
-                swapchainInfo.presentMode = VK_PRESENT_MODE_FIFO_KHR;
-                break;
+        case VSyncMode::Enabled:
+            swapchainInfo.presentMode = VK_PRESENT_MODE_FIFO_KHR;
+            break;
 
-            case VSyncMode::Adaptive:
-                swapchainInfo.presentMode = VK_PRESENT_MODE_FIFO_RELAXED_KHR;
-                break;
+        case VSyncMode::Adaptive:
+            swapchainInfo.presentMode = VK_PRESENT_MODE_FIFO_RELAXED_KHR;
+            break;
 
-            case VSyncMode::Mailbox:
-                swapchainInfo.presentMode = VK_PRESENT_MODE_MAILBOX_KHR;
-                break;
+        case VSyncMode::Mailbox:
+            swapchainInfo.presentMode = VK_PRESENT_MODE_MAILBOX_KHR;
+            break;
         }
 
         if (std::ranges::find(supportedPresentModes.begin(), supportedPresentModes.end(), swapchainInfo.presentMode) ==
@@ -571,8 +573,8 @@ namespace Vixen {
                 }
             );
 
-            vkSwapchain->colorTargets[i] = dynamic_cast<VulkanImage *>(colorTarget.value());
-            vkSwapchain->depthTargets[i] = dynamic_cast<VulkanImage *>(depthTarget.value());
+            vkSwapchain->colorTargets[i] = dynamic_cast<VulkanImage*>(colorTarget.value());
+            vkSwapchain->depthTargets[i] = dynamic_cast<VulkanImage*>(depthTarget.value());
 
             const auto framebuffer = new VulkanFramebuffer();
             // TODO: Set appropriately if using Vulkan 1.0 fallback.
@@ -595,14 +597,14 @@ namespace Vixen {
     }
 
     auto VulkanRenderingDeviceDriver::acquireSwapchainFramebuffer(
-        CommandQueue *commandQueue,
-        Swapchain *swapchain
-    ) -> std::expected<Framebuffer *, SwapchainError> {
+        CommandQueue* commandQueue,
+        Swapchain* swapchain
+    ) -> std::expected<Framebuffer*, SwapchainError> {
         DEBUG_ASSERT(commandQueue != nullptr);
         DEBUG_ASSERT(swapchain != nullptr);
 
-        const auto vkCommandQueue = dynamic_cast<VulkanCommandQueue *>(commandQueue);
-        const auto vkSwapchain = dynamic_cast<VulkanSwapchain *>(swapchain);
+        const auto vkCommandQueue = dynamic_cast<VulkanCommandQueue*>(commandQueue);
+        const auto vkSwapchain = dynamic_cast<VulkanSwapchain*>(swapchain);
 
         VkSemaphore semaphore = VK_NULL_HANDLE;
         uint32_t semaphoreIndex;
@@ -619,7 +621,8 @@ namespace Vixen {
             semaphoreIndex = vkCommandQueue->imageSemaphores.size();
             vkCommandQueue->imageSemaphores.push_back(semaphore);
             vkCommandQueue->imageSemaphoresSwapchains.push_back(swapchain);
-        } else {
+        }
+        else {
             const uint32_t freeIndex = vkCommandQueue->freeImageSemaphores.size() - 1;
             semaphoreIndex = vkCommandQueue->freeImageSemaphores[freeIndex];
             vkCommandQueue->imageSemaphoresSwapchains[semaphoreIndex] = swapchain;
@@ -656,7 +659,7 @@ namespace Vixen {
     }
 
     void VulkanRenderingDeviceDriver::releaseSwapchain(
-        VulkanSwapchain *swapchain
+        VulkanSwapchain* swapchain
     ) {
         for (uint32_t i = 0; i < swapchain->resolveImages.size(); i++) {
             if (const auto framebuffer = swapchain->framebuffers[i];
@@ -695,11 +698,11 @@ namespace Vixen {
     }
 
     auto VulkanRenderingDeviceDriver::releaseImageSemaphore(
-        VulkanCommandQueue *commandQueue,
+        VulkanCommandQueue* commandQueue,
         const uint32_t semaphoreIndex,
         const bool releaseOnSwapchain
     ) -> std::expected<void, Error> {
-        if (const auto swapchain = dynamic_cast<VulkanSwapchain *>(
+        if (const auto swapchain = dynamic_cast<VulkanSwapchain*>(
                 commandQueue->imageSemaphoresSwapchains[semaphoreIndex]);
             swapchain != nullptr) {
             commandQueue->imageSemaphoresSwapchains[semaphoreIndex] = nullptr;
@@ -723,7 +726,7 @@ namespace Vixen {
     }
 
     auto VulkanRenderingDeviceDriver::recreateImageSemaphore(
-        VulkanCommandQueue *commandQueue,
+        VulkanCommandQueue* commandQueue,
         const uint32_t semaphoreIndex,
         const bool releaseOnSwapchain
     ) const -> std::expected<void, Error> {
@@ -749,18 +752,18 @@ namespace Vixen {
     }
 
     void VulkanRenderingDeviceDriver::destroySwapchain(
-        Swapchain *swapchain
+        Swapchain* swapchain
     ) {
         DEBUG_ASSERT(swapchain != nullptr);
 
-        const auto vkSwapchain = dynamic_cast<VulkanSwapchain *>(swapchain);
+        const auto vkSwapchain = dynamic_cast<VulkanSwapchain*>(swapchain);
         releaseSwapchain(vkSwapchain);
         delete vkSwapchain;
     }
 
     auto VulkanRenderingDeviceDriver::getQueueFamily(
         const QueueFamilyFlags queueFamilyFlags,
-        Surface *surface
+        Surface* surface
     ) -> std::expected<uint32_t, Error> {
         VkQueueFlags pickedQueueFlags = VK_QUEUE_FLAG_BITS_MAX_ENUM;
         uint32_t pickedQueueFamilyIndex = std::numeric_limits<uint32_t>::max();
@@ -773,7 +776,7 @@ namespace Vixen {
                 !VulkanRenderingContextDriver::queueFamilySupportsPresent(
                     physicalDevice,
                     i,
-                    dynamic_cast<VulkanSurface *>(surface)
+                    dynamic_cast<VulkanSurface*>(surface)
                 ))
                 continue;
 
@@ -793,7 +796,7 @@ namespace Vixen {
         return pickedQueueFamilyIndex;
     }
 
-    auto VulkanRenderingDeviceDriver::createFence() -> std::expected<Fence *, Error> {
+    auto VulkanRenderingDeviceDriver::createFence() -> std::expected<Fence*, Error> {
         constexpr VkFenceCreateInfo fenceInfo{
             .sType = VK_STRUCTURE_TYPE_FENCE_CREATE_INFO,
             .pNext = nullptr,
@@ -810,9 +813,9 @@ namespace Vixen {
     }
 
     auto VulkanRenderingDeviceDriver::waitOnFence(
-        Fence *fence
+        Fence* fence
     ) -> std::expected<void, Error> {
-        const auto vkFence = dynamic_cast<VulkanFence *>(fence);
+        const auto vkFence = dynamic_cast<VulkanFence*>(fence);
 
         if (vkWaitForFences(device, 1, &vkFence->fence, VK_TRUE, std::numeric_limits<uint64_t>::max()) != VK_SUCCESS)
             return std::unexpected(Error::InitializationFailed);
@@ -821,7 +824,7 @@ namespace Vixen {
             return std::unexpected(Error::InitializationFailed);
 
         if (vkFence->queueSignaledFrom) {
-            auto &pairs = vkFence->queueSignaledFrom->imageSemaphoresForFences;
+            auto& pairs = vkFence->queueSignaledFrom->imageSemaphoresForFences;
             uint32_t i = 0;
             while (i < pairs.size()) {
                 if (pairs[i].first == vkFence) {
@@ -830,7 +833,8 @@ namespace Vixen {
 
                     vkFence->queueSignaledFrom->freeImageSemaphores.push_back(pairs[i].second);
                     pairs.erase(pairs.begin() + i);
-                } else {
+                }
+                else {
                     i++;
                 }
             }
@@ -842,14 +846,14 @@ namespace Vixen {
     }
 
     void VulkanRenderingDeviceDriver::destroyFence(
-        Fence *fence
+        Fence* fence
     ) {
-        const auto o = dynamic_cast<VulkanFence *>(fence);
+        const auto o = dynamic_cast<VulkanFence*>(fence);
         vkDestroyFence(device, o->fence, nullptr);
         delete o;
     }
 
-    auto VulkanRenderingDeviceDriver::createSemaphore() -> std::expected<Semaphore *, Error> {
+    auto VulkanRenderingDeviceDriver::createSemaphore() -> std::expected<Semaphore*, Error> {
         constexpr VkSemaphoreCreateInfo semaphoreInfo{
             .sType = VK_STRUCTURE_TYPE_SEMAPHORE_CREATE_INFO,
             .pNext = nullptr,
@@ -866,9 +870,9 @@ namespace Vixen {
     }
 
     void VulkanRenderingDeviceDriver::destroySemaphore(
-        Semaphore *semaphore
+        Semaphore* semaphore
     ) {
-        const auto o = dynamic_cast<VulkanSemaphore *>(semaphore);
+        const auto o = dynamic_cast<VulkanSemaphore*>(semaphore);
         vkDestroySemaphore(device, o->semaphore, nullptr);
         delete o;
     }
@@ -876,7 +880,7 @@ namespace Vixen {
     auto VulkanRenderingDeviceDriver::createCommandPool(
         const uint32_t queueFamily,
         const CommandBufferType type
-    ) -> std::expected<CommandPool *, Error> {
+    ) -> std::expected<CommandPool*, Error> {
         const VkCommandPoolCreateInfo commandPoolInfo{
             .sType = VK_STRUCTURE_TYPE_COMMAND_POOL_CREATE_INFO,
             .pNext = nullptr,
@@ -896,26 +900,26 @@ namespace Vixen {
     }
 
     auto VulkanRenderingDeviceDriver::resetCommandPool(
-        CommandPool *pool
+        CommandPool* pool
     ) -> std::expected<void, Error> {
-        if (vkResetCommandPool(device, dynamic_cast<VulkanCommandPool *>(pool)->pool, 0) != VK_SUCCESS)
+        if (vkResetCommandPool(device, dynamic_cast<VulkanCommandPool*>(pool)->pool, 0) != VK_SUCCESS)
             return std::unexpected(Error::InitializationFailed);
 
         return {};
     }
 
     void VulkanRenderingDeviceDriver::destroyCommandPool(
-        CommandPool *pool
+        CommandPool* pool
     ) {
-        const auto *o = dynamic_cast<VulkanCommandPool *>(pool);
+        const auto* o = dynamic_cast<VulkanCommandPool*>(pool);
         vkDestroyCommandPool(device, o->pool, nullptr);
         delete o;
     }
 
     auto VulkanRenderingDeviceDriver::createCommandBuffer(
-        CommandPool *pool
-    ) -> std::expected<CommandBuffer *, Error> {
-        const auto *p = dynamic_cast<VulkanCommandPool *>(pool);
+        CommandPool* pool
+    ) -> std::expected<CommandBuffer*, Error> {
+        const auto* p = dynamic_cast<VulkanCommandPool*>(pool);
 
         const VkCommandBufferAllocateInfo commandBufferInfo{
             .sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO,
@@ -936,9 +940,9 @@ namespace Vixen {
     }
 
     auto VulkanRenderingDeviceDriver::beginCommandBuffer(
-        CommandBuffer *commandBuffer
+        CommandBuffer* commandBuffer
     ) -> std::expected<void, Error> {
-        const auto o = dynamic_cast<VulkanCommandBuffer *>(commandBuffer);
+        const auto o = dynamic_cast<VulkanCommandBuffer*>(commandBuffer);
 
         constexpr VkCommandBufferBeginInfo beginInfo{
             .sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO,
@@ -953,16 +957,16 @@ namespace Vixen {
     }
 
     void VulkanRenderingDeviceDriver::endCommandBuffer(
-        CommandBuffer *commandBuffer
+        CommandBuffer* commandBuffer
     ) {
-        const auto o = dynamic_cast<VulkanCommandBuffer *>(commandBuffer);
+        const auto o = dynamic_cast<VulkanCommandBuffer*>(commandBuffer);
         vkEndCommandBuffer(o->commandBuffer);
     }
 
     auto VulkanRenderingDeviceDriver::createCommandQueue(
         const uint32_t queueFamilyIndex
-    ) -> std::expected<CommandQueue *, Error> {
-        std::vector<Queue> &queueFamily = queueFamilies[queueFamilyIndex];
+    ) -> std::expected<CommandQueue*, Error> {
+        std::vector<Queue>& queueFamily = queueFamilies[queueFamilyIndex];
         uint32_t pickedQueueFamilyIndex = std::numeric_limits<uint32_t>::max();
         uint32_t pickedVirtualCount = std::numeric_limits<uint32_t>::max();
         for (uint32_t i = 0; i < queueFamily.size(); i++) {
@@ -984,16 +988,16 @@ namespace Vixen {
     }
 
     auto VulkanRenderingDeviceDriver::executeCommandQueueAndPresent(
-        CommandQueue *commandQueue,
-        const std::vector<Semaphore *> &waitSemaphores,
-        const std::vector<CommandBuffer *> &commandBuffers,
-        const std::vector<Semaphore *> &semaphores,
-        Fence *fence,
-        const std::vector<Swapchain *> &swapchains
+        CommandQueue* commandQueue,
+        const std::vector<Semaphore*>& waitSemaphores,
+        const std::vector<CommandBuffer*>& commandBuffers,
+        const std::vector<Semaphore*>& semaphores,
+        Fence* fence,
+        const std::vector<Swapchain*>& swapchains
     ) -> std::expected<void, Error> {
-        const auto vkCommandQueue = dynamic_cast<VulkanCommandQueue *>(commandQueue);
-        Queue &queue = queueFamilies[vkCommandQueue->queueFamily][vkCommandQueue->queueIndex];
-        const auto vkFence = dynamic_cast<VulkanFence *>(fence);
+        const auto vkCommandQueue = dynamic_cast<VulkanCommandQueue*>(commandQueue);
+        Queue& queue = queueFamilies[vkCommandQueue->queueFamily][vkCommandQueue->queueIndex];
+        const auto vkFence = dynamic_cast<VulkanFence*>(fence);
 
         std::vector<VkSemaphore> vkWaitSemaphores{};
         vkWaitSemaphores.reserve(waitSemaphores.size());
@@ -1010,22 +1014,22 @@ namespace Vixen {
             vkCommandQueue->pendingSemaphoresForExecute.clear();
         }
 
-        for (const auto &waitSemaphore: waitSemaphores) {
-            vkWaitSemaphores.push_back(dynamic_cast<VulkanSemaphore *>(waitSemaphore)->semaphore);
+        for (const auto& waitSemaphore : waitSemaphores) {
+            vkWaitSemaphores.push_back(dynamic_cast<VulkanSemaphore*>(waitSemaphore)->semaphore);
             vkWaitStages.push_back(VK_PIPELINE_STAGE_ALL_COMMANDS_BIT);
         }
 
         if (!commandBuffers.empty()) {
             std::vector<VkCommandBuffer> vkCommandBuffers{};
             vkCommandBuffers.reserve(commandBuffers.size());
-            for (const auto &commandBuffer: commandBuffers) {
-                vkCommandBuffers.push_back(dynamic_cast<VulkanCommandBuffer *>(commandBuffer)->commandBuffer);
+            for (const auto& commandBuffer : commandBuffers) {
+                vkCommandBuffers.push_back(dynamic_cast<VulkanCommandBuffer*>(commandBuffer)->commandBuffer);
             }
 
             std::vector<VkSemaphore> signalSemaphores{};
             signalSemaphores.reserve(semaphores.size());
-            for (const auto &semaphore: semaphores) {
-                signalSemaphores.push_back(dynamic_cast<VulkanSemaphore *>(semaphore)->semaphore);
+            for (const auto& semaphore : semaphores) {
+                signalSemaphores.push_back(dynamic_cast<VulkanSemaphore*>(semaphore)->semaphore);
             }
 
             VkSemaphore presentSemaphore = VK_NULL_HANDLE;
@@ -1051,7 +1055,7 @@ namespace Vixen {
                 presentSemaphore = vkCommandQueue->presentSemaphores[vkCommandQueue->presentSemaphoreIndex];
                 vkSignalSemaphores.push_back(presentSemaphore);
                 vkCommandQueue->presentSemaphoreIndex =
-                        (vkCommandQueue->presentSemaphoreIndex + 1) % vkCommandQueue->presentSemaphores.size();
+                    (vkCommandQueue->presentSemaphoreIndex + 1) % vkCommandQueue->presentSemaphores.size();
             }
 
             const VkSubmitInfo submitInfo{
@@ -1106,8 +1110,8 @@ namespace Vixen {
             std::vector<uint32_t> imageIndices{};
             imageIndices.reserve(swapchains.size());
 
-            for (const auto &swapchain: swapchains) {
-                const auto vkSwapchain = dynamic_cast<VulkanSwapchain *>(swapchain);
+            for (const auto& swapchain : swapchains) {
+                const auto vkSwapchain = dynamic_cast<VulkanSwapchain*>(swapchain);
                 vkSwapchains.push_back(vkSwapchain->swapchain);
 
                 DEBUG_ASSERT(vkSwapchain->imageIndex < vkSwapchain->colorTargets.size());
@@ -1130,7 +1134,7 @@ namespace Vixen {
             if (vkQueuePresentKHR(queue.queue, &presentInfo) != VK_SUCCESS)
                 return std::unexpected(Error::InitializationFailed);
 
-            for (const auto &result: results)
+            for (const auto& result : results)
                 if (result != VK_SUCCESS)
                     return std::unexpected(Error::InitializationFailed);
         }
@@ -1139,14 +1143,14 @@ namespace Vixen {
     }
 
     void VulkanRenderingDeviceDriver::destroyCommandQueue(
-        CommandQueue *commandQueue
+        CommandQueue* commandQueue
     ) {
-        const auto vkCommandQueue = dynamic_cast<VulkanCommandQueue *>(commandQueue);
+        const auto vkCommandQueue = dynamic_cast<VulkanCommandQueue*>(commandQueue);
 
-        for (const auto &semaphore: vkCommandQueue->presentSemaphores)
+        for (const auto& semaphore : vkCommandQueue->presentSemaphores)
             vkDestroySemaphore(device, semaphore, nullptr);
 
-        for (const auto &semaphore: vkCommandQueue->imageSemaphores)
+        for (const auto& semaphore : vkCommandQueue->imageSemaphores)
             vkDestroySemaphore(device, semaphore, nullptr);
 
         queueFamilies[vkCommandQueue->queueFamily][vkCommandQueue->queueIndex].virtualCount--;
@@ -1158,7 +1162,7 @@ namespace Vixen {
         const BufferUsage usage,
         const uint32_t count,
         const uint32_t stride
-    ) -> std::expected<Buffer *, Error> {
+    ) -> std::expected<Buffer*, Error> {
         if (count <= 0)
             throw std::runtime_error("Count cannot be equal to or less than 0");
         if (stride <= 0)
@@ -1176,7 +1180,7 @@ namespace Vixen {
 
         if (usage & BufferUsage::CopySource) {
             allocationFlags |= VMA_ALLOCATION_CREATE_MAPPED_BIT |
-                    VMA_ALLOCATION_CREATE_HOST_ACCESS_SEQUENTIAL_WRITE_BIT;
+                VMA_ALLOCATION_CREATE_HOST_ACCESS_SEQUENTIAL_WRITE_BIT;
             bufferUsageFlags |= VK_BUFFER_USAGE_TRANSFER_SRC_BIT;
         }
 
@@ -1185,7 +1189,7 @@ namespace Vixen {
 
         if (usage & BufferUsage::Uniform) {
             allocationFlags |= VMA_ALLOCATION_CREATE_MAPPED_BIT |
-                    VMA_ALLOCATION_CREATE_HOST_ACCESS_SEQUENTIAL_WRITE_BIT;
+                VMA_ALLOCATION_CREATE_HOST_ACCESS_SEQUENTIAL_WRITE_BIT;
             bufferUsageFlags |= VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT;
             requiredFlags |= VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT;
         }
@@ -1235,17 +1239,17 @@ namespace Vixen {
     }
 
     void VulkanRenderingDeviceDriver::destroyBuffer(
-        Buffer *buffer
+        Buffer* buffer
     ) {
-        const auto o = dynamic_cast<VulkanBuffer *>(buffer);
+        const auto o = dynamic_cast<VulkanBuffer*>(buffer);
         vmaDestroyBuffer(allocator, o->buffer, o->allocation);
         delete o;
     }
 
     auto VulkanRenderingDeviceDriver::createImage(
-        const ImageFormat &format,
-        const ImageView &view
-    ) -> std::expected<Image *, Error> {
+        const ImageFormat& format,
+        const ImageView& view
+    ) -> std::expected<Image*, Error> {
         VkImageCreateInfo imageCreateInfo{
             .sType = VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO,
             .pNext = nullptr,
@@ -1324,12 +1328,14 @@ namespace Vixen {
                 allocationCreateInfo = lazyMemoryRequirements;
                 imageCreateInfo.usage |= VK_IMAGE_USAGE_TRANSIENT_ATTACHMENT_BIT;
                 imageCreateInfo.usage &= VK_IMAGE_USAGE_TRANSIENT_ATTACHMENT_BIT | VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT
-                        | VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT |
-                        VK_IMAGE_USAGE_INPUT_ATTACHMENT_BIT;
-            } else {
+                    | VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT |
+                    VK_IMAGE_USAGE_INPUT_ATTACHMENT_BIT;
+            }
+            else {
                 allocationCreateInfo.preferredFlags = VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT;
             }
-        } else {
+        }
+        else {
             allocationCreateInfo.preferredFlags = VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT;
         }
 
@@ -1388,26 +1394,26 @@ namespace Vixen {
         return o;
     }
 
-    std::byte *VulkanRenderingDeviceDriver::mapImage(
-        Image *image
+    std::byte* VulkanRenderingDeviceDriver::mapImage(
+        Image* image
     ) {
-        const auto o = dynamic_cast<VulkanImage *>(image);
-        std::byte *data;
-        vmaMapMemory(allocator, o->allocation, std::bit_cast<void **>(&data));
+        const auto o = dynamic_cast<VulkanImage*>(image);
+        std::byte* data;
+        vmaMapMemory(allocator, o->allocation, std::bit_cast<void**>(&data));
         return data;
     }
 
     void VulkanRenderingDeviceDriver::unmapImage(
-        Image *image
+        Image* image
     ) {
-        const auto o = dynamic_cast<VulkanImage *>(image);
+        const auto o = dynamic_cast<VulkanImage*>(image);
         vmaUnmapMemory(allocator, o->allocation);
     }
 
     void VulkanRenderingDeviceDriver::destroyImage(
-        Image *image
+        Image* image
     ) {
-        const auto o = dynamic_cast<VulkanImage *>(image);
+        const auto o = dynamic_cast<VulkanImage*>(image);
         vkDestroyImageView(device, o->imageView, nullptr);
         vmaDestroyImage(allocator, o->image, o->allocation);
         delete o;
@@ -1415,7 +1421,7 @@ namespace Vixen {
 
     auto VulkanRenderingDeviceDriver::createSampler(
         SamplerState state
-    ) -> std::expected<Sampler *, Error> {
+    ) -> std::expected<Sampler*, Error> {
         const VkSamplerCreateInfo samplerInfo{
             .sType = VK_STRUCTURE_TYPE_SAMPLER_CREATE_INFO,
             .pNext = nullptr,
@@ -1450,16 +1456,16 @@ namespace Vixen {
     }
 
     void VulkanRenderingDeviceDriver::destroySampler(
-        Sampler *sampler
+        Sampler* sampler
     ) {
-        const auto o = dynamic_cast<VulkanSampler *>(sampler);
+        const auto o = dynamic_cast<VulkanSampler*>(sampler);
         vkDestroySampler(device, o->sampler, nullptr);
         delete o;
     }
 
-    Shader *VulkanRenderingDeviceDriver::createShaderFromSpirv(
-        const std::string &name,
-        const std::vector<ShaderStageData> &stages
+    Shader* VulkanRenderingDeviceDriver::createShaderFromSpirv(
+        const std::string& name,
+        const std::vector<ShaderStageData>& stages
     ) {
         const auto o = new VulkanShader();
         if (!reflectShader(stages, o)) {
@@ -1469,10 +1475,10 @@ namespace Vixen {
 
         o->name = name;
 
-        for (const auto &stage: o->pushConstantStages)
+        for (const auto& stage : o->pushConstantStages)
             o->pushConstantStageFlags |= toVkShaderStageFlag(stage);
 
-        for (const auto &[stage, spirv]: stages) {
+        for (const auto& [stage, spirv] : stages) {
             const auto stageFlag = toVkShaderStageFlag(stage);
 
             const VkShaderModuleCreateInfo shaderModuleInfo{
@@ -1480,7 +1486,7 @@ namespace Vixen {
                 .pNext = nullptr,
                 .flags = 0,
                 .codeSize = spirv.size(),
-                .pCode = std::bit_cast<const uint32_t *>(spirv.data())
+                .pCode = std::bit_cast<const uint32_t*>(spirv.data())
             };
 
             VkShaderModule module;
@@ -1490,21 +1496,21 @@ namespace Vixen {
             std::vector<VkDescriptorSetLayoutBinding> layoutBindings{};
             layoutBindings.reserve(o->uniformSets.size());
 
-            for (const auto &uniformSet: o->uniformSets) {
+            for (const auto& uniformSet : o->uniformSets) {
                 VkDescriptorType descriptorType = VK_DESCRIPTOR_TYPE_MAX_ENUM;
 
                 switch (uniformSet.type) {
-                    case ShaderUniformType::Sampler:
-                        descriptorType = VK_DESCRIPTOR_TYPE_SAMPLER;
-                        break;
+                case ShaderUniformType::Sampler:
+                    descriptorType = VK_DESCRIPTOR_TYPE_SAMPLER;
+                    break;
 
-                    case ShaderUniformType::CombinedImageSampler:
-                        descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
-                        break;
+                case ShaderUniformType::CombinedImageSampler:
+                    descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
+                    break;
 
-                    case ShaderUniformType::UniformBuffer:
-                        descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
-                        break;
+                case ShaderUniformType::UniformBuffer:
+                    descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
+                    break;
                 }
 
                 const VkDescriptorSetLayoutBinding layoutBinding = {
@@ -1564,7 +1570,7 @@ namespace Vixen {
 
         VkPipelineLayout pipelineLayout;
         if (vkCreatePipelineLayout(device, &pipelineLayoutInfo, nullptr, &pipelineLayout) != VK_SUCCESS) {
-            for (const auto &descriptorSetLayout: o->descriptorSetLayouts)
+            for (const auto& descriptorSetLayout : o->descriptorSetLayouts)
                 vkDestroyDescriptorSetLayout(device, descriptorSetLayout, nullptr);
             delete o;
             error<CantCreateError>("Call to vkCreatePipelineLayout failed.");
@@ -1575,21 +1581,21 @@ namespace Vixen {
     }
 
     void VulkanRenderingDeviceDriver::destroyShaderModules(
-        Shader *shader
+        Shader* shader
     ) {
-        const auto o = dynamic_cast<VulkanShader *>(shader);
-        for (const auto &stageInfo: o->shaderStageInfos)
+        const auto o = dynamic_cast<VulkanShader*>(shader);
+        for (const auto& stageInfo : o->shaderStageInfos)
             vkDestroyShaderModule(device, stageInfo.module, nullptr);
         o->shaderStageInfos.clear();
     }
 
     void VulkanRenderingDeviceDriver::destroyShader(
-        Shader *shader
+        Shader* shader
     ) {
-        const auto o = dynamic_cast<VulkanShader *>(shader);
+        const auto o = dynamic_cast<VulkanShader*>(shader);
 
         destroyShaderModules(o);
-        for (const auto &descriptorSetLayout: o->descriptorSetLayouts)
+        for (const auto& descriptorSetLayout : o->descriptorSetLayouts)
             vkDestroyDescriptorSetLayout(device, descriptorSetLayout, nullptr);
         vkDestroyPipelineLayout(device, o->pipelineLayout, nullptr);
 
@@ -1597,7 +1603,7 @@ namespace Vixen {
     }
 
     VkImageSubresourceLayers VulkanRenderingDeviceDriver::_imageSubresourceLayers(
-        const ImageSubresourceLayers &layers
+        const ImageSubresourceLayers& layers
     ) {
         return {
             .aspectMask = toVkImageAspectFlags(layers.aspect),
@@ -1608,7 +1614,7 @@ namespace Vixen {
     }
 
     VkBufferImageCopy VulkanRenderingDeviceDriver::_bufferImageCopyRegion(
-        const BufferImageCopyRegion &region
+        const BufferImageCopyRegion& region
     ) {
         return {
             .bufferOffset = region.bufferOffset,
@@ -1629,15 +1635,15 @@ namespace Vixen {
     }
 
     void VulkanRenderingDeviceDriver::commandBeginRenderPass(
-        CommandBuffer *commandBuffer,
-        RenderPass *renderPass,
-        Framebuffer *framebuffer,
+        CommandBuffer* commandBuffer,
+        RenderPass* renderPass,
+        Framebuffer* framebuffer,
         CommandBufferType commandBufferType,
-        const glm::uvec2 &rectangle,
-        const std::vector<ClearValue> &clearValues
+        const glm::uvec2& rectangle,
+        const std::vector<ClearValue>& clearValues
     ) {
-        const auto *vkCommandBuffer = dynamic_cast<VulkanCommandBuffer *>(commandBuffer);
-        auto *vkFramebuffer = dynamic_cast<VulkanFramebuffer *>(framebuffer);
+        const auto* vkCommandBuffer = dynamic_cast<VulkanCommandBuffer*>(commandBuffer);
+        auto* vkFramebuffer = dynamic_cast<VulkanFramebuffer*>(framebuffer);
 
         if (vkFramebuffer->swapchainAcquired) {
             const VkImageMemoryBarrier imageBarrier{
@@ -1713,12 +1719,13 @@ namespace Vixen {
             };
 
             vkCmdBeginRendering(vkCommandBuffer->commandBuffer, &info);
-        } else {
+        }
+        else {
             const VkRenderPassBeginInfo info{
                 .sType = VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO,
                 .pNext = nullptr,
-                .renderPass = dynamic_cast<VulkanRenderPass *>(renderPass)->renderPass,
-                .framebuffer = dynamic_cast<VulkanFramebuffer *>(framebuffer)->framebuffer,
+                .renderPass = dynamic_cast<VulkanRenderPass*>(renderPass)->renderPass,
+                .framebuffer = dynamic_cast<VulkanFramebuffer*>(framebuffer)->framebuffer,
                 .renderArea = {
                     .offset = {
                         .x = 0,
@@ -1730,7 +1737,7 @@ namespace Vixen {
                     }
                 },
                 .clearValueCount = static_cast<uint32_t>(clearValues.size()),
-                .pClearValues = reinterpret_cast<const VkClearValue *>(clearValues.data())
+                .pClearValues = reinterpret_cast<const VkClearValue*>(clearValues.data())
             };
 
             vkCmdBeginRenderPass(vkCommandBuffer->commandBuffer, &info, VK_SUBPASS_CONTENTS_INLINE);
@@ -1738,22 +1745,23 @@ namespace Vixen {
     }
 
     void VulkanRenderingDeviceDriver::commandEndRenderPass(
-        CommandBuffer *commandBuffer
+        CommandBuffer* commandBuffer
     ) {
         if (enabledFeatures.dynamicRendering) {
-            vkCmdEndRendering(dynamic_cast<VulkanCommandBuffer *>(commandBuffer)->commandBuffer);
-        } else {
-            vkCmdEndRenderPass(dynamic_cast<VulkanCommandBuffer *>(commandBuffer)->commandBuffer);
+            vkCmdEndRendering(dynamic_cast<VulkanCommandBuffer*>(commandBuffer)->commandBuffer);
+        }
+        else {
+            vkCmdEndRenderPass(dynamic_cast<VulkanCommandBuffer*>(commandBuffer)->commandBuffer);
         }
     }
 
     void VulkanRenderingDeviceDriver::commandSetViewport(
-        CommandBuffer *commandBuffer,
-        const std::vector<glm::uvec2> &viewports
+        CommandBuffer* commandBuffer,
+        const std::vector<glm::uvec2>& viewports
     ) {
         std::vector<VkViewport> vkViewports{};
         vkViewports.reserve(viewports.size());
-        for (const auto &viewport: viewports)
+        for (const auto& viewport : viewports)
             vkViewports.push_back(
                 {
                     .x = 0.0f,
@@ -1766,7 +1774,7 @@ namespace Vixen {
             );
 
         vkCmdSetViewport(
-            dynamic_cast<VulkanCommandBuffer *>(commandBuffer)->commandBuffer,
+            dynamic_cast<VulkanCommandBuffer*>(commandBuffer)->commandBuffer,
             0,
             vkViewports.size(),
             vkViewports.data()
@@ -1774,12 +1782,12 @@ namespace Vixen {
     }
 
     void VulkanRenderingDeviceDriver::commandSetScissor(
-        CommandBuffer *commandBuffer,
-        const std::vector<glm::uvec2> &scissors
+        CommandBuffer* commandBuffer,
+        const std::vector<glm::uvec2>& scissors
     ) {
         std::vector<VkRect2D> vkScissors{};
         vkScissors.reserve(scissors.size());
-        for (const auto &scissor: scissors)
+        for (const auto& scissor : scissors)
             vkScissors.push_back(
                 {
                     .offset = {
@@ -1794,7 +1802,7 @@ namespace Vixen {
             );
 
         vkCmdSetScissor(
-            dynamic_cast<VulkanCommandBuffer *>(commandBuffer)->commandBuffer,
+            dynamic_cast<VulkanCommandBuffer*>(commandBuffer)->commandBuffer,
             0,
             vkScissors.size(),
             vkScissors.data()
@@ -1802,18 +1810,18 @@ namespace Vixen {
     }
 
     void VulkanRenderingDeviceDriver::commandBindVertexBuffers(
-        CommandBuffer *commandBuffer,
+        CommandBuffer* commandBuffer,
         uint32_t count,
-        const std::vector<Buffer *> &buffers,
-        const std::vector<uint64_t> &offsets
+        const std::vector<Buffer*>& buffers,
+        const std::vector<uint64_t>& offsets
     ) {
         std::vector<VkBuffer> vkBuffers{};
         vkBuffers.reserve(buffers.size());
-        for (const auto &buffer: buffers)
-            vkBuffers.push_back(dynamic_cast<VulkanBuffer *>(buffer)->buffer);
+        for (const auto& buffer : buffers)
+            vkBuffers.push_back(dynamic_cast<VulkanBuffer*>(buffer)->buffer);
 
         vkCmdBindVertexBuffers(
-            dynamic_cast<VulkanCommandBuffer *>(commandBuffer)->commandBuffer,
+            dynamic_cast<VulkanCommandBuffer*>(commandBuffer)->commandBuffer,
             0,
             vkBuffers.size(),
             vkBuffers.data(),
@@ -1822,31 +1830,31 @@ namespace Vixen {
     }
 
     void VulkanRenderingDeviceDriver::commandBindIndexBuffers(
-        CommandBuffer *commandBuffer,
-        Buffer *buffer,
+        CommandBuffer* commandBuffer,
+        Buffer* buffer,
         const IndexFormat format,
         const uint64_t offset
     ) {
         vkCmdBindIndexBuffer(
-            dynamic_cast<VulkanCommandBuffer *>(commandBuffer)->commandBuffer,
-            dynamic_cast<VulkanBuffer *>(buffer)->buffer,
+            dynamic_cast<VulkanCommandBuffer*>(commandBuffer)->commandBuffer,
+            dynamic_cast<VulkanBuffer*>(buffer)->buffer,
             offset,
             toVkIndexType(format)
         );
     }
 
     void VulkanRenderingDeviceDriver::commandPipelineBarrier(
-        CommandBuffer *commandBuffer,
+        CommandBuffer* commandBuffer,
         const PipelineStageFlags sourceStages,
         const PipelineStageFlags destinationStages,
-        const std::vector<MemoryBarrier> &memoryBarriers,
-        const std::vector<BufferBarrier> &bufferBarriers,
-        const std::vector<ImageBarrier> &imageBarriers
+        const std::vector<MemoryBarrier>& memoryBarriers,
+        const std::vector<BufferBarrier>& bufferBarriers,
+        const std::vector<ImageBarrier>& imageBarriers
     ) {
         if (!enabledFeatures.synchronization2) {
             std::vector<VkMemoryBarrier> vkMemoryBarriers{};
             vkMemoryBarriers.reserve(memoryBarriers.size());
-            for (const auto &[sourceAccess, targetAccess]: memoryBarriers) {
+            for (const auto& [sourceAccess, targetAccess] : memoryBarriers) {
                 vkMemoryBarriers.push_back(
                     {
                         .sType = VK_STRUCTURE_TYPE_MEMORY_BARRIER,
@@ -1859,7 +1867,7 @@ namespace Vixen {
 
             std::vector<VkBufferMemoryBarrier> vkBufferBarriers{};
             vkBufferBarriers.reserve(bufferBarriers.size());
-            for (const auto &[buffer, sourceAccess, destinationAccess, offset, size]: bufferBarriers) {
+            for (const auto& [buffer, sourceAccess, destinationAccess, offset, size] : bufferBarriers) {
                 vkBufferBarriers.push_back(
                     {
                         .sType = VK_STRUCTURE_TYPE_BUFFER_MEMORY_BARRIER,
@@ -1868,7 +1876,7 @@ namespace Vixen {
                         .dstAccessMask = toVkAccessFlags(destinationAccess),
                         .srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED,
                         .dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED,
-                        .buffer = dynamic_cast<VulkanBuffer *>(buffer)->buffer,
+                        .buffer = dynamic_cast<VulkanBuffer*>(buffer)->buffer,
                         .offset = offset,
                         .size = size
                     }
@@ -1877,7 +1885,7 @@ namespace Vixen {
 
             std::vector<VkImageMemoryBarrier> vkImageBarriers{};
             vkImageBarriers.reserve(imageBarriers.size());
-            for (const auto &[image, sourceAccess, destinationAccess, oldLayout, newLayout, subresources]:
+            for (const auto& [image, sourceAccess, destinationAccess, oldLayout, newLayout, subresources] :
                  imageBarriers) {
                 vkImageBarriers.push_back(
                     {
@@ -1889,7 +1897,7 @@ namespace Vixen {
                         .newLayout = toVkImageLayout(newLayout),
                         .srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED,
                         .dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED,
-                        .image = dynamic_cast<VulkanImage *>(image)->image,
+                        .image = dynamic_cast<VulkanImage*>(image)->image,
                         .subresourceRange = {
                             .aspectMask = toVkImageAspectFlags(subresources.aspect),
                             .baseMipLevel = subresources.baseMipmap,
@@ -1902,7 +1910,7 @@ namespace Vixen {
             }
 
             vkCmdPipelineBarrier(
-                dynamic_cast<VulkanCommandBuffer *>(commandBuffer)->commandBuffer,
+                dynamic_cast<VulkanCommandBuffer*>(commandBuffer)->commandBuffer,
                 toVkPipelineStages(sourceStages),
                 toVkPipelineStages(destinationStages),
                 0,
@@ -1913,10 +1921,11 @@ namespace Vixen {
                 static_cast<uint32_t>(vkImageBarriers.size()),
                 vkImageBarriers.data()
             );
-        } else {
+        }
+        else {
             std::vector<VkMemoryBarrier2> vkMemoryBarriers{};
             vkMemoryBarriers.reserve(memoryBarriers.size());
-            for (const auto &[sourceAccess, targetAccess]: memoryBarriers) {
+            for (const auto& [sourceAccess, targetAccess] : memoryBarriers) {
                 vkMemoryBarriers.push_back(
                     VkMemoryBarrier2{
                         .sType = VK_STRUCTURE_TYPE_MEMORY_BARRIER,
@@ -1931,7 +1940,7 @@ namespace Vixen {
 
             std::vector<VkBufferMemoryBarrier2> vkBufferBarriers{};
             vkBufferBarriers.reserve(bufferBarriers.size());
-            for (const auto &[buffer, sourceAccess, destinationAccess, offset, size]: bufferBarriers) {
+            for (const auto& [buffer, sourceAccess, destinationAccess, offset, size] : bufferBarriers) {
                 vkBufferBarriers.push_back(
                     {
                         .sType = VK_STRUCTURE_TYPE_BUFFER_MEMORY_BARRIER,
@@ -1942,7 +1951,7 @@ namespace Vixen {
                         .dstAccessMask = toVkAccessFlags(destinationAccess),
                         .srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED,
                         .dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED,
-                        .buffer = dynamic_cast<VulkanBuffer *>(buffer)->buffer,
+                        .buffer = dynamic_cast<VulkanBuffer*>(buffer)->buffer,
                         .offset = offset,
                         .size = size
                     }
@@ -1951,7 +1960,7 @@ namespace Vixen {
 
             std::vector<VkImageMemoryBarrier2> vkImageBarriers{};
             vkImageBarriers.reserve(imageBarriers.size());
-            for (const auto &[image, sourceAccess, destinationAccess, oldLayout, newLayout, subresources]:
+            for (const auto& [image, sourceAccess, destinationAccess, oldLayout, newLayout, subresources] :
                  imageBarriers) {
                 vkImageBarriers.push_back(
                     {
@@ -1965,7 +1974,7 @@ namespace Vixen {
                         .newLayout = toVkImageLayout(newLayout),
                         .srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED,
                         .dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED,
-                        .image = dynamic_cast<VulkanImage *>(image)->image,
+                        .image = dynamic_cast<VulkanImage*>(image)->image,
                         .subresourceRange = {
                             .aspectMask = toVkImageAspectFlags(subresources.aspect),
                             .baseMipLevel = subresources.baseMipmap,
@@ -1990,21 +1999,21 @@ namespace Vixen {
             };
 
             vkCmdPipelineBarrier2(
-                dynamic_cast<VulkanCommandBuffer *>(commandBuffer)->commandBuffer,
+                dynamic_cast<VulkanCommandBuffer*>(commandBuffer)->commandBuffer,
                 &dependencyInfo
             );
         }
     }
 
     void VulkanRenderingDeviceDriver::commandClearBuffer(
-        CommandBuffer *commandBuffer,
-        Buffer *buffer,
+        CommandBuffer* commandBuffer,
+        Buffer* buffer,
         const uint64_t offset,
         const uint64_t size
     ) {
         vkCmdFillBuffer(
-            dynamic_cast<VulkanCommandBuffer *>(commandBuffer)->commandBuffer,
-            dynamic_cast<VulkanBuffer *>(buffer)->buffer,
+            dynamic_cast<VulkanCommandBuffer*>(commandBuffer)->commandBuffer,
+            dynamic_cast<VulkanBuffer*>(buffer)->buffer,
             offset,
             size,
             0
@@ -2012,14 +2021,14 @@ namespace Vixen {
     }
 
     void VulkanRenderingDeviceDriver::commandCopyBuffer(
-        CommandBuffer *commandBuffer,
-        Buffer *source,
-        Buffer *destination,
-        const std::vector<BufferCopyRegion> &regions
+        CommandBuffer* commandBuffer,
+        Buffer* source,
+        Buffer* destination,
+        const std::vector<BufferCopyRegion>& regions
     ) {
         std::vector<VkBufferCopy> vkRegions{};
         vkRegions.reserve(regions.size());
-        for (const auto &[sourceOffset, destinationOffset, size]: regions) {
+        for (const auto& [sourceOffset, destinationOffset, size] : regions) {
             vkRegions.push_back(
                 {
                     .srcOffset = sourceOffset,
@@ -2030,25 +2039,25 @@ namespace Vixen {
         }
 
         vkCmdCopyBuffer(
-            dynamic_cast<VulkanCommandBuffer *>(commandBuffer)->commandBuffer,
-            dynamic_cast<VulkanBuffer *>(source)->buffer,
-            dynamic_cast<VulkanBuffer *>(destination)->buffer,
+            dynamic_cast<VulkanCommandBuffer*>(commandBuffer)->commandBuffer,
+            dynamic_cast<VulkanBuffer*>(source)->buffer,
+            dynamic_cast<VulkanBuffer*>(destination)->buffer,
             vkRegions.size(),
             vkRegions.data()
         );
     }
 
     void VulkanRenderingDeviceDriver::commandCopyImage(
-        CommandBuffer *commandBuffer,
-        Image *source,
+        CommandBuffer* commandBuffer,
+        Image* source,
         const ImageLayout sourceLayout,
-        Image *destination,
+        Image* destination,
         const ImageLayout destinationLayout,
-        const std::vector<ImageCopyRegion> &regions
+        const std::vector<ImageCopyRegion>& regions
     ) {
         std::vector<VkImageCopy> vkRegions{};
         vkRegions.reserve(regions.size());
-        for (const auto &[sourceSubresources, sourceOffset, destinationSubresources, destinationOffset, size]:
+        for (const auto& [sourceSubresources, sourceOffset, destinationSubresources, destinationOffset, size] :
              regions) {
             vkRegions.push_back(
                 {
@@ -2074,10 +2083,10 @@ namespace Vixen {
         }
 
         vkCmdCopyImage(
-            dynamic_cast<VulkanCommandBuffer *>(commandBuffer)->commandBuffer,
-            dynamic_cast<VulkanImage *>(source)->image,
+            dynamic_cast<VulkanCommandBuffer*>(commandBuffer)->commandBuffer,
+            dynamic_cast<VulkanImage*>(source)->image,
             toVkImageLayout(sourceLayout),
-            dynamic_cast<VulkanImage *>(destination)->image,
+            dynamic_cast<VulkanImage*>(destination)->image,
             toVkImageLayout(destinationLayout),
             vkRegions.size(),
             vkRegions.data()
@@ -2085,12 +2094,12 @@ namespace Vixen {
     }
 
     void VulkanRenderingDeviceDriver::commandResolveImage(
-        CommandBuffer *commandBuffer,
-        Image *source,
+        CommandBuffer* commandBuffer,
+        Image* source,
         const ImageLayout sourceLayout,
         const uint32_t sourceLayer,
         const uint32_t sourceMipmap,
-        Image *destination,
+        Image* destination,
         const ImageLayout destinationLayout,
         const uint32_t destinationLayer,
         const uint32_t destinationMipmap
@@ -2126,10 +2135,10 @@ namespace Vixen {
         };
 
         vkCmdResolveImage(
-            dynamic_cast<VulkanCommandBuffer *>(commandBuffer)->commandBuffer,
-            dynamic_cast<VulkanImage *>(source)->image,
+            dynamic_cast<VulkanCommandBuffer*>(commandBuffer)->commandBuffer,
+            dynamic_cast<VulkanImage*>(source)->image,
             toVkImageLayout(sourceLayout),
-            dynamic_cast<VulkanImage *>(destination)->image,
+            dynamic_cast<VulkanImage*>(destination)->image,
             toVkImageLayout(destinationLayout),
             1,
             &region
@@ -2137,11 +2146,11 @@ namespace Vixen {
     }
 
     void VulkanRenderingDeviceDriver::commandClearColorImage(
-        CommandBuffer *commandBuffer,
-        Image *image,
+        CommandBuffer* commandBuffer,
+        Image* image,
         const ImageLayout imageLayout,
-        const glm::vec4 &color,
-        const ImageSubresourceRange &subresource
+        const glm::vec4& color,
+        const ImageSubresourceRange& subresource
     ) {
         const VkClearColorValue vkColor = {
             color.r,
@@ -2158,8 +2167,8 @@ namespace Vixen {
         };
 
         vkCmdClearColorImage(
-            dynamic_cast<VulkanCommandBuffer *>(commandBuffer)->commandBuffer,
-            dynamic_cast<VulkanImage *>(image)->image,
+            dynamic_cast<VulkanCommandBuffer*>(commandBuffer)->commandBuffer,
+            dynamic_cast<VulkanImage*>(image)->image,
             toVkImageLayout(imageLayout),
             &vkColor,
             1,
@@ -2168,21 +2177,21 @@ namespace Vixen {
     }
 
     void VulkanRenderingDeviceDriver::commandCopyBufferToImage(
-        CommandBuffer *commandBuffer,
-        Buffer *buffer,
-        Image *image,
+        CommandBuffer* commandBuffer,
+        Buffer* buffer,
+        Image* image,
         const ImageLayout layout,
-        const std::vector<BufferImageCopyRegion> &regions
+        const std::vector<BufferImageCopyRegion>& regions
     ) {
         std::vector<VkBufferImageCopy> vkRegions{};
         vkRegions.reserve(regions.size());
-        for (const auto &region: regions)
+        for (const auto& region : regions)
             vkRegions.push_back(_bufferImageCopyRegion(region));
 
         vkCmdCopyBufferToImage(
-            dynamic_cast<VulkanCommandBuffer *>(commandBuffer)->commandBuffer,
-            dynamic_cast<VulkanBuffer *>(buffer)->buffer,
-            dynamic_cast<VulkanImage *>(image)->image,
+            dynamic_cast<VulkanCommandBuffer*>(commandBuffer)->commandBuffer,
+            dynamic_cast<VulkanBuffer*>(buffer)->buffer,
+            dynamic_cast<VulkanImage*>(image)->image,
             toVkImageLayout(layout),
             vkRegions.size(),
             vkRegions.data()
@@ -2190,31 +2199,31 @@ namespace Vixen {
     }
 
     void VulkanRenderingDeviceDriver::commandCopyImageToBuffer(
-        CommandBuffer *commandBuffer,
-        Image *image,
+        CommandBuffer* commandBuffer,
+        Image* image,
         const ImageLayout layout,
-        Buffer *buffer,
-        const std::vector<BufferImageCopyRegion> &regions
+        Buffer* buffer,
+        const std::vector<BufferImageCopyRegion>& regions
     ) {
         std::vector<VkBufferImageCopy> vkRegions{};
         vkRegions.reserve(regions.size());
-        for (const auto &region: regions)
+        for (const auto& region : regions)
             vkRegions.push_back(_bufferImageCopyRegion(region));
 
         vkCmdCopyImageToBuffer(
-            dynamic_cast<VulkanCommandBuffer *>(commandBuffer)->commandBuffer,
-            dynamic_cast<VulkanImage *>(image)->image,
+            dynamic_cast<VulkanCommandBuffer*>(commandBuffer)->commandBuffer,
+            dynamic_cast<VulkanImage*>(image)->image,
             toVkImageLayout(layout),
-            dynamic_cast<VulkanBuffer *>(buffer)->buffer,
+            dynamic_cast<VulkanBuffer*>(buffer)->buffer,
             vkRegions.size(),
             vkRegions.data()
         );
     }
 
     void VulkanRenderingDeviceDriver::commandBeginLabel(
-        CommandBuffer *commandBuffer,
-        const std::string &label,
-        const glm::vec3 &color
+        CommandBuffer* commandBuffer,
+        const std::string& label,
+        const glm::vec3& color
     ) {
         const VkDebugUtilsLabelEXT info{
             .sType = VK_STRUCTURE_TYPE_DEBUG_UTILS_LABEL_EXT,
@@ -2228,14 +2237,14 @@ namespace Vixen {
         };
 
         vkCmdBeginDebugUtilsLabelEXT(
-            dynamic_cast<VulkanCommandBuffer *>(commandBuffer)->commandBuffer,
+            dynamic_cast<VulkanCommandBuffer*>(commandBuffer)->commandBuffer,
             &info
         );
     }
 
     void VulkanRenderingDeviceDriver::commandEndLabel(
-        CommandBuffer *commandBuffer
+        CommandBuffer* commandBuffer
     ) {
-        vkCmdEndDebugUtilsLabelEXT(dynamic_cast<VulkanCommandBuffer *>(commandBuffer)->commandBuffer);
+        vkCmdEndDebugUtilsLabelEXT(dynamic_cast<VulkanCommandBuffer*>(commandBuffer)->commandBuffer);
     }
 }

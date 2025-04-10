@@ -48,22 +48,22 @@ namespace Vixen {
 
     void RenderingDevice::executeChainedCommands(
         const bool present,
-        Fence *drawFence,
-        Semaphore *drawSemaphoreToSignal
+        Fence* drawFence,
+        Semaphore* drawSemaphoreToSignal
     ) {
         if (!renderingDeviceDriver->executeCommandQueueAndPresent(
             graphicsQueue,
             frames[frameIndex].waitSemaphores,
             frames[frameIndex].commandBuffer
                 ? std::vector{frames[frameIndex].commandBuffer}
-                : std::vector<CommandBuffer *>{},
+                : std::vector<CommandBuffer*>{},
             drawSemaphoreToSignal
                 ? std::vector{drawSemaphoreToSignal}
-                : std::vector<Semaphore *>{},
+                : std::vector<Semaphore*>{},
             drawFence,
             present
                 ? frames[frameIndex].swapchainsToPresent
-                : std::vector<Swapchain *>{}
+                : std::vector<Swapchain*>{}
         ))
             throw std::runtime_error("Failed to execute chained commands");
 
@@ -76,7 +76,7 @@ namespace Vixen {
         const bool canPresent = present && !frames[frameIndex].swapchainsToPresent.empty();
         const bool separatePresentQueue = graphicsQueue != presentQueue;
 
-        Semaphore *semaphore = canPresent && separatePresentQueue ? frames[frameIndex].semaphore : nullptr;
+        Semaphore* semaphore = canPresent && separatePresentQueue ? frames[frameIndex].semaphore : nullptr;
         const bool presentSwapchain = canPresent && !separatePresentQueue;
 
         executeChainedCommands(presentSwapchain, frames[frameIndex].fence, semaphore);
@@ -100,11 +100,11 @@ namespace Vixen {
     }
 
     RenderingDevice::RenderingDevice(
-        RenderingContextDriver *renderingContext,
-        const Window *mainWindow
+        RenderingContextDriver* renderingContext,
+        const Window* mainWindow
     ) : renderingContextDriver(renderingContext),
         frameIndex(0) {
-        Surface *mainSurface = nullptr;
+        Surface* mainSurface = nullptr;
         if (mainWindow) {
             DEBUG_ASSERT(mainWindow->surface != nullptr);
             mainSurface = mainWindow->surface;
@@ -119,9 +119,9 @@ namespace Vixen {
                 std::views::take(devices.size()) |
                 std::views::transform(
                     [&](
-                const std::size_t i
-            ) {
-                        const auto &[deviceName] = devices[i];
+                    const std::size_t i
+                ) {
+                        const auto& [deviceName] = devices[i];
                         return std::format(
                             "    [{}] - {}\n"
                             "            * Supports presentation? {}",
@@ -133,9 +133,9 @@ namespace Vixen {
                 ),
                 std::string{},
                 [](
-            const auto &a,
-            const auto &b
-        ) {
+                const auto& a,
+                const auto& b
+            ) {
                     return a.empty() ? std::move(b) : std::move(a) + "\n" + b;
                 }
             )
@@ -144,7 +144,7 @@ namespace Vixen {
         uint32_t deviceIndex = 0;
         uint32_t deviceScore = 0;
         for (uint32_t i = 0; i < devices.size(); i++) {
-            const auto &deviceOption = devices[i];
+            const auto& deviceOption = devices[i];
             const bool supportsPresent = mainSurface != nullptr
                                              ? renderingContext->deviceSupportsPresent(i, mainSurface)
                                              : false;
@@ -196,7 +196,7 @@ namespace Vixen {
     }
 
     RenderingDevice::~RenderingDevice() {
-        for (const auto &frame: frames) {
+        for (const auto& frame : frames) {
             renderingDeviceDriver->destroySemaphore(frame.semaphore);
             renderingDeviceDriver->destroyFence(frame.fence);
             renderingDeviceDriver->destroyCommandPool(frame.commandPool);
@@ -229,8 +229,8 @@ namespace Vixen {
     }
 
     auto RenderingDevice::createScreen(
-        const Window *window
-    ) const -> std::expected<Swapchain *, Error> {
+        const Window* window
+    ) const -> std::expected<Swapchain*, Error> {
         auto swapchain = renderingDeviceDriver->createSwapchain(window->surface);
         if (!swapchain)
             return std::unexpected(Error::InitializationFailed);
@@ -242,7 +242,7 @@ namespace Vixen {
     }
 
     auto RenderingDevice::prepareScreenForDrawing(
-        const Window *window
+        const Window* window
     ) -> std::expected<void, Error> {
         DEBUG_ASSERT(window->swapchain != nullptr);
 
@@ -266,17 +266,17 @@ namespace Vixen {
     }
 
     void RenderingDevice::destroyScreen(
-        Window *window
+        Window* window
     ) {
         if (window->swapchain)
             renderingDeviceDriver->destroySwapchain(window->swapchain);
     }
 
-    RenderingContextDriver *RenderingDevice::getRenderingContextDriver() const {
+    RenderingContextDriver* RenderingDevice::getRenderingContextDriver() const {
         return renderingContextDriver;
     }
 
-    RenderingDeviceDriver *RenderingDevice::getRenderingDeviceDriver() const {
+    RenderingDeviceDriver* RenderingDevice::getRenderingDeviceDriver() const {
         return renderingDeviceDriver;
     }
 }

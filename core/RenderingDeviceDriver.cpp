@@ -16,12 +16,12 @@
 
 namespace Vixen {
     bool RenderingDeviceDriver::reflectShader(
-        const std::vector<ShaderStageData> &stages,
-        Shader *shader
+        const std::vector<ShaderStageData>& stages,
+        Shader* shader
     ) {
-        for (const auto &[stage, spirv]: stages) {
+        for (const auto& [stage, spirv] : stages) {
             const auto compiler = spirv_cross::Compiler(
-                std::bit_cast<const uint32_t *>(spirv.data()),
+                std::bit_cast<const uint32_t*>(spirv.data()),
                 spirv.size() / sizeof(uint32_t)
             );
             auto resources = compiler.get_shader_resources();
@@ -34,7 +34,7 @@ namespace Vixen {
                 shader->pushConstantStages.push_back(stage);
             }
 
-            for (const auto &uniformBuffer: resources.uniform_buffers) {
+            for (const auto& uniformBuffer : resources.uniform_buffers) {
                 shader->uniformSets.push_back(
                     {
                         .type = ShaderUniformType::UniformBuffer,
@@ -46,7 +46,7 @@ namespace Vixen {
                 );
             }
 
-            for (const auto &sampler: resources.separate_samplers) {
+            for (const auto& sampler : resources.separate_samplers) {
                 shader->uniformSets.push_back(
                     {
                         .type = ShaderUniformType::Sampler,
@@ -56,7 +56,7 @@ namespace Vixen {
                 );
             }
 
-            for (const auto &sampledImage: resources.sampled_images) {
+            for (const auto& sampledImage : resources.sampled_images) {
                 shader->uniformSets.push_back(
                     {
                         .type = ShaderUniformType::CombinedImageSampler,
@@ -72,39 +72,39 @@ namespace Vixen {
 
     std::vector<std::byte> RenderingDeviceDriver::compileSpirvFromSource(
         ShaderStage stage,
-        const std::string &source,
+        const std::string& source,
         ShaderLanguage language
     ) {
         EShLanguage glslangLanguage;
         switch (stage) {
-                using enum ShaderStage;
+            using enum ShaderStage;
 
-            case Vertex:
-                glslangLanguage = EShLangVertex;
-                break;
+        case Vertex:
+            glslangLanguage = EShLangVertex;
+            break;
 
-            case Fragment:
-                glslangLanguage = EShLangFragment;
-                break;
+        case Fragment:
+            glslangLanguage = EShLangFragment;
+            break;
 
-            case TesselationControl:
-                glslangLanguage = EShLangTessControl;
-                break;
+        case TesselationControl:
+            glslangLanguage = EShLangTessControl;
+            break;
 
-            case TesselationEvaluation:
-                glslangLanguage = EShLangTessEvaluation;
-                break;
+        case TesselationEvaluation:
+            glslangLanguage = EShLangTessEvaluation;
+            break;
 
-            case Compute:
-                glslangLanguage = EShLangCompute;
-                break;
+        case Compute:
+            glslangLanguage = EShLangCompute;
+            break;
 
-            case Geometry:
-                glslangLanguage = EShLangGeometry;
-                break;
+        case Geometry:
+            glslangLanguage = EShLangGeometry;
+            break;
 
-            default:
-                error<CantCreateError>("Unknown shader stage");
+        default:
+            error<CantCreateError>("Unknown shader stage");
         }
 
         glslang::InitializeProcess();

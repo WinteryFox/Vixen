@@ -22,10 +22,12 @@ namespace Vixen {
 
             if (const VkResult res = func(&api_version); res == VK_SUCCESS) {
                 instanceApiVersion = api_version;
-            } else {
+            }
+            else {
                 error<CantCreateError>("Failed to get Vulkan API version.");
             }
-        } else {
+        }
+        else {
             spdlog::info("vkEnumerateInstanceVersion not available, assuming Vulkan 1.0");
             instanceApiVersion = VK_API_VERSION_1_0;
         }
@@ -34,9 +36,10 @@ namespace Vixen {
     void VulkanRenderingContextDriver::initializeInstanceExtensions() {
         enabledInstanceExtensions.clear();
 
-        std::map<std::string, bool> requestedExtensions{}; {
+        std::map<std::string, bool> requestedExtensions{};
+        {
             uint32_t count;
-            const char **extensions = glfwGetRequiredInstanceExtensions(&count);
+            const char** extensions = glfwGetRequiredInstanceExtensions(&count);
             for (uint32_t i = 0; i < count; i++)
                 requestedExtensions[std::string(extensions[i])] = true;
         }
@@ -68,27 +71,27 @@ namespace Vixen {
                 availableExtensions |
                 std::views::transform(
                     [](
-                const auto &extension
-            ) {
+                    const auto& extension
+                ) {
                         return "    - " + std::string(extension.extensionName);
                     }
                 ),
                 std::string{},
                 [](
-            const auto &a,
-            const auto &b
-        ) {
+                const auto& a,
+                const auto& b
+            ) {
                     return a.empty() ? std::move(b) : std::move(a) + "\n" + std::move(b);
                 }
             )
         );
         for (uint32_t i = 0; i < extensionCount; i++) {
-            if (const auto &extensionName = availableExtensions[i].extensionName;
+            if (const auto& extensionName = availableExtensions[i].extensionName;
                 requestedExtensions.contains(extensionName))
                 enabledInstanceExtensions.push_back(strdup(extensionName));
         }
 
-        for (const auto &[extensionName, required]: requestedExtensions) {
+        for (const auto& [extensionName, required] : requestedExtensions) {
             if (std::ranges::find(enabledInstanceExtensions.begin(), enabledInstanceExtensions.end(), extensionName) ==
                 enabledInstanceExtensions.end()) {
                 if (required)
@@ -100,8 +103,8 @@ namespace Vixen {
     }
 
     void VulkanRenderingContextDriver::initializeInstance(
-        const std::string &applicationName,
-        const glm::ivec3 &applicationVersion
+        const std::string& applicationName,
+        const glm::ivec3& applicationVersion
     ) {
         VkApplicationInfo applicationInfo{
             .sType = VK_STRUCTURE_TYPE_APPLICATION_INFO,
@@ -118,10 +121,10 @@ namespace Vixen {
         std::vector<VkLayerProperties> availableLayers{layerCount};
         vkEnumerateInstanceLayerProperties(&layerCount, availableLayers.data());
 
-        std::vector<const char *> enabledLayerNames{};
+        std::vector<const char*> enabledLayerNames{};
 
 #ifdef DEBUG_ENABLED
-        for (const auto &layer: availableLayers)
+        for (const auto& layer : availableLayers)
             if (layer.layerName == std::string("VK_LAYER_KHRONOS_validation"))
                 enabledLayerNames.push_back("VK_LAYER_KHRONOS_validation");
 #endif
@@ -152,10 +155,10 @@ namespace Vixen {
             debugMessengerInfo.pNext = nullptr;
             debugMessengerInfo.flags = 0;
             debugMessengerInfo.messageSeverity =
-                    VK_DEBUG_UTILS_MESSAGE_SEVERITY_WARNING_BIT_EXT | VK_DEBUG_UTILS_MESSAGE_SEVERITY_ERROR_BIT_EXT;
+                VK_DEBUG_UTILS_MESSAGE_SEVERITY_WARNING_BIT_EXT | VK_DEBUG_UTILS_MESSAGE_SEVERITY_ERROR_BIT_EXT;
             debugMessengerInfo.messageType = VK_DEBUG_UTILS_MESSAGE_TYPE_GENERAL_BIT_EXT |
-                    VK_DEBUG_UTILS_MESSAGE_TYPE_VALIDATION_BIT_EXT |
-                    VK_DEBUG_UTILS_MESSAGE_TYPE_PERFORMANCE_BIT_EXT;
+                VK_DEBUG_UTILS_MESSAGE_TYPE_VALIDATION_BIT_EXT |
+                VK_DEBUG_UTILS_MESSAGE_TYPE_PERFORMANCE_BIT_EXT;
             debugMessengerInfo.pfnUserCallback = vkDebugCallback;
             debugMessengerInfo.pUserData = this;
             instanceInfo.pNext = &debugMessengerInfo;
@@ -222,8 +225,8 @@ namespace Vixen {
     }
 
     VulkanRenderingContextDriver::VulkanRenderingContextDriver(
-        const std::string &applicationName,
-        const glm::ivec3 &applicationVersion
+        const std::string& applicationName,
+        const glm::ivec3& applicationVersion
     ) : RenderingContextDriver(),
         instanceApiVersion(VK_API_VERSION_1_0),
         instance(VK_NULL_HANDLE) {
@@ -259,16 +262,16 @@ namespace Vixen {
 
     bool VulkanRenderingContextDriver::deviceSupportsPresent(
         const uint32_t deviceIndex,
-        Surface *surface
+        Surface* surface
     ) {
         DEBUG_ASSERT(deviceIndex < physicalDevices.size());
         DEBUG_ASSERT(surface != nullptr);
         DEBUG_ASSERT(dynamic_cast<VulkanSurface *>(surface)->surface != nullptr);
 
-        const auto &vkSurface = dynamic_cast<VulkanSurface *>(surface);
+        const auto& vkSurface = dynamic_cast<VulkanSurface*>(surface);
 
         const auto physicalDevice = physicalDevices[deviceIndex];
-        const auto &queueFamilies = deviceQueueFamilyProperties[deviceIndex];
+        const auto& queueFamilies = deviceQueueFamilyProperties[deviceIndex];
         for (uint32_t i = 0; i < queueFamilies.size(); i++) {
             if (queueFamilies[i].queueFlags & VK_QUEUE_GRAPHICS_BIT) {
                 VkBool32 presentSupport = VK_FALSE;
@@ -305,7 +308,7 @@ namespace Vixen {
     bool VulkanRenderingContextDriver::queueFamilySupportsPresent(
         VkPhysicalDevice physicalDevice,
         const uint32_t queueFamilyIndex,
-        const VulkanSurface *surface
+        const VulkanSurface* surface
     ) {
         VkBool32 supportsPresent = VK_FALSE;
         const auto result = vkGetPhysicalDeviceSurfaceSupportKHR(
@@ -326,7 +329,7 @@ namespace Vixen {
         return physicalDevices[deviceIndex];
     }
 
-    RenderingDeviceDriver *VulkanRenderingContextDriver::createRenderingDeviceDriver(
+    RenderingDeviceDriver* VulkanRenderingContextDriver::createRenderingDeviceDriver(
         const uint32_t deviceIndex,
         const uint32_t frameCount
     ) {
@@ -341,8 +344,8 @@ namespace Vixen {
         return instanceApiVersion;
     }
 
-    Surface *VulkanRenderingContextDriver::createSurface(
-        Window *window
+    Surface* VulkanRenderingContextDriver::createSurface(
+        Window* window
     ) {
         VkSurfaceKHR surface = VK_NULL_HANDLE;
         if (glfwCreateWindowSurface(instance, window->window, nullptr, &surface) != VK_SUCCESS)
@@ -355,9 +358,9 @@ namespace Vixen {
     }
 
     void VulkanRenderingContextDriver::destroySurface(
-        Surface *surface
+        Surface* surface
     ) {
-        const auto vkSurface = dynamic_cast<VulkanSurface *>(surface);
+        const auto vkSurface = dynamic_cast<VulkanSurface*>(surface);
         vkDestroySurfaceKHR(instance, vkSurface->surface, nullptr);
         delete vkSurface;
     }

@@ -9,17 +9,17 @@
 
 namespace Vixen {
     class RenderingDevice {
-        RenderingContextDriver *renderingContextDriver;
-        RenderingDeviceDriver *renderingDeviceDriver;
+        RenderingContextDriver* renderingContextDriver;
+        RenderingDeviceDriver* renderingDeviceDriver;
 
         DriverDevice device;
 
         uint32_t graphicsQueueFamily;
         uint32_t transferQueueFamily;
         uint32_t presentQueueFamily;
-        CommandQueue *graphicsQueue;
-        CommandQueue *transferQueue;
-        CommandQueue *presentQueue;
+        CommandQueue* graphicsQueue;
+        CommandQueue* transferQueue;
+        CommandQueue* presentQueue;
 
         uint32_t frameIndex;
         std::vector<Frame> frames;
@@ -41,8 +41,8 @@ namespace Vixen {
 
         void executeChainedCommands(
             bool present,
-            Fence *drawFence,
-            Semaphore *drawSemaphoreToSignal
+            Fence* drawFence,
+            Semaphore* drawSemaphoreToSignal
         );
 
         void executeFrame(
@@ -51,8 +51,8 @@ namespace Vixen {
 
     public:
         RenderingDevice(
-            RenderingContextDriver *renderingContext,
-            const Window *mainWindow
+            RenderingContextDriver* renderingContext,
+            const Window* mainWindow
         );
 
         ~RenderingDevice();
@@ -66,19 +66,19 @@ namespace Vixen {
         void sync();
 
         auto createScreen(
-            const Window *window
-        ) const -> std::expected<Swapchain *, Error>;
+            const Window* window
+        ) const -> std::expected<Swapchain*, Error>;
 
         auto prepareScreenForDrawing(
-            const Window *window
+            const Window* window
         ) -> std::expected<void, Error>;
 
         void destroyScreen(
-            Window *window
+            Window* window
         );
 
-        [[nodiscard]] RenderingContextDriver *getRenderingContextDriver() const;
+        [[nodiscard]] RenderingContextDriver* getRenderingContextDriver() const;
 
-        [[nodiscard]] RenderingDeviceDriver *getRenderingDeviceDriver() const;
+        [[nodiscard]] RenderingDeviceDriver* getRenderingDeviceDriver() const;
     };
 }
