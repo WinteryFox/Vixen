@@ -47,7 +47,7 @@ namespace Vixen {
 
         void executeCommandQueueAndPresent(CommandQueue *commandQueue, const std::vector<Semaphore *> &waitSemaphores,
                                            const std::vector<CommandBuffer *> &commandBuffers,
-                                           const std::vector<Semaphore *> &semaphores,
+                                           const std::vector<Semaphore *> &signalSemaphores,
                                            Fence *fence, const std::vector<Swapchain *> &swapchains) override;
 
         void destroyCommandQueue(CommandQueue *commandQueue) override;

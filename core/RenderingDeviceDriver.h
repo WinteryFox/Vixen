@@ -131,7 +131,7 @@ namespace Vixen {
             CommandQueue* commandQueue,
             const std::vector<Semaphore*>& waitSemaphores,
             const std::vector<CommandBuffer*>& commandBuffers,
-            const std::vector<Semaphore*>& semaphores,
+            const std::vector<Semaphore*>& signalSemaphores,
             Fence* fence,
             const std::vector<Swapchain*>& swapchains
         ) -> std::expected<void, Error> = 0;

@@ -86,7 +86,7 @@ namespace Vixen {
             if (separatePresentQueue) {
                 if (!renderingDeviceDriver->executeCommandQueueAndPresent(
                     presentQueue,
-                    {frames[frameIndex].semaphore},
+                    {},
                     {},
                     {},
                     nullptr,
@@ -187,8 +187,7 @@ namespace Vixen {
                     .fence = renderingDeviceDriver->createFence().value(),
                     .fenceSignaled = false,
                     .waitSemaphores = {},
-                    .swapchainsToPresent = {},
-                    .transferSemaphores = {}
+                    .swapchainsToPresent = {}
                 }
             );
         }

@@ -15,6 +15,5 @@ namespace Vixen {
         bool fenceSignaled;
         std::vector<Semaphore*> waitSemaphores;
         std::vector<Swapchain*> swapchainsToPresent;
-        std::vector<Semaphore*> transferSemaphores;
     };
 }

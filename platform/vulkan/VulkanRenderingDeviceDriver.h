@@ -9,12 +9,15 @@
 typedef struct VmaAllocator_T* VmaAllocator;
 
 namespace Vixen {
+    struct VulkanFramebuffer;
+    struct VulkanCommandBuffer;
     struct VulkanCommandQueue;
     struct VulkanSwapchain;
     class VulkanRenderingContextDriver;
 
     class VulkanRenderingDeviceDriver final : public RenderingDeviceDriver {
         struct Features {
+            bool timelineSemaphores;
             bool dynamicRendering;
             bool synchronization2;
             bool deviceFault;
@@ -55,6 +58,14 @@ namespace Vixen {
         [[nodiscard]] VkSampleCountFlagBits findClosestSupportedSampleCount(
             const ImageSamples& samples
         ) const;
+
+        void resolveFramebuffer(
+            CommandQueue* commandQueue,
+            const std::vector<Semaphore*>& waitSemaphores,
+            const std::vector<VkSemaphore>& signalSemaphores,
+            const std::vector<Swapchain*>& swapchains,
+            VulkanCommandBuffer* commandBuffer
+        );
 
     public:
         VulkanRenderingDeviceDriver(
@@ -164,7 +175,7 @@ namespace Vixen {
             CommandQueue* commandQueue,
             const std::vector<Semaphore*>& waitSemaphores,
             const std::vector<CommandBuffer*>& commandBuffers,
-            const std::vector<Semaphore*>& semaphores,
+            const std::vector<Semaphore*>& signalSemaphores,
             Fence* fence,
             const std::vector<Swapchain*>& swapchains
         ) -> std::expected<void, Error> override;

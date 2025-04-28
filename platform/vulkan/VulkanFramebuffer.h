@@ -4,7 +4,6 @@
 
 namespace Vixen {
     struct VulkanFramebuffer final : Framebuffer {
-        VkFramebuffer framebuffer;
         VkImage swapchainImage;
         VkImageView swapchainImageView;
         VkImageSubresourceRange subresourceRange;

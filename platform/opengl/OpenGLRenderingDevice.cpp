@@ -62,7 +62,7 @@ namespace Vixen {
     void OpenGLRenderingDevice::executeCommandQueueAndPresent(CommandQueue *commandQueue,
                                                               const std::vector<Semaphore *> &waitSemaphores,
                                                               const std::vector<CommandBuffer *> &commandBuffers,
-                                                              const std::vector<Semaphore *> &semaphores, Fence *fence,
+                                                              const std::vector<Semaphore *> &signalSemaphores, Fence *fence,
                                                               const std::vector<Swapchain *> &swapchains) {
     }
 
