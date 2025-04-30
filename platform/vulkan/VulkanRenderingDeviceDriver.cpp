@@ -1442,7 +1442,11 @@ namespace Vixen {
     ) {
         const auto vkCommandQueue = dynamic_cast<VulkanCommandQueue *>(commandQueue);
 
-        vkDestroyCommandPool(device, vkCommandQueue->presentPool, nullptr);
+        if (vkCommandQueue->presentPool)
+            vkDestroyCommandPool(device, vkCommandQueue->presentPool, nullptr);
+
+        for (const auto& fence : vkCommandQueue->presentFences)
+            vkDestroyFence(device, fence, nullptr);
 
         for (const auto& semaphore : vkCommandQueue->presentSemaphores)
             vkDestroySemaphore(device, semaphore, nullptr);
