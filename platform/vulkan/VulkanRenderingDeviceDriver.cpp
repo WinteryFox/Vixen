@@ -896,10 +896,7 @@ namespace Vixen {
         VulkanSwapchain* swapchain
     ) {
         for (uint32_t i = 0; i < swapchain->resolveImages.size(); i++) {
-            if (const auto framebuffer = swapchain->framebuffers[i];
-                framebuffer != nullptr) {
-                delete framebuffer;
-            }
+            delete swapchain->framebuffers[i];
 
             destroyImage(swapchain->colorTargets[i]);
             destroyImage(swapchain->depthTargets[i]);
