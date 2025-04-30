@@ -1216,20 +1216,9 @@ namespace Vixen {
         if (pickedQueueFamilyIndex >= queueFamily.size())
             return std::unexpected(Error::InitializationFailed);
 
-        VkCommandPool presentCommandPool = VK_NULL_HANDLE;
-        const VkCommandPoolCreateInfo commandPoolInfo{
-            .sType = VK_STRUCTURE_TYPE_COMMAND_POOL_CREATE_INFO,
-            .pNext = nullptr,
-            .flags = VK_COMMAND_POOL_CREATE_RESET_COMMAND_BUFFER_BIT,
-            .queueFamilyIndex = pickedQueueFamilyIndex
-        };
-        if (vkCreateCommandPool(device, &commandPoolInfo, nullptr, &presentCommandPool) != VK_SUCCESS)
-            return std::unexpected(Error::InitializationFailed);
-
         auto commandQueue = new VulkanCommandQueue();
         commandQueue->queueFamily = queueFamilyIndex;
         commandQueue->queueIndex = pickedQueueFamilyIndex;
-        commandQueue->presentPool = presentCommandPool;
         queueFamily[pickedQueueFamilyIndex].virtualCount++;
 
         return commandQueue;
@@ -1344,6 +1333,18 @@ namespace Vixen {
 
         if (!swapchains.empty()) {
             if (vkCommandQueue->presentSemaphores.empty()) {
+                VkCommandPool presentCommandPool = VK_NULL_HANDLE;
+                const VkCommandPoolCreateInfo commandPoolInfo{
+                    .sType = VK_STRUCTURE_TYPE_COMMAND_POOL_CREATE_INFO,
+                    .pNext = nullptr,
+                    .flags = VK_COMMAND_POOL_CREATE_RESET_COMMAND_BUFFER_BIT,
+                    .queueFamilyIndex = vkCommandQueue->queueFamily
+                };
+                if (vkCreateCommandPool(device, &commandPoolInfo, nullptr, &presentCommandPool) != VK_SUCCESS)
+                    return std::unexpected(Error::InitializationFailed);
+
+                vkCommandQueue->presentPool = presentCommandPool;
+
                 VkSemaphore semaphore = VK_NULL_HANDLE;
                 VkFence presentFence = VK_NULL_HANDLE;
 
