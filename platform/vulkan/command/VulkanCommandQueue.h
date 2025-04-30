@@ -2,6 +2,9 @@
 
 namespace Vixen {
     struct VulkanCommandQueue final : CommandQueue {
+        VkCommandPool presentPool = VK_NULL_HANDLE;
+        std::vector<VkCommandBuffer> presentCommandBuffers{};
+        std::vector<VkFence> presentFences{};
         std::vector<VkSemaphore> presentSemaphores{};
         std::vector<VkSemaphore> executionSemaphores{};
         std::vector<VkSemaphore> imageSemaphores{};

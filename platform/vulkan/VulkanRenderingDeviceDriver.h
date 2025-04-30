@@ -64,7 +64,8 @@ namespace Vixen {
             const std::vector<Semaphore*>& waitSemaphores,
             const std::vector<VkSemaphore>& signalSemaphores,
             const std::vector<Swapchain*>& swapchains,
-            VulkanCommandBuffer* commandBuffer
+            VkCommandBuffer commandBuffer,
+            VkFence fence
         );
 
     public:
