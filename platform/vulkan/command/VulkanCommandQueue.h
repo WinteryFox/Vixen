@@ -6,7 +6,6 @@ namespace Vixen {
         std::vector<VkCommandBuffer> presentCommandBuffers{};
         std::vector<VkFence> presentFences{};
         std::vector<VkSemaphore> presentSemaphores{};
-        std::vector<VkSemaphore> executionSemaphores{};
         std::vector<VkSemaphore> imageSemaphores{};
         std::vector<Swapchain*> imageSemaphoresSwapchains{};
         std::vector<uint32_t> pendingSemaphoresForExecute{};

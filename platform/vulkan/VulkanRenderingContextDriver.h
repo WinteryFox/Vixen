@@ -69,9 +69,11 @@ namespace Vixen {
             uint32_t frameCount
         ) override;
 
-        Surface* createSurface(
+        void destroyRenderingDeviceDriver(RenderingDeviceDriver *renderingDeviceDriver) override;
+
+        auto createSurface(
             Window* window
-        ) override;
+        ) -> std::expected<Surface*, Error> override;
 
         void destroySurface(
             Surface* surface

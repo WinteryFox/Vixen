@@ -19,7 +19,9 @@ namespace Vixen {
 
         virtual RenderingDeviceDriver *createRenderingDeviceDriver(uint32_t deviceIndex, uint32_t frameCount) = 0;
 
-        virtual Surface *createSurface(Window *window) = 0;
+        virtual void destroyRenderingDeviceDriver(RenderingDeviceDriver *renderingDeviceDriver) = 0;
+
+        virtual auto createSurface(Window *window) -> std::expected<Surface*, Error> = 0;
 
         virtual void destroySurface(Surface *surface) = 0;
     };

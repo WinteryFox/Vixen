@@ -87,6 +87,8 @@ namespace Vixen {
         setWindowedMode(window, mode);
         setVSyncMode(window, vsync);
 
+        window->surface = renderingContextDriver->createSurface(window).value();
+
         return window;
     }
 
@@ -132,7 +134,6 @@ namespace Vixen {
         }
 
         mainWindow = createWindow(applicationName, windowMode, vsyncMode, flags, resolution);
-        mainWindow->surface = renderingContextDriver->createSurface(mainWindow);
 
         renderingDevice = new RenderingDevice(renderingContextDriver, mainWindow);
         const auto swapchain = renderingDevice->createScreen(mainWindow);
@@ -142,9 +143,6 @@ namespace Vixen {
     }
 
     DisplayServer::~DisplayServer() {
-        renderingDevice->destroyScreen(mainWindow);
-        renderingContextDriver->destroySurface(mainWindow->surface);
-
         delete renderingDevice;
         delete renderingContextDriver;
 

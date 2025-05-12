@@ -152,7 +152,7 @@ namespace Vixen {
             // TODO: Score devices
         }
 
-        uint32_t frameCount = 1;
+        uint32_t frameCount = 2;
 
         device = devices[deviceIndex];
         renderingDeviceDriver = renderingContext->createRenderingDeviceDriver(deviceIndex, frameCount);
@@ -195,16 +195,29 @@ namespace Vixen {
     }
 
     RenderingDevice::~RenderingDevice() {
+        if (!frames.empty())
+            flushAndWaitForFrames();
+
         for (const auto& frame : frames) {
+            renderingDeviceDriver->destroyCommandPool(frame.commandPool);
             renderingDeviceDriver->destroySemaphore(frame.semaphore);
             renderingDeviceDriver->destroyFence(frame.fence);
-            renderingDeviceDriver->destroyCommandPool(frame.commandPool);
+            delete frame.commandBuffer;
         }
+        frames.clear();
 
-        renderingDeviceDriver->destroyCommandQueue(graphicsQueue);
-        renderingDeviceDriver->destroyCommandQueue(transferQueue);
-        renderingDeviceDriver->destroyCommandQueue(presentQueue);
-        delete renderingDeviceDriver;
+        if (presentQueue)
+            if (graphicsQueue != presentQueue)
+                renderingDeviceDriver->destroyCommandQueue(presentQueue);
+
+        if (transferQueue)
+            if (graphicsQueue != transferQueue)
+                renderingDeviceDriver->destroyCommandQueue(transferQueue);
+
+        if (graphicsQueue)
+            renderingDeviceDriver->destroyCommandQueue(graphicsQueue);
+
+        renderingContextDriver->destroyRenderingDeviceDriver(renderingDeviceDriver);
     }
 
     void RenderingDevice::swapBuffers(

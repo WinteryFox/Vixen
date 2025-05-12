@@ -453,7 +453,7 @@ namespace Vixen {
                 .pNext = nullptr,
                 .semaphore = vkSemaphore->semaphore,
                 .value = vkSemaphore->value,
-                .stageMask = 0,
+                .stageMask = VK_PIPELINE_STAGE_ALL_COMMANDS_BIT,
                 .deviceIndex = 0
             });
         }
@@ -1233,74 +1233,73 @@ namespace Vixen {
         Queue& queue = queueFamilies[vkCommandQueue->queueFamily][vkCommandQueue->queueIndex];
         const auto vkFence = dynamic_cast<VulkanFence*>(fence);
 
-        std::vector<VkSemaphore> vkWaitSemaphores{};
-        vkWaitSemaphores.reserve(waitSemaphores.size());
-        std::vector<VkPipelineStageFlags> vkWaitStages{};
-        vkWaitSemaphores.reserve(vkWaitSemaphores.size());
-        if (!vkCommandQueue->pendingSemaphoresForExecute.empty()) {
-            for (uint32_t i = 0; i < vkCommandQueue->pendingSemaphoresForExecute.size(); i++) {
-                vkWaitSemaphores.push_back(
-                    vkCommandQueue->imageSemaphores[vkCommandQueue->pendingSemaphoresForExecute[i]]
-                );
-                vkWaitStages.push_back(VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT);
-            }
-
-            vkCommandQueue->pendingSemaphoresForExecute.clear();
-        }
-
-        for (const auto& waitSemaphore : waitSemaphores) {
-            vkWaitSemaphores.push_back(dynamic_cast<VulkanSemaphore*>(waitSemaphore)->semaphore);
-            vkWaitStages.push_back(VK_PIPELINE_STAGE_ALL_COMMANDS_BIT);
-        }
-
         if (!commandBuffers.empty()) {
-            std::vector<VkCommandBuffer> vkCommandBuffers{};
-            vkCommandBuffers.reserve(commandBuffers.size());
-            for (const auto& commandBuffer : commandBuffers) {
-                vkCommandBuffers.push_back(dynamic_cast<VulkanCommandBuffer*>(commandBuffer)->commandBuffer);
-            }
+            std::vector<VkSemaphoreSubmitInfo> semaphoreWaitInfos{};
+            semaphoreWaitInfos.reserve(waitSemaphores.size() + vkCommandQueue->pendingSemaphoresForExecute.size());
 
-            std::vector<VkSemaphore> vkSignalSemaphores{};
-            vkSignalSemaphores.reserve(signalSemaphores.size());
-            for (const auto& semaphore : signalSemaphores) {
-                vkSignalSemaphores.push_back(dynamic_cast<VulkanSemaphore*>(semaphore)->semaphore);
-            }
-
-            std::vector<uint64_t> waitValues{};
-            waitValues.reserve(waitSemaphores.size());
             for (const auto& semaphore : waitSemaphores) {
-                waitValues.push_back(dynamic_cast<VulkanSemaphore*>(semaphore)->value);
+                const auto vkSemaphore = dynamic_cast<VulkanSemaphore*>(semaphore);
+                semaphoreWaitInfos.push_back({
+                    .sType = VK_STRUCTURE_TYPE_SEMAPHORE_SUBMIT_INFO,
+                    .pNext = nullptr,
+                    .semaphore = vkSemaphore->semaphore,
+                    .value = vkSemaphore->value,
+                    .stageMask = VK_PIPELINE_STAGE_ALL_COMMANDS_BIT,
+                    .deviceIndex = 0
+                });
             }
 
-            std::vector<uint64_t> signalValues{};
-            signalValues.reserve(signalSemaphores.size());
+            for (const auto semaphoreIndex : vkCommandQueue->pendingSemaphoresForExecute) {
+                semaphoreWaitInfos.push_back(VkSemaphoreSubmitInfo {
+                    .sType = VK_STRUCTURE_TYPE_SEMAPHORE_SUBMIT_INFO,
+                    .pNext = nullptr,
+                    .semaphore = vkCommandQueue->imageSemaphores[semaphoreIndex],
+                    .value = 0,
+                    .stageMask = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT,
+                    .deviceIndex = 0
+                });
+            }
+            vkCommandQueue->pendingSemaphoresForExecute.clear();
+
+            std::vector<VkCommandBufferSubmitInfo> commandBufferInfos{};
+            commandBufferInfos.reserve(commandBuffers.size());
+            for (const auto& commandBuffer : commandBuffers) {
+                commandBufferInfos.push_back({
+                    .sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_SUBMIT_INFO,
+                    .pNext = nullptr,
+                    .commandBuffer = dynamic_cast<VulkanCommandBuffer*>(commandBuffer)->commandBuffer,
+                    .deviceMask = 0
+                });
+            }
+
+            std::vector<VkSemaphoreSubmitInfo> semaphoreSignalInfos{};
+            semaphoreSignalInfos.reserve(signalSemaphores.size());
             for (const auto& semaphore : signalSemaphores) {
-                signalValues.push_back(++dynamic_cast<VulkanSemaphore*>(semaphore)->value);
+                const auto vkSemaphore = dynamic_cast<VulkanSemaphore*>(semaphore);
+                semaphoreSignalInfos.push_back({
+                    .sType = VK_STRUCTURE_TYPE_SEMAPHORE_SUBMIT_INFO,
+                    .pNext = nullptr,
+                    .semaphore = vkSemaphore->semaphore,
+                    .value = ++vkSemaphore->value,
+                    .stageMask = 0,
+                    .deviceIndex = 0
+                });
             }
 
-            const VkTimelineSemaphoreSubmitInfo timelineSemaphoreSubmitInfo{
-                .sType = VK_STRUCTURE_TYPE_TIMELINE_SEMAPHORE_SUBMIT_INFO,
+            const VkSubmitInfo2 submitInfo{
+                .sType = VK_STRUCTURE_TYPE_SUBMIT_INFO_2,
                 .pNext = nullptr,
-                .waitSemaphoreValueCount = static_cast<uint32_t>(waitValues.size()),
-                .pWaitSemaphoreValues = waitValues.data(),
-                .signalSemaphoreValueCount = static_cast<uint32_t>(signalValues.size()),
-                .pSignalSemaphoreValues = signalValues.data()
-            };
-
-            const VkSubmitInfo submitInfo{
-                .sType = VK_STRUCTURE_TYPE_SUBMIT_INFO,
-                .pNext = &timelineSemaphoreSubmitInfo,
-                .waitSemaphoreCount = static_cast<uint32_t>(vkWaitSemaphores.size()),
-                .pWaitSemaphores = vkWaitSemaphores.data(),
-                .pWaitDstStageMask = vkWaitStages.data(),
-                .commandBufferCount = static_cast<uint32_t>(vkCommandBuffers.size()),
-                .pCommandBuffers = vkCommandBuffers.data(),
-                .signalSemaphoreCount = static_cast<uint32_t>(vkSignalSemaphores.size()),
-                .pSignalSemaphores = vkSignalSemaphores.data()
+                .flags = 0,
+                .waitSemaphoreInfoCount = static_cast<uint32_t>(semaphoreWaitInfos.size()),
+                .pWaitSemaphoreInfos = semaphoreWaitInfos.data(),
+                .commandBufferInfoCount = static_cast<uint32_t>(commandBufferInfos.size()),
+                .pCommandBufferInfos = commandBufferInfos.data(),
+                .signalSemaphoreInfoCount = static_cast<uint32_t>(semaphoreSignalInfos.size()),
+                .pSignalSemaphoreInfos = semaphoreSignalInfos.data()
             };
 
             queue.submitMutex.lock();
-            const auto submitResult = vkQueueSubmit(
+            const auto submitResult = vkQueueSubmit2(
                 queue.queue,
                 1,
                 &submitInfo,
@@ -1342,34 +1341,31 @@ namespace Vixen {
 
                 vkCommandQueue->presentPool = presentCommandPool;
 
-                VkSemaphore semaphore = VK_NULL_HANDLE;
-                VkFence presentFence = VK_NULL_HANDLE;
-
                 constexpr VkSemaphoreCreateInfo semaphoreInfo{
                     .sType = VK_STRUCTURE_TYPE_SEMAPHORE_CREATE_INFO,
                     .pNext = nullptr,
                     .flags = 0
                 };
 
+                constexpr VkFenceCreateInfo fenceInfo{
+                    .sType = VK_STRUCTURE_TYPE_FENCE_CREATE_INFO,
+                    .pNext = nullptr,
+                    .flags = VK_FENCE_CREATE_SIGNALED_BIT
+                };
+
+                vkCommandQueue->presentSemaphores.resize(frameCount);
+                vkCommandQueue->presentFences.resize(frameCount);
                 for (uint32_t i = 0; i < frameCount; i++) {
-                    if (vkCreateSemaphore(device, &semaphoreInfo, nullptr, &semaphore) != VK_SUCCESS)
+                    if (vkCreateSemaphore(device, &semaphoreInfo, nullptr, &vkCommandQueue->presentSemaphores[i]) !=
+                        VK_SUCCESS)
                         return std::unexpected(Error::InitializationFailed);
 
-                    vkCommandQueue->presentSemaphores.push_back(semaphore);
-
-                    VkFenceCreateInfo fenceInfo{
-                        .sType = VK_STRUCTURE_TYPE_FENCE_CREATE_INFO,
-                        .pNext = nullptr,
-                        .flags = VK_FENCE_CREATE_SIGNALED_BIT
-                    };
-                    if (vkCreateFence(device, &fenceInfo, nullptr, &presentFence) != VK_SUCCESS)
+                    if (vkCreateFence(device, &fenceInfo, nullptr, &vkCommandQueue->presentFences[i]) != VK_SUCCESS)
                         return std::unexpected(Error::InitializationFailed);
-
-                    vkCommandQueue->presentFences.push_back(presentFence);
                 }
 
                 vkCommandQueue->presentCommandBuffers.resize(frameCount);
-                VkCommandBufferAllocateInfo commandBufferAllocateInfo{
+                const VkCommandBufferAllocateInfo commandBufferAllocateInfo{
                     .sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO,
                     .pNext = nullptr,
                     .commandPool = vkCommandQueue->presentPool,
@@ -1385,7 +1381,7 @@ namespace Vixen {
                     return std::unexpected(Error::InitializationFailed);
             }
 
-            vkWaitSemaphores.clear();
+            std::vector<VkSemaphore> vkWaitSemaphores{};
             vkWaitSemaphores.push_back(vkCommandQueue->presentSemaphores[vkCommandQueue->presentSemaphoreIndex]);
 
             resolveFramebuffer(
@@ -1425,13 +1421,28 @@ namespace Vixen {
                 .pResults = results.data()
             };
 
-            // TODO: Handle suboptimal and out of date errors?
-            if (vkQueuePresentKHR(queue.queue, &presentInfo) != VK_SUCCESS)
+            queue.submitMutex.lock();
+            auto presentError = vkQueuePresentKHR(queue.queue, &presentInfo);
+            queue.submitMutex.unlock();
+
+            bool anyResultIsOutOfDate = false;
+            for (auto i = 0; i < swapchains.size(); i++) {
+                const auto vkSwapchain = dynamic_cast<VulkanSwapchain*>(swapchains[i]);
+                vkSwapchain->imageIndex = std::numeric_limits<uint32_t>::max();
+
+                if (results[i] != VK_SUCCESS) {
+                    // TODO: Set surface needs resize
+                    anyResultIsOutOfDate = true;
+                }
+            }
+
+            if (anyResultIsOutOfDate || presentError == VK_ERROR_OUT_OF_DATE_KHR)
                 return std::unexpected(Error::InitializationFailed);
 
-            for (const auto& result : results)
-                if (result != VK_SUCCESS)
-                    return std::unexpected(Error::InitializationFailed);
+            if (presentError != VK_SUCCESS && presentError != VK_SUBOPTIMAL_KHR) {
+                spdlog::error("vkQueuePresentKHR failed with error: " + presentError);
+                return std::unexpected(Error::InitializationFailed);
+            }
         }
 
         return {};
@@ -1440,10 +1451,15 @@ namespace Vixen {
     void VulkanRenderingDeviceDriver::destroyCommandQueue(
         CommandQueue* commandQueue
     ) {
-        const auto vkCommandQueue = dynamic_cast<VulkanCommandQueue *>(commandQueue);
+        const auto vkCommandQueue = dynamic_cast<VulkanCommandQueue*>(commandQueue);
 
-        if (vkCommandQueue->presentPool)
+        vkQueueWaitIdle(queueFamilies[vkCommandQueue->queueFamily][vkCommandQueue->queueIndex].queue);
+
+        if (vkCommandQueue->presentPool) {
+            vkWaitForFences(device, vkCommandQueue->presentFences.size(), vkCommandQueue->presentFences.data(), VK_TRUE,
+                            std::numeric_limits<uint64_t>::max());
             vkDestroyCommandPool(device, vkCommandQueue->presentPool, nullptr);
+        }
 
         for (const auto& fence : vkCommandQueue->presentFences)
             vkDestroyFence(device, fence, nullptr);

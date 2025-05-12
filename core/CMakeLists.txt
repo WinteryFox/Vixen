@@ -78,6 +78,8 @@ add_library(
         RenderPass.h
         ClearValue.h
         error/SwapchainError.h
+        RenderGraph.cpp
+        RenderGraph.h
 )
 target_link_libraries(
         Vixen

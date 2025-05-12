@@ -336,6 +336,11 @@ namespace Vixen {
         return new VulkanRenderingDeviceDriver(this, deviceIndex, frameCount);
     }
 
+    void VulkanRenderingContextDriver::destroyRenderingDeviceDriver(RenderingDeviceDriver* renderingDeviceDriver) {
+        const auto vkRenderingDeviceDriver = dynamic_cast<VulkanRenderingDeviceDriver*>(renderingDeviceDriver);
+        delete vkRenderingDeviceDriver;
+    }
+
     VkInstance VulkanRenderingContextDriver::getInstance() const {
         return instance;
     }
@@ -344,12 +349,12 @@ namespace Vixen {
         return instanceApiVersion;
     }
 
-    Surface* VulkanRenderingContextDriver::createSurface(
+    auto VulkanRenderingContextDriver::createSurface(
         Window* window
-    ) {
+    ) -> std::expected<Surface*, Error> {
         VkSurfaceKHR surface = VK_NULL_HANDLE;
         if (glfwCreateWindowSurface(instance, window->window, nullptr, &surface) != VK_SUCCESS)
-            error<CantCreateError>("Failed to create window surface.");
+            return std::unexpected(Error::InitializationFailed);
 
         const auto o = new VulkanSurface();
         o->surface = surface;
