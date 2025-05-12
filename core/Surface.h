@@ -8,7 +8,7 @@
 namespace Vixen {
     struct Surface {
         glm::uvec2 resolution;
-        bool hasFramebufferSizeChanged;
+        bool isResizeRequired;
         WindowMode windowMode;
         VSyncMode vsyncMode;
 

@@ -1,5 +1,6 @@
 #pragma once
 
+#include <map>
 #include <vector>
 
 #include "Frame.h"
@@ -24,6 +25,8 @@ namespace Vixen {
         uint32_t frameIndex;
         std::vector<Frame> frames;
         uint64_t framesDrawn;
+
+        std::map<Window*, Swapchain*> swapchains;
 
         void waitForFrame(
             uint32_t frameIndex
@@ -52,7 +55,7 @@ namespace Vixen {
     public:
         RenderingDevice(
             RenderingContextDriver* renderingContext,
-            const Window* mainWindow
+            Window* mainWindow
         );
 
         ~RenderingDevice();
@@ -66,11 +69,11 @@ namespace Vixen {
         void sync();
 
         auto createScreen(
-            const Window* window
-        ) const -> std::expected<Swapchain*, Error>;
+            Window* window
+        ) -> std::expected<Swapchain*, Error>;
 
         auto prepareScreenForDrawing(
-            const Window* window
+            Window* window
         ) -> std::expected<void, Error>;
 
         void destroyScreen(

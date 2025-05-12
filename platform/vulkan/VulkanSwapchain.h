@@ -18,6 +18,7 @@ namespace Vixen {
         std::vector<VkImage> resolveImages;
         std::vector<VkImageView> resolveImageViews;
         std::vector<VulkanFramebuffer *> framebuffers;
+        std::vector<VkFence> presentFences;
         std::vector<VulkanCommandQueue *> acquiredCommandQueues;
         std::vector<uint32_t> acquiredCommandQueueSemaphores;
         std::vector<VulkanImage *> colorTargets;

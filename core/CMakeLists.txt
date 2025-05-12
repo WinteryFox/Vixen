@@ -80,6 +80,7 @@ add_library(
         error/SwapchainError.h
         RenderGraph.cpp
         RenderGraph.h
+        RenderingContextDriver.cpp
 )
 target_link_libraries(
         Vixen

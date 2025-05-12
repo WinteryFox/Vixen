@@ -16,23 +16,27 @@ namespace Vixen {
     class DisplayServer final {
         RenderingDriver driver;
 
-        RenderingContextDriver *renderingContextDriver;
-        RenderingDevice *renderingDevice;
+        RenderingContextDriver* renderingContextDriver;
+        RenderingDevice* renderingDevice;
 
-        Window *mainWindow = nullptr;
+        std::map<GLFWwindow*, Window*> windows;
 
-        Window *createWindow(
-            const std::string &title,
+        Window* mainWindow = nullptr;
+
+        Window* createWindow(
+            const std::string& title,
             WindowMode mode,
             VSyncMode vsync,
             WindowFlags flags,
             glm::uvec2 resolution
         );
 
+        Window* getWindowFromHandle(GLFWwindow* handle);
+
     public:
         DisplayServer(
-            const std::string &applicationName,
-            const glm::ivec3 &applicationVersion,
+            const std::string& applicationName,
+            const glm::ivec3& applicationVersion,
             RenderingDriver driver,
             WindowMode windowMode,
             VSyncMode vsyncMode,
@@ -40,17 +44,17 @@ namespace Vixen {
             glm::uvec2 resolution
         );
 
-        DisplayServer(const DisplayServer &) = delete;
+        DisplayServer(const DisplayServer&) = delete;
 
-        DisplayServer &operator=(const DisplayServer &) = delete;
+        DisplayServer& operator=(const DisplayServer&) = delete;
 
-        DisplayServer(DisplayServer &&other) noexcept = delete;
+        DisplayServer(DisplayServer&& other) noexcept = delete;
 
-        DisplayServer &operator=(DisplayServer &&other) noexcept = delete;
+        DisplayServer& operator=(DisplayServer&& other) noexcept = delete;
 
         ~DisplayServer();
 
-        [[nodiscard]] Window *getMainWindow() const;
+        [[nodiscard]] Window* getMainWindow() const;
 
         [[nodiscard]] bool isFramebufferSizeChanged() const;
 
@@ -58,35 +62,35 @@ namespace Vixen {
          * Has the current window been requested to close?
          * @return True if the window should close, false if not.
          */
-        bool shouldClose(const Window *window);
+        bool shouldClose(const Window* window);
 
         /**
          * Polls window events and processes them.
          * @return Returns true if the framebuffer size has been resized, false if not.
          */
-        void update(Window *window);
+        void update(Window* window);
 
         /**
          * Sets the visibility of the window.
          * @param visible True for visible, false for hidden.
          */
-        void setVisible(const Window *window, bool visible);
+        void setVisible(const Window* window, bool visible);
 
         /**
          * Centers the window on the current monitor.
          */
-        void center(const Window *window);
+        void center(const Window* window);
 
-        void maximize(const Window *window);
+        void maximize(const Window* window);
 
-        void setWindowedMode(const Window *window, WindowMode mode);
+        void setWindowedMode(const Window *window, WindowMode mode) const;
 
-        void setVSyncMode(const Window *window, VSyncMode mode);
+        void setVSyncMode(Window* window, VSyncMode mode) const;
 
-        [[nodiscard]] bool getWindowMonitor(const Window *window, Monitor &m);
+        [[nodiscard]] bool getWindowMonitor(const Window* window, Monitor& m);
 
         std::vector<Monitor> getMonitors();
 
-        void getFramebufferSize(const Window *window, int &width, int &height);
+        void getFramebufferSize(const Window* window, int& width, int& height);
     };
 }

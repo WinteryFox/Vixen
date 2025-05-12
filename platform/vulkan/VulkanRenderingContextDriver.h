@@ -75,6 +75,10 @@ namespace Vixen {
             Window* window
         ) -> std::expected<Surface*, Error> override;
 
+        void setSurfaceSize(Surface* surface, uint32_t width, uint32_t height) override;
+
+        void setSurfaceVSyncMode(Surface* surface, VSyncMode vsyncMode) override;
+
         void destroySurface(
             Surface* surface
         ) override;

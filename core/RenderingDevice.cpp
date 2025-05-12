@@ -101,14 +101,10 @@ namespace Vixen {
 
     RenderingDevice::RenderingDevice(
         RenderingContextDriver* renderingContext,
-        const Window* mainWindow
+        Window* mainWindow
     ) : renderingContextDriver(renderingContext),
         frameIndex(0) {
-        Surface* mainSurface = nullptr;
-        if (mainWindow) {
-            DEBUG_ASSERT(mainWindow->surface != nullptr);
-            mainSurface = mainWindow->surface;
-        }
+        Surface* mainSurface = renderingContextDriver->getSurfaceFromWindow(mainWindow);
 
         const auto devices = renderingContextDriver->getDevices();
 
@@ -241,38 +237,46 @@ namespace Vixen {
     }
 
     auto RenderingDevice::createScreen(
-        const Window* window
-    ) const -> std::expected<Swapchain*, Error> {
-        auto swapchain = renderingDeviceDriver->createSwapchain(window->surface);
+        Window* window
+    ) -> std::expected<Swapchain*, Error> {
+        const auto& surface = renderingContextDriver->getSurfaceFromWindow(window);
+        if (surface == nullptr)
+            return std::unexpected(Error::InitializationFailed);
+
+        const auto& swapchain = renderingDeviceDriver->createSwapchain(surface);
         if (!swapchain)
             return std::unexpected(Error::InitializationFailed);
 
         if (!renderingDeviceDriver->resizeSwapchain(graphicsQueue, swapchain.value(), frames.size()))
             return std::unexpected(Error::InitializationFailed);
 
+        swapchains[window] = swapchain.value();
+
         return swapchain;
     }
 
     auto RenderingDevice::prepareScreenForDrawing(
-        const Window* window
+        Window* window
     ) -> std::expected<void, Error> {
-        DEBUG_ASSERT(window->swapchain != nullptr);
+        const auto& pair = swapchains.find(window);
+        DEBUG_ASSERT(pair != swapchains.end());
+        const auto& swapchain = pair->second;
 
-        auto framebuffer = renderingDeviceDriver->acquireSwapchainFramebuffer(graphicsQueue, window->swapchain);
+        auto framebuffer = renderingDeviceDriver->acquireSwapchainFramebuffer(graphicsQueue, swapchain);
 
         if (!framebuffer && framebuffer.error() == SwapchainError::ResizeRequired) {
             flushAndWaitForFrames();
 
-            if (!renderingDeviceDriver->resizeSwapchain(graphicsQueue, window->swapchain, frames.size()))
+            if (!renderingDeviceDriver->resizeSwapchain(graphicsQueue, swapchain, frames.size()))
                 return std::unexpected(Error::InitializationFailed);
 
-            framebuffer = renderingDeviceDriver->acquireSwapchainFramebuffer(graphicsQueue, window->swapchain);
+            framebuffer = renderingDeviceDriver->acquireSwapchainFramebuffer(graphicsQueue, swapchain);
         }
 
         if (!framebuffer)
             return std::unexpected(Error::InitializationFailed);
 
-        frames[frameIndex].swapchainsToPresent.push_back(window->swapchain);
+        frames[frameIndex].swapchainsToPresent.push_back(swapchain);
 
         return {};
     }
@@ -280,8 +284,14 @@ namespace Vixen {
     void RenderingDevice::destroyScreen(
         Window* window
     ) {
-        if (window->swapchain)
-            renderingDeviceDriver->destroySwapchain(window->swapchain);
+        const auto& pair = swapchains.find(window);
+        if (pair == swapchains.end())
+            throw std::invalid_argument("Window does not have an associated swapchain");
+
+        flushAndWaitForFrames();
+
+        renderingDeviceDriver->destroySwapchain(pair->second);
+        swapchains.erase(window);
     }
 
     RenderingContextDriver* RenderingDevice::getRenderingContextDriver() const {

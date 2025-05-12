@@ -68,28 +68,32 @@ namespace Vixen {
             error<CantCreateError>("Failed to detect surface type for current driver.");
 
         surface->resolution = resolution;
-        surface->hasFramebufferSizeChanged = false;
+        surface->isResizeRequired = false;
         surface->windowMode = mode;
         surface->vsyncMode = vsync;
 
         auto *window = new Window{
-            .window = handle,
-            .surface = surface
+            .window = handle
         };
 
-        glfwSetWindowUserPointer(window->window, window);
+        glfwSetWindowUserPointer(window->window, this);
         glfwSetFramebufferSizeCallback(window->window, [](auto w, auto width, auto height) {
-            const auto wind = static_cast<Window *>(glfwGetWindowUserPointer(w));
-            wind->surface->resolution = {width, height};
-            wind->surface->hasFramebufferSizeChanged = true;
+            const auto &displayServer = static_cast<DisplayServer *>(glfwGetWindowUserPointer(w));
+            const auto &wind = displayServer->getWindowFromHandle(w);
+            const auto &surf = displayServer->renderingContextDriver->getSurfaceFromWindow(wind);
+            displayServer->renderingContextDriver->setSurfaceSize(surf, width, height);
         });
+
+        renderingContextDriver->createWindow(window);
 
         setWindowedMode(window, mode);
         setVSyncMode(window, vsync);
 
-        window->surface = renderingContextDriver->createSurface(window).value();
-
         return window;
+    }
+
+    Window* DisplayServer::getWindowFromHandle(GLFWwindow* handle) {
+        return windows[handle];
     }
 
     DisplayServer::DisplayServer(
@@ -136,21 +140,27 @@ namespace Vixen {
         mainWindow = createWindow(applicationName, windowMode, vsyncMode, flags, resolution);
 
         renderingDevice = new RenderingDevice(renderingContextDriver, mainWindow);
-        const auto swapchain = renderingDevice->createScreen(mainWindow);
-        if (!swapchain)
+        if (const auto swapchain = renderingDevice->createScreen(mainWindow); !swapchain)
             throw CantCreateError("Failed to create rendering device screen");
-        mainWindow->swapchain = swapchain.value();
     }
 
     DisplayServer::~DisplayServer() {
+        if (mainWindow) {
+            if (renderingDevice)
+                renderingDevice->destroyScreen(mainWindow);
+
+            if (renderingContextDriver)
+                renderingContextDriver->destroyWindow(mainWindow);
+
+            glfwSetWindowShouldClose(mainWindow->window, GLFW_TRUE);
+            glfwDestroyWindow(mainWindow->window);
+            glfwTerminate();
+
+            delete mainWindow;
+        }
+
         delete renderingDevice;
         delete renderingContextDriver;
-
-        glfwSetWindowShouldClose(mainWindow->window, GLFW_TRUE);
-        glfwDestroyWindow(mainWindow->window);
-        glfwTerminate();
-
-        delete mainWindow;
     }
 
     Window *DisplayServer::getMainWindow() const {
@@ -243,8 +253,8 @@ namespace Vixen {
         return monitors;
     }
 
-    void DisplayServer::setWindowedMode(const Window *window, const WindowMode mode) {
-        window->surface->windowMode = mode;
+    void DisplayServer::setWindowedMode(const Window *window, const WindowMode mode) const {
+        // TODO: Actually set windowed mode for surface?
 
         int width;
         int height;
@@ -289,8 +299,8 @@ namespace Vixen {
         glfwSetWindowMonitor(window->window, monitor, x, y, width, height, refreshRate);
     }
 
-    void DisplayServer::setVSyncMode(const Window *window, const VSyncMode mode) {
-        window->surface->vsyncMode = mode;
+    void DisplayServer::setVSyncMode(Window *window, const VSyncMode mode) const {
+        renderingContextDriver->setWindowVSyncMode(window, mode);
 
         if (driver == RenderingDriver::OpenGL) {
             switch (mode) {
