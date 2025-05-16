@@ -76,18 +76,12 @@ namespace Vixen {
             .window = handle
         };
 
-        glfwSetWindowUserPointer(window->window, this);
-        glfwSetFramebufferSizeCallback(window->window, [](auto w, auto width, auto height) {
-            const auto &displayServer = static_cast<DisplayServer *>(glfwGetWindowUserPointer(w));
-            const auto &wind = displayServer->getWindowFromHandle(w);
-            const auto &surf = displayServer->renderingContextDriver->getSurfaceFromWindow(wind);
-            displayServer->renderingContextDriver->setSurfaceSize(surf, width, height);
-        });
-
         renderingContextDriver->createWindow(window);
 
         setWindowedMode(window, mode);
         setVSyncMode(window, vsync);
+
+        windows[handle] = window;
 
         return window;
     }

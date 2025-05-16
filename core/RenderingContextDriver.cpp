@@ -18,7 +18,7 @@ namespace Vixen {
     }
 
     void RenderingContextDriver::setWindowSize(Window* window, uint32_t width, uint32_t height) {
-        if (auto surface = getSurfaceFromWindow(window); surface != nullptr)
+        if (const auto surface = getSurfaceFromWindow(window); surface != nullptr)
             setSurfaceSize(surface, width, height);
     }
 

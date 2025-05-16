@@ -827,6 +827,8 @@ namespace Vixen {
             // TODO: Transition color targets
         }
 
+        renderingContext->setSurfaceNeedsResize(surface, false);
+
         return {};
     }
 
@@ -839,6 +841,9 @@ namespace Vixen {
 
         const auto vkCommandQueue = dynamic_cast<VulkanCommandQueue*>(commandQueue);
         const auto vkSwapchain = dynamic_cast<VulkanSwapchain*>(swapchain);
+
+        if (vkSwapchain->swapchain == VK_NULL_HANDLE || renderingContext->getSurfaceNeedsResize(vkSwapchain->surface))
+            return std::unexpected(SwapchainError::ResizeRequired);
 
         VkSemaphore semaphore = VK_NULL_HANDLE;
         uint32_t semaphoreIndex;
@@ -1431,7 +1436,7 @@ namespace Vixen {
                 vkSwapchain->imageIndex = std::numeric_limits<uint32_t>::max();
 
                 if (results[i] != VK_SUCCESS) {
-                    // TODO: Set surface needs resize
+                    renderingContext->setSurfaceNeedsResize(vkSwapchain->surface, true);
                     anyResultIsOutOfDate = true;
                 }
             }

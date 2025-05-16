@@ -362,6 +362,14 @@ namespace Vixen {
         return o;
     }
 
+    bool VulkanRenderingContextDriver::getSurfaceNeedsResize(Surface* surface) {
+        return surface->isResizeRequired;
+    }
+
+    void VulkanRenderingContextDriver::setSurfaceNeedsResize(Surface* surface, bool needsResize) {
+        surface->isResizeRequired = needsResize;
+    }
+
     void VulkanRenderingContextDriver::setSurfaceSize(Surface* surface, uint32_t width, uint32_t height) {
         surface->resolution = {
             width,

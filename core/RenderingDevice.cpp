@@ -84,15 +84,14 @@ namespace Vixen {
 
         if (canPresent) {
             if (separatePresentQueue) {
-                if (!renderingDeviceDriver->executeCommandQueueAndPresent(
+                renderingDeviceDriver->executeCommandQueueAndPresent(
                     presentQueue,
                     {},
                     {},
                     {},
                     nullptr,
                     frames[frameIndex].swapchainsToPresent
-                ))
-                    throw std::runtime_error("Command execution failed");
+                );
             }
 
             frames[frameIndex].swapchainsToPresent.clear();
@@ -188,6 +187,8 @@ namespace Vixen {
             );
         }
         framesDrawn = frames.size();
+
+        renderingDeviceDriver->beginCommandBuffer(frames[0].commandBuffer);
     }
 
     RenderingDevice::~RenderingDevice() {
@@ -243,11 +244,11 @@ namespace Vixen {
         if (surface == nullptr)
             return std::unexpected(Error::InitializationFailed);
 
-        const auto& swapchain = renderingDeviceDriver->createSwapchain(surface);
-        if (!swapchain)
+        if (swapchains.contains(window))
             return std::unexpected(Error::InitializationFailed);
 
-        if (!renderingDeviceDriver->resizeSwapchain(graphicsQueue, swapchain.value(), frames.size()))
+        const auto& swapchain = renderingDeviceDriver->createSwapchain(surface);
+        if (!swapchain)
             return std::unexpected(Error::InitializationFailed);
 
         swapchains[window] = swapchain.value();
@@ -262,8 +263,17 @@ namespace Vixen {
         DEBUG_ASSERT(pair != swapchains.end());
         const auto& swapchain = pair->second;
 
-        auto framebuffer = renderingDeviceDriver->acquireSwapchainFramebuffer(graphicsQueue, swapchain);
+        uint32_t toPresentIndex = 0;
+        while (toPresentIndex < frames[frameIndex].swapchainsToPresent.size()) {
+            if (frames[frameIndex].swapchainsToPresent[toPresentIndex] != swapchain) {
+                renderingDeviceDriver->executeCommandQueueAndPresent(presentQueue, {}, {}, {}, {}, {swapchain});
+                frames[frameIndex].swapchainsToPresent.erase(frames[frameIndex].swapchainsToPresent.begin() + toPresentIndex);
+            } else {
+                toPresentIndex++;
+            }
+        }
 
+        auto framebuffer = renderingDeviceDriver->acquireSwapchainFramebuffer(graphicsQueue, swapchain);
         if (!framebuffer && framebuffer.error() == SwapchainError::ResizeRequired) {
             flushAndWaitForFrames();
 

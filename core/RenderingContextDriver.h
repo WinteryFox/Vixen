@@ -37,6 +37,10 @@ namespace Vixen {
 
         virtual auto createSurface(Window* window) -> std::expected<Surface*, Error> = 0;
 
+        virtual bool getSurfaceNeedsResize(Surface* surface) = 0;
+
+        virtual void setSurfaceNeedsResize(Surface* surface, bool needsResize) = 0;
+
         virtual void setSurfaceSize(Surface* surface, uint32_t width, uint32_t height) = 0;
 
         virtual void setSurfaceVSyncMode(Surface* surface, VSyncMode vsyncMode) = 0;
