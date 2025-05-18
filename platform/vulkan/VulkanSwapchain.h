@@ -18,6 +18,9 @@ namespace Vixen {
         std::vector<VkImage> resolveImages;
         std::vector<VkImageView> resolveImageViews;
         std::vector<VulkanFramebuffer *> framebuffers;
+        VkCommandPool presentCommandPool = VK_NULL_HANDLE;
+        std::vector<VkCommandBuffer> presentCommandBuffers{};
+        std::vector<VkSemaphore> presentSemaphores;
         std::vector<VkFence> presentFences;
         std::vector<VulkanCommandQueue *> acquiredCommandQueues;
         std::vector<uint32_t> acquiredCommandQueueSemaphores;

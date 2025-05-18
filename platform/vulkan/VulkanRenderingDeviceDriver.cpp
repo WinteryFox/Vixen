@@ -268,230 +268,6 @@ namespace Vixen {
         return VK_SAMPLE_COUNT_1_BIT;
     }
 
-    void VulkanRenderingDeviceDriver::resolveFramebuffer(
-        CommandQueue* commandQueue,
-        const std::vector<Semaphore*>& waitSemaphores,
-        const std::vector<VkSemaphore>& signalSemaphores,
-        const std::vector<Swapchain*>& swapchains,
-        VkCommandBuffer commandBuffer,
-        VkFence fence
-    ) {
-        vkWaitForFences(device, 1, &fence, VK_TRUE, std::numeric_limits<uint64_t>::max());
-        vkResetFences(device, 1, &fence);
-
-        VkCommandBufferBeginInfo beginInfo{
-            .sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO,
-            .pNext = nullptr,
-            .flags = VK_COMMAND_BUFFER_LEVEL_PRIMARY,
-            .pInheritanceInfo = nullptr
-        };
-        vkBeginCommandBuffer(commandBuffer, &beginInfo);
-
-        for (const auto& swapchain : swapchains) {
-            const auto vkSwapchain = dynamic_cast<VulkanSwapchain*>(swapchain);
-
-            VkImageMemoryBarrier transferSrcBarrier{
-                .sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER,
-                .pNext = nullptr,
-                .srcAccessMask = VK_ACCESS_TRANSFER_READ_BIT,
-                .dstAccessMask = VK_ACCESS_TRANSFER_READ_BIT,
-                .oldLayout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL,
-                .newLayout = VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL,
-                .srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED,
-                .dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED,
-                .image = vkSwapchain->colorTargets[vkSwapchain->imageIndex]->image,
-                .subresourceRange = {
-                    .aspectMask = VK_IMAGE_ASPECT_COLOR_BIT,
-                    .baseMipLevel = 0,
-                    .levelCount = 1,
-                    .baseArrayLayer = 0,
-                    .layerCount = 1
-                }
-            };
-
-            vkCmdPipelineBarrier(
-                commandBuffer,
-                VK_PIPELINE_STAGE_TRANSFER_BIT,
-                VK_PIPELINE_STAGE_TRANSFER_BIT,
-                0,
-                0,
-                nullptr,
-                0,
-                nullptr,
-                1,
-                &transferSrcBarrier
-            );
-
-            VkImageMemoryBarrier presentBarrier{
-                .sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER,
-                .pNext = nullptr,
-                .srcAccessMask = VK_ACCESS_NONE,
-                .dstAccessMask = VK_ACCESS_TRANSFER_WRITE_BIT,
-                .oldLayout = VK_IMAGE_LAYOUT_UNDEFINED,
-                .newLayout = VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
-                .srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED,
-                .dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED,
-                .image = vkSwapchain->resolveImages[vkSwapchain->imageIndex],
-                .subresourceRange = {
-                    .aspectMask = VK_IMAGE_ASPECT_COLOR_BIT,
-                    .baseMipLevel = 0,
-                    .levelCount = 1,
-                    .baseArrayLayer = 0,
-                    .layerCount = 1
-                }
-            };
-
-            vkCmdPipelineBarrier(
-                commandBuffer,
-                VK_PIPELINE_STAGE_TRANSFER_BIT,
-                VK_PIPELINE_STAGE_TRANSFER_BIT,
-                0,
-                0,
-                nullptr,
-                0,
-                nullptr,
-                1,
-                &presentBarrier
-            );
-
-            VkImageCopy region{
-                .srcSubresource = {
-                    .aspectMask = VK_IMAGE_ASPECT_COLOR_BIT,
-                    .mipLevel = 0,
-                    .baseArrayLayer = 0,
-                    .layerCount = 1
-                },
-                .srcOffset = {
-                    .x = 0,
-                    .y = 0,
-                    .z = 0
-                },
-                .dstSubresource = {
-                    .aspectMask = VK_IMAGE_ASPECT_COLOR_BIT,
-                    .mipLevel = 0,
-                    .baseArrayLayer = 0,
-                    .layerCount = 1
-                },
-                .dstOffset = {
-                    .x = 0,
-                    .y = 0,
-                    .z = 0
-                },
-                .extent = {
-                    .width = vkSwapchain->surface->resolution.x,
-                    .height = vkSwapchain->surface->resolution.y,
-                    .depth = 1
-                }
-            };
-
-            vkCmdCopyImage(
-                commandBuffer,
-                vkSwapchain->colorTargets[vkSwapchain->imageIndex]->image,
-                VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL,
-                vkSwapchain->resolveImages[vkSwapchain->imageIndex],
-                VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
-                1,
-                &region
-            );
-
-            presentBarrier.oldLayout = presentBarrier.newLayout;
-            presentBarrier.newLayout = VK_IMAGE_LAYOUT_PRESENT_SRC_KHR;
-            presentBarrier.srcAccessMask = VK_ACCESS_NONE;
-            presentBarrier.dstAccessMask = VK_ACCESS_NONE;
-
-            vkCmdPipelineBarrier(
-                commandBuffer,
-                VK_PIPELINE_STAGE_TRANSFER_BIT,
-                VK_PIPELINE_STAGE_TRANSFER_BIT,
-                0,
-                0,
-                nullptr,
-                0,
-                nullptr,
-                1,
-                &presentBarrier
-            );
-
-            transferSrcBarrier.oldLayout = transferSrcBarrier.newLayout;
-            transferSrcBarrier.newLayout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
-            transferSrcBarrier.srcAccessMask = VK_ACCESS_TRANSFER_READ_BIT;
-            transferSrcBarrier.dstAccessMask = VK_ACCESS_NONE;
-
-            vkCmdPipelineBarrier(
-                commandBuffer,
-                VK_PIPELINE_STAGE_TRANSFER_BIT,
-                VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT,
-                0,
-                0,
-                nullptr,
-                0,
-                nullptr,
-                1,
-                &transferSrcBarrier
-            );
-        }
-
-        vkEndCommandBuffer(commandBuffer);
-
-        const auto vkCommandQueue = dynamic_cast<VulkanCommandQueue*>(commandQueue);
-        Queue& queue = queueFamilies[vkCommandQueue->queueFamily][vkCommandQueue->queueIndex];
-
-        const VkCommandBufferSubmitInfo commandBufferInfo{
-            .sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_SUBMIT_INFO,
-            .pNext = nullptr,
-            .commandBuffer = commandBuffer,
-            .deviceMask = 0
-        };
-
-        std::vector<VkSemaphoreSubmitInfo> waitSemaphoreInfos{};
-        waitSemaphoreInfos.reserve(waitSemaphores.size());
-        for (const auto& semaphore : waitSemaphores) {
-            const auto vkSemaphore = dynamic_cast<VulkanSemaphore*>(semaphore);
-
-            waitSemaphoreInfos.push_back({
-                .sType = VK_STRUCTURE_TYPE_SEMAPHORE_SUBMIT_INFO,
-                .pNext = nullptr,
-                .semaphore = vkSemaphore->semaphore,
-                .value = vkSemaphore->value,
-                .stageMask = VK_PIPELINE_STAGE_ALL_COMMANDS_BIT,
-                .deviceIndex = 0
-            });
-        }
-
-        std::vector<VkSemaphoreSubmitInfo> signalSemaphoreInfos{};
-        signalSemaphoreInfos.reserve(signalSemaphores.size());
-        for (const auto& semaphore : signalSemaphores) {
-            signalSemaphoreInfos.push_back({
-                .sType = VK_STRUCTURE_TYPE_SEMAPHORE_SUBMIT_INFO,
-                .pNext = nullptr,
-                .semaphore = semaphore,
-                .value = 0,
-                .stageMask = 0,
-                .deviceIndex = 0
-            });
-        }
-
-        const VkSubmitInfo2 submitInfo{
-            .sType = VK_STRUCTURE_TYPE_SUBMIT_INFO_2,
-            .pNext = nullptr,
-            .flags = 0,
-            .waitSemaphoreInfoCount = static_cast<uint32_t>(waitSemaphoreInfos.size()),
-            .pWaitSemaphoreInfos = waitSemaphoreInfos.data(),
-            .commandBufferInfoCount = 1,
-            .pCommandBufferInfos = &commandBufferInfo,
-            .signalSemaphoreInfoCount = static_cast<uint32_t>(signalSemaphoreInfos.size()),
-            .pSignalSemaphoreInfos = signalSemaphoreInfos.data()
-        };
-
-        if (vkQueueSubmit2(
-            queue.queue,
-            1,
-            &submitInfo,
-            fence
-        ) != VK_SUCCESS)
-            throw std::runtime_error("Failed to submit command buffer.");
-    }
-
     VulkanRenderingDeviceDriver::VulkanRenderingDeviceDriver(
         VulkanRenderingContextDriver* renderingContext,
         const uint32_t deviceIndex,
@@ -824,7 +600,25 @@ namespace Vixen {
             framebuffer->swapchainAcquired = false;
             vkSwapchain->framebuffers[i] = framebuffer;
 
-            // TODO: Transition color targets
+            VkFence fence;
+            constexpr VkFenceCreateInfo fenceInfo{
+                .sType = VK_STRUCTURE_TYPE_FENCE_CREATE_INFO,
+                .pNext = nullptr,
+                .flags = VK_FENCE_CREATE_SIGNALED_BIT
+            };
+            if (vkCreateFence(device, &fenceInfo, nullptr, &fence) != VK_SUCCESS)
+                return std::unexpected(Error::InitializationFailed);
+            vkSwapchain->presentFences.push_back(fence);
+
+            VkSemaphore semaphore = VK_NULL_HANDLE;
+            VkSemaphoreCreateInfo semaphoreInfo{
+                .sType = VK_STRUCTURE_TYPE_SEMAPHORE_CREATE_INFO,
+                .pNext = nullptr,
+                .flags = 0
+            };
+            if (vkCreateSemaphore(device, &semaphoreInfo, nullptr, &semaphore) != VK_SUCCESS)
+                return std::unexpected(Error::InitializationFailed);
+            vkSwapchain->presentSemaphores.push_back(semaphore);
         }
 
         renderingContext->setSurfaceNeedsResize(surface, false);
@@ -900,6 +694,18 @@ namespace Vixen {
     void VulkanRenderingDeviceDriver::releaseSwapchain(
         VulkanSwapchain* swapchain
     ) {
+        if (!swapchain->presentFences.empty())
+            vkWaitForFences(device, swapchain->presentFences.size(), swapchain->presentFences.data(), VK_TRUE,
+                            std::numeric_limits<uint64_t>::max());
+        swapchain->presentFences.clear();
+
+        if (swapchain->presentCommandPool) {
+            vkResetCommandPool(device, swapchain->presentCommandPool, 0);
+            vkDestroyCommandPool(device, swapchain->presentCommandPool, nullptr);
+        }
+        swapchain->presentCommandBuffers.clear();
+        swapchain->presentCommandPool = VK_NULL_HANDLE;
+
         for (uint32_t i = 0; i < swapchain->resolveImages.size(); i++) {
             delete swapchain->framebuffers[i];
 
@@ -1218,6 +1024,27 @@ namespace Vixen {
         if (pickedQueueFamilyIndex >= queueFamily.size())
             return std::unexpected(Error::InitializationFailed);
 
+        VkCommandPool commandPool = VK_NULL_HANDLE;
+        const VkCommandPoolCreateInfo commandPoolInfo{
+            .sType = VK_STRUCTURE_TYPE_COMMAND_POOL_CREATE_INFO,
+            .pNext = nullptr,
+            .flags = VK_COMMAND_POOL_CREATE_RESET_COMMAND_BUFFER_BIT,
+            .queueFamilyIndex = queueFamilyIndex
+        };
+        if (vkCreateCommandPool(device, &commandPoolInfo, nullptr, &commandPool) != VK_SUCCESS)
+            return std::unexpected(Error::InitializationFailed);
+
+        const VkCommandBufferAllocateInfo commandBufferInfo{
+            .sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO,
+            .pNext = nullptr,
+            .commandPool = commandPool,
+            .level = VK_COMMAND_BUFFER_LEVEL_PRIMARY,
+            .commandBufferCount = frameCount
+        };
+        std::vector<VkCommandBuffer> presentCommandBuffers{frameCount};
+        if (vkAllocateCommandBuffers(device, &commandBufferInfo, presentCommandBuffers.data()) != VK_SUCCESS)
+            return std::unexpected(Error::InitializationFailed);
+
         auto commandQueue = new VulkanCommandQueue();
         commandQueue->queueFamily = queueFamilyIndex;
         commandQueue->queueIndex = pickedQueueFamilyIndex;
@@ -1238,34 +1065,37 @@ namespace Vixen {
         Queue& queue = queueFamilies[vkCommandQueue->queueFamily][vkCommandQueue->queueIndex];
         const auto vkFence = dynamic_cast<VulkanFence*>(fence);
 
+        std::vector<VkSemaphore> presentSemaphores{};
+        std::vector<VkSemaphore> vkWaitSemaphores{};
+        std::vector<VkSemaphoreSubmitInfo> semaphoreWaitInfos{};
+        semaphoreWaitInfos.reserve(waitSemaphores.size() + vkCommandQueue->pendingSemaphoresForExecute.size());
+
+        for (const auto semaphoreIndex : vkCommandQueue->pendingSemaphoresForExecute) {
+            semaphoreWaitInfos.push_back({
+                .sType = VK_STRUCTURE_TYPE_SEMAPHORE_SUBMIT_INFO,
+                .pNext = nullptr,
+                .semaphore = vkCommandQueue->imageSemaphores[semaphoreIndex],
+                .value = 0,
+                .stageMask = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT,
+                .deviceIndex = 0
+            });
+        }
+        vkCommandQueue->pendingSemaphoresForExecute.clear();
+
+        for (const auto& semaphore : waitSemaphores) {
+            const auto vkSemaphore = dynamic_cast<VulkanSemaphore*>(semaphore);
+            semaphoreWaitInfos.push_back({
+                .sType = VK_STRUCTURE_TYPE_SEMAPHORE_SUBMIT_INFO,
+                .pNext = nullptr,
+                .semaphore = vkSemaphore->semaphore,
+                .value = vkSemaphore->value,
+                .stageMask = VK_PIPELINE_STAGE_ALL_COMMANDS_BIT,
+                .deviceIndex = 0
+            });
+            vkWaitSemaphores.push_back(vkSemaphore->semaphore);
+        }
+
         if (!commandBuffers.empty()) {
-            std::vector<VkSemaphoreSubmitInfo> semaphoreWaitInfos{};
-            semaphoreWaitInfos.reserve(waitSemaphores.size() + vkCommandQueue->pendingSemaphoresForExecute.size());
-
-            for (const auto& semaphore : waitSemaphores) {
-                const auto vkSemaphore = dynamic_cast<VulkanSemaphore*>(semaphore);
-                semaphoreWaitInfos.push_back({
-                    .sType = VK_STRUCTURE_TYPE_SEMAPHORE_SUBMIT_INFO,
-                    .pNext = nullptr,
-                    .semaphore = vkSemaphore->semaphore,
-                    .value = vkSemaphore->value,
-                    .stageMask = VK_PIPELINE_STAGE_ALL_COMMANDS_BIT,
-                    .deviceIndex = 0
-                });
-            }
-
-            for (const auto semaphoreIndex : vkCommandQueue->pendingSemaphoresForExecute) {
-                semaphoreWaitInfos.push_back(VkSemaphoreSubmitInfo {
-                    .sType = VK_STRUCTURE_TYPE_SEMAPHORE_SUBMIT_INFO,
-                    .pNext = nullptr,
-                    .semaphore = vkCommandQueue->imageSemaphores[semaphoreIndex],
-                    .value = 0,
-                    .stageMask = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT,
-                    .deviceIndex = 0
-                });
-            }
-            vkCommandQueue->pendingSemaphoresForExecute.clear();
-
             std::vector<VkCommandBufferSubmitInfo> commandBufferInfos{};
             commandBufferInfos.reserve(commandBuffers.size());
             for (const auto& commandBuffer : commandBuffers) {
@@ -1330,96 +1160,265 @@ namespace Vixen {
 
                 vkCommandQueue->pendingSemaphoresForFence.clear();
             }
+
+            vkWaitSemaphores = presentSemaphores;
         }
 
         if (!swapchains.empty()) {
-            if (vkCommandQueue->presentSemaphores.empty()) {
-                VkCommandPool presentCommandPool = VK_NULL_HANDLE;
-                const VkCommandPoolCreateInfo commandPoolInfo{
-                    .sType = VK_STRUCTURE_TYPE_COMMAND_POOL_CREATE_INFO,
-                    .pNext = nullptr,
-                    .flags = VK_COMMAND_POOL_CREATE_RESET_COMMAND_BUFFER_BIT,
-                    .queueFamilyIndex = vkCommandQueue->queueFamily
-                };
-                if (vkCreateCommandPool(device, &commandPoolInfo, nullptr, &presentCommandPool) != VK_SUCCESS)
-                    return std::unexpected(Error::InitializationFailed);
+            for (const auto& swapchain : swapchains) {
+                const auto& vkSwapchain = dynamic_cast<VulkanSwapchain*>(swapchain);
 
-                vkCommandQueue->presentPool = presentCommandPool;
-
-                constexpr VkSemaphoreCreateInfo semaphoreInfo{
-                    .sType = VK_STRUCTURE_TYPE_SEMAPHORE_CREATE_INFO,
-                    .pNext = nullptr,
-                    .flags = 0
-                };
-
-                constexpr VkFenceCreateInfo fenceInfo{
-                    .sType = VK_STRUCTURE_TYPE_FENCE_CREATE_INFO,
-                    .pNext = nullptr,
-                    .flags = VK_FENCE_CREATE_SIGNALED_BIT
-                };
-
-                vkCommandQueue->presentSemaphores.resize(frameCount);
-                vkCommandQueue->presentFences.resize(frameCount);
-                for (uint32_t i = 0; i < frameCount; i++) {
-                    if (vkCreateSemaphore(device, &semaphoreInfo, nullptr, &vkCommandQueue->presentSemaphores[i]) !=
-                        VK_SUCCESS)
+                if (vkSwapchain->presentCommandPool == nullptr) {
+                    VkCommandPoolCreateInfo poolInfo{
+                        .sType = VK_STRUCTURE_TYPE_COMMAND_POOL_CREATE_INFO,
+                        .pNext = nullptr,
+                        .flags = VK_COMMAND_POOL_CREATE_RESET_COMMAND_BUFFER_BIT,
+                        .queueFamilyIndex = vkCommandQueue->queueFamily
+                    };
+                    if (vkCreateCommandPool(device, &poolInfo, nullptr, &vkSwapchain->presentCommandPool) != VK_SUCCESS)
                         return std::unexpected(Error::InitializationFailed);
 
-                    if (vkCreateFence(device, &fenceInfo, nullptr, &vkCommandQueue->presentFences[i]) != VK_SUCCESS)
+                    VkCommandBufferAllocateInfo commandBufferInfo{
+                        .sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO,
+                        .pNext = nullptr,
+                        .commandPool = vkSwapchain->presentCommandPool,
+                        .level = VK_COMMAND_BUFFER_LEVEL_PRIMARY,
+                        .commandBufferCount = frameCount
+                    };
+                    vkSwapchain->presentCommandBuffers.resize(frameCount);
+                    if (vkAllocateCommandBuffers(device, &commandBufferInfo, vkSwapchain->presentCommandBuffers.data()) != VK_SUCCESS)
                         return std::unexpected(Error::InitializationFailed);
                 }
 
-                vkCommandQueue->presentCommandBuffers.resize(frameCount);
-                const VkCommandBufferAllocateInfo commandBufferAllocateInfo{
-                    .sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO,
+                const auto& presentFence = vkSwapchain->presentFences[vkSwapchain->imageIndex];
+                const auto& commandBuffer = vkSwapchain->presentCommandBuffers[vkSwapchain->imageIndex];
+
+                vkWaitForFences(device, 1, &presentFence, VK_TRUE, std::numeric_limits<uint64_t>::max());
+                vkResetFences(device, 1, &presentFence);
+
+                vkResetCommandBuffer(commandBuffer, 0);
+
+                VkCommandBufferBeginInfo beginInfo{
+                    .sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO,
                     .pNext = nullptr,
-                    .commandPool = vkCommandQueue->presentPool,
-                    .level = VK_COMMAND_BUFFER_LEVEL_PRIMARY,
-                    .commandBufferCount = frameCount
+                    .flags = VK_COMMAND_BUFFER_LEVEL_PRIMARY,
+                    .pInheritanceInfo = nullptr
+                };
+                vkBeginCommandBuffer(commandBuffer, &beginInfo);
+
+                VkImageMemoryBarrier transferSrcBarrier{
+                    .sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER,
+                    .pNext = nullptr,
+                    .srcAccessMask = VK_ACCESS_TRANSFER_READ_BIT,
+                    .dstAccessMask = VK_ACCESS_TRANSFER_READ_BIT,
+                    .oldLayout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL,
+                    .newLayout = VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL,
+                    .srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED,
+                    .dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED,
+                    .image = vkSwapchain->colorTargets[vkSwapchain->imageIndex]->image,
+                    .subresourceRange = {
+                        .aspectMask = VK_IMAGE_ASPECT_COLOR_BIT,
+                        .baseMipLevel = 0,
+                        .levelCount = 1,
+                        .baseArrayLayer = 0,
+                        .layerCount = 1
+                    }
                 };
 
-                if (vkAllocateCommandBuffers(
-                    device,
-                    &commandBufferAllocateInfo,
-                    vkCommandQueue->presentCommandBuffers.data()
+                vkCmdPipelineBarrier(
+                    commandBuffer,
+                    VK_PIPELINE_STAGE_TRANSFER_BIT,
+                    VK_PIPELINE_STAGE_TRANSFER_BIT,
+                    0,
+                    0,
+                    nullptr,
+                    0,
+                    nullptr,
+                    1,
+                    &transferSrcBarrier
+                );
+
+                VkImageMemoryBarrier presentBarrier{
+                    .sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER,
+                    .pNext = nullptr,
+                    .srcAccessMask = VK_ACCESS_NONE,
+                    .dstAccessMask = VK_ACCESS_TRANSFER_WRITE_BIT,
+                    .oldLayout = VK_IMAGE_LAYOUT_UNDEFINED,
+                    .newLayout = VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
+                    .srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED,
+                    .dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED,
+                    .image = vkSwapchain->resolveImages[vkSwapchain->imageIndex],
+                    .subresourceRange = {
+                        .aspectMask = VK_IMAGE_ASPECT_COLOR_BIT,
+                        .baseMipLevel = 0,
+                        .levelCount = 1,
+                        .baseArrayLayer = 0,
+                        .layerCount = 1
+                    }
+                };
+
+                vkCmdPipelineBarrier(
+                    commandBuffer,
+                    VK_PIPELINE_STAGE_TRANSFER_BIT,
+                    VK_PIPELINE_STAGE_TRANSFER_BIT,
+                    0,
+                    0,
+                    nullptr,
+                    0,
+                    nullptr,
+                    1,
+                    &presentBarrier
+                );
+
+                VkImageCopy region{
+                    .srcSubresource = {
+                        .aspectMask = VK_IMAGE_ASPECT_COLOR_BIT,
+                        .mipLevel = 0,
+                        .baseArrayLayer = 0,
+                        .layerCount = 1
+                    },
+                    .srcOffset = {
+                        .x = 0,
+                        .y = 0,
+                        .z = 0
+                    },
+                    .dstSubresource = {
+                        .aspectMask = VK_IMAGE_ASPECT_COLOR_BIT,
+                        .mipLevel = 0,
+                        .baseArrayLayer = 0,
+                        .layerCount = 1
+                    },
+                    .dstOffset = {
+                        .x = 0,
+                        .y = 0,
+                        .z = 0
+                    },
+                    .extent = {
+                        .width = vkSwapchain->surface->resolution.x,
+                        .height = vkSwapchain->surface->resolution.y,
+                        .depth = 1
+                    }
+                };
+
+                vkCmdCopyImage(
+                    commandBuffer,
+                    vkSwapchain->colorTargets[vkSwapchain->imageIndex]->image,
+                    VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL,
+                    vkSwapchain->resolveImages[vkSwapchain->imageIndex],
+                    VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
+                    1,
+                    &region
+                );
+
+                presentBarrier.oldLayout = presentBarrier.newLayout;
+                presentBarrier.newLayout = VK_IMAGE_LAYOUT_PRESENT_SRC_KHR;
+                presentBarrier.srcAccessMask = VK_ACCESS_NONE;
+                presentBarrier.dstAccessMask = VK_ACCESS_NONE;
+
+                vkCmdPipelineBarrier(
+                    commandBuffer,
+                    VK_PIPELINE_STAGE_TRANSFER_BIT,
+                    VK_PIPELINE_STAGE_TRANSFER_BIT,
+                    0,
+                    0,
+                    nullptr,
+                    0,
+                    nullptr,
+                    1,
+                    &presentBarrier
+                );
+
+                transferSrcBarrier.oldLayout = transferSrcBarrier.newLayout;
+                transferSrcBarrier.newLayout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
+                transferSrcBarrier.srcAccessMask = VK_ACCESS_TRANSFER_READ_BIT;
+                transferSrcBarrier.dstAccessMask = VK_ACCESS_NONE;
+
+                vkCmdPipelineBarrier(
+                    commandBuffer,
+                    VK_PIPELINE_STAGE_TRANSFER_BIT,
+                    VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT,
+                    0,
+                    0,
+                    nullptr,
+                    0,
+                    nullptr,
+                    1,
+                    &transferSrcBarrier
+                );
+
+                vkEndCommandBuffer(commandBuffer);
+
+                const VkCommandBufferSubmitInfo commandBufferInfo{
+                    .sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_SUBMIT_INFO,
+                    .pNext = nullptr,
+                    .commandBuffer = commandBuffer,
+                    .deviceMask = 0
+                };
+
+                std::vector<VkSemaphoreSubmitInfo> waitSemaphoreInfos{};
+                waitSemaphoreInfos.reserve(waitSemaphores.size());
+                for (const auto& semaphore : waitSemaphores) {
+                    const auto vkSemaphore = dynamic_cast<VulkanSemaphore*>(semaphore);
+
+                    waitSemaphoreInfos.push_back({
+                        .sType = VK_STRUCTURE_TYPE_SEMAPHORE_SUBMIT_INFO,
+                        .pNext = nullptr,
+                        .semaphore = vkSemaphore->semaphore,
+                        .value = vkSemaphore->value,
+                        .stageMask = VK_PIPELINE_STAGE_ALL_COMMANDS_BIT,
+                        .deviceIndex = 0
+                    });
+                }
+
+                std::vector<VkSemaphoreSubmitInfo> signalSemaphoreInfos{};
+                signalSemaphoreInfos.reserve(signalSemaphores.size());
+                for (const auto& semaphore : signalSemaphores) {
+                    signalSemaphoreInfos.push_back({
+                        .sType = VK_STRUCTURE_TYPE_SEMAPHORE_SUBMIT_INFO,
+                        .pNext = nullptr,
+                        .semaphore = dynamic_cast<VulkanSemaphore*>(semaphore)->semaphore,
+                        .value = 0,
+                        .stageMask = 0,
+                        .deviceIndex = 0
+                    });
+                }
+
+                const VkSubmitInfo2 submitInfo{
+                    .sType = VK_STRUCTURE_TYPE_SUBMIT_INFO_2,
+                    .pNext = nullptr,
+                    .flags = 0,
+                    .waitSemaphoreInfoCount = static_cast<uint32_t>(waitSemaphoreInfos.size()),
+                    .pWaitSemaphoreInfos = waitSemaphoreInfos.data(),
+                    .commandBufferInfoCount = 1,
+                    .pCommandBufferInfos = &commandBufferInfo,
+                    .signalSemaphoreInfoCount = static_cast<uint32_t>(signalSemaphoreInfos.size()),
+                    .pSignalSemaphoreInfos = signalSemaphoreInfos.data()
+                };
+
+                if (vkQueueSubmit2(
+                    queue.queue,
+                    1,
+                    &submitInfo,
+                    presentFence
                 ) != VK_SUCCESS)
-                    return std::unexpected(Error::InitializationFailed);
+                    throw std::runtime_error("Failed to submit command buffer.");
             }
 
-            std::vector<VkSemaphore> vkWaitSemaphores{};
-            vkWaitSemaphores.push_back(vkCommandQueue->presentSemaphores[vkCommandQueue->presentSemaphoreIndex]);
-
-            resolveFramebuffer(
-                commandQueue,
-                signalSemaphores,
-                vkWaitSemaphores,
-                swapchains,
-                vkCommandQueue->presentCommandBuffers[vkCommandQueue->presentSemaphoreIndex],
-                vkCommandQueue->presentFences[vkCommandQueue->presentSemaphoreIndex]
-            );
-
-            vkCommandQueue->presentSemaphoreIndex =
-                (vkCommandQueue->presentSemaphoreIndex + 1) % vkCommandQueue->presentSemaphores.size();
-
             std::vector<VkSwapchainKHR> vkSwapchains{};
-            vkSwapchains.reserve(swapchains.size());
             std::vector<uint32_t> imageIndices{};
-            imageIndices.reserve(swapchains.size());
+            std::vector<VkResult> results{swapchains.size()};
 
-            for (const auto& swapchain : swapchains) {
-                const auto vkSwapchain = dynamic_cast<VulkanSwapchain*>(swapchain);
+            for (const auto swapchain : swapchains) {
+                const auto& vkSwapchain = dynamic_cast<VulkanSwapchain*>(swapchain);
                 vkSwapchains.push_back(vkSwapchain->swapchain);
-
-                DEBUG_ASSERT(vkSwapchain->imageIndex < vkSwapchain->colorTargets.size());
                 imageIndices.push_back(vkSwapchain->imageIndex);
             }
 
-            std::vector<VkResult> results{vkSwapchains.size()};
             const VkPresentInfoKHR presentInfo{
                 .sType = VK_STRUCTURE_TYPE_PRESENT_INFO_KHR,
                 .pNext = nullptr,
-                .waitSemaphoreCount = static_cast<uint32_t>(vkWaitSemaphores.size()),
-                .pWaitSemaphores = vkWaitSemaphores.data(),
+                .waitSemaphoreCount = static_cast<uint32_t>(presentSemaphores.size()),
+                .pWaitSemaphores = presentSemaphores.data(),
                 .swapchainCount = static_cast<uint32_t>(vkSwapchains.size()),
                 .pSwapchains = vkSwapchains.data(),
                 .pImageIndices = imageIndices.data(),
@@ -1427,7 +1426,7 @@ namespace Vixen {
             };
 
             queue.submitMutex.lock();
-            auto presentError = vkQueuePresentKHR(queue.queue, &presentInfo);
+            const auto presentError = vkQueuePresentKHR(queue.queue, &presentInfo);
             queue.submitMutex.unlock();
 
             bool anyResultIsOutOfDate = false;
@@ -1459,18 +1458,6 @@ namespace Vixen {
         const auto vkCommandQueue = dynamic_cast<VulkanCommandQueue*>(commandQueue);
 
         vkQueueWaitIdle(queueFamilies[vkCommandQueue->queueFamily][vkCommandQueue->queueIndex].queue);
-
-        if (vkCommandQueue->presentPool) {
-            vkWaitForFences(device, vkCommandQueue->presentFences.size(), vkCommandQueue->presentFences.data(), VK_TRUE,
-                            std::numeric_limits<uint64_t>::max());
-            vkDestroyCommandPool(device, vkCommandQueue->presentPool, nullptr);
-        }
-
-        for (const auto& fence : vkCommandQueue->presentFences)
-            vkDestroyFence(device, fence, nullptr);
-
-        for (const auto& semaphore : vkCommandQueue->presentSemaphores)
-            vkDestroySemaphore(device, semaphore, nullptr);
 
         for (const auto& semaphore : vkCommandQueue->imageSemaphores)
             vkDestroySemaphore(device, semaphore, nullptr);

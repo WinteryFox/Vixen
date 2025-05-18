@@ -59,14 +59,21 @@ namespace Vixen {
             const ImageSamples& samples
         ) const;
 
-        void resolveFramebuffer(
-            CommandQueue* commandQueue,
-            const std::vector<Semaphore*>& waitSemaphores,
-            const std::vector<VkSemaphore>& signalSemaphores,
-            const std::vector<Swapchain*>& swapchains,
-            VkCommandBuffer commandBuffer,
-            VkFence fence
+        void releaseSwapchain(
+            VulkanSwapchain* swapchain
         );
+
+        static auto releaseImageSemaphore(
+            VulkanCommandQueue* commandQueue,
+            uint32_t semaphoreIndex,
+            bool releaseOnSwapchain
+        ) -> std::expected<void, Error>;
+
+        auto recreateImageSemaphore(
+            VulkanCommandQueue* commandQueue,
+            uint32_t semaphoreIndex,
+            bool releaseOnSwapchain
+        ) const -> std::expected<void, Error>;
 
     public:
         VulkanRenderingDeviceDriver(
@@ -99,23 +106,6 @@ namespace Vixen {
             CommandQueue* commandQueue,
             Swapchain* swapchain
         ) -> std::expected<Framebuffer*, SwapchainError> override;
-
-    private:
-        void releaseSwapchain(
-            VulkanSwapchain* swapchain
-        );
-
-        static auto releaseImageSemaphore(
-            VulkanCommandQueue* commandQueue,
-            uint32_t semaphoreIndex,
-            bool releaseOnSwapchain
-        ) -> std::expected<void, Error>;
-
-        auto recreateImageSemaphore(
-            VulkanCommandQueue* commandQueue,
-            uint32_t semaphoreIndex,
-            bool releaseOnSwapchain
-        ) const -> std::expected<void, Error>;
 
     public:
         void destroySwapchain(
