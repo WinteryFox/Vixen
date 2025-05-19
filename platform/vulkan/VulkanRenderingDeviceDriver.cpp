@@ -694,17 +694,26 @@ namespace Vixen {
     void VulkanRenderingDeviceDriver::releaseSwapchain(
         VulkanSwapchain* swapchain
     ) {
-        if (!swapchain->presentFences.empty())
+        if (!swapchain->presentFences.empty()) {
             vkWaitForFences(device, swapchain->presentFences.size(), swapchain->presentFences.data(), VK_TRUE,
                             std::numeric_limits<uint64_t>::max());
+
+            for (const auto &fence : swapchain->presentFences)
+                vkDestroyFence(device, fence, nullptr);
+        }
         swapchain->presentFences.clear();
 
-        if (swapchain->presentCommandPool) {
+        for (const auto &semaphore : swapchain->presentSemaphores)
+            vkDestroySemaphore(device, semaphore, nullptr);
+        swapchain->presentSemaphores.clear();
+
+        if (swapchain->presentCommandPool != nullptr) {
+            vkFreeCommandBuffers(device, swapchain->presentCommandPool, swapchain->presentCommandBuffers.size(), swapchain->presentCommandBuffers.data());
             vkResetCommandPool(device, swapchain->presentCommandPool, 0);
             vkDestroyCommandPool(device, swapchain->presentCommandPool, nullptr);
         }
         swapchain->presentCommandBuffers.clear();
-        swapchain->presentCommandPool = VK_NULL_HANDLE;
+        swapchain->presentCommandPool = nullptr;
 
         for (uint32_t i = 0; i < swapchain->resolveImages.size(); i++) {
             delete swapchain->framebuffers[i];
@@ -724,13 +733,12 @@ namespace Vixen {
             swapchain->swapchain = nullptr;
         }
 
-        for (uint32_t i = 0; i < swapchain->acquiredCommandQueues.size(); i++) {
+        for (uint32_t i = 0; i < swapchain->acquiredCommandQueues.size(); i++)
             recreateImageSemaphore(
                 swapchain->acquiredCommandQueues[i],
                 swapchain->acquiredCommandQueueSemaphores[i],
                 false
             );
-        }
 
         swapchain->acquiredCommandQueues.clear();
         swapchain->acquiredCommandQueueSemaphores.clear();
@@ -1024,27 +1032,6 @@ namespace Vixen {
         if (pickedQueueFamilyIndex >= queueFamily.size())
             return std::unexpected(Error::InitializationFailed);
 
-        VkCommandPool commandPool = VK_NULL_HANDLE;
-        const VkCommandPoolCreateInfo commandPoolInfo{
-            .sType = VK_STRUCTURE_TYPE_COMMAND_POOL_CREATE_INFO,
-            .pNext = nullptr,
-            .flags = VK_COMMAND_POOL_CREATE_RESET_COMMAND_BUFFER_BIT,
-            .queueFamilyIndex = queueFamilyIndex
-        };
-        if (vkCreateCommandPool(device, &commandPoolInfo, nullptr, &commandPool) != VK_SUCCESS)
-            return std::unexpected(Error::InitializationFailed);
-
-        const VkCommandBufferAllocateInfo commandBufferInfo{
-            .sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO,
-            .pNext = nullptr,
-            .commandPool = commandPool,
-            .level = VK_COMMAND_BUFFER_LEVEL_PRIMARY,
-            .commandBufferCount = frameCount
-        };
-        std::vector<VkCommandBuffer> presentCommandBuffers{frameCount};
-        if (vkAllocateCommandBuffers(device, &commandBufferInfo, presentCommandBuffers.data()) != VK_SUCCESS)
-            return std::unexpected(Error::InitializationFailed);
-
         auto commandQueue = new VulkanCommandQueue();
         commandQueue->queueFamily = queueFamilyIndex;
         commandQueue->queueIndex = pickedQueueFamilyIndex;
@@ -1168,7 +1155,7 @@ namespace Vixen {
             for (const auto& swapchain : swapchains) {
                 const auto& vkSwapchain = dynamic_cast<VulkanSwapchain*>(swapchain);
 
-                if (vkSwapchain->presentCommandPool == nullptr) {
+                if (vkSwapchain->presentCommandPool == VK_NULL_HANDLE) {
                     VkCommandPoolCreateInfo poolInfo{
                         .sType = VK_STRUCTURE_TYPE_COMMAND_POOL_CREATE_INFO,
                         .pNext = nullptr,
