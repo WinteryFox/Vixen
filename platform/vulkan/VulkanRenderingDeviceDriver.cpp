@@ -723,6 +723,8 @@ namespace Vixen {
             vkDestroyImageView(device, swapchain->resolveImageViews[i], nullptr);
         }
 
+        swapchain->colorTargets.clear();
+        swapchain->depthTargets.clear();
         swapchain->imageIndex = std::numeric_limits<uint32_t>::max();
         swapchain->resolveImages.clear();
         swapchain->resolveImageViews.clear();
