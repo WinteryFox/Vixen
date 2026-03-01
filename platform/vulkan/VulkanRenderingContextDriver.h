@@ -11,7 +11,7 @@ namespace Vixen {
     class VulkanRenderingContextDriver final : public RenderingContextDriver {
         uint32_t instanceApiVersion;
 
-        std::vector<const char*> enabledInstanceExtensions;
+        std::vector<std::string> enabledInstanceExtensions;
 
         VkInstance instance;
 

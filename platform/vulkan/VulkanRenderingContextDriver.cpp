@@ -129,6 +129,11 @@ namespace Vixen {
                 enabledLayerNames.push_back("VK_LAYER_KHRONOS_validation");
 #endif
 
+        std::vector<const char*> enabledInstanceExtensionsStr{enabledInstanceExtensions.size()};
+        for (auto i = 0; i < enabledInstanceExtensions.size(); i++) {
+            enabledInstanceExtensionsStr[i] = enabledInstanceExtensions[i].c_str();
+        }
+
         VkInstanceCreateInfo instanceInfo{
             .sType = VK_STRUCTURE_TYPE_INSTANCE_CREATE_INFO,
             .pNext = nullptr,
@@ -141,7 +146,7 @@ namespace Vixen {
             .enabledLayerCount = static_cast<uint32_t>(enabledLayerNames.size()),
             .ppEnabledLayerNames = enabledLayerNames.data(),
             .enabledExtensionCount = static_cast<uint32_t>(enabledInstanceExtensions.size()),
-            .ppEnabledExtensionNames = enabledInstanceExtensions.data()
+            .ppEnabledExtensionNames = enabledInstanceExtensionsStr.data()
         };
 
 #ifdef DEBUG_ENABLED
