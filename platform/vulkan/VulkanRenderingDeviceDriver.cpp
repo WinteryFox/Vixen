@@ -1965,7 +1965,7 @@ namespace Vixen {
                 nullptr,
                 0,
                 nullptr,
-                0,
+                1,
                 &imageBarrier
             );
             vkFramebuffer->swapchainAcquired = false;
@@ -2201,8 +2201,8 @@ namespace Vixen {
             vkMemoryBarriers.reserve(memoryBarriers.size());
             for (const auto& [sourceAccess, targetAccess] : memoryBarriers) {
                 vkMemoryBarriers.push_back(
-                    VkMemoryBarrier2{
-                        .sType = VK_STRUCTURE_TYPE_MEMORY_BARRIER,
+                    {
+                        .sType = VK_STRUCTURE_TYPE_MEMORY_BARRIER_2,
                         .pNext = nullptr,
                         .srcStageMask = toVkPipelineStages(sourceStages),
                         .srcAccessMask = toVkAccessFlags(sourceAccess),
@@ -2217,7 +2217,7 @@ namespace Vixen {
             for (const auto& [buffer, sourceAccess, destinationAccess, offset, size] : bufferBarriers) {
                 vkBufferBarriers.push_back(
                     {
-                        .sType = VK_STRUCTURE_TYPE_BUFFER_MEMORY_BARRIER,
+                        .sType = VK_STRUCTURE_TYPE_BUFFER_MEMORY_BARRIER_2,
                         .pNext = nullptr,
                         .srcStageMask = toVkPipelineStages(sourceStages),
                         .srcAccessMask = toVkAccessFlags(sourceAccess),
