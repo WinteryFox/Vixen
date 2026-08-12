@@ -86,7 +86,7 @@ namespace Vixen {
             if (separatePresentQueue) {
                 renderingDeviceDriver->executeCommandQueueAndPresent(
                     presentQueue,
-                    {},
+                    {frames[frameIndex].semaphore},
                     {},
                     {},
                     nullptr,

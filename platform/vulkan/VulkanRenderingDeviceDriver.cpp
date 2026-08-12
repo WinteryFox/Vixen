@@ -590,6 +590,7 @@ namespace Vixen {
 
             const auto framebuffer = new VulkanFramebuffer();
             framebuffer->swapchainImage = vkSwapchain->resolveImages[i];
+            framebuffer->swapchainImageView = vkSwapchain->resolveImageViews[i];
             framebuffer->subresourceRange = {
                 .aspectMask = VK_IMAGE_ASPECT_COLOR_BIT,
                 .baseMipLevel = 0,
@@ -791,8 +792,6 @@ namespace Vixen {
         VkSemaphore semaphore;
         if (vkCreateSemaphore(device, &semaphoreInfo, nullptr, &semaphore) != VK_SUCCESS)
             return std::unexpected(Error::InitializationFailed);
-
-        vkDestroySemaphore(device, semaphore, nullptr);
 
         commandQueue->imageSemaphores[semaphoreIndex] = semaphore;
         commandQueue->freeImageSemaphores.push_back(semaphoreIndex);
@@ -2427,10 +2426,12 @@ namespace Vixen {
         const ImageSubresourceRange& subresource
     ) {
         const VkClearColorValue vkColor = {
-            color.r,
-            color.b,
-            color.g,
-            color.a
+            {
+                color.r,
+               color.g,
+               color.b,
+               color.a
+            }
         };
         const VkImageSubresourceRange vkSubresource{
             .aspectMask = toVkImageAspectFlags(subresource.aspect),
