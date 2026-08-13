@@ -698,6 +698,9 @@ namespace Vixen {
     void VulkanRenderingDeviceDriver::releaseSwapchain(
         VulkanSwapchain* swapchain
     ) {
+        // TODO: Use VK_EXT_swapchain_maintenance1 and VkSwapchainPresentFenceInfoKHR
+        vkDeviceWaitIdle(device);
+
         if (!swapchain->presentFences.empty()) {
             vkWaitForFences(device, swapchain->presentFences.size(), swapchain->presentFences.data(), VK_TRUE,
                             std::numeric_limits<uint64_t>::max());
