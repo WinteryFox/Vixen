@@ -793,6 +793,8 @@ namespace Vixen {
         if (vkCreateSemaphore(device, &semaphoreInfo, nullptr, &semaphore) != VK_SUCCESS)
             return std::unexpected(Error::InitializationFailed);
 
+        vkDestroySemaphore(device, commandQueue->imageSemaphores[semaphoreIndex], nullptr);
+
         commandQueue->imageSemaphores[semaphoreIndex] = semaphore;
         commandQueue->freeImageSemaphores.push_back(semaphoreIndex);
 
