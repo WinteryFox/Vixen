@@ -19,7 +19,6 @@ add_library(
         command/VulkanCommandQueue.h
         VulkanSurface.h
         VulkanFramebuffer.h
-        VulkanRenderPass.h
 )
 target_link_libraries(
         VkVixen
