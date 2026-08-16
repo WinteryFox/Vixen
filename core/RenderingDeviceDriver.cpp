@@ -26,85 +26,148 @@ namespace Vixen {
             );
             auto resources = compiler.get_shader_resources();
 
-            shader->stages.push_back(stage);
+            auto getDescriptorCount = [&](const spirv_cross::Resource& resource) -> std::optional<uint32_t> {
+                const auto& type = compiler.get_type(resource.type_id);
+
+                uint32_t count = 1;
+
+                for (size_t i = 0; i < type.array.size(); ++i) {
+                    if (!type.array_size_literal[i])
+                        return std::nullopt;
+
+                    count *= type.array[i];
+                }
+
+                return count;
+            };
+
+            auto addUniform = [&](
+                const spirv_cross::Resource& resource,
+                const ShaderUniformType type,
+                const uint32_t length = 0
+            ) -> bool {
+                const auto count = getDescriptorCount(resource);
+
+                if (!count)
+                    return false;
+
+                ShaderUniform uniform{
+                    .type = type,
+                    .set = compiler.get_decoration(resource.id, spv::DecorationDescriptorSet),
+                    .binding = compiler.get_decoration(resource.id, spv::DecorationBinding),
+                    .count = *count,
+                    .length = length,
+                    .stages = stage
+                };
+
+                const auto existing = std::ranges::find_if(
+                    shader->uniformSets,
+                    [&](const ShaderUniform& other) {
+                        return other.set == uniform.set && other.binding == uniform.binding;
+                    });
+
+                if (existing == shader->uniformSets.end()) {
+                    shader->uniformSets.push_back(uniform);
+
+                    return true;
+                }
+
+                if (existing->type != uniform.type || existing->count != uniform.count || existing->length != uniform.
+                    length)
+                    return false;
+
+                existing->stages |= stage;
+
+                return true;
+            };
 
             if (!resources.push_constant_buffers.empty()) {
-                const auto pushConstant = resources.push_constant_buffers[0];
-                shader->pushConstantSize = compiler.get_active_buffer_ranges(pushConstant.id)[0].range;
-                shader->pushConstantStages.push_back(stage);
+                const auto& pushConstant = resources.push_constant_buffers.front();
+
+                const auto& type = compiler.get_type(pushConstant.base_type_id);
+
+                const auto size = static_cast<uint32_t>(compiler.get_declared_struct_size(type));
+
+                shader->pushConstantSize = std::max(shader->pushConstantSize, size);
+
+                shader->pushConstantStages |= stage;
             }
 
-            for (const auto& uniformBuffer : resources.uniform_buffers) {
-                shader->uniformSets.push_back(
-                    {
-                        .type = ShaderUniformType::UniformBuffer,
-                        .binding = compiler.get_decoration(uniformBuffer.id, spv::DecorationBinding),
-                        .length = static_cast<uint32_t>(compiler.get_declared_struct_size(
-                            compiler.get_type(uniformBuffer.base_type_id)
-                        ))
-                    }
-                );
+            for (const auto& resource : resources.separate_samplers)
+                if (!addUniform(resource, ShaderUniformType::Sampler))
+                    return false;
+
+            for (const auto& resource : resources.separate_images)
+                if (!addUniform(resource, ShaderUniformType::SampledImage))
+                    return false;
+
+            for (const auto& resource : resources.sampled_images)
+                if (!addUniform(resource, ShaderUniformType::CombinedImageSampler))
+                    return false;
+
+            for (const auto& resource : resources.storage_images)
+                if (!addUniform(resource, ShaderUniformType::StorageImage))
+                    return false;
+
+            for (const auto& resource : resources.uniform_buffers) {
+                const auto& type = compiler.get_type(resource.base_type_id);
+                const auto size = static_cast<uint32_t>(compiler.get_declared_struct_size(type));
+
+                if (!addUniform(resource, ShaderUniformType::UniformBuffer, size))
+                    return false;
             }
 
-            for (const auto& sampler : resources.separate_samplers) {
-                shader->uniformSets.push_back(
-                    {
-                        .type = ShaderUniformType::Sampler,
-                        .binding = compiler.get_decoration(sampler.id, spv::DecorationBinding),
-                        .length = 0
-                    }
-                );
+            for (const auto& resource : resources.storage_buffers) {
+                const auto& type = compiler.get_type(resource.base_type_id);
+                const auto size = static_cast<uint32_t>(compiler.get_declared_struct_size(type));
+
+                if (!addUniform(resource, ShaderUniformType::StorageBuffer, size))
+                    return false;
             }
 
-            for (const auto& sampledImage : resources.sampled_images) {
-                shader->uniformSets.push_back(
-                    {
-                        .type = ShaderUniformType::CombinedImageSampler,
-                        .binding = compiler.get_decoration(sampledImage.id, spv::DecorationBinding),
-                        .length = 0
-                    }
-                );
-            }
+            for (const auto& resource : resources.subpass_inputs)
+                if (!addUniform(resource, ShaderUniformType::InputAttachment))
+                    return false;
+
+            shader->stages |= stage;
         }
 
         return true;
     }
 
     std::vector<std::byte> RenderingDeviceDriver::compileSpirvFromSource(
-        ShaderStage stage,
+        ShaderStageBits stage,
         const std::string& source,
         ShaderLanguage language
     ) {
         EShLanguage glslangLanguage;
         switch (stage) {
-            using enum ShaderStage;
+            case ShaderStageBits::Vertex:
+                glslangLanguage = EShLangVertex;
+                break;
 
-        case Vertex:
-            glslangLanguage = EShLangVertex;
-            break;
+            case ShaderStageBits::Fragment:
+                glslangLanguage = EShLangFragment;
+                break;
 
-        case Fragment:
-            glslangLanguage = EShLangFragment;
-            break;
+            case ShaderStageBits::TesselationControl:
+                glslangLanguage = EShLangTessControl;
+                break;
 
-        case TesselationControl:
-            glslangLanguage = EShLangTessControl;
-            break;
+            case ShaderStageBits::TesselationEvaluation:
+                glslangLanguage = EShLangTessEvaluation;
+                break;
 
-        case TesselationEvaluation:
-            glslangLanguage = EShLangTessEvaluation;
-            break;
+            case ShaderStageBits::Compute:
+                glslangLanguage = EShLangCompute;
+                break;
 
-        case Compute:
-            glslangLanguage = EShLangCompute;
-            break;
+            case ShaderStageBits::Geometry:
+                glslangLanguage = EShLangGeometry;
+                break;
 
-        case Geometry:
-            glslangLanguage = EShLangGeometry;
-            break;
-
-        default:
-            error<CantCreateError>("Unknown shader stage");
+            default:
+                std::unreachable();
         }
 
         glslang::InitializeProcess();
@@ -113,7 +176,7 @@ namespace Vixen {
         auto src = source.data();
         shader.setStrings(&src, 1);
         shader.setEnvInput(glslang::EShSourceGlsl, glslangLanguage, glslang::EShClientVulkan, 160);
-        shader.setEnvClient(glslang::EShClientVulkan, glslang::EShTargetVulkan_1_4);
+        shader.setEnvClient(glslang::EShClientVulkan, glslang::EShTargetVulkan_1_3);
         shader.setEnvTarget(glslang::EShTargetSpv, glslang::EShTargetSpv_1_6);
 
         glslang::TProgram program;
@@ -122,9 +185,9 @@ namespace Vixen {
         glslang::TShader::ForbidIncluder includer;
 
         auto messages = static_cast<EShMessages>(EShMsgSpvRules | EShMsgVulkanRules);
-#ifdef DEBUG_ENABLED
+        #ifdef DEBUG_ENABLED
         messages = static_cast<EShMessages>(messages | EShMsgDebugInfo);
-#endif
+        #endif
 
         if (!shader.parse(GetDefaultResources(), 160, false, messages))
             error<CantCreateError>("Failed to parse SPIR-V");
@@ -134,19 +197,19 @@ namespace Vixen {
             error<CantCreateError>("Failed to link shader");
 
         glslang::SpvOptions options{
-#ifdef DEBUG_ENABLED
+            #ifdef DEBUG_ENABLED
             .generateDebugInfo = true,
             .stripDebugInfo = false,
             .disableOptimizer = true,
             .optimizeSize = false,
             .disassemble = true,
-#else
+            #else
             .generateDebugInfo = false,
             .stripDebugInfo = true,
             .disableOptimizer = false,
             .optimizeSize = true,
             .disassemble = false,
-#endif
+            #endif
             .validate = true,
         };
 
@@ -154,7 +217,7 @@ namespace Vixen {
         std::vector<uint32_t> binary{};
         GlslangToSpv(*program.getIntermediate(glslangLanguage), binary, &logger, &options);
 
-#ifdef DEBUG_ENABLED
+        #ifdef DEBUG_ENABLED
         std::stringstream stream;
         spv::Disassemble(stream, binary);
         spdlog::debug(
@@ -162,7 +225,7 @@ namespace Vixen {
             std::string_view(source.begin(), source.end()),
             stream.str()
         );
-#endif
+        #endif
         glslang::FinalizeProcess();
 
         std::vector<std::byte> result{binary.size() * sizeof(uint32_t)};

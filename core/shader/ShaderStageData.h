@@ -6,7 +6,7 @@
 
 namespace Vixen {
     struct ShaderStageData {
-        ShaderStage stage;
+        ShaderStageBits stage;
         std::vector<std::byte> spirv;
     };
 }

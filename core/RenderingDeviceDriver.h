@@ -167,7 +167,7 @@ namespace Vixen {
         ) = 0;
 
         virtual std::vector<std::byte> compileSpirvFromSource(
-            ShaderStage stage,
+            ShaderStageBits stage,
             const std::string& source,
             ShaderLanguage language
         );

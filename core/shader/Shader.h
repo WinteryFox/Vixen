@@ -5,14 +5,12 @@
 #include "ShaderUniform.h"
 
 namespace Vixen {
-    enum class ShaderStage;
-
     struct Shader {
         std::string name;
         uint32_t pushConstantSize;
-        std::vector<ShaderStage> pushConstantStages;
+        ShaderStageFlags pushConstantStages;
         std::vector<ShaderUniform> uniformSets;
-        std::vector<ShaderStage> stages;
+        ShaderStageFlags stages;
 
         virtual ~Shader() = default;
     };

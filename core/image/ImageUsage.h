@@ -14,7 +14,7 @@ namespace Vixen {
         CopySource = 1u << 7,
         CopyDestination = 1u << 8,
         InputAttachment = 1u << 9,
-        Transient = 1u << 10
+        TransientAttachment = 1u << 10
     };
 
     template <>

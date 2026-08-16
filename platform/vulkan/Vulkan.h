@@ -382,25 +382,52 @@ namespace Vixen {
         return converted;
     }
 
-    static constexpr VkShaderStageFlagBits toVkShaderStageFlag(const ShaderStage& stage) {
-        switch (stage) {
-            case ShaderStage::Vertex:
-                return VK_SHADER_STAGE_VERTEX_BIT;
+    static constexpr VkShaderStageFlags toVkShaderStageFlags(const ShaderStageFlags& stage) {
+        VkShaderStageFlags stages = 0;
 
-            case ShaderStage::Fragment:
-                return VK_SHADER_STAGE_FRAGMENT_BIT;
+        if (stage.contains(ShaderStageBits::Vertex))
+            stages |= VK_SHADER_STAGE_VERTEX_BIT;
 
-            case ShaderStage::TesselationControl:
-                return VK_SHADER_STAGE_TESSELLATION_CONTROL_BIT;
+        if (stage.contains(ShaderStageBits::Fragment))
+            stages |= VK_SHADER_STAGE_FRAGMENT_BIT;
 
-            case ShaderStage::TesselationEvaluation:
-                return VK_SHADER_STAGE_TESSELLATION_EVALUATION_BIT;
+        if (stage.contains(ShaderStageBits::TesselationControl))
+            stages |= VK_SHADER_STAGE_TESSELLATION_CONTROL_BIT;
 
-            case ShaderStage::Compute:
-                return VK_SHADER_STAGE_COMPUTE_BIT;
+        if (stage.contains(ShaderStageBits::TesselationEvaluation))
+            stages |= VK_SHADER_STAGE_TESSELLATION_EVALUATION_BIT;
 
-            case ShaderStage::Geometry:
-                return VK_SHADER_STAGE_GEOMETRY_BIT;
+        if (stage.contains(ShaderStageBits::Compute))
+            stages |= VK_SHADER_STAGE_COMPUTE_BIT;
+
+        if (stage.contains(ShaderStageBits::Geometry))
+            stages |= VK_SHADER_STAGE_GEOMETRY_BIT;
+
+        return stages;
+    }
+
+    static constexpr VkDescriptorType toVkDescriptorType(const ShaderUniformType type) {
+        switch (type) {
+            case ShaderUniformType::Sampler:
+                return VK_DESCRIPTOR_TYPE_SAMPLER;
+
+            case ShaderUniformType::SampledImage:
+                return VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE;
+
+            case ShaderUniformType::CombinedImageSampler:
+                return VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
+
+            case ShaderUniformType::StorageImage:
+                return VK_DESCRIPTOR_TYPE_STORAGE_IMAGE;
+
+            case ShaderUniformType::UniformBuffer:
+                return VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
+
+            case ShaderUniformType::StorageBuffer:
+                return VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
+
+            case ShaderUniformType::InputAttachment:
+                return VK_DESCRIPTOR_TYPE_INPUT_ATTACHMENT;
         }
 
         std::unreachable();
@@ -420,6 +447,27 @@ namespace Vixen {
 
             case ImageType::ThreeD:
                 return VK_IMAGE_TYPE_3D;
+        }
+
+        std::unreachable();
+    }
+
+    static constexpr VkImageViewType toVkImageViewType(const ImageType& type) {
+        switch (type) {
+            case ImageType::OneD:
+                return VK_IMAGE_VIEW_TYPE_1D;
+            case ImageType::TwoD:
+                return VK_IMAGE_VIEW_TYPE_2D;
+            case ImageType::ThreeD:
+                return VK_IMAGE_VIEW_TYPE_3D;
+            case ImageType::Cube:
+                return VK_IMAGE_VIEW_TYPE_CUBE;
+            case ImageType::OneDArray:
+                return VK_IMAGE_VIEW_TYPE_1D_ARRAY;
+            case ImageType::TwoDArray:
+                return VK_IMAGE_VIEW_TYPE_2D_ARRAY;
+            case ImageType::CubeArray:
+                return VK_IMAGE_VIEW_TYPE_CUBE_ARRAY;
         }
 
         std::unreachable();

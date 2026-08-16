@@ -8,7 +8,6 @@
 #include <Vulkan.h>
 
 #include "VulkanRenderingContextDriver.h"
-#include "VulkanRenderPass.h"
 #include "VulkanSwapchain.h"
 #include "buffer/VulkanBuffer.h"
 #include "command/VulkanCommandBuffer.h"
@@ -1238,7 +1237,7 @@ namespace Vixen {
                 VkImageMemoryBarrier transferSrcBarrier{
                     .sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER,
                     .pNext = nullptr,
-                    .srcAccessMask = 0,
+                    .srcAccessMask = VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT,
                     .dstAccessMask = VK_ACCESS_TRANSFER_READ_BIT,
                     .oldLayout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL,
                     .newLayout = VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL,
@@ -1256,7 +1255,7 @@ namespace Vixen {
 
                 vkCmdPipelineBarrier(
                     commandBuffer,
-                    VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT,
+                    VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT,
                     VK_PIPELINE_STAGE_TRANSFER_BIT,
                     0,
                     0,
@@ -1557,6 +1556,15 @@ namespace Vixen {
             requiredFlags |= VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT;
         }
 
+        if (usage.contains(BufferUsageBits::Storage))
+            bufferUsageFlags |= VK_BUFFER_USAGE_STORAGE_BUFFER_BIT;
+
+        if (usage.contains(BufferUsageBits::Indirect))
+            bufferUsageFlags |= VK_BUFFER_USAGE_INDIRECT_BUFFER_BIT;
+
+        if (usage.contains(BufferUsageBits::Texel))
+            bufferUsageFlags |= VK_BUFFER_USAGE_UNIFORM_TEXEL_BUFFER_BIT;
+
         const VkBufferCreateInfo bufferCreateInfo{
             .sType = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO,
             .pNext = nullptr,
@@ -1677,7 +1685,7 @@ namespace Vixen {
             .priority = 0.0f
         };
 
-        if (format.usage.contains(ImageUsageBits::Transient)) {
+        if (format.usage.contains(ImageUsageBits::TransientAttachment)) {
             uint32_t memoryTypeIndex = 0;
             VmaAllocationCreateInfo lazyMemoryRequirements = allocationCreateInfo;
             lazyMemoryRequirements.usage = VMA_MEMORY_USAGE_GPU_LAZILY_ALLOCATED;
@@ -1720,7 +1728,7 @@ namespace Vixen {
             .pNext = nullptr,
             .flags = 0,
             .image = image,
-            .viewType = VK_IMAGE_VIEW_TYPE_2D,
+            .viewType = toVkImageViewType(format.type),
             .format = imageCreateInfo.format,
             .components = {
                 .r = static_cast<VkComponentSwizzle>(view.swizzleRed),
@@ -1836,12 +1844,10 @@ namespace Vixen {
         }
 
         o->name = name;
-
-        for (const auto& stage : o->pushConstantStages)
-            o->pushConstantStageFlags |= toVkShaderStageFlag(stage);
+        o->pushConstantStageFlags |= toVkShaderStageFlags(o->pushConstantStages);
 
         for (const auto& [stage, spirv] : stages) {
-            const auto stageFlag = toVkShaderStageFlag(stage);
+            const auto stageFlag = toVkShaderStageFlags(stage);
 
             const VkShaderModuleCreateInfo shaderModuleInfo{
                 .sType = VK_STRUCTURE_TYPE_SHADER_MODULE_CREATE_INFO,
@@ -1908,7 +1914,7 @@ namespace Vixen {
                     .flags = 0,
                     .stage = static_cast<VkShaderStageFlagBits>(stageFlag),
                     .module = module,
-                    .pName = nullptr,
+                    .pName = "main",
                     .pSpecializationInfo = nullptr
                 }
             );
@@ -2043,60 +2049,70 @@ namespace Vixen {
                     }
                 }
             );
+        }
 
-            VkRenderingAttachmentInfo depthStencilAttachment{};
+        VkRenderingAttachmentInfo depthStencilAttachment{};
 
-            const VkRenderingAttachmentInfo* depthAttachment = nullptr;
-            const VkRenderingAttachmentInfo* stencilAttachment = nullptr;
+        const VkRenderingAttachmentInfo* depthAttachment = nullptr;
+        const VkRenderingAttachmentInfo* stencilAttachment = nullptr;
 
-            if (renderingInfo.depthStencilAttachment.has_value()) {
-                const auto& attachment = *renderingInfo.depthStencilAttachment;
+        if (renderingInfo.depthStencilAttachment.has_value()) {
+            const auto& attachment = *renderingInfo.depthStencilAttachment;
 
-                DEBUG_ASSERT(attachment.image != nullptr);
+            DEBUG_ASSERT(attachment.image != nullptr);
 
-                const auto* vkImage = dynamic_cast<VulkanImage*>(attachment.image);
+            const auto* vkImage = dynamic_cast<VulkanImage*>(attachment.image);
 
-                DEBUG_ASSERT(vkImage != nullptr);
+            DEBUG_ASSERT(vkImage != nullptr);
 
-                const VkFormat format = toVkDataFormat[attachment.image->format.format];
+            const VkFormat format = toVkDataFormat[attachment.image->format.format];
 
-                DEBUG_ASSERT(attachment.resolveImage == nullptr);
+            DEBUG_ASSERT(attachment.resolveImage == nullptr);
 
-                depthStencilAttachment = {
-                    .sType = VK_STRUCTURE_TYPE_RENDERING_ATTACHMENT_INFO,
-                    .pNext = nullptr,
-                    .imageView = vkImage->imageView,
-                    .imageLayout = toVkImageLayout(attachment.layout),
-                    .resolveMode = VK_RESOLVE_MODE_NONE,
-                    .resolveImageView = VK_NULL_HANDLE,
-                    .resolveImageLayout = VK_IMAGE_LAYOUT_UNDEFINED,
-                    .loadOp = toVkLoadAction(attachment.loadAction),
-                    .storeOp = toVkStoreAction(attachment.storeAction),
-                    .clearValue = {
-                        .color = {
-                            {
-                                attachment.clearValue.color.r,
-                                attachment.clearValue.color.g,
-                                attachment.clearValue.color.b,
-                                attachment.clearValue.color.a,
-                            }
-                        }
+            depthStencilAttachment = {
+                .sType = VK_STRUCTURE_TYPE_RENDERING_ATTACHMENT_INFO,
+                .pNext = nullptr,
+                .imageView = vkImage->imageView,
+                .imageLayout = toVkImageLayout(attachment.layout),
+                .resolveMode = VK_RESOLVE_MODE_NONE,
+                .resolveImageView = VK_NULL_HANDLE,
+                .resolveImageLayout = VK_IMAGE_LAYOUT_UNDEFINED,
+                .loadOp = toVkLoadAction(attachment.loadAction),
+                .storeOp = toVkStoreAction(attachment.storeAction),
+                .clearValue = {
+                    .depthStencil = {
+                        .depth = attachment.clearValue.depth,
+                        .stencil = attachment.clearValue.stencil
                     }
-                };
-            }
+                }
+            };
+
+            if (isDepthFormat(format))
+                depthAttachment = &depthStencilAttachment;
+
+            // TODO: Support stencil; stencilAttachment = &depthStencil if format has a stencil
         }
 
         const VkRenderingInfo vkRenderingInfo{
             .sType = VK_STRUCTURE_TYPE_RENDERING_INFO,
             .pNext = nullptr,
             .flags = 0,
-            .renderArea = {},
+            .renderArea = {
+                .offset = {
+                    .x = 0,
+                    .y = 0
+                },
+                .extent = {
+                    .width = renderingInfo.extent.x,
+                    .height = renderingInfo.extent.y
+                }
+            },
             .layerCount = 1,
             .viewMask = 0,
             .colorAttachmentCount = static_cast<uint32_t>(colorAttachments.size()),
             .pColorAttachments = colorAttachments.data(),
-            .pDepthAttachment = nullptr,
-            .pStencilAttachment = nullptr
+            .pDepthAttachment = depthAttachment,
+            .pStencilAttachment = stencilAttachment
         };
 
         vkCmdBeginRendering(vkCommandBuffer->commandBuffer, &vkRenderingInfo);

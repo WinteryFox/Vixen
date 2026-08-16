@@ -14,7 +14,7 @@ namespace Vixen {
         std::span<const ResourceObject> resources;
 
     public:
-        explicit FrameGraphResources(std::span<const ResourceObject> resources);
+        explicit FrameGraphResources(std::span<const ResourceObject> resources) : resources(resources) {}
 
         [[nodiscard]] Image* get(const ImageHandle handle) const {
             return std::get<Image*>(resources[handle.id.index]);

@@ -3,7 +3,13 @@
 namespace Vixen {
     enum class ShaderUniformType {
         Sampler,
+        SampledImage,
         CombinedImageSampler,
-        UniformBuffer
+        StorageImage,
+
+        UniformBuffer,
+        StorageBuffer,
+
+        InputAttachment
     };
 }

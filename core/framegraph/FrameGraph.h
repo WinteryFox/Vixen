@@ -7,9 +7,9 @@
 
 namespace Vixen {
     class FrameGraph final {
-        std::vector<RenderPass> renderPasses;
+        std::vector<ResourceNode> resources;
 
-        std::vector<std::unique_ptr<ResourceNode>> executors;
+        std::vector<RenderPass> renderPasses;
 
         explicit FrameGraph(std::vector<RenderPass>&& renderPasses);
 
@@ -25,6 +25,8 @@ namespace Vixen {
         ~FrameGraph() = default;
 
         class Builder {
+            std::vector<ResourceNode> resources;
+
             std::vector<RenderPass> renderPasses;
 
         public:
@@ -41,20 +43,27 @@ namespace Vixen {
             ~Builder() = default;
 
             template <typename PassData, typename Setup, typename Execute>
-            Builder& addGraphicsPass(std::string name, Setup&& setup, Execute&& execute) {
+            Builder& addGraphicsPass(
+                std::string name,
+                Setup&& setup,
+                Execute&& execute
+            ) {
                 PassData data{};
 
                 RenderPass::Builder passBuilder{
+                    resources,
                     std::move(name),
                     RenderPassType::Graphics
                 };
 
                 std::invoke(std::forward<Setup>(setup), passBuilder, data);
 
-                renderPasses.emplace_back(std::move(passBuilder).build<PassData>(
-                    std::move(data),
-                    std::forward<Execute>(execute)
-                ));
+                renderPasses.emplace_back(
+                    std::move(passBuilder).build<PassData>(
+                        std::move(data),
+                        std::forward<Execute>(execute)
+                    )
+                );
 
                 return *this;
             }
