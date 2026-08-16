@@ -7,8 +7,11 @@
 #include <vk_mem_alloc.h>
 #include <Vulkan.h>
 
+#include "AttachmentInfo.h"
 #include "VulkanRenderingContextDriver.h"
 #include "VulkanSwapchain.h"
+#include "buffer/BufferImageCopyRegion.h"
+#include "buffer/BufferCopyRegion.h"
 #include "buffer/VulkanBuffer.h"
 #include "command/VulkanCommandBuffer.h"
 #include "command/VulkanCommandPool.h"
@@ -17,8 +20,10 @@
 #include "command/VulkanSemaphore.h"
 #include "core/error/CantCreateError.h"
 #include "core/error/Macros.h"
+#include "error/SwapchainError.h"
 #include "image/VulkanImage.h"
 #include "image/VulkanSampler.h"
+#include "image/ImageCopyRegion.h"
 #include "shader/VulkanShader.h"
 
 namespace Vixen {

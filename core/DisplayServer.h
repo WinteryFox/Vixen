@@ -12,11 +12,12 @@
 #include "WindowFlags.h"
 #include "WindowMode.h"
 
+struct GLFWwindow;
+
 namespace Vixen {
     class RenderingContextDriver;
     class RenderingDevice;
-    class Window;
-    struct GLFWwindow;
+    struct Window;
 
     class DisplayServer final {
         RenderingDriver driver;

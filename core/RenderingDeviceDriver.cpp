@@ -12,6 +12,8 @@
 
 #include "error/CantCreateError.h"
 #include "error/Macros.h"
+#include "shader/Shader.h"
+#include "shader/ShaderUniform.h"
 #include "shader/ShaderUniformType.h"
 
 namespace Vixen {

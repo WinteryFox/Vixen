@@ -13,7 +13,7 @@ namespace Vixen {
     struct Framebuffer;
     class RenderingContextDriver;
     class RenderingDeviceDriver;
-    class Window;
+    struct Window;
     struct CommandQueue;
 
     class RenderingDevice {

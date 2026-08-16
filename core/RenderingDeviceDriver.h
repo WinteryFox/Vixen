@@ -11,6 +11,7 @@
 #include "MemoryBarrier.h"
 #include "PipelineStageFlags.h"
 #include "QueueFamilyFlags.h"
+#include "buffer/BufferUsage.h"
 #include "glm/vec2.hpp"
 #include "glm/vec3.hpp"
 #include "glm/vec4.hpp"
@@ -18,10 +19,6 @@
 #include "image/ImageView.h"
 #include "image/SamplerState.h"
 #include "shader/ShaderStageData.h"
-
-namespace Assimp::Collada {
-    struct Sampler;
-}
 
 enum class BufferUsageFlags : uint32_t;
 
@@ -35,6 +32,7 @@ namespace Vixen {
     struct RenderingInfo;
     enum class ShaderLanguage;
     struct Sampler;
+    struct SamplerState;
     struct Image;
     class Buffer;
     struct CommandBuffer;
@@ -171,7 +169,7 @@ namespace Vixen {
 
         virtual auto createSampler(
             SamplerState state
-        ) -> std::expected<Assimp::Collada::Sampler*, Error> = 0;
+        ) -> std::expected<Sampler*, Error> = 0;
 
         virtual void destroySampler(
             Sampler* sampler
