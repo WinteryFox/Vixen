@@ -1,5 +1,7 @@
 #pragma once
 
+#include <string>
+
 namespace Vixen {
     struct Monitor {
         std::string name;

@@ -1,14 +1,21 @@
 #pragma once
 
+#include <cstdint>
+#include <expected>
 #include <map>
 #include <vector>
 
+#include "DriverDevice.h"
 #include "Frame.h"
-#include "RenderingContextDriver.h"
-#include "Window.h"
-#include "command/CommandQueue.h"
+#include "error/Error.h"
 
 namespace Vixen {
+    struct Framebuffer;
+    class RenderingContextDriver;
+    class RenderingDeviceDriver;
+    class Window;
+    struct CommandQueue;
+
     class RenderingDevice {
         RenderingContextDriver* renderingContextDriver;
         RenderingDeviceDriver* renderingDeviceDriver;

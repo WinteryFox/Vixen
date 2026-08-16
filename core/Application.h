@@ -1,9 +1,14 @@
 #pragma once
 
-#include "DisplayServer.h"
-#include "RenderingContextDriver.h"
+#include <memory>
+#include <string>
+#include <glm/vec3.hpp>
+
+#include "RenderingDriver.h"
 
 namespace Vixen {
+    class DisplayServer;
+
     class Application final {
         std::unique_ptr<DisplayServer> displayServer;
 
@@ -16,7 +21,7 @@ namespace Vixen {
     public:
         explicit Application(
             RenderingDriver renderingDriver,
-            const std::string &applicationTitle,
+            const std::string& applicationTitle,
             glm::vec3 applicationVersion,
             std::string workingDirectory = ".\\"
         );

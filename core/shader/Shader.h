@@ -1,7 +1,10 @@
 #pragma once
 
+#include <cstdint>
+#include <string>
 #include <vector>
 
+#include "ShaderStage.h"
 #include "ShaderUniform.h"
 
 namespace Vixen {

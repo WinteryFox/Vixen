@@ -1,11 +1,14 @@
 #pragma once
 
+#include <cstdint>
+
 #include "BarrierAccessFlags.h"
-#include "buffer/Buffer.h"
 
 namespace Vixen {
+    class Buffer;
+
     struct BufferBarrier {
-        Buffer *buffer;
+        Buffer* buffer;
         BarrierAccessFlags sourceAccess;
         BarrierAccessFlags destinationAccess;
         uint64_t offset;

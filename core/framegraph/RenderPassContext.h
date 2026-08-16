@@ -1,9 +1,8 @@
 #pragma once
 
-#include "FrameGraphResources.h"
-#include "command/CommandBuffer.h"
-
 namespace Vixen {
+    class FrameGraphResources;
+    struct CommandBuffer;
     class RenderingDeviceDriver;
 
     struct RenderPassContext {

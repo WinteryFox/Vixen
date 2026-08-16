@@ -1,6 +1,16 @@
 #pragma once
 
+#include <cstdint>
+#include <utility>
+#include <vector>
+#include <volk.h>
+
+#include "command/CommandQueue.h"
+
 namespace Vixen {
+    class Swapchain;
+    class Fence;
+
     struct VulkanCommandQueue final : CommandQueue {
         std::vector<VkSemaphore> imageSemaphores{};
         std::vector<Swapchain*> imageSemaphoresSwapchains{};

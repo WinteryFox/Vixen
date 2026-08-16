@@ -1,5 +1,8 @@
 #pragma once
 
+#include <cstdint>
+#include <volk.h>
+
 #include "core/command/Semaphore.h"
 
 namespace Vixen {

@@ -1,6 +1,7 @@
 #pragma once
 
-#include <glm/glm.hpp>
+#include <cstdint>
+#include <glm/vec3.hpp>
 
 #include "core/image/ImageSubresourceLayers.h"
 

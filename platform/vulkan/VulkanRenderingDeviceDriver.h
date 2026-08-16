@@ -1,16 +1,20 @@
 #pragma once
 
+#include <cstddef>
+#include <cstdint>
+#include <expected>
 #include <mutex>
+#include <string>
 #include <vector>
 #include <volk.h>
 
 #include "core/RenderingDeviceDriver.h"
+#include "image/ImageSamples.h"
 
 typedef struct VmaAllocator_T* VmaAllocator;
 
 namespace Vixen {
-    struct VulkanFramebuffer;
-    struct VulkanCommandBuffer;
+    struct ImageSubresourceLayers;
     struct VulkanCommandQueue;
     struct VulkanSwapchain;
     class VulkanRenderingContextDriver;

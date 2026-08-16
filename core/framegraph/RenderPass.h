@@ -1,19 +1,22 @@
 #pragma once
 
-#include <memory>
+#include <functional>
 #include <optional>
+#include <stdexcept>
 #include <string>
+#include <type_traits>
 #include <utility>
-#include <glm/glm.hpp>
+#include <vector>
 
 #include "ClearValue.h"
 #include "LoadAction.h"
 #include "Node.h"
-#include "RenderPassContext.h"
 #include "RenderPassType.h"
 #include "StoreAction.h"
 
 namespace Vixen {
+    struct RenderPassContext;
+
     struct RenderAttachment {
         ImageHandle handle;
 

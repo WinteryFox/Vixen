@@ -7,10 +7,11 @@
 #include "LoadAction.h"
 #include "StoreAction.h"
 #include "glm/vec2.hpp"
-#include "image/Image.h"
 #include "image/ImageLayout.h"
 
 namespace Vixen {
+    struct Image;
+
     struct AttachmentInfo {
         Image* image = nullptr;
 

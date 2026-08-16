@@ -1,5 +1,7 @@
 #pragma once
 
+#include <cstdint>
+
 #include "Bitmask.h"
 
 namespace Vixen {

@@ -4,10 +4,10 @@
 #include <variant>
 
 #include "Resource.h"
-#include "buffer/Buffer.h"
-#include "image/Image.h"
 
 namespace Vixen {
+    class Buffer;
+    struct Image;
     using ResourceObject = std::variant<std::monostate, Image*, Buffer*>;
 
     class FrameGraphResources {

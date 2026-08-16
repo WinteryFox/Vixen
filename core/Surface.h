@@ -1,9 +1,9 @@
 #pragma once
 
-#include <glm/glm.hpp>
+#include <glm/vec2.hpp>
 
-#include "WindowMode.h"
 #include "VSyncMode.h"
+#include "WindowMode.h"
 
 namespace Vixen {
     struct Surface {

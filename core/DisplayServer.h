@@ -1,17 +1,22 @@
 #pragma once
 
-#include <RenderingContextDriver.h>
-#include <spdlog/spdlog.h>
+#include <map>
+#include <string>
+#include <vector>
+#include <glm/vec2.hpp>
+#include <glm/vec3.hpp>
 
 #include "Monitor.h"
 #include "RenderingDriver.h"
 #include "VSyncMode.h"
-#include "Window.h"
 #include "WindowFlags.h"
 #include "WindowMode.h"
 
 namespace Vixen {
+    class RenderingContextDriver;
     class RenderingDevice;
+    class Window;
+    struct GLFWwindow;
 
     class DisplayServer final {
         RenderingDriver driver;

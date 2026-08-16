@@ -1,21 +1,27 @@
 #pragma once
 
-#include <vulkan/vk_enum_string_helper.h>
+#include <cstdint>
+#include <string>
+#include <utility>
+
+#include <volk.h>
+#include <glm/vec3.hpp>
 
 #ifdef DEBUG_ENABLED
-
+#include <spdlog/spdlog.h>
 #include <spdlog/sinks/stdout_color_sinks.h>
-
+#include <vulkan/vk_enum_string_helper.h>
 #endif
 
-#include <glm/glm.hpp>
-#include <spdlog/spdlog.h>
-
 #include "core/BarrierAccessFlags.h"
-#include "core/Bitmask.h"
+#include "core/IndexFormat.h"
 #include "core/LoadAction.h"
 #include "core/PipelineStageFlags.h"
+#include "core/QueueFamilyFlags.h"
 #include "core/StoreAction.h"
+
+#include "core/command/CommandBufferType.h"
+
 #include "core/image/ImageAspectFlags.h"
 #include "core/image/ImageLayout.h"
 #include "core/image/ImageSamples.h"
@@ -23,7 +29,9 @@
 #include "core/image/ImageType.h"
 #include "core/image/SamplerBorderColor.h"
 #include "core/image/SamplerRepeatMode.h"
+
 #include "core/shader/ShaderStage.h"
+#include "core/shader/ShaderUniformType.h"
 
 namespace Vixen {
     constexpr VkComponentSwizzle toVkComponentSwizzle(const ImageSwizzle swizzle) {

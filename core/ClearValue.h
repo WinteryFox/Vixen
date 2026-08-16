@@ -1,5 +1,6 @@
 #pragma once
 
+#include <cstdint>
 #include <glm/vec4.hpp>
 
 namespace Vixen {

@@ -1,4 +1,5 @@
 #include "core/Application.h"
+#include "spdlog/spdlog.h"
 
 int main() {
     try {

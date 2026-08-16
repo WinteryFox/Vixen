@@ -1,10 +1,12 @@
 #pragma once
 
+#include <cstdint>
+#include <volk.h>
+
+#include "buffer/BufferUsage.h"
 #include "core/buffer/Buffer.h"
 
-typedef struct VmaAllocation_T *VmaAllocation;
-class VulkanRenderingDevice;
-enum class BufferUsageFlags : uint32_t;
+typedef VmaAllocation_T *VmaAllocation;
 
 namespace Vixen {
     struct VulkanBuffer final : Buffer {

@@ -1,7 +1,11 @@
 #pragma once
 
+#include <functional>
+#include <string>
+#include <utility>
 #include <vector>
 
+#include "Node.h"
 #include "RenderPass.h"
 #include "RenderPassType.h"
 

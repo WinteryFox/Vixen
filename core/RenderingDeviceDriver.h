@@ -1,44 +1,55 @@
 #pragma once
 
+#include <cstddef>
+#include <cstdint>
 #include <expected>
 #include <string>
+#include <vector>
 
-#include "AttachmentInfo.h"
 #include "BufferBarrier.h"
-#include "ClearValue.h"
-#include "Framebuffer.h"
 #include "ImageBarrier.h"
-#include "IndexFormat.h"
 #include "MemoryBarrier.h"
 #include "PipelineStageFlags.h"
 #include "QueueFamilyFlags.h"
-#include "Surface.h"
-#include "Swapchain.h"
-#include "buffer/Buffer.h"
-#include "buffer/BufferCopyRegion.h"
-#include "buffer/BufferImageCopyRegion.h"
-#include "buffer/BufferUsage.h"
-#include "command/CommandBuffer.h"
-#include "command/CommandPool.h"
-#include "command/CommandQueue.h"
-#include "command/Fence.h"
-#include "command/Semaphore.h"
-#include "error/Error.h"
-#include "error/SwapchainError.h"
-#include "framegraph/RenderPass.h"
-#include "image/Image.h"
-#include "image/ImageCopyRegion.h"
+#include "glm/vec2.hpp"
+#include "glm/vec3.hpp"
+#include "glm/vec4.hpp"
 #include "image/ImageFormat.h"
-#include "image/ImageLayout.h"
-#include "image/ImageSubresourceRange.h"
 #include "image/ImageView.h"
-#include "image/Sampler.h"
 #include "image/SamplerState.h"
-#include "shader/Shader.h"
-#include "shader/ShaderLanguage.h"
 #include "shader/ShaderStageData.h"
 
+namespace Assimp::Collada {
+    struct Sampler;
+}
+
+enum class BufferUsageFlags : uint32_t;
+
 namespace Vixen {
+    struct BufferImageCopyRegion;
+    struct ImageSubresourceRange;
+    struct ImageCopyRegion;
+    enum class ImageLayout;
+    struct BufferCopyRegion;
+    enum class IndexFormat;
+    struct RenderingInfo;
+    enum class ShaderLanguage;
+    struct Sampler;
+    struct Image;
+    class Buffer;
+    struct CommandBuffer;
+    struct CommandPool;
+    enum class CommandBufferType;
+    struct Semaphore;
+    class Fence;
+    enum class SwapchainError;
+    enum class Error;
+    struct Shader;
+    struct Surface;
+    class Swapchain;
+    struct CommandQueue;
+    struct Framebuffer;
+
     class RenderingDeviceDriver {
     protected:
         static bool reflectShader(
@@ -160,7 +171,7 @@ namespace Vixen {
 
         virtual auto createSampler(
             SamplerState state
-        ) -> std::expected<Sampler*, Error> = 0;
+        ) -> std::expected<Assimp::Collada::Sampler*, Error> = 0;
 
         virtual void destroySampler(
             Sampler* sampler

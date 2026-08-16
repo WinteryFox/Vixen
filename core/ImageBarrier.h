@@ -1,12 +1,14 @@
 #pragma once
 
-#include "image/Image.h"
+#include "BarrierAccessFlags.h"
 #include "image/ImageLayout.h"
 #include "image/ImageSubresourceRange.h"
 
 namespace Vixen {
+    struct Image;
+
     struct ImageBarrier {
-        Image *image;
+        Image* image;
         BarrierAccessFlags sourceAccess;
         BarrierAccessFlags destinationAccess;
         ImageLayout oldLayout;

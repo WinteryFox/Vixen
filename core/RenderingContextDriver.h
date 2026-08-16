@@ -1,13 +1,18 @@
 #pragma once
 
+#include <cstdint>
+#include <expected>
 #include <map>
+#include <vector>
 
 #include "DriverDevice.h"
-#include "RenderingDeviceDriver.h"
+#include "VSyncMode.h"
+#include "error/Error.h"
 
 namespace Vixen {
     struct Window;
     struct Surface;
+    class RenderingDeviceDriver;
 
     class RenderingContextDriver {
         std::map<Window*, Surface*> surfaces;

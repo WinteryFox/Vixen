@@ -5,8 +5,6 @@
 #include "CommandBufferType.h"
 
 namespace Vixen {
-    enum class CommandBufferType;
-
     struct CommandPool {
         uint32_t queueFamily{};
 

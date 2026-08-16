@@ -1,5 +1,7 @@
 #pragma once
 
+#include <volk.h>
+
 #include "core/Framebuffer.h"
 
 namespace Vixen {

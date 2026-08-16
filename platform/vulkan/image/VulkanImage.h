@@ -1,5 +1,9 @@
 #pragma once
 
+#include <volk.h>
+
+#include "core/image/Image.h"
+
 struct VmaAllocation_T;
 typedef VmaAllocation_T* VmaAllocation;
 

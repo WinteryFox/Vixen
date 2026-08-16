@@ -1,5 +1,7 @@
 #pragma once
 
+#include <cstdint=>
+
 namespace Vixen {
     enum class SamplerRepeatMode : uint32_t {
         Repeat,

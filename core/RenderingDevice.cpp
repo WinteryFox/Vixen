@@ -4,7 +4,10 @@
 #include <ranges>
 #include <spdlog/spdlog.h>
 
+#include "RenderingContextDriver.h"
+#include "RenderingDeviceDriver.h"
 #include "error/Macros.h"
+#include "error/SwapchainError.h"
 
 namespace Vixen {
     void RenderingDevice::waitForFrame(

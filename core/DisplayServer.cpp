@@ -4,6 +4,7 @@
 #include "DisplayServer.h"
 
 #include "RenderingDevice.h"
+#include "Window.h"
 #include "error/CantCreateError.h"
 #include "error/Macros.h"
 #include "platform/vulkan/VulkanSurface.h"

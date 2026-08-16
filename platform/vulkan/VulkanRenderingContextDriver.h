@@ -1,13 +1,16 @@
 #pragma once
 
+#include <cstdint>
+#include <string>
 #include <vector>
 #include <volk.h>
-#include <glm/glm.hpp>
+#include <glm/vec3.hpp>
 
-#include "VulkanSurface.h"
 #include "core/RenderingContextDriver.h"
 
 namespace Vixen {
+    struct VulkanSurface;
+
     class VulkanRenderingContextDriver final : public RenderingContextDriver {
         uint32_t instanceApiVersion;
 
