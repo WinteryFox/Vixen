@@ -17,11 +17,11 @@ namespace Vixen {
         explicit FrameGraphResources(std::span<const ResourceObject> resources);
 
         [[nodiscard]] Image* get(const ImageHandle handle) const {
-            return std::get<Image*>(resources.at(handle.id.index));
+            return std::get<Image*>(resources[handle.id.index]);
         }
 
         [[nodiscard]] Buffer* get(const BufferHandle handle) const {
-            return std::get<Buffer*>(resources.at(handle.id.index));
+            return std::get<Buffer*>(resources[handle.id.index]);
         }
     };
 }

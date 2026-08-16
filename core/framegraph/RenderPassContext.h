@@ -1,10 +1,11 @@
 #pragma once
 
 #include "FrameGraphResources.h"
-#include "RenderingDeviceDriver.h"
 #include "command/CommandBuffer.h"
 
 namespace Vixen {
+    class RenderingDeviceDriver;
+
     struct RenderPassContext {
         RenderingDeviceDriver& driver;
 

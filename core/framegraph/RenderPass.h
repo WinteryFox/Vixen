@@ -169,7 +169,7 @@ namespace Vixen {
 
                 resourceUsages.emplace_back(
                     ImageResourceUsage{
-                        .handle = handle,
+                        .handle = output,
                         .access = ResourceAccess::Write,
                         .usage = usage,
                         .stages = stages
@@ -188,7 +188,7 @@ namespace Vixen {
 
                 resourceUsages.emplace_back(
                     ImageResourceUsage{
-                        .handle = handle,
+                        .handle = output,
                         .access = ResourceAccess::ReadWrite,
                         .usage = usage,
                         .stages = stages
@@ -226,7 +226,7 @@ namespace Vixen {
 
                 resourceUsages.emplace_back(
                     BufferResourceUsage{
-                        .handle = handle,
+                        .handle = output,
                         .access = ResourceAccess::Write,
                         .usage = usage,
                         .stages = stages
@@ -245,7 +245,7 @@ namespace Vixen {
 
                 resourceUsages.emplace_back(
                     BufferResourceUsage{
-                        .handle = handle,
+                        .handle = output,
                         .access = ResourceAccess::ReadWrite,
                         .usage = usage,
                         .stages = stages
@@ -278,7 +278,7 @@ namespace Vixen {
 
                 colorAttachments.emplace_back(
                     RenderAttachment{
-                        .handle = handle,
+                        .handle = output,
                         .loadAction = loadAction,
                         .storeAction = storeAction,
                         .clearValue = clearValue
@@ -313,7 +313,7 @@ namespace Vixen {
                                         );
 
                 depthStencilAttachment = RenderAttachment{
-                    .handle = handle,
+                    .handle = output,
                     .loadAction = loadAction,
                     .storeAction = storeAction,
                     .clearValue = clearValue
