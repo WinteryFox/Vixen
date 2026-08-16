@@ -29,5 +29,8 @@ namespace Vixen {
         StorageClear = 1 << 20
     };
 
+    template <>
+    struct EnableFlags<BarrierAccessBits> : std::true_type {};
+
     using BarrierAccessFlags = Flags<BarrierAccessBits>;
 }

@@ -74,7 +74,7 @@ namespace Vixen {
 
         auto prepareScreenForDrawing(
             Window* window
-        ) -> std::expected<void, Error>;
+        ) -> std::expected<Framebuffer*, Error>;
 
         void destroyScreen(
             Window* window

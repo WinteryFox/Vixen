@@ -1,9 +1,9 @@
 #pragma once
+
+#include "ImageDataFormat.h"
 #include "ImageSwizzle.h"
 
 namespace Vixen {
-    enum class ImageSwizzle;
-
     struct ImageView {
         ImageDataFormat format;
         ImageSwizzle swizzleRed;

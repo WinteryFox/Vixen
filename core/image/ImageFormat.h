@@ -2,10 +2,10 @@
 
 #include <cstdint>
 
+#include "ImageDataFormat.h"
 #include "ImageSamples.h"
 #include "ImageType.h"
 #include "ImageUsage.h"
-#include "core/ImageDataFormat.h"
 
 namespace Vixen {
     struct ImageFormat {

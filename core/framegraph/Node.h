@@ -6,9 +6,16 @@
 #include "Resource.h"
 #include "buffer/BufferFormat.h"
 #include "image/ImageFormat.h"
+#include "image/ImageView.h"
 
 namespace Vixen {
-    using ResourceDescription = std::variant<ImageFormat, BufferFormat>;
+    struct ImageResourceDescription {
+        ImageFormat format;
+
+        ImageView view;
+    };
+
+    using ResourceDescription = std::variant<ImageResourceDescription, BufferFormat>;
 
     struct ResourceNode {
         std::string name;
@@ -18,5 +25,9 @@ namespace Vixen {
         ResourceLifetime lifetime;
 
         ResourceDescription description;
+
+        uint32_t latestVersion;
+
+        bool imported = false;
     };
 }

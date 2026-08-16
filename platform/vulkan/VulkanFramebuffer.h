@@ -4,9 +4,12 @@
 
 namespace Vixen {
     struct VulkanFramebuffer final : Framebuffer {
-        VkImage colorImage;
-        VkImageView colorImageView;
-        VkImageSubresourceRange subresourceRange;
-        bool swapchainAcquired;
+        VkImage resolveImage;
+
+        VkImageView resolveImageView;
+
+        VkImageSubresourceRange resolveSubresourceRange;
+
+        bool swapchainAcquired = false;
     };
 }

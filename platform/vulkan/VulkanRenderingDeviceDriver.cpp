@@ -1996,11 +1996,7 @@ namespace Vixen {
 
     void VulkanRenderingDeviceDriver::commandBeginRenderPass(
         CommandBuffer* commandBuffer,
-        RenderPass* renderPass,
-        Framebuffer* framebuffer,
-        CommandBufferType commandBufferType,
-        const glm::uvec2& rectangle,
-        const std::vector<ClearValue>& clearValues
+        const RenderingInfo& renderingInfo
     ) {
         const auto* vkCommandBuffer = dynamic_cast<VulkanCommandBuffer*>(commandBuffer);
         auto* vkFramebuffer = dynamic_cast<VulkanFramebuffer*>(framebuffer);

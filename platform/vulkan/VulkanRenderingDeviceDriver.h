@@ -233,11 +233,7 @@ namespace Vixen {
 
         void commandBeginRenderPass(
             CommandBuffer* commandBuffer,
-            RenderPass* renderPass,
-            Framebuffer* framebuffer,
-            CommandBufferType commandBufferType,
-            const glm::uvec2& rectangle,
-            const std::vector<ClearValue>& clearValues
+            const RenderingInfo& renderingInfo
         ) override;
 
         void commandEndRenderPass(

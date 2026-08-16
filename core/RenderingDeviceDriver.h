@@ -3,6 +3,7 @@
 #include <expected>
 #include <string>
 
+#include "AttachmentInfo.h"
 #include "BufferBarrier.h"
 #include "ClearValue.h"
 #include "Framebuffer.h"
@@ -186,11 +187,7 @@ namespace Vixen {
 
         virtual void commandBeginRenderPass(
             CommandBuffer* commandBuffer,
-            RenderPass* renderPass,
-            Framebuffer* framebuffer,
-            CommandBufferType commandBufferType,
-            const glm::uvec2& rectangle,
-            const std::vector<ClearValue>& clearValues
+            const RenderingInfo& renderingInfo
         ) = 0;
 
         virtual void commandEndRenderPass(

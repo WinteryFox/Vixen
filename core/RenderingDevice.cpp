@@ -258,7 +258,7 @@ namespace Vixen {
 
     auto RenderingDevice::prepareScreenForDrawing(
         Window* window
-    ) -> std::expected<void, Error> {
+    ) -> std::expected<Framebuffer*, Error> {
         const auto& pair = swapchains.find(window);
         DEBUG_ASSERT(pair != swapchains.end());
         const auto& swapchain = pair->second;
@@ -288,7 +288,7 @@ namespace Vixen {
 
         frames[frameIndex].swapchainsToPresent.push_back(swapchain);
 
-        return {};
+        return framebuffer.value();
     }
 
     void RenderingDevice::destroyScreen(

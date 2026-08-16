@@ -26,5 +26,8 @@ namespace Vixen {
         ClearStorage = 1u << 17
     };
 
+    template <>
+    struct EnableFlags<PipelineStageBits> : std::true_type {};
+
     using PipelineStageFlags = Flags<PipelineStageBits>;
 } // namespace Vixen

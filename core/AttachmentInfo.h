@@ -1,26 +1,34 @@
 #pragma once
 
-#include <memory>
+#include <optional>
 
+#include "ClearValue.h"
 #include "LoadAction.h"
 #include "StoreAction.h"
+#include "glm/vec2.hpp"
+#include "image/Image.h"
+#include "image/ImageLayout.h"
 
 namespace Vixen {
-    class VulkanImageView;
-
     struct AttachmentInfo {
-        LoadAction loadAction;
+        Image* image = nullptr;
 
-        StoreAction storeAction;
+        ImageLayout layout = ImageLayout::ColorAttachmentOptimal;
 
-        VkImageView loadStoreTarget;
+        LoadAction loadAction = LoadAction::DontCare;
 
-        VkImageView resolveTarget;
+        StoreAction storeAction = StoreAction::Store;
 
-        glm::vec4 clearColor;
+        Image* resolveImage = nullptr;
 
-        float clearDepth;
+        ClearValue clearValue{};
+    };
 
-        uint32_t clearStencil;
+    struct RenderingInfo {
+        glm::uvec2 extent;
+
+        std::vector<AttachmentInfo> colorAttachments;
+
+        std::optional<AttachmentInfo> depthStencilAttachment;
     };
 }
