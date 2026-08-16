@@ -548,7 +548,7 @@ namespace Vixen {
 
             auto colorTarget = createImage(
                 {
-                    .format = static_cast<DataFormat>(vkSwapchain->format - 1),
+                    .format = static_cast<ImageDataFormat>(vkSwapchain->format - 1),
                     .width = swapchainInfo.imageExtent.width,
                     .height = swapchainInfo.imageExtent.height,
                     .depth = 1,
@@ -556,10 +556,10 @@ namespace Vixen {
                     .mipmapCount = 1,
                     .type = ImageType::TwoD,
                     .samples = ImageSamples::One,
-                    .usage = ImageUsage::ColorAttachment | ImageUsage::CopySource
+                    .usage = ImageUsageBits::ColorAttachment | ImageUsageBits::CopySource
                 },
                 {
-                    .format = static_cast<DataFormat>(vkSwapchain->format - 1),
+                    .format = static_cast<ImageDataFormat>(vkSwapchain->format - 1),
                     .swizzleRed = ImageSwizzle::Red,
                     .swizzleGreen = ImageSwizzle::Green,
                     .swizzleBlue = ImageSwizzle::Blue,
@@ -577,7 +577,7 @@ namespace Vixen {
                     .mipmapCount = 1,
                     .type = ImageType::TwoD,
                     .samples = ImageSamples::One,
-                    .usage = ImageUsage::DepthStencilAttachment
+                    .usage = ImageUsageBits::DepthStencilAttachment
                 },
                 {
                     .format = D32_SFLOAT_S8_UINT,
@@ -1521,7 +1521,7 @@ namespace Vixen {
     }
 
     auto VulkanRenderingDeviceDriver::createBuffer(
-        const BufferUsage usage,
+        const BufferUsageFlags usage,
         const uint32_t count,
         const uint32_t stride
     ) -> std::expected<Buffer*, Error> {
@@ -1534,22 +1534,22 @@ namespace Vixen {
         VkBufferUsageFlags bufferUsageFlags = 0;
         VkMemoryPropertyFlags requiredFlags = 0;
 
-        if (usage & BufferUsage::Vertex)
+        if (usage.contains(BufferUsageBits::Vertex))
             bufferUsageFlags |= VK_BUFFER_USAGE_VERTEX_BUFFER_BIT;
 
-        if (usage & BufferUsage::Index)
+        if (usage.contains(BufferUsageBits::Index))
             bufferUsageFlags |= VK_BUFFER_USAGE_INDEX_BUFFER_BIT;
 
-        if (usage & BufferUsage::CopySource) {
+        if (usage.contains(BufferUsageBits::CopySource)) {
             allocationFlags |= VMA_ALLOCATION_CREATE_MAPPED_BIT |
                 VMA_ALLOCATION_CREATE_HOST_ACCESS_SEQUENTIAL_WRITE_BIT;
             bufferUsageFlags |= VK_BUFFER_USAGE_TRANSFER_SRC_BIT;
         }
 
-        if (usage & BufferUsage::CopyDestination)
+        if (usage.contains(BufferUsageBits::CopyDestination))
             bufferUsageFlags |= VK_BUFFER_USAGE_TRANSFER_DST_BIT;
 
-        if (usage & BufferUsage::Uniform) {
+        if (usage.contains(BufferUsageBits::Uniform)) {
             allocationFlags |= VMA_ALLOCATION_CREATE_MAPPED_BIT |
                 VMA_ALLOCATION_CREATE_HOST_ACCESS_SEQUENTIAL_WRITE_BIT;
             bufferUsageFlags |= VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT;
@@ -1626,7 +1626,7 @@ namespace Vixen {
             .mipLevels = format.mipmapCount,
             .arrayLayers = format.layerCount,
             .samples = findClosestSupportedSampleCount(format.samples),
-            .tiling = format.usage & ImageUsage::CpuRead ? VK_IMAGE_TILING_LINEAR : VK_IMAGE_TILING_OPTIMAL,
+            .tiling = format.usage.contains(ImageUsageBits::CpuRead) ? VK_IMAGE_TILING_LINEAR : VK_IMAGE_TILING_OPTIMAL,
             .usage = 0,
             .sharingMode = VK_SHARING_MODE_EXCLUSIVE,
             .queueFamilyIndexCount = 0,
@@ -1637,33 +1637,33 @@ namespace Vixen {
         if (format.type == ImageType::Cube || format.type == ImageType::CubeArray)
             imageCreateInfo.flags |= VK_IMAGE_CREATE_CUBE_COMPATIBLE_BIT;
 
-        if (format.usage & ImageUsage::Sampling)
+        if (format.usage.contains(ImageUsageBits::Sampling))
             imageCreateInfo.usage |= VK_IMAGE_USAGE_SAMPLED_BIT;
 
-        if (format.usage & ImageUsage::Storage)
+        if (format.usage.contains(ImageUsageBits::Storage))
             imageCreateInfo.usage |= VK_IMAGE_USAGE_STORAGE_BIT;
 
-        if (format.usage & ImageUsage::ColorAttachment)
+        if (format.usage.contains(ImageUsageBits::ColorAttachment))
             imageCreateInfo.usage |= VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT;
 
-        if (format.usage & ImageUsage::DepthStencilAttachment)
+        if (format.usage.contains(ImageUsageBits::DepthStencilAttachment))
             imageCreateInfo.usage |= VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT;
 
-        if (format.usage & ImageUsage::InputAttachment)
+        if (format.usage.contains(ImageUsageBits::InputAttachment))
             imageCreateInfo.usage |= VK_IMAGE_USAGE_INPUT_ATTACHMENT_BIT;
 
-        if (format.usage & ImageUsage::Update)
+        if (format.usage.contains(ImageUsageBits::Update))
             imageCreateInfo.usage |= VK_IMAGE_USAGE_TRANSFER_DST_BIT;
 
-        if (format.usage & ImageUsage::CopySource)
+        if (format.usage.contains(ImageUsageBits::CopySource))
             imageCreateInfo.usage |= VK_IMAGE_USAGE_TRANSFER_SRC_BIT;
 
-        if (format.usage & ImageUsage::CopyDestination)
+        if (format.usage.contains(ImageUsageBits::CopyDestination))
             imageCreateInfo.usage |= VK_IMAGE_USAGE_TRANSFER_DST_BIT;
 
         VmaAllocationCreateInfo allocationCreateInfo{
             .flags = static_cast<VmaAllocationCreateFlags>(
-                format.usage & ImageUsage::CpuRead
+                format.usage.contains(ImageUsageBits::CpuRead)
                     ? VMA_ALLOCATION_CREATE_HOST_ACCESS_RANDOM_BIT
                     : 0
             ),
@@ -1676,7 +1676,7 @@ namespace Vixen {
             .priority = 0.0f
         };
 
-        if (format.usage & ImageUsage::Transient) {
+        if (format.usage.contains(ImageUsageBits::Transient)) {
             uint32_t memoryTypeIndex = 0;
             VmaAllocationCreateInfo lazyMemoryRequirements = allocationCreateInfo;
             lazyMemoryRequirements.usage = VMA_MEMORY_USAGE_GPU_LAZILY_ALLOCATED;
@@ -1692,12 +1692,10 @@ namespace Vixen {
                 imageCreateInfo.usage &= VK_IMAGE_USAGE_TRANSIENT_ATTACHMENT_BIT | VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT
                     | VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT |
                     VK_IMAGE_USAGE_INPUT_ATTACHMENT_BIT;
-            }
-            else {
+            } else {
                 allocationCreateInfo.preferredFlags = VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT;
             }
-        }
-        else {
+        } else {
             allocationCreateInfo.preferredFlags = VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT;
         }
 
@@ -1730,7 +1728,7 @@ namespace Vixen {
                 .a = static_cast<VkComponentSwizzle>(view.swizzleAlpha)
             },
             .subresourceRange = {
-                .aspectMask = static_cast<VkImageAspectFlags>(format.usage & ImageUsage::DepthStencilAttachment
+                .aspectMask = static_cast<VkImageAspectFlags>(format.usage.contains(ImageUsageBits::DepthStencilAttachment)
                                                                   ? VK_IMAGE_ASPECT_DEPTH_BIT |
                                                                   VK_IMAGE_ASPECT_STENCIL_BIT
                                                                   : VK_IMAGE_ASPECT_COLOR_BIT),

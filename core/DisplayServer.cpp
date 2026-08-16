@@ -30,10 +30,10 @@ namespace Vixen {
     ) {
         glfwWindowHint(GLFW_CLIENT_API, GLFW_NO_API);
         glfwWindowHint(GLFW_VISIBLE, GLFW_TRUE);
-        glfwWindowHint(GLFW_RESIZABLE, flags & WindowFlags::Resizable ? GLFW_TRUE : GLFW_FALSE);
-        glfwWindowHint(GLFW_TRANSPARENT_FRAMEBUFFER, flags & WindowFlags::Transparent ? GLFW_TRUE : GLFW_FALSE);
-        glfwWindowHint(GLFW_DECORATED, flags & WindowFlags::Borderless ? GLFW_FALSE : GLFW_TRUE);
-        glfwWindowHint(GLFW_FLOATING, flags & WindowFlags::AlwaysOnTop ? GLFW_TRUE : GLFW_FALSE);
+        glfwWindowHint(GLFW_RESIZABLE, flags.contains(WindowBits::Resizable) ? GLFW_TRUE : GLFW_FALSE);
+        glfwWindowHint(GLFW_TRANSPARENT_FRAMEBUFFER, flags.contains(WindowBits::Transparent) ? GLFW_TRUE : GLFW_FALSE);
+        glfwWindowHint(GLFW_DECORATED, flags.contains(WindowBits::Borderless) ? GLFW_FALSE : GLFW_TRUE);
+        glfwWindowHint(GLFW_FLOATING, flags.contains(WindowBits::AlwaysOnTop) ? GLFW_TRUE : GLFW_FALSE);
 
         auto *handle = glfwCreateWindow(static_cast<int>(resolution.x), static_cast<int>(resolution.y),
                                         title.c_str(), nullptr, nullptr);

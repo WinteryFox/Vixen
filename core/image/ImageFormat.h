@@ -5,11 +5,11 @@
 #include "ImageSamples.h"
 #include "ImageType.h"
 #include "ImageUsage.h"
-#include "core/DataFormat.h"
+#include "core/ImageDataFormat.h"
 
 namespace Vixen {
     struct ImageFormat {
-        DataFormat format;
+        ImageDataFormat format;
         uint32_t width;
         uint32_t height;
         uint32_t depth;
@@ -17,6 +17,6 @@ namespace Vixen {
         uint32_t mipmapCount;
         ImageType type;
         ImageSamples samples;
-        ImageUsage usage;
+        ImageUsageFlags usage;
     };
 }

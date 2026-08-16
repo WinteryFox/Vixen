@@ -2,7 +2,7 @@
 
 #include <volk.h>
 
-#include "core/RenderPass.h"
+#include "../../core/framegraph/RenderPass.h"
 
 namespace Vixen {
     class VulkanRenderPass final : public RenderPass {

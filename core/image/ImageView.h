@@ -5,7 +5,7 @@ namespace Vixen {
     enum class ImageSwizzle;
 
     struct ImageView {
-        DataFormat format;
+        ImageDataFormat format;
         ImageSwizzle swizzleRed;
         ImageSwizzle swizzleGreen;
         ImageSwizzle swizzleBlue;

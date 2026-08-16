@@ -1,7 +1,7 @@
 #pragma once
 
 namespace Vixen {
-    enum DataFormat {
+    enum ImageDataFormat {
         R4G4_UNORM_PACK8,
 		R4G4B4A4_UNORM_PACK16,
 		B4G4R4A4_UNORM_PACK16,

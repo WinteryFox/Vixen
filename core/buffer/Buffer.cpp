@@ -2,7 +2,7 @@
 
 namespace Vixen {
     Buffer::Buffer(
-        const BufferUsage usage,
+        const BufferUsageFlags usage,
         const uint32_t count,
         const uint32_t stride
     ) : usage(usage),
@@ -10,7 +10,7 @@ namespace Vixen {
         stride(stride) {
     }
 
-    BufferUsage Buffer::getUsage() const {
+    BufferUsageFlags Buffer::getUsage() const {
         return usage;
     }
 

@@ -1,10 +1,11 @@
 #pragma once
+
 #include <cstdint>
 
 #include "Bitmask.h"
 
 namespace Vixen {
-    enum class BarrierAccessFlags : uint32_t {
+    enum class BarrierAccessBits : uint32_t {
         IndirectCommandsRead = 1 << 0,
         IndexRead = 1 << 1,
         VertexAttributeRead = 1 << 2,
@@ -28,5 +29,5 @@ namespace Vixen {
         StorageClear = 1 << 20
     };
 
-    DECLARE_BITMASK(BarrierAccessFlags);
+    using BarrierAccessFlags = Flags<BarrierAccessBits>;
 }

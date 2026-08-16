@@ -11,20 +11,20 @@
 #include "MemoryBarrier.h"
 #include "PipelineStageFlags.h"
 #include "QueueFamilyFlags.h"
-#include "RenderPass.h"
 #include "Surface.h"
 #include "Swapchain.h"
-#include "command/CommandPool.h"
-#include "command/CommandBuffer.h"
 #include "buffer/Buffer.h"
 #include "buffer/BufferCopyRegion.h"
 #include "buffer/BufferImageCopyRegion.h"
 #include "buffer/BufferUsage.h"
+#include "command/CommandBuffer.h"
+#include "command/CommandPool.h"
 #include "command/CommandQueue.h"
 #include "command/Fence.h"
 #include "command/Semaphore.h"
 #include "error/Error.h"
 #include "error/SwapchainError.h"
+#include "framegraph/RenderPass.h"
 #include "image/Image.h"
 #include "image/ImageCopyRegion.h"
 #include "image/ImageFormat.h"
@@ -109,7 +109,7 @@ namespace Vixen {
         ) = 0;
 
         virtual auto createBuffer(
-            BufferUsage usage,
+            BufferUsageFlags usage,
             uint32_t count,
             uint32_t stride
         ) -> std::expected<Buffer*, Error> = 0;

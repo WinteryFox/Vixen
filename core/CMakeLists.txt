@@ -19,7 +19,7 @@ add_library(
         error/CantCreateError.h
         buffer/Buffer.h
         MemoryAllocationType.h
-        DataFormat.h
+        ImageDataFormat.h
         image/ImageSwizzle.h
         image/ImageLayout.h
         image/ImageAspectFlags.h
@@ -75,12 +75,17 @@ add_library(
         RenderingDevice.cpp
         RenderingDevice.h
         DriverDevice.h
-        RenderPass.h
+        framegraph/RenderPass.h
         ClearValue.h
         error/SwapchainError.h
-        RenderGraph.cpp
-        RenderGraph.h
+        framegraph/FrameGraph.cpp
+        framegraph/FrameGraph.h
         RenderingContextDriver.cpp
+        framegraph/RenderPass.cpp
+        framegraph/RenderPassType.h
+        framegraph/Resource.h
+        framegraph/Node.h
+        buffer/BufferFormat.h
 )
 target_link_libraries(
         Vixen

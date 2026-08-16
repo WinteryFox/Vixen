@@ -26,28 +26,60 @@
 #include "core/shader/ShaderStage.h"
 
 namespace Vixen {
-    static_assert(ENUM_MEMBERS_EQUAL(ImageSwizzle::Identity, VK_COMPONENT_SWIZZLE_IDENTITY));
-    static_assert(ENUM_MEMBERS_EQUAL(ImageSwizzle::Zero, VK_COMPONENT_SWIZZLE_ZERO));
-    static_assert(ENUM_MEMBERS_EQUAL(ImageSwizzle::One, VK_COMPONENT_SWIZZLE_ONE));
-    static_assert(ENUM_MEMBERS_EQUAL(ImageSwizzle::Red, VK_COMPONENT_SWIZZLE_R));
-    static_assert(ENUM_MEMBERS_EQUAL(ImageSwizzle::Green, VK_COMPONENT_SWIZZLE_G));
-    static_assert(ENUM_MEMBERS_EQUAL(ImageSwizzle::Blue, VK_COMPONENT_SWIZZLE_B));
-    static_assert(ENUM_MEMBERS_EQUAL(ImageSwizzle::Alpha, VK_COMPONENT_SWIZZLE_A));
+    constexpr VkComponentSwizzle toVkComponentSwizzle(const ImageSwizzle swizzle) {
+        switch (swizzle) {
+            case ImageSwizzle::Identity:
+                return VK_COMPONENT_SWIZZLE_IDENTITY;
+            case ImageSwizzle::Zero:
+                return VK_COMPONENT_SWIZZLE_ZERO;
+            case ImageSwizzle::One:
+                return VK_COMPONENT_SWIZZLE_ONE;
+            case ImageSwizzle::Red:
+                return VK_COMPONENT_SWIZZLE_R;
+            case ImageSwizzle::Green:
+                return VK_COMPONENT_SWIZZLE_G;
+            case ImageSwizzle::Blue:
+                return VK_COMPONENT_SWIZZLE_B;
+            case ImageSwizzle::Alpha:
+                return VK_COMPONENT_SWIZZLE_A;
+        }
 
-    static_assert(
-        ENUM_MEMBERS_EQUAL(SamplerBorderColor::FloatTransparentBlack, VK_BORDER_COLOR_FLOAT_TRANSPARENT_BLACK));
-    static_assert(ENUM_MEMBERS_EQUAL(SamplerBorderColor::IntTransparentBlack, VK_BORDER_COLOR_INT_TRANSPARENT_BLACK));
-    static_assert(ENUM_MEMBERS_EQUAL(SamplerBorderColor::FloatOpaqueBlack, VK_BORDER_COLOR_FLOAT_OPAQUE_BLACK));
-    static_assert(ENUM_MEMBERS_EQUAL(SamplerBorderColor::IntOpaqueBlack, VK_BORDER_COLOR_INT_OPAQUE_BLACK));
-    static_assert(ENUM_MEMBERS_EQUAL(SamplerBorderColor::FloatOpaqueWhite, VK_BORDER_COLOR_FLOAT_OPAQUE_WHITE));
-    static_assert(ENUM_MEMBERS_EQUAL(SamplerBorderColor::IntOpaqueWhite, VK_BORDER_COLOR_INT_OPAQUE_WHITE));
+        std::unreachable();
+    }
 
-    static_assert(ENUM_MEMBERS_EQUAL(SamplerRepeatMode::Repeat, VK_SAMPLER_ADDRESS_MODE_REPEAT));
-    static_assert(ENUM_MEMBERS_EQUAL(SamplerRepeatMode::MirroredRepeat, VK_SAMPLER_ADDRESS_MODE_MIRRORED_REPEAT));
-    static_assert(ENUM_MEMBERS_EQUAL(SamplerRepeatMode::ClampToEdge, VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE));
-    static_assert(ENUM_MEMBERS_EQUAL(SamplerRepeatMode::ClampToBorder, VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_BORDER));
-    static_assert(
-        ENUM_MEMBERS_EQUAL(SamplerRepeatMode::MirrorClampToEdge, VK_SAMPLER_ADDRESS_MODE_MIRROR_CLAMP_TO_EDGE));
+    constexpr VkBorderColor toVkBorderColor(const SamplerBorderColor borderColor) {
+        switch (borderColor) {
+            case SamplerBorderColor::FloatTransparentBlack:
+                return VK_BORDER_COLOR_FLOAT_TRANSPARENT_BLACK;
+            case SamplerBorderColor::IntTransparentBlack:
+                return VK_BORDER_COLOR_INT_TRANSPARENT_BLACK;
+            case SamplerBorderColor::FloatOpaqueBlack:
+                return VK_BORDER_COLOR_FLOAT_OPAQUE_BLACK;
+            case SamplerBorderColor::IntOpaqueBlack:
+                return VK_BORDER_COLOR_INT_OPAQUE_BLACK;
+            case SamplerBorderColor::FloatOpaqueWhite:
+                return VK_BORDER_COLOR_FLOAT_OPAQUE_WHITE;
+            case SamplerBorderColor::IntOpaqueWhite:
+                return VK_BORDER_COLOR_INT_OPAQUE_WHITE;
+        }
+
+        std::unreachable();
+    }
+
+    constexpr VkSamplerAddressMode toVkSamplerAddressMode(SamplerRepeatMode samplerRepeatMode) {
+        switch (samplerRepeatMode) {
+            case SamplerRepeatMode::Repeat:
+                return VK_SAMPLER_ADDRESS_MODE_REPEAT;
+            case SamplerRepeatMode::MirroredRepeat:
+                return VK_SAMPLER_ADDRESS_MODE_MIRRORED_REPEAT;
+            case SamplerRepeatMode::ClampToEdge:
+                return VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE;
+            case SamplerRepeatMode::ClampToBorder:
+                return VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_BORDER;
+            case SamplerRepeatMode::MirrorClampToEdge:
+                return VK_SAMPLER_ADDRESS_MODE_MIRROR_CLAMP_TO_EDGE;
+        }
+    }
 
     [[maybe_unused]] constexpr bool isDepthFormat(const VkFormat format) {
         switch (format) {
@@ -291,7 +323,7 @@ namespace Vixen {
                 return VK_COMMAND_BUFFER_LEVEL_SECONDARY;
         }
 
-        return VK_COMMAND_BUFFER_LEVEL_PRIMARY;
+        std::unreachable();
     }
 
     static constexpr VkIndexType toVkIndexType(const IndexFormat format) {
@@ -303,10 +335,10 @@ namespace Vixen {
                 return VK_INDEX_TYPE_UINT32;
         }
 
-        throw std::runtime_error("Unknown IndexFormat");
+        std::unreachable();
     }
 
-    static constexpr VkSampleCountFlagBits toVkSampleCountFlagBits(const ImageSamples &samples) {
+    static constexpr VkSampleCountFlagBits toVkSampleCountFlagBits(const ImageSamples& samples) {
         switch (samples) {
                 using enum ImageSamples;
 
@@ -332,25 +364,25 @@ namespace Vixen {
                 return VK_SAMPLE_COUNT_64_BIT;
         }
 
-        throw std::runtime_error("Unsupported sample count");
+        std::unreachable();
     }
 
     static constexpr VkQueueFlags toVkQueueFlags(const QueueFamilyFlags flags) {
         VkQueueFlags converted = 0;
 
-        if (flags & QueueFamilyFlags::Graphics)
+        if (flags.contains(QueueFamilyBits::Graphics))
             converted |= VK_QUEUE_GRAPHICS_BIT;
 
-        if (flags & QueueFamilyFlags::Transfer)
+        if (flags.contains(QueueFamilyBits::Transfer))
             converted |= VK_QUEUE_TRANSFER_BIT;
 
-        if (flags & QueueFamilyFlags::Compute)
+        if (flags.contains(QueueFamilyBits::Compute))
             converted |= VK_QUEUE_COMPUTE_BIT;
 
         return converted;
     }
 
-    static constexpr VkShaderStageFlagBits toVkShaderStageFlag(const ShaderStage &stage) {
+    static constexpr VkShaderStageFlagBits toVkShaderStageFlag(const ShaderStage& stage) {
         switch (stage) {
             case ShaderStage::Vertex:
                 return VK_SHADER_STAGE_VERTEX_BIT;
@@ -371,10 +403,10 @@ namespace Vixen {
                 return VK_SHADER_STAGE_GEOMETRY_BIT;
         }
 
-        throw std::runtime_error("Unsupported shader stage");
+        std::unreachable();
     }
 
-    static constexpr VkImageType toVkImageType(const ImageType &type) {
+    static constexpr VkImageType toVkImageType(const ImageType& type) {
         switch (type) {
             case ImageType::OneD:
             case ImageType::OneDArray:
@@ -390,7 +422,7 @@ namespace Vixen {
                 return VK_IMAGE_TYPE_3D;
         }
 
-        throw std::runtime_error("Unsupported image type");
+        std::unreachable();
     }
 
     [[maybe_unused]] static constexpr VkAttachmentLoadOp toVkLoadAction(const LoadAction loadAction) {
@@ -410,7 +442,7 @@ namespace Vixen {
                 break;
         }
 
-        return VK_ATTACHMENT_LOAD_OP_DONT_CARE;
+        std::unreachable();
     }
 
     [[maybe_unused]] static constexpr VkAttachmentStoreOp toVkStoreAction(const StoreAction storeAction) {
@@ -434,58 +466,58 @@ namespace Vixen {
                 break;
         }
 
-        throw std::runtime_error("Unsupported store action");
+        std::unreachable();
     }
 
     static constexpr VkPipelineStageFlags2 toVkPipelineStages(const PipelineStageFlags flags) {
         VkPipelineStageFlags vkFlags = 0;
 
-        if (flags & PipelineStageFlags::Top)
+        if (flags.contains(PipelineStageBits::Top))
             vkFlags |= VK_PIPELINE_STAGE_2_TOP_OF_PIPE_BIT;
 
-        if (flags & PipelineStageFlags::DrawIndirect)
+        if (flags.contains(PipelineStageBits::DrawIndirect))
             vkFlags |= VK_PIPELINE_STAGE_2_DRAW_INDIRECT_BIT;
 
-        if (flags & PipelineStageFlags::VertexInput)
+        if (flags.contains(PipelineStageBits::VertexInput))
             vkFlags |= VK_PIPELINE_STAGE_2_VERTEX_INPUT_BIT;
 
-        if (flags & PipelineStageFlags::VertexShader)
+        if (flags.contains(PipelineStageBits::VertexShader))
             vkFlags |= VK_PIPELINE_STAGE_2_VERTEX_SHADER_BIT;
 
-        if (flags & PipelineStageFlags::TessellationControl)
+        if (flags.contains(PipelineStageBits::TessellationControl))
             vkFlags |= VK_PIPELINE_STAGE_2_TESSELLATION_CONTROL_SHADER_BIT;
 
-        if (flags & PipelineStageFlags::TessellationEvaluation)
+        if (flags.contains(PipelineStageBits::TessellationEvaluation))
             vkFlags |= VK_PIPELINE_STAGE_2_TESSELLATION_EVALUATION_SHADER_BIT;
 
-        if (flags & PipelineStageFlags::GeometryShader)
+        if (flags.contains(PipelineStageBits::GeometryShader))
             vkFlags |= VK_PIPELINE_STAGE_2_GEOMETRY_SHADER_BIT;
 
-        if (flags & PipelineStageFlags::FragmentShader)
+        if (flags.contains(PipelineStageBits::FragmentShader))
             vkFlags |= VK_PIPELINE_STAGE_2_FRAGMENT_SHADER_BIT;
 
-        if (flags & PipelineStageFlags::EarlyFragmentTests)
+        if (flags.contains(PipelineStageBits::EarlyFragmentTests))
             vkFlags |= VK_PIPELINE_STAGE_2_EARLY_FRAGMENT_TESTS_BIT;
 
-        if (flags & PipelineStageFlags::LateFragmentTests)
+        if (flags.contains(PipelineStageBits::LateFragmentTests))
             vkFlags |= VK_PIPELINE_STAGE_2_LATE_FRAGMENT_TESTS_BIT;
 
-        if (flags & PipelineStageFlags::ColorAttachmentOutput)
+        if (flags.contains(PipelineStageBits::ColorAttachmentOutput))
             vkFlags |= VK_PIPELINE_STAGE_2_COLOR_ATTACHMENT_OUTPUT_BIT;
 
-        if (flags & PipelineStageFlags::ComputeShader)
+        if (flags.contains(PipelineStageBits::ComputeShader))
             vkFlags |= VK_PIPELINE_STAGE_2_COMPUTE_SHADER_BIT;
 
-        if (flags & PipelineStageFlags::Copy || flags & PipelineStageFlags::Resolve)
+        if (flags.contains(PipelineStageBits::Copy) || flags.contains(PipelineStageBits::Resolve))
             vkFlags |= VK_PIPELINE_STAGE_2_TRANSFER_BIT;
 
-        if (flags & PipelineStageFlags::Bottom)
+        if (flags.contains(PipelineStageBits::Bottom))
             vkFlags |= VK_PIPELINE_STAGE_2_BOTTOM_OF_PIPE_BIT;
 
-        if (flags & PipelineStageFlags::AllGraphics)
+        if (flags.contains(PipelineStageBits::AllGraphics))
             vkFlags |= VK_PIPELINE_STAGE_2_ALL_GRAPHICS_BIT;
 
-        if (flags & PipelineStageFlags::AllCommands)
+        if (flags.contains(PipelineStageBits::AllCommands))
             vkFlags |= VK_PIPELINE_STAGE_2_ALL_COMMANDS_BIT;
 
         return vkFlags;
@@ -494,67 +526,64 @@ namespace Vixen {
     static constexpr VkAccessFlags toVkAccessFlags(const BarrierAccessFlags flags) {
         VkAccessFlags vkFlags = 0;
 
-        if (flags & BarrierAccessFlags::IndirectCommandsRead)
+        if (flags.contains(BarrierAccessBits::IndirectCommandsRead))
             vkFlags |= VK_ACCESS_INDIRECT_COMMAND_READ_BIT;
 
-        if (flags & BarrierAccessFlags::IndexRead)
+        if (flags.contains(BarrierAccessBits::IndexRead))
             vkFlags |= VK_ACCESS_INDEX_READ_BIT;
 
-        if (flags & BarrierAccessFlags::VertexAttributeRead)
+        if (flags.contains(BarrierAccessBits::VertexAttributeRead))
             vkFlags |= VK_ACCESS_VERTEX_ATTRIBUTE_READ_BIT;
 
-        if (flags & BarrierAccessFlags::UniformRead)
+        if (flags.contains(BarrierAccessBits::UniformRead))
             vkFlags |= VK_ACCESS_UNIFORM_READ_BIT;
 
-        if (flags & BarrierAccessFlags::InputAttachmentRead)
+        if (flags.contains(BarrierAccessBits::InputAttachmentRead))
             vkFlags |= VK_ACCESS_INPUT_ATTACHMENT_READ_BIT;
 
-        if (flags & BarrierAccessFlags::ShaderRead)
+        if (flags.contains(BarrierAccessBits::ShaderRead))
             vkFlags |= VK_ACCESS_SHADER_READ_BIT;
 
-        if (flags & BarrierAccessFlags::ShaderWrite)
+        if (flags.contains(BarrierAccessBits::ShaderWrite))
             vkFlags |= VK_ACCESS_SHADER_WRITE_BIT;
 
-        if (flags & BarrierAccessFlags::ColorAttachmentRead)
+        if (flags.contains(BarrierAccessBits::ColorAttachmentRead))
             vkFlags |= VK_ACCESS_COLOR_ATTACHMENT_READ_BIT;
 
-        if (flags & BarrierAccessFlags::ColorAttachmentWrite)
+        if (flags.contains(BarrierAccessBits::ColorAttachmentWrite))
             vkFlags |= VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT;
 
-        if (flags & BarrierAccessFlags::DepthStencilAttachmentRead)
+        if (flags.contains(BarrierAccessBits::DepthStencilAttachmentRead))
             vkFlags |= VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_READ_BIT;
 
-        if (flags & BarrierAccessFlags::DepthStencilAttachmentWrite)
+        if (flags.contains(BarrierAccessBits::DepthStencilAttachmentWrite))
             vkFlags |= VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_WRITE_BIT;
 
-        if (flags & BarrierAccessFlags::CopyRead)
+        if (flags.contains(BarrierAccessBits::CopyRead))
             vkFlags |= VK_ACCESS_TRANSFER_READ_BIT;
 
-        if (flags & BarrierAccessFlags::CopyWrite)
+        if (flags.contains(BarrierAccessBits::CopyWrite))
             vkFlags |= VK_ACCESS_TRANSFER_WRITE_BIT;
 
-        if (flags & BarrierAccessFlags::HostRead)
+        if (flags.contains(BarrierAccessBits::HostRead))
             vkFlags |= VK_ACCESS_HOST_READ_BIT;
 
-        if (flags & BarrierAccessFlags::HostWrite)
+        if (flags.contains(BarrierAccessBits::HostWrite))
             vkFlags |= VK_ACCESS_HOST_WRITE_BIT;
 
-        if (flags & BarrierAccessFlags::MemoryRead)
+        if (flags.contains(BarrierAccessBits::MemoryRead))
             vkFlags |= VK_ACCESS_MEMORY_READ_BIT;
 
-        if (flags & BarrierAccessFlags::MemoryWrite)
+        if (flags.contains(BarrierAccessBits::MemoryWrite))
             vkFlags |= VK_ACCESS_MEMORY_WRITE_BIT;
 
-        if (flags & BarrierAccessFlags::FragmentShadingRateAttachmentRead)
+        if (flags.contains(BarrierAccessBits::FragmentShadingRateAttachmentRead))
             vkFlags |= VK_ACCESS_FRAGMENT_SHADING_RATE_ATTACHMENT_READ_BIT_KHR;
 
         // TODO
-        if (flags & BarrierAccessFlags::ResolveRead) {
-        }
-        if (flags & BarrierAccessFlags::ResolveWrite) {
-        }
-        if (flags & BarrierAccessFlags::StorageClear) {
-        }
+        if (flags.contains(BarrierAccessBits::ResolveRead)) {}
+        if (flags.contains(BarrierAccessBits::ResolveWrite)) {}
+        if (flags.contains(BarrierAccessBits::StorageClear)) {}
 
         return vkFlags;
     }
@@ -595,43 +624,38 @@ namespace Vixen {
                 return VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL;
         }
 
-        throw std::invalid_argument("Unknown image layout");
+        std::unreachable();
     }
 
     static constexpr VkImageAspectFlags toVkImageAspectFlags(const ImageAspectFlags flags) {
         VkImageAspectFlags vkFlags = 0;
 
-        if (flags & ImageAspectFlags::Color)
+        if (flags.contains(ImageAspectBits::Color))
             vkFlags |= VK_IMAGE_ASPECT_COLOR_BIT;
 
-        if (flags & ImageAspectFlags::Depth)
+        if (flags.contains(ImageAspectBits::Depth))
             vkFlags |= VK_IMAGE_ASPECT_DEPTH_BIT;
 
-        if (flags & ImageAspectFlags::Stencil)
+        if (flags.contains(ImageAspectBits::Stencil))
             vkFlags |= VK_IMAGE_ASPECT_STENCIL_BIT;
 
         return vkFlags;
     }
 
     [[maybe_unused]] static constexpr std::string getVersionString(const glm::uvec3 version) {
-        return std::to_string(version.x) + "." +
-               std::to_string(version.y) + "." +
-               std::to_string(version.z);
+        return std::to_string(version.x) + "." + std::to_string(version.y) + "." + std::to_string(version.z);
     }
 
     [[maybe_unused]] static constexpr std::string getVersionString(const uint32_t version) {
-        return std::to_string(VK_API_VERSION_MAJOR(version)) + "." +
-               std::to_string(VK_API_VERSION_MINOR(version)) + "." +
-               std::to_string(VK_API_VERSION_PATCH(version));
+        return std::to_string(VK_API_VERSION_MAJOR(version)) + "." + std::to_string(VK_API_VERSION_MINOR(version)) +
+            "." + std::to_string(VK_API_VERSION_PATCH(version));
     }
 
-#ifdef DEBUG_ENABLED
-    [[maybe_unused]] static constexpr VkBool32 vkDebugCallback(
-        const VkDebugUtilsMessageSeverityFlagBitsEXT messageSeverity,
-        const VkDebugUtilsMessageTypeFlagsEXT messageTypes,
-        const VkDebugUtilsMessengerCallbackDataEXT *pCallbackData,
-        [[maybe_unused]] void *pUserData
-    ) {
+    #ifdef DEBUG_ENABLED
+    [[maybe_unused]] static constexpr VkBool32
+    vkDebugCallback(const VkDebugUtilsMessageSeverityFlagBitsEXT messageSeverity,
+                    const VkDebugUtilsMessageTypeFlagsEXT messageTypes,
+                    const VkDebugUtilsMessengerCallbackDataEXT* pCallbackData, [[maybe_unused]] void* pUserData) {
         spdlog::level::level_enum level;
         switch (messageSeverity) {
             case VK_DEBUG_UTILS_MESSAGE_SEVERITY_VERBOSE_BIT_EXT:
@@ -675,14 +699,9 @@ namespace Vixen {
         if (vkDebugLogger == nullptr)
             vkDebugLogger = spdlog::stdout_color_mt("Vulkan");
 
-        vkDebugLogger->log(
-            level,
-            "[{}] {}",
-            source,
-            pCallbackData->pMessage
-        );
+        vkDebugLogger->log(level, "[{}] {}", source, pCallbackData->pMessage);
 
         return VK_FALSE;
     };
-#endif
-}
+    #endif
+} // namespace Vixen

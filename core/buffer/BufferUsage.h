@@ -5,16 +5,19 @@
 #include "core/Bitmask.h"
 
 namespace Vixen {
-    enum class BufferUsage : uint32_t {
-        CopySource = 1 << 0,
-        CopyDestination = 1 << 1,
-        Texel = 1 << 2,
-        Uniform = 1 << 3,
-        Storage = 1 << 4,
-        Vertex = 1 << 5,
-        Index = 1 << 6,
-        Indirect = 1 << 7
+    enum class BufferUsageBits : uint32_t {
+        CopySource = 1u << 0,
+        CopyDestination = 1u << 1,
+        Texel = 1u << 2,
+        Uniform = 1u << 3,
+        Storage = 1u << 4,
+        Vertex = 1u << 5,
+        Index = 1u << 6,
+        Indirect = 1u << 7
     };
 
-    DECLARE_BITMASK(BufferUsage);
-}
+    template <>
+    struct EnableFlags<BufferUsageBits> : std::true_type {};
+
+    using BufferUsageFlags = Flags<BufferUsageBits>;
+} // namespace Vixen

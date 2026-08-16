@@ -153,12 +153,12 @@ namespace Vixen {
         renderingDeviceDriver = renderingContext->createRenderingDeviceDriver(deviceIndex, frameCount);
 
         graphicsQueueFamily = renderingDeviceDriver->getQueueFamily(
-            QueueFamilyFlags::Graphics | QueueFamilyFlags::Compute,
+            QueueFamilyBits::Graphics | QueueFamilyBits::Compute,
             nullptr
         ).value();
         graphicsQueue = renderingDeviceDriver->createCommandQueue(graphicsQueueFamily).value();
 
-        transferQueueFamily = renderingDeviceDriver->getQueueFamily(QueueFamilyFlags::Transfer, nullptr).value();
+        transferQueueFamily = renderingDeviceDriver->getQueueFamily(QueueFamilyBits::Transfer, nullptr).value();
         transferQueue = renderingDeviceDriver->createCommandQueue(transferQueueFamily).value();
 
         presentQueueFamily = renderingDeviceDriver->getQueueFamily(static_cast<QueueFamilyFlags>(0), mainSurface)

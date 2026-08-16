@@ -176,7 +176,7 @@ namespace Vixen {
         ) override;
 
         auto createBuffer(
-            BufferUsage usage,
+            BufferUsageFlags usage,
             uint32_t count,
             uint32_t stride
         ) -> std::expected<Buffer*, Error> override;

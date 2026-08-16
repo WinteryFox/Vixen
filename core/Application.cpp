@@ -35,7 +35,7 @@ namespace Vixen {
             renderingDriver,
             WindowMode::Windowed,
             VSyncMode::Disabled,
-            WindowFlags::Resizable,
+            WindowBits::Resizable,
             glm::uvec2{1920, 1080}
         );
     }
