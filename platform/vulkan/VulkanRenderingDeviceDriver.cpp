@@ -119,7 +119,7 @@ namespace Vixen {
         if (!isAvailable(VK_KHR_SYNCHRONIZATION_2_EXTENSION_NAME))
             error<CantCreateError>("Device lacks synchronization 2 extension support");
 
-        if (!isAvailable(VK_EXT_DEVICE_FAULT_EXTENSION_NAME))
+        if (isAvailable(VK_EXT_DEVICE_FAULT_EXTENSION_NAME))
             enabledFeatures.deviceFault = true;
     }
 
