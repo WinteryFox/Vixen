@@ -424,7 +424,7 @@ namespace Vixen {
                 return VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
 
             case ShaderUniformType::StorageBuffer:
-                return VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
+                return VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
 
             case ShaderUniformType::InputAttachment:
                 return VK_DESCRIPTOR_TYPE_INPUT_ATTACHMENT;

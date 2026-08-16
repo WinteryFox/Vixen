@@ -1865,27 +1865,11 @@ namespace Vixen {
             layoutBindings.reserve(o->uniformSets.size());
 
             for (const auto& uniformSet : o->uniformSets) {
-                VkDescriptorType descriptorType = VK_DESCRIPTOR_TYPE_MAX_ENUM;
-
-                switch (uniformSet.type) {
-                    case ShaderUniformType::Sampler:
-                        descriptorType = VK_DESCRIPTOR_TYPE_SAMPLER;
-                        break;
-
-                    case ShaderUniformType::CombinedImageSampler:
-                        descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
-                        break;
-
-                    case ShaderUniformType::UniformBuffer:
-                        descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
-                        break;
-                }
-
                 const VkDescriptorSetLayoutBinding layoutBinding = {
                     .binding = uniformSet.binding,
-                    .descriptorType = descriptorType,
-                    .descriptorCount = 1,
-                    .stageFlags = static_cast<VkShaderStageFlags>(stageFlag),
+                    .descriptorType = toVkDescriptorType(uniformSet.type),
+                    .descriptorCount = uniformSet.count,
+                    .stageFlags = toVkShaderStageFlags(uniformSet.stages),
                     .pImmutableSamplers = nullptr
                 };
                 layoutBindings.push_back(layoutBinding);
@@ -1932,7 +1916,7 @@ namespace Vixen {
             .flags = 0,
             .setLayoutCount = static_cast<uint32_t>(o->descriptorSetLayouts.size()),
             .pSetLayouts = o->descriptorSetLayouts.data(),
-            .pushConstantRangeCount = 1,
+            .pushConstantRangeCount = o->pushConstantSize > 0 ? 1u : 0u,
             .pPushConstantRanges = pushConstantRange.size > 0 ? &pushConstantRange : nullptr
         };
 

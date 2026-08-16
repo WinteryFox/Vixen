@@ -51,7 +51,7 @@ namespace Vixen {
                 if (!count)
                     return false;
 
-                ShaderUniform uniform{
+                const ShaderUniform uniform{
                     .type = type,
                     .set = compiler.get_decoration(resource.id, spv::DecorationDescriptorSet),
                     .binding = compiler.get_decoration(resource.id, spv::DecorationBinding),
