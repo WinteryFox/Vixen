@@ -1655,7 +1655,7 @@ namespace Vixen {
         if (format.usage.contains(ImageUsageBits::Sampling))
             imageCreateInfo.usage |= VK_IMAGE_USAGE_SAMPLED_BIT;
 
-        if (format.usage.contains(ImageUsageBits::Storage))
+        if (format.usage.contains(ImageUsageBits::Storage) || format.usage.contains(ImageUsageBits::StorageAtomic))
             imageCreateInfo.usage |= VK_IMAGE_USAGE_STORAGE_BIT;
 
         if (format.usage.contains(ImageUsageBits::ColorAttachment))

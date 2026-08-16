@@ -172,7 +172,6 @@ namespace Vixen {
         if (!renderingDevice->prepareScreenForDrawing(window))
             throw CantCreateError("Failed to prepare screen for drawing.");
 
-        renderingDevice->sync();
         renderingDevice->swapBuffers(true);
     }
 
