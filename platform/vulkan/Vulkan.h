@@ -81,18 +81,6 @@ namespace Vixen {
         }
     }
 
-    [[maybe_unused]] constexpr bool isDepthFormat(const VkFormat format) {
-        switch (format) {
-            case VK_FORMAT_D32_SFLOAT:
-            case VK_FORMAT_D32_SFLOAT_S8_UINT:
-            case VK_FORMAT_D24_UNORM_S8_UINT:
-                return true;
-
-            default:
-                return false;
-        }
-    }
-
     static constexpr VkFormat toVkDataFormat[] = {
         VK_FORMAT_R4G4_UNORM_PACK8,
         VK_FORMAT_R4G4B4A4_UNORM_PACK16,
@@ -518,7 +506,7 @@ namespace Vixen {
     }
 
     static constexpr VkPipelineStageFlags2 toVkPipelineStages(const PipelineStageFlags flags) {
-        VkPipelineStageFlags vkFlags = 0;
+        VkPipelineStageFlags2 vkFlags = 0;
 
         if (flags.contains(PipelineStageBits::Top))
             vkFlags |= VK_PIPELINE_STAGE_2_TOP_OF_PIPE_BIT;
@@ -571,8 +559,8 @@ namespace Vixen {
         return vkFlags;
     }
 
-    static constexpr VkAccessFlags toVkAccessFlags(const BarrierAccessFlags flags) {
-        VkAccessFlags vkFlags = 0;
+    static constexpr VkAccessFlags2 toVkAccessFlags(const BarrierAccessFlags flags) {
+        VkAccessFlags2 vkFlags = 0;
 
         if (flags.contains(BarrierAccessBits::IndirectCommandsRead))
             vkFlags |= VK_ACCESS_INDIRECT_COMMAND_READ_BIT;

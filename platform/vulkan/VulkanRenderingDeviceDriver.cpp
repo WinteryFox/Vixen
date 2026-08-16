@@ -101,19 +101,20 @@ namespace Vixen {
     }
 
     void VulkanRenderingDeviceDriver::checkCapabilities() {
-        if (std::ranges::find(enabledExtensionNames, VK_KHR_TIMELINE_SEMAPHORE_EXTENSION_NAME) != enabledExtensionNames.
-            end())
-            enabledFeatures.timelineSemaphores = true;
+        auto isAvailable = [&](const std::string& extension) constexpr -> bool {
+            return std::ranges::find(enabledExtensionNames, extension) != enabledExtensionNames.end();
+        };
 
-        if (std::ranges::find(enabledExtensionNames, VK_KHR_DYNAMIC_RENDERING_EXTENSION_NAME) != enabledExtensionNames.
-            end())
-            enabledFeatures.dynamicRendering = true;
+        if (!isAvailable(VK_KHR_TIMELINE_SEMAPHORE_EXTENSION_NAME))
+            error<CantCreateError>("Device lacks timeline semaphore extension support.");
 
-        if (std::ranges::find(enabledExtensionNames, VK_KHR_SYNCHRONIZATION_2_EXTENSION_NAME) != enabledExtensionNames.
-            end())
-            enabledFeatures.synchronization2 = true;
+        if (!isAvailable(VK_KHR_DYNAMIC_RENDERING_EXTENSION_NAME))
+            error<CantCreateError>("Device lacks dynamic rendering extension support.");
 
-        if (std::ranges::find(enabledExtensionNames, VK_EXT_DEVICE_FAULT_EXTENSION_NAME) != enabledExtensionNames.end())
+        if (!isAvailable(VK_KHR_SYNCHRONIZATION_2_EXTENSION_NAME))
+            error<CantCreateError>("Device lacks synchronization 2 extension support");
+
+        if (!isAvailable(VK_EXT_DEVICE_FAULT_EXTENSION_NAME))
             enabledFeatures.deviceFault = true;
     }
 
@@ -146,21 +147,21 @@ namespace Vixen {
         VkPhysicalDeviceDynamicRenderingFeatures dynamicRenderingFeatures{
             .sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_DYNAMIC_RENDERING_FEATURES,
             .pNext = nullptr,
-            .dynamicRendering = enabledFeatures.dynamicRendering ? VK_TRUE : VK_FALSE
+            .dynamicRendering = VK_TRUE
         };
         timelineSemaphoreFeatures.pNext = &dynamicRenderingFeatures;
 
         VkPhysicalDeviceSynchronization2Features synchronization2Features{
             .sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_SYNCHRONIZATION_2_FEATURES,
             .pNext = nullptr,
-            .synchronization2 = enabledFeatures.synchronization2 ? VK_TRUE : VK_FALSE
+            .synchronization2 = VK_TRUE
         };
         dynamicRenderingFeatures.pNext = &synchronization2Features;
 
         VkPhysicalDeviceFaultFeaturesEXT faultFeatures{
             .sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_FAULT_FEATURES_EXT,
             .pNext = nullptr,
-            .deviceFault = enabledFeatures.deviceFault ? VK_TRUE : VK_FALSE,
+            .deviceFault = VK_TRUE,
             .deviceFaultVendorBinary = VK_FALSE
         };
         synchronization2Features.pNext = &faultFeatures;
@@ -1737,11 +1738,7 @@ namespace Vixen {
                 .a = static_cast<VkComponentSwizzle>(view.swizzleAlpha)
             },
             .subresourceRange = {
-                .aspectMask = static_cast<VkImageAspectFlags>(format.usage.contains(
-                                                                  ImageUsageBits::DepthStencilAttachment)
-                                                                  ? VK_IMAGE_ASPECT_DEPTH_BIT |
-                                                                  VK_IMAGE_ASPECT_STENCIL_BIT
-                                                                  : VK_IMAGE_ASPECT_COLOR_BIT),
+                .aspectMask = toVkImageAspectFlags(getImageAspects(format.format)),
                 .baseMipLevel = 0,
                 .levelCount = imageCreateInfo.mipLevels,
                 .baseArrayLayer = 0,
@@ -2049,7 +2046,9 @@ namespace Vixen {
 
             DEBUG_ASSERT(vkImage != nullptr);
 
-            const VkFormat format = toVkDataFormat[attachment.image->format.format];
+            const auto format = attachment.image->format.format;
+
+            DEBUG_ASSERT(hasDepthAspect(format) || hasStencilAspect(format));
 
             DEBUG_ASSERT(attachment.resolveImage == nullptr);
 
@@ -2071,10 +2070,11 @@ namespace Vixen {
                 }
             };
 
-            if (isDepthFormat(format))
+            if (hasDepthAspect(attachment.image->format.format))
                 depthAttachment = &depthStencilAttachment;
 
-            // TODO: Support stencil; stencilAttachment = &depthStencil if format has a stencil
+            if (hasStencilAspect(format))
+                stencilAttachment = &depthStencilAttachment;
         }
 
         const VkRenderingInfo vkRenderingInfo{
@@ -2105,10 +2105,7 @@ namespace Vixen {
     void VulkanRenderingDeviceDriver::commandEndRenderPass(
         CommandBuffer* commandBuffer
     ) {
-        if (enabledFeatures.dynamicRendering)
-            vkCmdEndRendering(dynamic_cast<VulkanCommandBuffer*>(commandBuffer)->commandBuffer);
-        else
-            vkCmdEndRenderPass(dynamic_cast<VulkanCommandBuffer*>(commandBuffer)->commandBuffer);
+        vkCmdEndRendering(dynamic_cast<VulkanCommandBuffer*>(commandBuffer)->commandBuffer);
     }
 
     void VulkanRenderingDeviceDriver::commandSetViewport(
@@ -2207,157 +2204,85 @@ namespace Vixen {
         const std::vector<BufferBarrier>& bufferBarriers,
         const std::vector<ImageBarrier>& imageBarriers
     ) {
-        if (!enabledFeatures.synchronization2) {
-            std::vector<VkMemoryBarrier> vkMemoryBarriers{};
-            vkMemoryBarriers.reserve(memoryBarriers.size());
-            for (const auto& [sourceAccess, targetAccess] : memoryBarriers) {
-                vkMemoryBarriers.push_back(
-                    {
-                        .sType = VK_STRUCTURE_TYPE_MEMORY_BARRIER,
-                        .pNext = nullptr,
-                        .srcAccessMask = toVkAccessFlags(sourceAccess),
-                        .dstAccessMask = toVkAccessFlags(targetAccess)
-                    }
-                );
-            }
-
-            std::vector<VkBufferMemoryBarrier> vkBufferBarriers{};
-            vkBufferBarriers.reserve(bufferBarriers.size());
-            for (const auto& [buffer, sourceAccess, destinationAccess, offset, size] : bufferBarriers) {
-                vkBufferBarriers.push_back(
-                    {
-                        .sType = VK_STRUCTURE_TYPE_BUFFER_MEMORY_BARRIER,
-                        .pNext = nullptr,
-                        .srcAccessMask = toVkAccessFlags(sourceAccess),
-                        .dstAccessMask = toVkAccessFlags(destinationAccess),
-                        .srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED,
-                        .dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED,
-                        .buffer = dynamic_cast<VulkanBuffer*>(buffer)->buffer,
-                        .offset = offset,
-                        .size = size
-                    }
-                );
-            }
-
-            std::vector<VkImageMemoryBarrier> vkImageBarriers{};
-            vkImageBarriers.reserve(imageBarriers.size());
-            for (const auto& [image, sourceAccess, destinationAccess, oldLayout, newLayout, subresources] :
-                 imageBarriers) {
-                vkImageBarriers.push_back(
-                    {
-                        .sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER,
-                        .pNext = nullptr,
-                        .srcAccessMask = toVkAccessFlags(sourceAccess),
-                        .dstAccessMask = toVkAccessFlags(destinationAccess),
-                        .oldLayout = toVkImageLayout(oldLayout),
-                        .newLayout = toVkImageLayout(newLayout),
-                        .srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED,
-                        .dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED,
-                        .image = dynamic_cast<VulkanImage*>(image)->image,
-                        .subresourceRange = {
-                            .aspectMask = toVkImageAspectFlags(subresources.aspect),
-                            .baseMipLevel = subresources.baseMipmap,
-                            .levelCount = subresources.mipmapCount,
-                            .baseArrayLayer = subresources.baseLayer,
-                            .layerCount = subresources.layerCount
-                        }
-                    }
-                );
-            }
-
-            vkCmdPipelineBarrier(
-                dynamic_cast<VulkanCommandBuffer*>(commandBuffer)->commandBuffer,
-                toVkPipelineStages(sourceStages),
-                toVkPipelineStages(destinationStages),
-                0,
-                static_cast<uint32_t>(vkMemoryBarriers.size()),
-                vkMemoryBarriers.data(),
-                static_cast<uint32_t>(vkBufferBarriers.size()),
-                vkBufferBarriers.data(),
-                static_cast<uint32_t>(vkImageBarriers.size()),
-                vkImageBarriers.data()
-            );
-        } else {
-            std::vector<VkMemoryBarrier2> vkMemoryBarriers{};
-            vkMemoryBarriers.reserve(memoryBarriers.size());
-            for (const auto& [sourceAccess, targetAccess] : memoryBarriers) {
-                vkMemoryBarriers.push_back(
-                    {
-                        .sType = VK_STRUCTURE_TYPE_MEMORY_BARRIER_2,
-                        .pNext = nullptr,
-                        .srcStageMask = toVkPipelineStages(sourceStages),
-                        .srcAccessMask = toVkAccessFlags(sourceAccess),
-                        .dstStageMask = toVkPipelineStages(destinationStages),
-                        .dstAccessMask = toVkAccessFlags(targetAccess)
-                    }
-                );
-            }
-
-            std::vector<VkBufferMemoryBarrier2> vkBufferBarriers{};
-            vkBufferBarriers.reserve(bufferBarriers.size());
-            for (const auto& [buffer, sourceAccess, destinationAccess, offset, size] : bufferBarriers) {
-                vkBufferBarriers.push_back(
-                    {
-                        .sType = VK_STRUCTURE_TYPE_BUFFER_MEMORY_BARRIER_2,
-                        .pNext = nullptr,
-                        .srcStageMask = toVkPipelineStages(sourceStages),
-                        .srcAccessMask = toVkAccessFlags(sourceAccess),
-                        .dstStageMask = toVkPipelineStages(destinationStages),
-                        .dstAccessMask = toVkAccessFlags(destinationAccess),
-                        .srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED,
-                        .dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED,
-                        .buffer = dynamic_cast<VulkanBuffer*>(buffer)->buffer,
-                        .offset = offset,
-                        .size = size
-                    }
-                );
-            }
-
-            std::vector<VkImageMemoryBarrier2> vkImageBarriers{};
-            vkImageBarriers.reserve(imageBarriers.size());
-            for (const auto& [image, sourceAccess, destinationAccess, oldLayout, newLayout, subresources] :
-                 imageBarriers) {
-                vkImageBarriers.push_back(
-                    {
-                        .sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER_2,
-                        .pNext = nullptr,
-                        .srcStageMask = toVkPipelineStages(sourceStages),
-                        .srcAccessMask = toVkAccessFlags(sourceAccess),
-                        .dstStageMask = toVkPipelineStages(destinationStages),
-                        .dstAccessMask = toVkAccessFlags(destinationAccess),
-                        .oldLayout = toVkImageLayout(oldLayout),
-                        .newLayout = toVkImageLayout(newLayout),
-                        .srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED,
-                        .dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED,
-                        .image = dynamic_cast<VulkanImage*>(image)->image,
-                        .subresourceRange = {
-                            .aspectMask = toVkImageAspectFlags(subresources.aspect),
-                            .baseMipLevel = subresources.baseMipmap,
-                            .levelCount = subresources.mipmapCount,
-                            .baseArrayLayer = subresources.baseLayer,
-                            .layerCount = subresources.layerCount
-                        }
-                    }
-                );
-            }
-
-            const VkDependencyInfo dependencyInfo{
-                .sType = VK_STRUCTURE_TYPE_DEPENDENCY_INFO,
-                .pNext = nullptr,
-                .dependencyFlags = 0,
-                .memoryBarrierCount = static_cast<uint32_t>(vkMemoryBarriers.size()),
-                .pMemoryBarriers = vkMemoryBarriers.data(),
-                .bufferMemoryBarrierCount = static_cast<uint32_t>(vkBufferBarriers.size()),
-                .pBufferMemoryBarriers = vkBufferBarriers.data(),
-                .imageMemoryBarrierCount = static_cast<uint32_t>(vkImageBarriers.size()),
-                .pImageMemoryBarriers = vkImageBarriers.data()
-            };
-
-            vkCmdPipelineBarrier2(
-                dynamic_cast<VulkanCommandBuffer*>(commandBuffer)->commandBuffer,
-                &dependencyInfo
+        std::vector<VkMemoryBarrier2> vkMemoryBarriers{};
+        vkMemoryBarriers.reserve(memoryBarriers.size());
+        for (const auto& [sourceAccess, targetAccess] : memoryBarriers) {
+            vkMemoryBarriers.push_back(
+                {
+                    .sType = VK_STRUCTURE_TYPE_MEMORY_BARRIER_2,
+                    .pNext = nullptr,
+                    .srcStageMask = toVkPipelineStages(sourceStages),
+                    .srcAccessMask = toVkAccessFlags(sourceAccess),
+                    .dstStageMask = toVkPipelineStages(destinationStages),
+                    .dstAccessMask = toVkAccessFlags(targetAccess)
+                }
             );
         }
+
+        std::vector<VkBufferMemoryBarrier2> vkBufferBarriers{};
+        vkBufferBarriers.reserve(bufferBarriers.size());
+        for (const auto& [buffer, sourceAccess, destinationAccess, offset, size] : bufferBarriers) {
+            vkBufferBarriers.push_back(
+                {
+                    .sType = VK_STRUCTURE_TYPE_BUFFER_MEMORY_BARRIER_2,
+                    .pNext = nullptr,
+                    .srcStageMask = toVkPipelineStages(sourceStages),
+                    .srcAccessMask = toVkAccessFlags(sourceAccess),
+                    .dstStageMask = toVkPipelineStages(destinationStages),
+                    .dstAccessMask = toVkAccessFlags(destinationAccess),
+                    .srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED,
+                    .dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED,
+                    .buffer = dynamic_cast<VulkanBuffer*>(buffer)->buffer,
+                    .offset = offset,
+                    .size = size
+                }
+            );
+        }
+
+        std::vector<VkImageMemoryBarrier2> vkImageBarriers{};
+        vkImageBarriers.reserve(imageBarriers.size());
+        for (const auto& [image, sourceAccess, destinationAccess, oldLayout, newLayout, subresources] :
+             imageBarriers) {
+            vkImageBarriers.push_back(
+                {
+                    .sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER_2,
+                    .pNext = nullptr,
+                    .srcStageMask = toVkPipelineStages(sourceStages),
+                    .srcAccessMask = toVkAccessFlags(sourceAccess),
+                    .dstStageMask = toVkPipelineStages(destinationStages),
+                    .dstAccessMask = toVkAccessFlags(destinationAccess),
+                    .oldLayout = toVkImageLayout(oldLayout),
+                    .newLayout = toVkImageLayout(newLayout),
+                    .srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED,
+                    .dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED,
+                    .image = dynamic_cast<VulkanImage*>(image)->image,
+                    .subresourceRange = {
+                        .aspectMask = toVkImageAspectFlags(subresources.aspect),
+                        .baseMipLevel = subresources.baseMipmap,
+                        .levelCount = subresources.mipmapCount,
+                        .baseArrayLayer = subresources.baseLayer,
+                        .layerCount = subresources.layerCount
+                    }
+                }
+            );
+        }
+
+        const VkDependencyInfo dependencyInfo{
+            .sType = VK_STRUCTURE_TYPE_DEPENDENCY_INFO,
+            .pNext = nullptr,
+            .dependencyFlags = 0,
+            .memoryBarrierCount = static_cast<uint32_t>(vkMemoryBarriers.size()),
+            .pMemoryBarriers = vkMemoryBarriers.data(),
+            .bufferMemoryBarrierCount = static_cast<uint32_t>(vkBufferBarriers.size()),
+            .pBufferMemoryBarriers = vkBufferBarriers.data(),
+            .imageMemoryBarrierCount = static_cast<uint32_t>(vkImageBarriers.size()),
+            .pImageMemoryBarriers = vkImageBarriers.data()
+        };
+
+        vkCmdPipelineBarrier2(
+            dynamic_cast<VulkanCommandBuffer*>(commandBuffer)->commandBuffer,
+            &dependencyInfo
+        );
     }
 
     void VulkanRenderingDeviceDriver::commandClearBuffer(

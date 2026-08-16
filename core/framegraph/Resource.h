@@ -3,6 +3,7 @@
 #include <compare>
 #include <cstdint>
 #include <limits>
+#include <variant>
 
 #include "../BarrierAccessFlags.h"
 #include "../PipelineStageFlags.h"

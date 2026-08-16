@@ -11,7 +11,7 @@ namespace Vixen {
 
         std::vector<RenderPass> renderPasses;
 
-        explicit FrameGraph(std::vector<RenderPass>&& renderPasses);
+        FrameGraph(std::vector<ResourceNode>&& resources, std::vector<RenderPass>&& renderPasses);
 
     public:
         FrameGraph(const FrameGraph& other) = delete;
@@ -69,7 +69,10 @@ namespace Vixen {
             }
 
             [[nodiscard]] FrameGraph build() && {
-                return FrameGraph{std::move(renderPasses)};
+                return FrameGraph{
+                    std::move(resources),
+                    std::move(renderPasses)
+                };
             }
         };
     };

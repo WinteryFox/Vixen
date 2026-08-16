@@ -23,6 +23,6 @@ namespace Vixen {
     }
 
     uint64_t Buffer::getSize() const {
-        return count * stride;
+        return static_cast<uint64_t>(count) * stride;
     }
 }

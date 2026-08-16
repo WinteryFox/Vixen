@@ -17,9 +17,6 @@ namespace Vixen {
 
     class VulkanRenderingDeviceDriver final : public RenderingDeviceDriver {
         struct Features {
-            bool timelineSemaphores;
-            bool dynamicRendering;
-            bool synchronization2;
             bool deviceFault;
         } enabledFeatures;
 

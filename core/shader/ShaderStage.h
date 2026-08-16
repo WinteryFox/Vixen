@@ -1,5 +1,9 @@
 #pragma once
 
+#include <cstdint>
+
+#include "Bitmask.h"
+
 namespace Vixen {
     enum class ShaderStageBits : uint32_t {
         Vertex = 1u << 0,
