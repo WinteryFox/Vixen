@@ -34,6 +34,7 @@ namespace Vixen {
         RuntimeDescriptorArrayUnsupported,
         ZeroDescriptorCount,
         DescriptorCountOverflow,
+        DescriptorSizeOverflow,
 
         DuplicateDescriptorBinding,
         DescriptorTypeConflict,
@@ -44,6 +45,7 @@ namespace Vixen {
         EmptyPushConstantBlock,
         PushConstantSizeOverflow,
         PushConstantAlignmentInvalid,
+        PushConstantLayoutConflict,
 
         UnsupportedResourceType,
 

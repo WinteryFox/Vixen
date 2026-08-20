@@ -9,6 +9,8 @@ namespace Vixen {
 
         UniformBuffer,
         StorageBuffer,
+        UniformTexelBuffer,
+        StorageTexelBuffer,
 
         InputAttachment
     };

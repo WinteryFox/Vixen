@@ -3,6 +3,7 @@
 #include <cstring>
 #include <format>
 #include <limits>
+#include <optional>
 
 #ifdef DEBUG_ENABLED
 #include <GlslangToSpv.h>
@@ -61,6 +62,22 @@ namespace Vixen {
         bool hasGraphics = false;
 
         for (const auto& stageData : stages) {
+            switch (stageData.stage) {
+                case ShaderStageBits::Vertex:
+                case ShaderStageBits::Fragment:
+                case ShaderStageBits::TesselationControl:
+                case ShaderStageBits::TesselationEvaluation:
+                case ShaderStageBits::Compute:
+                case ShaderStageBits::Geometry:
+                    break;
+                default:
+                    return fail(
+                        ShaderReflectionErrorCode::InvalidShaderStage,
+                        "Shader stage is not a recognized single stage bit",
+                        stageData.stage
+                    );
+            }
+
             if (suppliedStages.contains(stageData.stage))
                 return fail(
                     ShaderReflectionErrorCode::DuplicateShaderStage,
@@ -78,6 +95,44 @@ namespace Vixen {
                 ShaderReflectionErrorCode::IncompatibleShaderStages,
                 "Compute and graphics stages cannot be combined in one shader"
             );
+
+        if (hasGraphics && !suppliedStages.contains(ShaderStageBits::Vertex))
+            return fail(
+                ShaderReflectionErrorCode::MissingRequiredShaderStage,
+                "A graphics shader requires a vertex stage",
+                ShaderStageBits::Vertex
+            );
+
+        if (suppliedStages.contains(ShaderStageBits::TesselationControl) !=
+            suppliedStages.contains(ShaderStageBits::TesselationEvaluation))
+            return fail(
+                ShaderReflectionErrorCode::MissingRequiredShaderStage,
+                "Tessellation control and evaluation stages must be supplied together"
+            );
+
+        struct PushConstantMemberLayout {
+            uint32_t offset;
+            uint64_t size;
+            spirv_cross::SPIRType::BaseType baseType;
+            uint32_t width;
+            uint32_t vectorSize;
+            uint32_t columns;
+            std::vector<uint32_t> arrayDimensions;
+            std::optional<uint32_t> arrayStride;
+            std::optional<uint32_t> matrixStride;
+            bool rowMajor;
+
+            bool operator==(const PushConstantMemberLayout&) const = default;
+        };
+
+        struct PushConstantLayout {
+            uint32_t size;
+            std::vector<PushConstantMemberLayout> members;
+
+            bool operator==(const PushConstantLayout&) const = default;
+        };
+
+        std::optional<PushConstantLayout> reflectedPushConstantLayout;
 
         for (const auto& [stage, spirv] : stages) {
             if (spirv.empty())
@@ -138,64 +193,97 @@ namespace Vixen {
                         stage
                     );
 
+                const auto expectedExecutionModel = [&]() -> std::optional<spv::ExecutionModel> {
+                    switch (stage) {
+                        case ShaderStageBits::Vertex:
+                            return spv::ExecutionModelVertex;
+                        case ShaderStageBits::Fragment:
+                            return spv::ExecutionModelFragment;
+                        case ShaderStageBits::TesselationControl:
+                            return spv::ExecutionModelTessellationControl;
+                        case ShaderStageBits::TesselationEvaluation:
+                            return spv::ExecutionModelTessellationEvaluation;
+                        case ShaderStageBits::Compute:
+                            return spv::ExecutionModelGLCompute;
+                        case ShaderStageBits::Geometry:
+                            return spv::ExecutionModelGeometry;
+                        default:
+                            return std::nullopt;
+                    }
+                }();
+
+                if (!expectedExecutionModel || entryPoints.front().execution_model != *expectedExecutionModel)
+                    return fail(
+                        ShaderReflectionErrorCode::EntryPointStageMismatch,
+                        "SPIR-V entry-point execution model does not match its supplied shader stage",
+                        stage,
+                        entryPoints.front().name,
+                        std::nullopt,
+                        std::nullopt,
+                        expectedExecutionModel
+                            ? std::optional<uint64_t>(static_cast<uint64_t>(*expectedExecutionModel))
+                            : std::nullopt,
+                        static_cast<uint64_t>(entryPoints.front().execution_model)
+                    );
+
                 auto getDescriptorCount = [&](
                     const spirv_cross::Resource& resource
                 ) -> std::expected<uint32_t, ShaderReflectionError> {
-                const auto& type = compiler.get_type(resource.type_id);
+                    const auto& type = compiler.get_type(resource.type_id);
 
-                uint64_t count = 1;
+                    uint64_t count = 1;
 
-                for (size_t i = 0; i < type.array.size(); ++i) {
-                    if (!type.array_size_literal[i])
-                        return std::unexpected(
-                            ShaderReflectionError{
-                                .type = ShaderReflectionErrorCode::RuntimeDescriptorArrayUnsupported,
-                                .stages = stage,
-                                .resourceName = resource.name,
-                                .set = std::nullopt,
-                                .binding = std::nullopt,
-                                .expected = std::nullopt,
-                                .actual = std::nullopt,
-                                .detail = "Runtime-sized descriptor arrays are not supported"
-                            }
-                        );
+                    for (size_t i = 0; i < type.array.size(); ++i) {
+                        if (!type.array_size_literal[i])
+                            return std::unexpected(
+                                ShaderReflectionError{
+                                    .type = ShaderReflectionErrorCode::RuntimeDescriptorArrayUnsupported,
+                                    .stages = stage,
+                                    .resourceName = resource.name,
+                                    .set = std::nullopt,
+                                    .binding = std::nullopt,
+                                    .expected = std::nullopt,
+                                    .actual = std::nullopt,
+                                    .detail = "Runtime-sized descriptor arrays are not supported"
+                                }
+                            );
 
-                    const uint64_t dimension = type.array[i];
-                    if (dimension == 0)
-                        return std::unexpected(
-                            ShaderReflectionError{
-                                .type = ShaderReflectionErrorCode::ZeroDescriptorCount,
-                                .stages = stage,
-                                .resourceName = resource.name,
-                                .set = std::nullopt,
-                                .binding = std::nullopt,
-                                .expected = std::nullopt,
-                                .actual = 0,
-                                .detail = "Descriptor array has a zero-length dimension"
-                            }
-                        );
+                        const uint64_t dimension = type.array[i];
+                        if (dimension == 0)
+                            return std::unexpected(
+                                ShaderReflectionError{
+                                    .type = ShaderReflectionErrorCode::ZeroDescriptorCount,
+                                    .stages = stage,
+                                    .resourceName = resource.name,
+                                    .set = std::nullopt,
+                                    .binding = std::nullopt,
+                                    .expected = std::nullopt,
+                                    .actual = 0,
+                                    .detail = "Descriptor array has a zero-length dimension"
+                                }
+                            );
 
-                    if (count > std::numeric_limits<uint32_t>::max() / dimension)
-                        return std::unexpected(
-                            ShaderReflectionError{
-                                .type = ShaderReflectionErrorCode::DescriptorCountOverflow,
-                                .stages = stage,
-                                .resourceName = resource.name,
-                                .set = std::nullopt,
-                                .binding = std::nullopt,
-                                .expected = std::numeric_limits<uint32_t>::max(),
-                                .actual = count * dimension,
-                                .detail = "Descriptor array count overflows uint32_t"
-                            }
-                        );
+                        if (count > std::numeric_limits<uint32_t>::max() / dimension)
+                            return std::unexpected(
+                                ShaderReflectionError{
+                                    .type = ShaderReflectionErrorCode::DescriptorCountOverflow,
+                                    .stages = stage,
+                                    .resourceName = resource.name,
+                                    .set = std::nullopt,
+                                    .binding = std::nullopt,
+                                    .expected = std::numeric_limits<uint32_t>::max(),
+                                    .actual = count * dimension,
+                                    .detail = "Descriptor array count overflows uint32_t"
+                                }
+                            );
 
-                    count *= dimension;
-                }
+                        count *= dimension;
+                    }
 
-                return static_cast<uint32_t>(count);
+                    return static_cast<uint32_t>(count);
                 };
 
-                auto addUniform = [&] (
+                auto addUniform = [&](
                     const spirv_cross::Resource& resource,
                     const ShaderUniformType type,
                     const uint32_t length = 0
@@ -208,8 +296,9 @@ namespace Vixen {
                                 .resourceName = resource.name,
                                 .set = std::nullopt,
                                 .binding = compiler.has_decoration(resource.id, spv::DecorationBinding)
-                                    ? std::optional(compiler.get_decoration(resource.id, spv::DecorationBinding))
-                                    : std::nullopt,
+                                               ? std::optional(
+                                                   compiler.get_decoration(resource.id, spv::DecorationBinding))
+                                               : std::nullopt,
                                 .expected = std::nullopt,
                                 .actual = std::nullopt,
                                 .detail = "Descriptor resource has no set decoration"
@@ -254,6 +343,20 @@ namespace Vixen {
                         shader->uniformSets.push_back(uniform);
                         return {};
                     }
+
+                    if (existing->stages.contains(stage))
+                        return std::unexpected(
+                            ShaderReflectionError{
+                                .type = ShaderReflectionErrorCode::DuplicateDescriptorBinding,
+                                .stages = stage,
+                                .resourceName = resource.name,
+                                .set = uniform.set,
+                                .binding = uniform.binding,
+                                .expected = std::nullopt,
+                                .actual = std::nullopt,
+                                .detail = "Shader stage declares the same descriptor binding more than once"
+                            }
+                        );
 
                     if (existing->type != uniform.type)
                         return std::unexpected(
@@ -352,7 +455,47 @@ namespace Vixen {
                             size
                         );
 
-                    shader->pushConstantSize = std::max(shader->pushConstantSize, size);
+                    PushConstantLayout layout{
+                        .size = size,
+                        .members = {}
+                    };
+                    layout.members.reserve(type.member_types.size());
+                    for (uint32_t member = 0; member < type.member_types.size(); ++member) {
+                        const auto& memberType = compiler.get_type(type.member_types[member]);
+                        layout.members.push_back({
+                            .offset = compiler.type_struct_member_offset(type, member),
+                            .size = compiler.get_declared_struct_member_size(type, member),
+                            .baseType = memberType.basetype,
+                            .width = memberType.width,
+                            .vectorSize = memberType.vecsize,
+                            .columns = memberType.columns,
+                            .arrayDimensions = {memberType.array.begin(), memberType.array.end()},
+                            .arrayStride = !memberType.array.empty()
+                                               ? std::optional(compiler.type_struct_member_array_stride(type, member))
+                                               : std::nullopt,
+                            .matrixStride = compiler.has_member_decoration(type.self, member,
+                                                                           spv::DecorationMatrixStride)
+                                                ? std::optional(compiler.get_member_decoration(type.self, member,
+                                                    spv::DecorationMatrixStride))
+                                                : std::nullopt,
+                            .rowMajor = compiler.has_member_decoration(type.self, member, spv::DecorationRowMajor)
+                        });
+                    }
+
+                    if (reflectedPushConstantLayout && *reflectedPushConstantLayout != layout)
+                        return fail(
+                            ShaderReflectionErrorCode::PushConstantLayoutConflict,
+                            "Push-constant layout conflicts with another shader stage",
+                            stage,
+                            pushConstant.name,
+                            std::nullopt,
+                            std::nullopt,
+                            reflectedPushConstantLayout->size,
+                            layout.size
+                        );
+
+                    reflectedPushConstantLayout = std::move(layout);
+                    shader->pushConstantSize = size;
                     shader->pushConstantStages |= stage;
                 }
 
@@ -370,19 +513,40 @@ namespace Vixen {
 
                 if (auto result = reflectResources(resources.separate_samplers, ShaderUniformType::Sampler); !result)
                     return result;
-                if (auto result = reflectResources(resources.separate_images, ShaderUniformType::SampledImage); !result)
-                    return result;
-                if (auto result = reflectResources(resources.sampled_images, ShaderUniformType::CombinedImageSampler); !result)
-                    return result;
-                if (auto result = reflectResources(resources.storage_images, ShaderUniformType::StorageImage); !result)
-                    return result;
+
+                for (const auto& resource : resources.separate_images) {
+                    const auto& resourceType = compiler.get_type(resource.type_id);
+                    const auto uniformType = resourceType.image.dim == spv::DimBuffer
+                                                 ? ShaderUniformType::UniformTexelBuffer
+                                                 : ShaderUniformType::SampledImage;
+                    if (auto result = addUniform(resource, uniformType); !result)
+                        return result;
+                }
+
+                for (const auto& resource : resources.sampled_images) {
+                    const auto& resourceType = compiler.get_type(resource.type_id);
+                    const auto uniformType = resourceType.image.dim == spv::DimBuffer
+                                                 ? ShaderUniformType::UniformTexelBuffer
+                                                 : ShaderUniformType::CombinedImageSampler;
+                    if (auto result = addUniform(resource, uniformType); !result)
+                        return result;
+                }
+
+                for (const auto& resource : resources.storage_images) {
+                    const auto& resourceType = compiler.get_type(resource.type_id);
+                    const auto uniformType = resourceType.image.dim == spv::DimBuffer
+                                                 ? ShaderUniformType::StorageTexelBuffer
+                                                 : ShaderUniformType::StorageImage;
+                    if (auto result = addUniform(resource, uniformType); !result)
+                        return result;
+                }
 
                 for (const auto& resource : resources.uniform_buffers) {
                     const auto& type = compiler.get_type(resource.base_type_id);
                     const uint64_t rawSize = compiler.get_declared_struct_size(type);
                     if (rawSize > std::numeric_limits<uint32_t>::max())
                         return fail(
-                            ShaderReflectionErrorCode::DescriptorSizeConflict,
+                            ShaderReflectionErrorCode::DescriptorSizeOverflow,
                             "Uniform buffer size overflows uint32_t",
                             stage,
                             resource.name,
@@ -392,7 +556,8 @@ namespace Vixen {
                             rawSize
                         );
 
-                    const auto result = addUniform(resource, ShaderUniformType::UniformBuffer, static_cast<uint32_t>(rawSize));
+                    const auto result = addUniform(resource, ShaderUniformType::UniformBuffer,
+                                                   static_cast<uint32_t>(rawSize));
                     if (!result)
                         return std::unexpected(result.error());
                 }
@@ -402,7 +567,7 @@ namespace Vixen {
                     const uint64_t rawSize = compiler.get_declared_struct_size(type);
                     if (rawSize > std::numeric_limits<uint32_t>::max())
                         return fail(
-                            ShaderReflectionErrorCode::DescriptorSizeConflict,
+                            ShaderReflectionErrorCode::DescriptorSizeOverflow,
                             "Storage buffer size overflows uint32_t",
                             stage,
                             resource.name,
@@ -412,13 +577,33 @@ namespace Vixen {
                             rawSize
                         );
 
-                    const auto result = addUniform(resource, ShaderUniformType::StorageBuffer, static_cast<uint32_t>(rawSize));
+                    const auto result = addUniform(resource, ShaderUniformType::StorageBuffer,
+                                                   static_cast<uint32_t>(rawSize));
                     if (!result)
                         return std::unexpected(result.error());
                 }
 
-                if (auto result = reflectResources(resources.subpass_inputs, ShaderUniformType::InputAttachment); !result)
+                if (auto result = reflectResources(resources.subpass_inputs, ShaderUniformType::InputAttachment); !
+                    result)
                     return result;
+
+                const spirv_cross::Resource* unsupportedResource = nullptr;
+                if (!resources.atomic_counters.empty())
+                    unsupportedResource = &resources.atomic_counters.front();
+                else if (!resources.acceleration_structures.empty())
+                    unsupportedResource = &resources.acceleration_structures.front();
+                else if (!resources.gl_plain_uniforms.empty())
+                    unsupportedResource = &resources.gl_plain_uniforms.front();
+                else if (!resources.shader_record_buffers.empty())
+                    unsupportedResource = &resources.shader_record_buffers.front();
+
+                if (unsupportedResource != nullptr)
+                    return fail(
+                        ShaderReflectionErrorCode::UnsupportedResourceType,
+                        "SPIR-V module contains a resource type unsupported by Vixen",
+                        stage,
+                        unsupportedResource->name
+                    );
 
                 shader->stages |= stage;
             } catch (const spirv_cross::CompilerError& exception) {
@@ -428,7 +613,6 @@ namespace Vixen {
                     stage
                 );
             }
-
         }
 
         std::ranges::sort(

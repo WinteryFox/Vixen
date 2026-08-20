@@ -2,6 +2,7 @@
 
 #include "VulkanRenderingDeviceDriver.h"
 
+#include <array>
 #include <map>
 #include <ranges>
 #include <vk_mem_alloc.h>
@@ -1842,10 +1843,205 @@ namespace Vixen {
         const auto o = new VulkanShader();
         const auto reflection = reflectShader(stages, o);
         if (!reflection) {
-            const auto reflectionError = reflection.error();
+            const auto& reflectionError = reflection.error();
             delete o;
             error<CantCreateError>(
                 std::format("Shader '{}' reflection failed: {}", name, reflectionError.detail)
+            );
+        }
+
+        const auto validateDeviceLimits = [&]() -> std::expected<void, ShaderReflectionError> {
+            const auto& limits = physicalDeviceProperties.limits;
+
+            auto limitError = [](
+                const ShaderReflectionErrorCode code,
+                std::string detail,
+                const uint64_t limit,
+                const uint64_t actual,
+                const std::optional<ShaderStageBits> stage = std::nullopt,
+                const ShaderUniform* uniform = nullptr
+            ) -> std::expected<void, ShaderReflectionError> {
+                return std::unexpected(ShaderReflectionError{
+                    .type = code,
+                    .stages = stage,
+                    .resourceName = {},
+                    .set = uniform != nullptr ? std::optional(uniform->set) : std::nullopt,
+                    .binding = uniform != nullptr ? std::optional(uniform->binding) : std::nullopt,
+                    .expected = limit,
+                    .actual = actual,
+                    .detail = std::move(detail)
+                });
+            };
+
+            if (o->pushConstantSize > limits.maxPushConstantsSize)
+                return limitError(
+                    ShaderReflectionErrorCode::PushConstantLimitExceeded,
+                    "Push-constant block exceeds the device limit",
+                    limits.maxPushConstantsSize,
+                    o->pushConstantSize
+                );
+
+            struct DescriptorCounts {
+                uint64_t samplers = 0;
+                uint64_t uniformBuffers = 0;
+                uint64_t storageBuffers = 0;
+                uint64_t sampledImages = 0;
+                uint64_t storageImages = 0;
+                uint64_t inputAttachments = 0;
+                uint64_t resources = 0;
+            };
+
+            auto addDescriptor = [](DescriptorCounts& counts, const ShaderUniform& uniform) {
+                counts.resources += uniform.count;
+                switch (uniform.type) {
+                    case ShaderUniformType::Sampler:
+                        counts.samplers += uniform.count;
+                        break;
+
+                    case ShaderUniformType::SampledImage:
+                    case ShaderUniformType::UniformTexelBuffer:
+                        counts.sampledImages += uniform.count;
+                        break;
+
+                    case ShaderUniformType::CombinedImageSampler:
+                        counts.samplers += uniform.count;
+                        counts.sampledImages += uniform.count;
+                        break;
+
+                    case ShaderUniformType::StorageImage:
+                    case ShaderUniformType::StorageTexelBuffer:
+                        counts.storageImages += uniform.count;
+                        break;
+
+                    case ShaderUniformType::UniformBuffer:
+                        counts.uniformBuffers += uniform.count;
+                        break;
+
+                    case ShaderUniformType::StorageBuffer:
+                        counts.storageBuffers += uniform.count;
+                        break;
+
+                    case ShaderUniformType::InputAttachment:
+                        counts.inputAttachments += uniform.count;
+                        break;
+                }
+            };
+
+            DescriptorCounts totalCounts{};
+            for (const ShaderUniform& uniform : o->uniformSets) {
+                if (uniform.set >= limits.maxBoundDescriptorSets)
+                    return limitError(
+                        ShaderReflectionErrorCode::DescriptorSetLimitExceeded,
+                        "Descriptor set index exceeds maxBoundDescriptorSets",
+                        limits.maxBoundDescriptorSets,
+                        static_cast<uint64_t>(uniform.set) + 1,
+                        std::nullopt,
+                        &uniform
+                    );
+                addDescriptor(totalCounts, uniform);
+            }
+
+            auto validateCounts = [&](const DescriptorCounts& counts, const bool perStage,
+                                      const std::optional<ShaderStageBits> stage = std::nullopt)
+                -> std::expected<void, ShaderReflectionError> {
+                const auto validate = [&](const uint64_t actual, const uint64_t limit, const char* name)
+                    -> std::expected<void, ShaderReflectionError> {
+                    if (actual <= limit)
+                        return {};
+
+                    return limitError(
+                        ShaderReflectionErrorCode::DescriptorTypeLimitExceeded,
+                        std::format("{} descriptor count exceeds the device limit", name),
+                        limit,
+                        actual,
+                        stage
+                    );
+                };
+
+                if (auto result = validate(counts.samplers,
+                                           perStage
+                                               ? limits.maxPerStageDescriptorSamplers
+                                               : limits.maxDescriptorSetSamplers,
+                                           "Sampler"); !result)
+                    return result;
+
+                if (auto result = validate(counts.uniformBuffers,
+                                           perStage
+                                               ? limits.maxPerStageDescriptorUniformBuffers
+                                               : limits.maxDescriptorSetUniformBuffers,
+                                           "Uniform-buffer"); !result)
+                    return result;
+
+                if (auto result = validate(counts.storageBuffers,
+                                           perStage
+                                               ? limits.maxPerStageDescriptorStorageBuffers
+                                               : limits.maxDescriptorSetStorageBuffers,
+                                           "Storage-buffer"); !result)
+                    return result;
+
+                if (auto result = validate(counts.sampledImages,
+                                           perStage
+                                               ? limits.maxPerStageDescriptorSampledImages
+                                               : limits.maxDescriptorSetSampledImages,
+                                           "Sampled-image"); !result)
+                    return result;
+
+                if (auto result = validate(counts.storageImages,
+                                           perStage
+                                               ? limits.maxPerStageDescriptorStorageImages
+                                               : limits.maxDescriptorSetStorageImages,
+                                           "Storage-image"); !result)
+                    return result;
+
+                if (auto result = validate(counts.inputAttachments,
+                                           perStage
+                                               ? limits.maxPerStageDescriptorInputAttachments
+                                               : limits.maxDescriptorSetInputAttachments,
+                                           "Input-attachment"); !result)
+                    return result;
+
+                if (perStage) {
+                    if (auto result = validate(counts.resources, limits.maxPerStageResources, "Per-stage resource");
+                        !result)
+                        return result;
+                }
+
+                return {};
+            };
+
+            if (auto result = validateCounts(totalCounts, false); !result)
+                return result;
+
+            constexpr std::array shaderStages{
+                ShaderStageBits::Vertex,
+                ShaderStageBits::Fragment,
+                ShaderStageBits::TesselationControl,
+                ShaderStageBits::TesselationEvaluation,
+                ShaderStageBits::Compute,
+                ShaderStageBits::Geometry
+            };
+            for (const ShaderStageBits stage : shaderStages) {
+                if (!o->stages.contains(stage))
+                    continue;
+
+                DescriptorCounts stageCounts{};
+                for (const ShaderUniform& uniform : o->uniformSets) {
+                    if (uniform.stages.contains(stage))
+                        addDescriptor(stageCounts, uniform);
+                }
+
+                if (auto result = validateCounts(stageCounts, true, stage); !result)
+                    return result;
+            }
+
+            return {};
+        };
+
+        if (const auto limitsValidation = validateDeviceLimits(); !limitsValidation) {
+            const auto& validationError = limitsValidation.error();
+            delete o;
+            error<CantCreateError>(
+                std::format("Shader '{}' exceeds Vulkan device limits: {}", name, validationError.detail)
             );
         }
 
