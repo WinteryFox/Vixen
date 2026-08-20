@@ -105,8 +105,8 @@ namespace Vixen {
                 if (node.type != expectedType)
                     throw std::invalid_argument("Frame graph resource type mismatch");
 
-                if (handle.id.version <= node.latestVersion)
-                    throw std::invalid_argument("Frame graph resouce handle version is out of range");
+                if (handle.id.version != node.latestVersion)
+                    throw std::invalid_argument("Stale frame graph resource handle");
             }
 
             template <typename Handle>
