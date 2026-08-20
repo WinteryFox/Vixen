@@ -1,6 +1,7 @@
 #pragma once
 
 #include <cstdint>
+#include <optional>
 #include <string>
 #include <variant>
 
@@ -10,6 +11,9 @@
 #include "image/ImageView.h"
 
 namespace Vixen {
+    class Buffer;
+    struct Image;
+
     struct ImageResourceDescription {
         ImageFormat format;
 
@@ -17,6 +21,8 @@ namespace Vixen {
     };
 
     using ResourceDescription = std::variant<ImageResourceDescription, BufferFormat>;
+    using ResourceState = std::variant<ImageState, BufferState>;
+    using ImportedResource = std::variant<std::monostate, Image*, Buffer*>;
 
     struct ResourceNode {
         std::string name;
@@ -29,6 +35,10 @@ namespace Vixen {
 
         uint32_t latestVersion;
 
-        bool imported = false;
+        ImportedResource importedResource{};
+
+        std::optional<ResourceState> initialState;
+
+        std::optional<ResourceState> finalState;
     };
 }

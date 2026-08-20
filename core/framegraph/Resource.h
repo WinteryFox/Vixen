@@ -13,7 +13,7 @@
 
 namespace Vixen {
     enum class ResourceType {
-        Texture,
+        Image,
         Buffer
     };
 
@@ -25,7 +25,8 @@ namespace Vixen {
 
     enum class ResourceLifetime {
         Transient,
-        Persistent
+        Persistent,
+        Imported
     };
 
     struct ResourceId {

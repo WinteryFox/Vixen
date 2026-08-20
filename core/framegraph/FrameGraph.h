@@ -10,6 +10,9 @@
 #include "RenderPassType.h"
 
 namespace Vixen {
+    class Buffer;
+    struct Image;
+
     class FrameGraph final {
         std::vector<ResourceNode> resources;
 
@@ -32,6 +35,16 @@ namespace Vixen {
             std::vector<ResourceNode> resources;
 
             std::vector<RenderPass> renderPasses;
+
+            ResourceId addResource(
+                std::string name,
+                ResourceType type,
+                ResourceLifetime lifetime,
+                ResourceDescription description,
+                ImportedResource importedResource = {},
+                std::optional<ResourceState> initialState = std::nullopt,
+                std::optional<ResourceState> finalState = std::nullopt
+            );
 
         public:
             Builder() = default;
@@ -71,6 +84,58 @@ namespace Vixen {
 
                 return *this;
             }
+
+            template <typename PassData, typename Setup, typename Execute>
+            Builder& addComputePass(
+                std::string name,
+                Setup&& setup,
+                Execute&& execute
+            ) {
+                PassData data{};
+
+                RenderPass::Builder passBuilder{
+                    resources,
+                    std::move(name),
+                    RenderPassType::Compute
+                };
+
+                std::invoke(std::forward<Setup>(setup), passBuilder, data);
+
+                renderPasses.emplace_back(
+                    std::move(passBuilder).build<PassData>(
+                        std::move(data),
+                        std::forward<Execute>(execute)
+                    )
+                );
+
+                return *this;
+            }
+
+            ImageHandle createImage(
+                std::string name,
+                ImageResourceDescription description,
+                ResourceLifetime lifetime = ResourceLifetime::Transient
+            );
+
+            BufferHandle createBuffer(
+                std::string name,
+                BufferFormat description,
+                ResourceLifetime lifetime = ResourceLifetime::Transient
+            );
+
+            ImageHandle importImage(
+                std::string name,
+                Image& image,
+                ImageState initialState,
+                ImageState finalState
+            );
+
+            BufferHandle importBuffer(
+                std::string name,
+                Buffer& buffer,
+                BufferState initialState,
+                BufferState finalState
+            );
 
             [[nodiscard]] FrameGraph build() && {
                 return FrameGraph{

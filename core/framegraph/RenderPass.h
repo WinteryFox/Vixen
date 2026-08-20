@@ -149,7 +149,7 @@ namespace Vixen {
                 const ImageUsageBits usage,
                 const PipelineStageFlags stages
             ) {
-                validateCurrent(handle, ResourceType::Texture);
+                validateCurrent(handle, ResourceType::Image);
 
                 resourceUsages.emplace_back(
                     ImageResourceUsage{
@@ -169,7 +169,7 @@ namespace Vixen {
                 const ImageUsageBits usage,
                 const PipelineStageFlags stages
             ) {
-                const auto output = advance(handle, ResourceType::Texture);
+                const auto output = advance(handle, ResourceType::Image);
 
                 resourceUsages.emplace_back(
                     ImageResourceUsage{
@@ -189,7 +189,7 @@ namespace Vixen {
                 const ImageUsageBits usage,
                 const PipelineStageFlags stages
             ) {
-                const auto output = advance(handle, ResourceType::Texture);
+                const auto output = advance(handle, ResourceType::Image);
 
                 resourceUsages.emplace_back(
                     ImageResourceUsage{
