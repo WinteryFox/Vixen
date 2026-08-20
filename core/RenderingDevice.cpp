@@ -276,8 +276,10 @@ namespace Vixen {
 
         uint32_t toPresentIndex = 0;
         while (toPresentIndex < frames[frameIndex].swapchainsToPresent.size()) {
-            if (frames[frameIndex].swapchainsToPresent[toPresentIndex] != swapchain) {
-                renderingDeviceDriver->executeCommandQueueAndPresent(presentQueue, {}, {}, {}, {}, {swapchain});
+            if (frames[frameIndex].swapchainsToPresent[toPresentIndex] == swapchain) {
+                if (!renderingDeviceDriver->executeCommandQueueAndPresent(presentQueue, {}, {}, {}, {}, {swapchain}))
+                    return std::unexpected(Error::InitializationFailed);
+
                 frames[frameIndex].swapchainsToPresent.erase(frames[frameIndex].swapchainsToPresent.begin() + toPresentIndex);
             } else {
                 toPresentIndex++;
