@@ -105,8 +105,8 @@ namespace Vixen {
                 if (node.type != expectedType)
                     throw std::invalid_argument("Frame graph resource type mismatch");
 
-                if (node.latestVersion != handle.id.version)
-                    throw std::invalid_argument("Stale frame graph resource handle");
+                if (handle.id.version <= node.latestVersion)
+                    throw std::invalid_argument("Frame graph resouce handle version is out of range");
             }
 
             template <typename Handle>
@@ -153,7 +153,8 @@ namespace Vixen {
 
                 resourceUsages.emplace_back(
                     ImageResourceUsage{
-                        .handle = handle,
+                        .input = handle,
+                        .output = {},
                         .access = ResourceAccess::Read,
                         .usage = usage,
                         .stages = stages
@@ -172,7 +173,8 @@ namespace Vixen {
 
                 resourceUsages.emplace_back(
                     ImageResourceUsage{
-                        .handle = output,
+                        .input = {},
+                        .output = output,
                         .access = ResourceAccess::Write,
                         .usage = usage,
                         .stages = stages
@@ -191,7 +193,8 @@ namespace Vixen {
 
                 resourceUsages.emplace_back(
                     ImageResourceUsage{
-                        .handle = output,
+                        .input = handle,
+                        .output = output,
                         .access = ResourceAccess::ReadWrite,
                         .usage = usage,
                         .stages = stages
@@ -210,7 +213,8 @@ namespace Vixen {
 
                 resourceUsages.emplace_back(
                     BufferResourceUsage{
-                        .handle = handle,
+                        .input = handle,
+                        .output = {},
                         .access = ResourceAccess::Read,
                         .usage = usage,
                         .stages = stages
@@ -229,7 +233,8 @@ namespace Vixen {
 
                 resourceUsages.emplace_back(
                     BufferResourceUsage{
-                        .handle = output,
+                        .input = {},
+                        .output = output,
                         .access = ResourceAccess::Write,
                         .usage = usage,
                         .stages = stages
@@ -248,7 +253,8 @@ namespace Vixen {
 
                 resourceUsages.emplace_back(
                     BufferResourceUsage{
-                        .handle = output,
+                        .input = handle,
+                        .output = output,
                         .access = ResourceAccess::ReadWrite,
                         .usage = usage,
                         .stages = stages
@@ -262,7 +268,7 @@ namespace Vixen {
                 const ImageHandle handle,
                 const LoadAction loadAction,
                 const StoreAction storeAction,
-                const ClearValue clearValue = {}
+                const ClearValue& clearValue = {}
             ) {
                 if (type != RenderPassType::Graphics)
                     throw std::logic_error("Compute pass cannot have color attachments");
@@ -295,7 +301,7 @@ namespace Vixen {
                 const ImageHandle handle,
                 const LoadAction loadAction,
                 const StoreAction storeAction,
-                const ClearValue clearValue = {}
+                const ClearValue& clearValue = {}
             ) {
                 if (type != RenderPassType::Graphics)
                     throw std::logic_error("Compute pass cannot have depth stencil attachment");

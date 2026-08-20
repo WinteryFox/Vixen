@@ -63,7 +63,8 @@ namespace Vixen {
     using BufferHandle = ResourceHandle<BufferTag>;
 
     struct ImageResourceUsage {
-        ImageHandle handle;
+        ImageHandle input;
+        ImageHandle output;
 
         ResourceAccess access;
 
@@ -73,7 +74,8 @@ namespace Vixen {
     };
 
     struct BufferResourceUsage {
-        BufferHandle handle;
+        BufferHandle input;
+        BufferHandle output;
 
         ResourceAccess access;
 
