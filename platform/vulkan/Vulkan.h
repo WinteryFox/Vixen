@@ -5,6 +5,12 @@
 #include <utility>
 
 #include <volk.h>
+
+// WinBase.h exposes MemoryBarrier as a macro when Win32 Vulkan declarations are enabled.
+// Vixen has a backend-independent MemoryBarrier type with the same name.
+#ifdef MemoryBarrier
+#undef MemoryBarrier
+#endif
 #include <glm/vec3.hpp>
 
 #ifdef DEBUG_ENABLED

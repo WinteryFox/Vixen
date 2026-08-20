@@ -1,9 +1,9 @@
 #include "VulkanRenderingContextDriver.h"
 
+#include <algorithm>
 #include <map>
 #include <ranges>
-#include <Vulkan.h>
-#include <bits/ranges_algo.h>
+#include "Vulkan.h"
 #include <GLFW/glfw3.h>
 
 #include "VulkanRenderingDeviceDriver.h"
@@ -89,7 +89,7 @@ namespace Vixen {
         for (uint32_t i = 0; i < extensionCount; i++) {
             if (const auto& extensionName = availableExtensions[i].extensionName;
                 requestedExtensions.contains(extensionName))
-                enabledInstanceExtensions.push_back(strdup(extensionName));
+                enabledInstanceExtensions.emplace_back(extensionName);
         }
 
         for (const auto& [extensionName, required] : requestedExtensions) {

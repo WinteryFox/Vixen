@@ -1,14 +1,8 @@
-project("Vixen Editor")
-
 add_executable(
         editor
         main.cpp
 )
-target_include_directories(
-        editor
-        PUBLIC
-        ${CMAKE_SOURCE_DIR}/src/engine
-)
+vixen_configure_target(editor)
 target_link_libraries(
         editor
         PUBLIC
@@ -39,6 +33,9 @@ if (ENABLE_OPENGL)
     )
 endif ()
 
-if (CMAKE_BUILD_TYPE MATCHES "Release")
-    set_target_properties(editor PROPERTIES WIN32_EXECUTABLE ON MACOSX_BUNDLE ON)
-endif ()
+set_target_properties(
+        editor
+        PROPERTIES
+        WIN32_EXECUTABLE $<CONFIG:Release>
+        MACOSX_BUNDLE $<CONFIG:Release>
+)

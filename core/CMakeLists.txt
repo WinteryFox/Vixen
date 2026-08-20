@@ -90,6 +90,33 @@ add_library(
         framegraph/RenderPassContext.h
         error/Shader.h
 )
+vixen_configure_target(Vixen)
+target_compile_definitions(
+        Vixen
+        PUBLIC
+        ENGINE_NAME="${ENGINE_NAME}"
+        ENGINE_VERSION_MAJOR=${ENGINE_VERSION_MAJOR}
+        ENGINE_VERSION_MINOR=${ENGINE_VERSION_MINOR}
+        ENGINE_VERSION_PATCH=${ENGINE_VERSION_PATCH}
+        ENGINE_VERSION_STATUS="$<IF:$<CONFIG:Release>,stable,dev>"
+        ENGINE_VERSION="${ENGINE_VERSION_MAJOR}.${ENGINE_VERSION_MINOR}.${ENGINE_VERSION_PATCH}.$<IF:$<CONFIG:Release>,stable,dev>"
+)
+
+if (ENABLE_VULKAN)
+    target_compile_definitions(Vixen PRIVATE VULKAN_ENABLED)
+endif ()
+if (ENABLE_D3D12)
+    target_compile_definitions(Vixen PRIVATE D3D12_ENABLED)
+endif ()
+if (ENABLE_OPENGL)
+    target_compile_definitions(Vixen PRIVATE OPENGL_ENABLED)
+endif ()
+if (CMAKE_SYSTEM_NAME STREQUAL "Darwin")
+    target_compile_definitions(Vixen PRIVATE MACOS_ENABLED)
+elseif (CMAKE_SYSTEM_NAME STREQUAL "iOS")
+    target_compile_definitions(Vixen PRIVATE IOS_ENABLED)
+endif ()
+
 target_link_libraries(
         Vixen
         PUBLIC

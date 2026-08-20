@@ -10,13 +10,14 @@ add_library(
         D3D12RenderingDevice.cpp
         D3D12RenderingDevice.h
 )
+vixen_configure_target(D3D12Vixen)
 target_link_libraries(
         D3D12Vixen
         PUBLIC
         Vixen
         ${D3D12_LIBRARIES}
 )
-target_link_directories(
+target_include_directories(
         D3D12Vixen
         PUBLIC
         ${D3D12_INCLUDE_DIRS}

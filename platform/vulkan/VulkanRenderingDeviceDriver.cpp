@@ -6,7 +6,7 @@
 #include <map>
 #include <ranges>
 #include <vk_mem_alloc.h>
-#include <Vulkan.h>
+#include "Vulkan.h"
 
 #include "AttachmentInfo.h"
 #include "VulkanRenderingContextDriver.h"
@@ -80,7 +80,7 @@ namespace Vixen {
         for (uint32_t i = 0; i < extensionCount; i++) {
             if (const auto& extensionName = availableExtensions[i].extensionName;
                 requestedExtensions.contains(extensionName))
-                enabledExtensionNames.emplace_back(strdup(extensionName));
+                enabledExtensionNames.emplace_back(extensionName);
         }
 
         for (const auto& [extensionName, required] : requestedExtensions) {

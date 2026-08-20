@@ -21,6 +21,7 @@ add_library(
         VulkanFramebuffer.h
         DeviceFeatureSupport.h
 )
+vixen_configure_target(VkVixen)
 target_link_libraries(
         VkVixen
         PUBLIC
@@ -31,15 +32,15 @@ target_link_libraries(
 target_include_directories(
         VkVixen
         PUBLIC
-        ${CMAKE_SOURCE_DIR}/src/engine
-        ${CMAKE_SOURCE_DIR}/src/engine/platform/vulkan
+        ${CMAKE_CURRENT_SOURCE_DIR}
 )
 
 target_compile_definitions(VkVixen PUBLIC VK_NO_PROTOTYPES)
 
 if (WIN32)
-    set(VOLK_STATIC_DEFINES VK_USE_PLATFORM_WIN32_KHR)
-    # TODO: Other platforms
+    target_compile_definitions(VkVixen PUBLIC VK_USE_PLATFORM_WIN32_KHR)
+elseif (APPLE)
+    target_compile_definitions(VkVixen PUBLIC VK_USE_PLATFORM_METAL_EXT)
 endif ()
 
 target_link_libraries(

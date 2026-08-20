@@ -6,13 +6,9 @@ add_library(
         OpenGLRenderingContext.cpp
         OpenGLRenderingContext.h
 )
+vixen_configure_target(OpenGLVixen)
 target_link_libraries(
         OpenGLVixen
         PUBLIC
         Vixen
-)
-target_include_directories(
-        OpenGLVixen
-        PUBLIC
-        ${CMAKE_SOURCE_DIR}/src/engine
 )
