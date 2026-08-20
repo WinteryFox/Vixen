@@ -197,41 +197,150 @@ namespace Vixen {
     }
 
     void VulkanRenderingContextDriver::initializeDevices() {
-        uint32_t physicalDeviceCount;
+        uint32_t physicalDeviceCount = 0;
         if (vkEnumeratePhysicalDevices(instance, &physicalDeviceCount, nullptr) != VK_SUCCESS)
             error<CantCreateError>("Failed to enumerate physical devices.");
-        physicalDevices.resize(physicalDeviceCount);
-        deviceQueueFamilyProperties.resize(physicalDeviceCount);
-        if (vkEnumeratePhysicalDevices(instance, &physicalDeviceCount, physicalDevices.data()) != VK_SUCCESS)
+
+        std::vector<VkPhysicalDevice> availableDevices(physicalDeviceCount);
+        if (vkEnumeratePhysicalDevices(instance, &physicalDeviceCount, availableDevices.data()) != VK_SUCCESS)
             error<CantCreateError>("Failed to enumerate physical devices.");
 
-        for (uint32_t i = 0; i < physicalDevices.size(); i++) {
-            VkPhysicalDeviceProperties properties;
-            vkGetPhysicalDeviceProperties(physicalDevices[i], &properties);
+        physicalDevices.clear();
+        physicalDevices.reserve(availableDevices.size());
 
-            if (VK_API_VERSION_MAJOR(properties.apiVersion) <= 1 && VK_API_VERSION_MINOR(properties.apiVersion) < 3) {
-                physicalDevices.erase(physicalDevices.begin() + i);
-                deviceQueueFamilyProperties.erase(deviceQueueFamilyProperties.begin() + i);
+        for (const VkPhysicalDevice handle : availableDevices) {
+            PhysicalDeviceRecord record{
+                .handle = handle
+            };
+
+            vkGetPhysicalDeviceProperties(handle, &record.properties);
+            vkGetPhysicalDeviceMemoryProperties(handle, &record.memoryProperties);
+
+            if (record.properties.apiVersion < VK_API_VERSION_1_3) {
+                spdlog::debug("Ignoring device '{}': Vulkan 1.3 is not supported.", record.properties.deviceName);
                 continue;
             }
 
-            driverDevices.push_back(
-                {
-                    .name = properties.deviceName
+            DeviceFeatureSupport features{};
+            features.core.pNext = &features.vulkan12;
+            features.vulkan12.pNext = &features.vulkan13;
+            vkGetPhysicalDeviceFeatures2(handle, &features.core);
+
+            if (features.vulkan12.timelineSemaphore != VK_TRUE ||
+                features.vulkan13.dynamicRendering != VK_TRUE ||
+                features.vulkan13.synchronization2 != VK_TRUE ||
+                features.core.features.imageCubeArray != VK_TRUE ||
+                features.core.features.independentBlend != VK_TRUE) {
+                spdlog::debug("Ignoring device '{}': required Vulkan features are unavailable.",
+                              record.properties.deviceName);
+                continue;
+            }
+
+            uint32_t extensionCount = 0;
+            if (vkEnumerateDeviceExtensionProperties(handle, nullptr, &extensionCount, nullptr) != VK_SUCCESS) {
+                spdlog::debug("Ignoring device '{}': extensions could not be enumerated.",
+                              record.properties.deviceName);
+                continue;
+            }
+
+            std::vector<VkExtensionProperties> extensions(extensionCount);
+            if (vkEnumerateDeviceExtensionProperties(handle, nullptr, &extensionCount, extensions.data()) !=
+                VK_SUCCESS) {
+                spdlog::debug("Ignoring device '{}': extensions could not be enumerated.",
+                              record.properties.deviceName);
+                continue;
+            }
+
+            const bool supportsSwapchain = std::ranges::any_of(
+                extensions,
+                [](const VkExtensionProperties& extension) {
+                    return std::string_view(extension.extensionName) == VK_KHR_SWAPCHAIN_EXTENSION_NAME;
+                }
+            );
+            if (!supportsSwapchain) {
+                spdlog::debug("Ignoring device '{}': VK_KHR_swapchain is unavailable.",
+                              record.properties.deviceName);
+                continue;
+            }
+
+            uint32_t queueFamilyCount = 0;
+            vkGetPhysicalDeviceQueueFamilyProperties(handle, &queueFamilyCount, nullptr);
+            record.queueFamilies.resize(queueFamilyCount);
+            vkGetPhysicalDeviceQueueFamilyProperties(
+                handle,
+                &queueFamilyCount,
+                record.queueFamilies.data()
+            );
+
+            const bool hasGraphicsComputeQueue = std::ranges::any_of(
+                record.queueFamilies,
+                [](const VkQueueFamilyProperties& queueFamily) {
+                    constexpr VkQueueFlags required = VK_QUEUE_GRAPHICS_BIT | VK_QUEUE_COMPUTE_BIT;
+                    return queueFamily.queueCount > 0 && (queueFamily.queueFlags & required) == required;
+                }
+            );
+            const bool hasTransferQueue = std::ranges::any_of(
+                record.queueFamilies,
+                [](const VkQueueFamilyProperties& queueFamily) {
+                    return queueFamily.queueCount > 0 && (queueFamily.queueFlags & VK_QUEUE_TRANSFER_BIT) != 0;
+                }
+            );
+            if (!hasGraphicsComputeQueue || !hasTransferQueue) {
+                spdlog::debug("Ignoring device '{}': required queue families are unavailable.",
+                              record.properties.deviceName);
+                continue;
+            }
+
+            uint64_t deviceLocalMemory = 0;
+            for (uint32_t heap = 0; heap < record.memoryProperties.memoryHeapCount; ++heap) {
+                if ((record.memoryProperties.memoryHeaps[heap].flags & VK_MEMORY_HEAP_DEVICE_LOCAL_BIT) != 0)
+                    deviceLocalMemory += record.memoryProperties.memoryHeaps[heap].size;
+            }
+
+            const bool hasDedicatedComputeQueue = std::ranges::any_of(
+                record.queueFamilies,
+                [](const VkQueueFamilyProperties& queueFamily) {
+                    return queueFamily.queueCount > 0 &&
+                        (queueFamily.queueFlags & VK_QUEUE_COMPUTE_BIT) != 0 &&
+                        (queueFamily.queueFlags & VK_QUEUE_GRAPHICS_BIT) == 0;
+                }
+            );
+            const bool hasDedicatedTransferQueue = std::ranges::any_of(
+                record.queueFamilies,
+                [](const VkQueueFamilyProperties& queueFamily) {
+                    return queueFamily.queueCount > 0 &&
+                        (queueFamily.queueFlags & VK_QUEUE_TRANSFER_BIT) != 0 &&
+                        (queueFamily.queueFlags & (VK_QUEUE_GRAPHICS_BIT | VK_QUEUE_COMPUTE_BIT)) == 0;
                 }
             );
 
-            uint32_t queueFamilyPropertiesCount;
-            vkGetPhysicalDeviceQueueFamilyProperties(physicalDevices[i], &queueFamilyPropertiesCount, nullptr);
-
-            if (queueFamilyPropertiesCount > 0) {
-                deviceQueueFamilyProperties[i].resize(queueFamilyPropertiesCount);
-                vkGetPhysicalDeviceQueueFamilyProperties(
-                    physicalDevices[i],
-                    &queueFamilyPropertiesCount,
-                    deviceQueueFamilyProperties[i].data()
-                );
+            DriverDeviceType deviceType = DriverDeviceType::Other;
+            switch (record.properties.deviceType) {
+                case VK_PHYSICAL_DEVICE_TYPE_INTEGRATED_GPU:
+                    deviceType = DriverDeviceType::Integrated;
+                    break;
+                case VK_PHYSICAL_DEVICE_TYPE_DISCRETE_GPU:
+                    deviceType = DriverDeviceType::Discrete;
+                    break;
+                case VK_PHYSICAL_DEVICE_TYPE_VIRTUAL_GPU:
+                    deviceType = DriverDeviceType::Virtual;
+                    break;
+                case VK_PHYSICAL_DEVICE_TYPE_CPU:
+                    deviceType = DriverDeviceType::Cpu;
+                    break;
+                default:
+                    break;
             }
+
+            record.description = {
+                .name = record.properties.deviceName,
+                .type = deviceType,
+                .deviceLocalMemory = deviceLocalMemory,
+                .hasDedicatedComputeQueue = hasDedicatedComputeQueue,
+                .hasDedicatedTransferQueue = hasDedicatedTransferQueue
+            };
+
+            physicalDevices.push_back(std::move(record));
         }
     }
 
@@ -268,7 +377,9 @@ namespace Vixen {
     }
 
     std::vector<DriverDevice> VulkanRenderingContextDriver::getDevices() {
-        return driverDevices;
+        return physicalDevices |
+            std::views::transform([](const PhysicalDeviceRecord& device) { return device.description; }) |
+            std::ranges::to<std::vector>();
     }
 
     bool VulkanRenderingContextDriver::deviceSupportsPresent(
@@ -281,8 +392,8 @@ namespace Vixen {
 
         const auto& vkSurface = dynamic_cast<VulkanSurface*>(surface);
 
-        const auto physicalDevice = physicalDevices[deviceIndex];
-        const auto& queueFamilies = deviceQueueFamilyProperties[deviceIndex];
+        const auto physicalDevice = physicalDevices[deviceIndex].handle;
+        const auto& queueFamilies = physicalDevices[deviceIndex].queueFamilies;
         for (uint32_t i = 0; i < queueFamilies.size(); i++) {
             if (queueFamilies[i].queueFlags & VK_QUEUE_GRAPHICS_BIT) {
                 VkBool32 presentSupport = VK_FALSE;
@@ -301,19 +412,19 @@ namespace Vixen {
     uint32_t VulkanRenderingContextDriver::getQueueFamilyCount(
         const uint32_t deviceIndex
     ) const {
-        DEBUG_ASSERT(deviceIndex < deviceQueueFamilyProperties.size());
+        DEBUG_ASSERT(deviceIndex < physicalDevices.size());
 
-        return deviceQueueFamilyProperties[deviceIndex].size();
+        return physicalDevices[deviceIndex].queueFamilies.size();
     }
 
     VkQueueFamilyProperties VulkanRenderingContextDriver::getQueueFamilyProperties(
         const uint32_t deviceIndex,
         const uint32_t queueFamilyIndex
     ) const {
-        DEBUG_ASSERT(deviceIndex < deviceQueueFamilyProperties.size());
-        DEBUG_ASSERT(queueFamilyIndex < deviceQueueFamilyProperties[deviceIndex].size());
+        DEBUG_ASSERT(deviceIndex < physicalDevices.size());
+        DEBUG_ASSERT(queueFamilyIndex < physicalDevices[deviceIndex].queueFamilies.size());
 
-        return deviceQueueFamilyProperties[deviceIndex][queueFamilyIndex];
+        return physicalDevices[deviceIndex].queueFamilies[queueFamilyIndex];
     }
 
     bool VulkanRenderingContextDriver::queueFamilySupportsPresent(
@@ -337,7 +448,7 @@ namespace Vixen {
     ) const {
         DEBUG_ASSERT(deviceIndex < physicalDevices.size());
 
-        return physicalDevices[deviceIndex];
+        return physicalDevices[deviceIndex].handle;
     }
 
     RenderingDeviceDriver* VulkanRenderingContextDriver::createRenderingDeviceDriver(

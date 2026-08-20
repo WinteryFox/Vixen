@@ -111,37 +111,23 @@ namespace Vixen {
 
         const auto devices = renderingContextDriver->getDevices();
 
-        spdlog::trace(
-            "Found the following devices.\n{}",
-            std::ranges::fold_left(
-                std::views::iota(0) |
-                std::views::take(devices.size()) |
-                std::views::transform(
-                    [&](
-                    const std::size_t i
-                ) {
-                        const auto& [deviceName] = devices[i];
-                        return std::format(
-                            "    [{}] - {}\n"
-                            "            * Supports presentation? {}",
-                            std::to_string(i),
-                            deviceName,
-                            renderingContext->deviceSupportsPresent(i, mainSurface) ? "Yes" : "No"
-                        );
-                    }
-                ),
-                std::string{},
-                [](
-                const auto& a,
-                const auto& b
-            ) {
-                    return a.empty() ? std::move(b) : std::move(a) + "\n" + b;
-                }
-            )
-        );
+        std::string deviceList;
+        for (uint32_t i = 0; i < devices.size(); ++i) {
+            if (!deviceList.empty())
+                deviceList += '\n';
+
+            deviceList += std::format(
+                "    [{}] - {}\n"
+                "            * Supports presentation? {}",
+                i,
+                devices[i].name,
+                renderingContext->deviceSupportsPresent(i, mainSurface) ? "Yes" : "No"
+            );
+        }
+        spdlog::trace("Found the following devices.\n{}", deviceList);
 
         uint32_t deviceIndex = std::numeric_limits<uint32_t>::max();
-        uint32_t deviceScore = 0;
+        uint64_t bestDeviceScore = 0;
         for (uint32_t i = 0; i < devices.size(); i++) {
             const auto& deviceOption = devices[i];
             const bool supportsPresent = mainSurface != nullptr
@@ -151,8 +137,33 @@ namespace Vixen {
             if (!supportsPresent)
                 continue;
 
-            deviceIndex = i;
-            // TODO: Score devices
+            uint64_t score = 1;
+            switch (deviceOption.type) {
+                case DriverDeviceType::Discrete:
+                    score += 1'000'000;
+                    break;
+                case DriverDeviceType::Integrated:
+                    score += 500'000;
+                    break;
+                case DriverDeviceType::Virtual:
+                    score += 250'000;
+                    break;
+                case DriverDeviceType::Cpu:
+                    score += 100'000;
+                    break;
+                case DriverDeviceType::Other:
+                    break;
+            }
+
+            constexpr uint64_t mebibyte = 1024 * 1024;
+            score += std::min(deviceOption.deviceLocalMemory / mebibyte, 100'000ull);
+            score += deviceOption.hasDedicatedComputeQueue ? 25'000 : 0;
+            score += deviceOption.hasDedicatedTransferQueue ? 25'000 : 0;
+
+            if (deviceIndex == std::numeric_limits<uint32_t>::max() || score > bestDeviceScore) {
+                deviceIndex = i;
+                bestDeviceScore = score;
+            }
         }
 
         if (deviceIndex == std::numeric_limits<uint32_t>::max())

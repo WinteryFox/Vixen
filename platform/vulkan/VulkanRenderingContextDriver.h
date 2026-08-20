@@ -18,9 +18,15 @@ namespace Vixen {
 
         VkInstance instance;
 
-        std::vector<DriverDevice> driverDevices;
-        std::vector<VkPhysicalDevice> physicalDevices;
-        std::vector<std::vector<VkQueueFamilyProperties>> deviceQueueFamilyProperties;
+        struct PhysicalDeviceRecord {
+            VkPhysicalDevice handle = VK_NULL_HANDLE;
+            VkPhysicalDeviceProperties properties{};
+            VkPhysicalDeviceMemoryProperties memoryProperties{};
+            DriverDevice description{};
+            std::vector<VkQueueFamilyProperties> queueFamilies;
+        };
+
+        std::vector<PhysicalDeviceRecord> physicalDevices;
 
         void initializeVulkanVersion();
 
