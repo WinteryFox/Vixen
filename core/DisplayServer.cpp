@@ -22,13 +22,13 @@
 #endif
 
 namespace Vixen {
-    Window *DisplayServer::createWindow(
-        const std::string &title,
+    auto DisplayServer::createWindow(
+        const std::string& title,
         const WindowMode mode,
         const VSyncMode vsync,
         const WindowFlags flags,
         const glm::uvec2 resolution
-    ) {
+    ) -> std::expected<Window*, Error> {
         glfwWindowHint(GLFW_CLIENT_API, GLFW_NO_API);
         glfwWindowHint(GLFW_VISIBLE, GLFW_TRUE);
         glfwWindowHint(GLFW_RESIZABLE, flags.contains(WindowBits::Resizable) ? GLFW_TRUE : GLFW_FALSE);
@@ -36,48 +36,21 @@ namespace Vixen {
         glfwWindowHint(GLFW_DECORATED, flags.contains(WindowBits::Borderless) ? GLFW_FALSE : GLFW_TRUE);
         glfwWindowHint(GLFW_FLOATING, flags.contains(WindowBits::AlwaysOnTop) ? GLFW_TRUE : GLFW_FALSE);
 
-        auto *handle = glfwCreateWindow(static_cast<int>(resolution.x), static_cast<int>(resolution.y),
+        auto* handle = glfwCreateWindow(static_cast<int>(resolution.x), static_cast<int>(resolution.y),
                                         title.c_str(), nullptr, nullptr);
         if (!handle)
-            error<CantCreateError>("Failed to create window");
+            return std::unexpected(Error::InitializationFailed);
 
-        Surface *surface = nullptr;
-        switch (driver) {
-#ifdef VULKAN_ENABLED
-            case RenderingDriver::Vulkan:
-                surface = new VulkanSurface();
-                break;
-#endif
-
-#ifdef D3D12_ENABLED
-            case RenderingDriver::D3D12:
-                surface = new D3D12Surface();
-            break;
-#endif
-
-#ifdef OPENGL_ENABLED
-            case RenderingDriver::OpenGL:
-                surface = new OpenGLSurface();
-            break;
-#endif
-
-            default:
-                break;
-        }
-
-        if (!surface)
-            error<CantCreateError>("Failed to detect surface type for current driver.");
-
-        surface->resolution = resolution;
-        surface->isResizeRequired = false;
-        surface->windowMode = mode;
-        surface->vsyncMode = vsync;
-
-        auto *window = new Window{
+        auto* window = new Window{
             .window = handle
         };
 
-        renderingContextDriver->createWindow(window);
+        if (!renderingContextDriver->createWindow(window)) {
+            delete window;
+            return std::unexpected(Error::InitializationFailed);
+        }
+
+        renderingContextDriver->setWindowSize(window, resolution.x, resolution.y);
 
         setWindowedMode(window, mode);
         setVSyncMode(window, vsync);
@@ -92,8 +65,8 @@ namespace Vixen {
     }
 
     DisplayServer::DisplayServer(
-        const std::string &applicationName,
-        const glm::ivec3 &applicationVersion,
+        const std::string& applicationName,
+        const glm::ivec3& applicationVersion,
         const RenderingDriver driver,
         const WindowMode windowMode,
         const VSyncMode vsyncMode,
@@ -104,35 +77,39 @@ namespace Vixen {
             error<CantCreateError>("Failed to initialize GLFW.\n"
                 "glfwInit failed.");
 
-        glfwSetErrorCallback([](int code, const char *message) {
+        glfwSetErrorCallback([](int code, const char* message) {
             spdlog::error("[GLFW] {} ({})", message, code);
         });
 
         switch (driver) {
-#ifdef VULKAN_ENABLED
+                #ifdef VULKAN_ENABLED
             case RenderingDriver::Vulkan:
                 renderingContextDriver = new VulkanRenderingContextDriver(applicationName, applicationVersion);
                 break;
-#endif
+                #endif
 
-#ifdef D3D12_ENABLED
+                #ifdef D3D12_ENABLED
             case RenderingDriver::D3D12:
                 renderingContextDriver = new D3D12Rendering(applicationName, applicationVersion);
                 break;
-#endif
+                #endif
 
-#ifdef OPENGL_ENABLED
+                #ifdef OPENGL_ENABLED
             case RenderingDriver::OpenGL:
                 renderingContextDriver = new VulkanRenderingContextDriver(applicationName, applicationVersion);
                 break;
             }
-#endif
+                #endif
 
             default:
                 throw std::runtime_error("Failed to create display server");
         }
 
-        mainWindow = createWindow(applicationName, windowMode, vsyncMode, flags, resolution);
+        const auto window = createWindow(applicationName, windowMode, vsyncMode, flags, resolution);
+        if (!window)
+            error<CantCreateError>("Failed to create window");
+
+        mainWindow = window.value();
 
         renderingDevice = new RenderingDevice(renderingContextDriver, mainWindow);
         if (const auto swapchain = renderingDevice->createScreen(mainWindow); !swapchain)
@@ -158,15 +135,15 @@ namespace Vixen {
         delete renderingContextDriver;
     }
 
-    Window *DisplayServer::getMainWindow() const {
+    Window* DisplayServer::getMainWindow() const {
         return mainWindow;
     }
 
-    bool DisplayServer::shouldClose(const Window *window) {
+    bool DisplayServer::shouldClose(const Window* window) {
         return glfwWindowShouldClose(window->window) == GLFW_TRUE;
     }
 
-    void DisplayServer::update(Window *window) {
+    void DisplayServer::update(Window* window) {
         glfwPollEvents();
 
         if (!renderingDevice->prepareScreenForDrawing(window))
@@ -175,14 +152,14 @@ namespace Vixen {
         renderingDevice->swapBuffers(true);
     }
 
-    void DisplayServer::setVisible(const Window *window, bool visible) {
+    void DisplayServer::setVisible(const Window* window, bool visible) {
         if (visible)
             glfwShowWindow(window->window);
         else
             glfwHideWindow(window->window);
     }
 
-    void DisplayServer::center(const Window *window) {
+    void DisplayServer::center(const Window* window) {
         int w;
         int h;
         glfwGetWindowSize(window->window, &w, &h);
@@ -200,13 +177,13 @@ namespace Vixen {
         );
     }
 
-    bool DisplayServer::getWindowMonitor(const Window *window, Monitor &m) {
+    bool DisplayServer::getWindowMonitor(const Window* window, Monitor& m) const {
         const auto monitor = glfwGetWindowMonitor(window->window);
         if (monitor == nullptr)
             return false;
 
-        const auto &primary = glfwGetPrimaryMonitor();
-        const auto &mode = glfwGetVideoMode(monitor);
+        const auto& primary = glfwGetPrimaryMonitor();
+        const auto& mode = glfwGetVideoMode(monitor);
 
         m = {
             std::string(glfwGetMonitorName(monitor)),
@@ -230,8 +207,8 @@ namespace Vixen {
         std::vector<Monitor> monitors;
         monitors.reserve(count);
         for (int i = 0; i < count; i++) {
-            const auto &m = glfwMonitors[i];
-            const auto &mode = glfwGetVideoMode(m);
+            const auto& m = glfwMonitors[i];
+            const auto& mode = glfwGetVideoMode(m);
             monitors.emplace_back(
                 std::string(glfwGetMonitorName(m)),
                 mode->width,
@@ -247,17 +224,18 @@ namespace Vixen {
         return monitors;
     }
 
-    void DisplayServer::setWindowedMode(const Window *window, const WindowMode mode) const {
-        // TODO: Actually set windowed mode for surface?
-
+    void DisplayServer::setWindowedMode(Window* window, const WindowMode mode) {
         int width;
         int height;
+        glfwGetWindowSize(window->window, &width, &height);
+
         int x;
         int y;
+        glfwGetWindowPos(window->window, &x, &y);
 
         int refreshRate = 0;
-        GLFWmonitor *monitor = nullptr;
-        const GLFWvidmode *videoMode = nullptr;
+        GLFWmonitor* monitor = nullptr;
+        const GLFWvidmode* videoMode = nullptr;
 
         switch (mode) {
                 using enum WindowMode;
@@ -291,9 +269,10 @@ namespace Vixen {
         }
 
         glfwSetWindowMonitor(window->window, monitor, x, y, width, height, refreshRate);
+        renderingContextDriver->setWindowMode(window, mode);
     }
 
-    void DisplayServer::setVSyncMode(Window *window, const VSyncMode mode) const {
+    void DisplayServer::setVSyncMode(Window* window, const VSyncMode mode) const {
         renderingContextDriver->setWindowVSyncMode(window, mode);
 
         if (driver == RenderingDriver::OpenGL) {
@@ -313,11 +292,11 @@ namespace Vixen {
         }
     }
 
-    void DisplayServer::getFramebufferSize(const Window *window, int &width, int &height) {
+    void DisplayServer::getFramebufferSize(const Window* window, int& width, int& height) const {
         glfwGetFramebufferSize(window->window, &width, &height);
     }
 
-    void DisplayServer::maximize(const Window *window) {
+    void DisplayServer::maximize(const Window* window) {
         glfwMaximizeWindow(window->window);
     }
 }

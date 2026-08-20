@@ -22,8 +22,7 @@ namespace Vixen {
         Bottom = 1u << 13,
         Resolve = 1u << 14,
         AllGraphics = 1u << 15,
-        AllCommands = 1u << 16,
-        ClearStorage = 1u << 17
+        AllCommands = 1u << 16
     };
 
     template <>

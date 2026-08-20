@@ -7,10 +7,10 @@
 
 namespace Vixen {
     struct Surface {
-        glm::uvec2 resolution;
-        bool isResizeRequired;
-        WindowMode windowMode;
-        VSyncMode vsyncMode;
+        glm::uvec2 resolution{0, 0};
+        bool isResizeRequired = false;
+        WindowMode windowMode = WindowMode::Windowed;
+        VSyncMode vsyncMode = VSyncMode::Enabled;
 
         virtual ~Surface() = default;
     };

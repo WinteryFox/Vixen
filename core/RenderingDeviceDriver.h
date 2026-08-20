@@ -20,9 +20,8 @@
 #include "image/SamplerState.h"
 #include "shader/ShaderStageData.h"
 
-enum class BufferUsageFlags : uint32_t;
-
 namespace Vixen {
+    struct ShaderReflectionError;
     struct BufferImageCopyRegion;
     struct ImageSubresourceRange;
     struct ImageCopyRegion;
@@ -50,10 +49,10 @@ namespace Vixen {
 
     class RenderingDeviceDriver {
     protected:
-        static bool reflectShader(
+        static auto reflectShader(
             const std::vector<ShaderStageData>& stages,
             Shader* shader
-        );
+        ) -> std::expected<void, ShaderReflectionError>;
 
     public:
         virtual ~RenderingDeviceDriver() = default;

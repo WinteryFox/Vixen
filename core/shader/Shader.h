@@ -10,10 +10,10 @@
 namespace Vixen {
     struct Shader {
         std::string name;
-        uint32_t pushConstantSize;
-        ShaderStageFlags pushConstantStages;
+        uint32_t pushConstantSize = 0;
+        ShaderStageFlags pushConstantStages{};
         std::vector<ShaderUniform> uniformSets;
-        ShaderStageFlags stages;
+        ShaderStageFlags stages{};
 
         virtual ~Shader() = default;
     };

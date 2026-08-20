@@ -22,15 +22,16 @@ namespace Vixen {
 
             if (const VkResult res = func(&api_version); res == VK_SUCCESS) {
                 instanceApiVersion = api_version;
-            }
-            else {
+            } else {
                 error<CantCreateError>("Failed to get Vulkan API version.");
             }
-        }
-        else {
+        } else {
             spdlog::info("vkEnumerateInstanceVersion not available, assuming Vulkan 1.0");
             instanceApiVersion = VK_API_VERSION_1_0;
         }
+
+        if (instanceApiVersion < VK_API_VERSION_1_3)
+            error<CantCreateError>("Vulkan loader/runtime does not support Vulkan 1.3.");
     }
 
     void VulkanRenderingContextDriver::initializeInstanceExtensions() {
@@ -44,16 +45,16 @@ namespace Vixen {
                 requestedExtensions[std::string(extensions[i])] = true;
         }
 
-#ifdef DEBUG_ENABLED
+        #ifdef DEBUG_ENABLED
         requestedExtensions[VK_EXT_DEBUG_REPORT_EXTENSION_NAME] = false;
         requestedExtensions[VK_EXT_DEBUG_UTILS_EXTENSION_NAME] = false;
-#endif
+        #endif
 
         requestedExtensions[VK_KHR_SURFACE_EXTENSION_NAME] = true;
 
-#if defined(MACOS_ENABLED) || defined(IOS_ENABLED)
+        #if defined(MACOS_ENABLED) || defined(IOS_ENABLED)
         requestedExtensions[VK_KHR_PORTABILITY_ENUMERATION_EXTENSION_NAME] = true;
-#endif
+        #endif
 
         requestedExtensions[VK_KHR_GET_PHYSICAL_DEVICE_PROPERTIES_2_EXTENSION_NAME] = false;
 
@@ -113,7 +114,7 @@ namespace Vixen {
             .applicationVersion = VK_MAKE_VERSION(applicationVersion.x, applicationVersion.y, applicationVersion.z),
             .pEngineName = ENGINE_NAME,
             .engineVersion = VK_MAKE_VERSION(ENGINE_VERSION_MAJOR, ENGINE_VERSION_MINOR, ENGINE_VERSION_PATCH),
-            .apiVersion = instanceApiVersion == VK_API_VERSION_1_0 ? VK_API_VERSION_1_0 : VK_API_VERSION_1_3
+            .apiVersion = VK_API_VERSION_1_3
         };
 
         uint32_t layerCount;
@@ -123,11 +124,11 @@ namespace Vixen {
 
         std::vector<const char*> enabledLayerNames{};
 
-#ifdef DEBUG_ENABLED
+        #ifdef DEBUG_ENABLED
         for (const auto& layer : availableLayers)
             if (layer.layerName == std::string("VK_LAYER_KHRONOS_validation"))
                 enabledLayerNames.push_back("VK_LAYER_KHRONOS_validation");
-#endif
+        #endif
 
         std::vector<const char*> enabledInstanceExtensionsStr{enabledInstanceExtensions.size()};
         for (auto i = 0; i < enabledInstanceExtensions.size(); i++) {
@@ -137,11 +138,11 @@ namespace Vixen {
         VkInstanceCreateInfo instanceInfo{
             .sType = VK_STRUCTURE_TYPE_INSTANCE_CREATE_INFO,
             .pNext = nullptr,
-#if defined(MACOS_ENABLED) || defined(IOS_ENABLED)
+            #if defined(MACOS_ENABLED) || defined(IOS_ENABLED)
             .flags = VK_INSTANCE_CREATE_ENUMERATE_PORTABILITY_BIT_KHR,
-#else
+            #else
             .flags = 0,
-#endif
+            #endif
             .pApplicationInfo = &applicationInfo,
             .enabledLayerCount = static_cast<uint32_t>(enabledLayerNames.size()),
             .ppEnabledLayerNames = enabledLayerNames.data(),
@@ -149,7 +150,7 @@ namespace Vixen {
             .ppEnabledExtensionNames = enabledInstanceExtensionsStr.data()
         };
 
-#ifdef DEBUG_ENABLED
+        #ifdef DEBUG_ENABLED
         VkDebugUtilsMessengerCreateInfoEXT debugMessengerInfo = {};
         if (std::ranges::find(
             enabledInstanceExtensions.begin(),
@@ -168,7 +169,7 @@ namespace Vixen {
             debugMessengerInfo.pUserData = this;
             instanceInfo.pNext = &debugMessengerInfo;
         }
-#endif
+        #endif
 
         const auto res = vkCreateInstance(&instanceInfo, nullptr, &instance);
         if (res == VK_ERROR_INCOMPATIBLE_DRIVER)
@@ -204,10 +205,15 @@ namespace Vixen {
         if (vkEnumeratePhysicalDevices(instance, &physicalDeviceCount, physicalDevices.data()) != VK_SUCCESS)
             error<CantCreateError>("Failed to enumerate physical devices.");
 
-        driverDevices.reserve(physicalDeviceCount);
         for (uint32_t i = 0; i < physicalDevices.size(); i++) {
             VkPhysicalDeviceProperties properties;
             vkGetPhysicalDeviceProperties(physicalDevices[i], &properties);
+
+            if (VK_API_VERSION_MAJOR(properties.apiVersion) <= 1 && VK_API_VERSION_MINOR(properties.apiVersion) < 3) {
+                physicalDevices.erase(physicalDevices.begin() + i);
+                deviceQueueFamilyProperties.erase(deviceQueueFamilyProperties.begin() + i);
+                continue;
+            }
 
             driverDevices.push_back(
                 {
@@ -386,6 +392,10 @@ namespace Vixen {
     void VulkanRenderingContextDriver::setSurfaceVSyncMode(Surface* surface, VSyncMode vsyncMode) {
         surface->vsyncMode = vsyncMode;
         surface->isResizeRequired = true;
+    }
+
+    void VulkanRenderingContextDriver::setSurfaceWindowMode(Surface* surface, WindowMode mode) {
+        surface->windowMode = mode;
     }
 
     void VulkanRenderingContextDriver::destroySurface(

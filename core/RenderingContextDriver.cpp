@@ -27,6 +27,11 @@ namespace Vixen {
             setSurfaceVSyncMode(surface, vsyncMode);
     }
 
+    void RenderingContextDriver::setWindowMode(Window* window, WindowMode mode) {
+        if (auto surface = getSurfaceFromWindow(window); surface != nullptr)
+            setSurfaceWindowMode(surface, mode);
+    }
+
     void RenderingContextDriver::destroyWindow(Window* window) {
         if (const auto& surface = getSurfaceFromWindow(window); surface != nullptr)
             destroySurface(surface);

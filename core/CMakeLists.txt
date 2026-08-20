@@ -88,6 +88,7 @@ add_library(
         buffer/BufferFormat.h
         framegraph/FrameGraphResources.h
         framegraph/RenderPassContext.h
+        error/Shader.h
 )
 target_link_libraries(
         Vixen

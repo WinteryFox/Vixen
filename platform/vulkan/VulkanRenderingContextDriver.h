@@ -84,6 +84,8 @@ namespace Vixen {
 
         void setSurfaceVSyncMode(Surface* surface, VSyncMode vsyncMode) override;
 
+        void setSurfaceWindowMode(Surface* surface, WindowMode mode) override;
+
         void destroySurface(
             Surface* surface
         ) override;

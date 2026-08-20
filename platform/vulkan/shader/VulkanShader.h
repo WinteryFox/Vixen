@@ -7,9 +7,9 @@
 
 namespace Vixen {
     struct VulkanShader : Shader {
-        VkShaderStageFlags pushConstantStageFlags;
+        VkShaderStageFlags pushConstantStageFlags = 0;
         std::vector<VkPipelineShaderStageCreateInfo> shaderStageInfos;
         std::vector<VkDescriptorSetLayout> descriptorSetLayouts;
-        VkPipelineLayout pipelineLayout;
+        VkPipelineLayout pipelineLayout = VK_NULL_HANDLE;
     };
 }

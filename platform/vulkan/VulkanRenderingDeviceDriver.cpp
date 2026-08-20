@@ -20,6 +20,7 @@
 #include "command/VulkanSemaphore.h"
 #include "core/error/CantCreateError.h"
 #include "core/error/Macros.h"
+#include "core/error/Shader.h"
 #include "error/SwapchainError.h"
 #include "image/VulkanImage.h"
 #include "image/VulkanSampler.h"
@@ -31,9 +32,6 @@ namespace Vixen {
         std::map<std::string, bool> requestedExtensions;
 
         requestedExtensions[VK_KHR_SWAPCHAIN_EXTENSION_NAME] = true;
-        requestedExtensions[VK_KHR_DYNAMIC_RENDERING_EXTENSION_NAME] = true;
-        requestedExtensions[VK_KHR_TIMELINE_SEMAPHORE_EXTENSION_NAME] = true;
-        requestedExtensions[VK_KHR_SYNCHRONIZATION_2_EXTENSION_NAME] = false;
         requestedExtensions[VK_KHR_MAINTENANCE_2_EXTENSION_NAME] = false;
 
         #ifdef DEBUG_ENABLED
@@ -98,10 +96,19 @@ namespace Vixen {
     }
 
     void VulkanRenderingDeviceDriver::checkFeatures() const {
-        if (physicalDeviceFeatures.imageCubeArray != VK_TRUE)
+        if (physicalDeviceFeatures.vulkan12.timelineSemaphore != VK_TRUE)
+            error<CantCreateError>("Device lacks timeline semaphore extension support.");
+
+        if (physicalDeviceFeatures.vulkan13.dynamicRendering != VK_TRUE)
+            error<CantCreateError>("Device lacks dynamic rendering extension support.");
+
+        if (physicalDeviceFeatures.vulkan13.synchronization2 != VK_TRUE)
+            error<CantCreateError>("Device lacks synchronization 2 extension support");
+
+        if (physicalDeviceFeatures.core.features.imageCubeArray != VK_TRUE)
             error<CantCreateError>("Device lacks image cube array feature.");
 
-        if (physicalDeviceFeatures.independentBlend != VK_TRUE)
+        if (physicalDeviceFeatures.core.features.independentBlend != VK_TRUE)
             error<CantCreateError>("Device lacks independent blend feature.");
     }
 
@@ -109,15 +116,6 @@ namespace Vixen {
         auto isAvailable = [&](const std::string& extension) constexpr -> bool {
             return std::ranges::find(enabledExtensionNames, extension) != enabledExtensionNames.end();
         };
-
-        if (!isAvailable(VK_KHR_TIMELINE_SEMAPHORE_EXTENSION_NAME))
-            error<CantCreateError>("Device lacks timeline semaphore extension support.");
-
-        if (!isAvailable(VK_KHR_DYNAMIC_RENDERING_EXTENSION_NAME))
-            error<CantCreateError>("Device lacks dynamic rendering extension support.");
-
-        if (!isAvailable(VK_KHR_SYNCHRONIZATION_2_EXTENSION_NAME))
-            error<CantCreateError>("Device lacks synchronization 2 extension support");
 
         if (isAvailable(VK_EXT_DEVICE_FAULT_EXTENSION_NAME))
             enabledFeatures.deviceFault = true;
@@ -143,42 +141,40 @@ namespace Vixen {
             );
         }
 
-        VkPhysicalDeviceTimelineSemaphoreFeatures timelineSemaphoreFeatures{
-            .sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_TIMELINE_SEMAPHORE_FEATURES,
-            .pNext = nullptr,
-            .timelineSemaphore = VK_TRUE
-        };
-
-        VkPhysicalDeviceDynamicRenderingFeatures dynamicRenderingFeatures{
-            .sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_DYNAMIC_RENDERING_FEATURES,
-            .pNext = nullptr,
-            .dynamicRendering = VK_TRUE
-        };
-        timelineSemaphoreFeatures.pNext = &dynamicRenderingFeatures;
-
-        VkPhysicalDeviceSynchronization2Features synchronization2Features{
-            .sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_SYNCHRONIZATION_2_FEATURES,
-            .pNext = nullptr,
-            .synchronization2 = VK_TRUE
-        };
-        dynamicRenderingFeatures.pNext = &synchronization2Features;
-
         VkPhysicalDeviceFaultFeaturesEXT faultFeatures{
             .sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_FAULT_FEATURES_EXT,
             .pNext = nullptr,
-            .deviceFault = VK_TRUE,
+            .deviceFault = enabledFeatures.deviceFault,
             .deviceFaultVendorBinary = VK_FALSE
         };
-        synchronization2Features.pNext = &faultFeatures;
+
+        VkPhysicalDeviceVulkan12Features enabled12{
+            .sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_VULKAN_1_2_FEATURES,
+            .timelineSemaphore = VK_TRUE
+        };
+        faultFeatures.pNext = &enabled12;
+
+        VkPhysicalDeviceVulkan13Features enabled13{
+            .sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_VULKAN_1_3_FEATURES,
+            .synchronization2 = VK_TRUE,
+            .dynamicRendering = VK_TRUE
+        };
+        enabled12.pNext = &enabled13;
 
         auto enabledExtensions = std::vector<const char*>{};
         enabledExtensions.reserve(enabledExtensionNames.size());
         for (const auto& enabledExtensionName : enabledExtensionNames)
             enabledExtensions.push_back(enabledExtensionName.c_str());
 
+        VkPhysicalDeviceFeatures feats{
+            .imageCubeArray = VK_TRUE,
+            .independentBlend = VK_TRUE,
+            .samplerAnisotropy = physicalDeviceFeatures.core.features.samplerAnisotropy
+        };
+
         const VkDeviceCreateInfo deviceInfo{
             .sType = VK_STRUCTURE_TYPE_DEVICE_CREATE_INFO,
-            .pNext = &timelineSemaphoreFeatures,
+            .pNext = &faultFeatures,
             .flags = 0,
             .queueCreateInfoCount = static_cast<uint32_t>(queueCreateInfos.size()),
             .pQueueCreateInfos = queueCreateInfos.data(),
@@ -186,7 +182,7 @@ namespace Vixen {
             .ppEnabledLayerNames = nullptr,
             .enabledExtensionCount = static_cast<uint32_t>(enabledExtensions.size()),
             .ppEnabledExtensionNames = enabledExtensions.data(),
-            .pEnabledFeatures = &physicalDeviceFeatures
+            .pEnabledFeatures = &feats
         };
 
         if (vkCreateDevice(physicalDevice, &deviceInfo, nullptr, &device) != VK_SUCCESS)
@@ -291,7 +287,11 @@ namespace Vixen {
         allocator(VK_NULL_HANDLE),
         frameCount(frameCount) {
         vkGetPhysicalDeviceProperties(physicalDevice, &physicalDeviceProperties);
-        vkGetPhysicalDeviceFeatures(physicalDevice, &physicalDeviceFeatures);
+
+        physicalDeviceFeatures.core.pNext = &physicalDeviceFeatures.vulkan12;
+        physicalDeviceFeatures.vulkan12.pNext = &physicalDeviceFeatures.vulkan13;
+
+        vkGetPhysicalDeviceFeatures2(physicalDevice, &physicalDeviceFeatures.core);
 
         const auto queueFamilyCount = renderingContext->getQueueFamilyCount(deviceIndex);
         queueFamilyProperties.resize(queueFamilyCount);
@@ -1575,7 +1575,7 @@ namespace Vixen {
             .sType = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO,
             .pNext = nullptr,
             .flags = 0,
-            .size = count * stride,
+            .size = static_cast<VkDeviceSize>(count) * stride,
             .usage = bufferUsageFlags,
             .sharingMode = VK_SHARING_MODE_EXCLUSIVE,
             .queueFamilyIndexCount = 0,
@@ -1807,7 +1807,7 @@ namespace Vixen {
             .addressModeV = static_cast<VkSamplerAddressMode>(state.v),
             .addressModeW = static_cast<VkSamplerAddressMode>(state.w),
             .mipLodBias = state.lodBias,
-            .anisotropyEnable = state.useAnisotropy && physicalDeviceFeatures.samplerAnisotropy,
+            .anisotropyEnable = state.useAnisotropy && physicalDeviceFeatures.core.features.samplerAnisotropy,
             .maxAnisotropy = state.maxAnisotropy,
             .compareEnable = state.enableCompare,
             .compareOp = static_cast<VkCompareOp>(state.compareOperator),
@@ -1840,13 +1840,29 @@ namespace Vixen {
         const std::vector<ShaderStageData>& stages
     ) {
         const auto o = new VulkanShader();
-        if (!reflectShader(stages, o)) {
+        const auto reflection = reflectShader(stages, o);
+        if (!reflection) {
+            const auto reflectionError = reflection.error();
             delete o;
-            error<CantCreateError>("Shader reflection failed.");
+            error<CantCreateError>(
+                std::format("Shader '{}' reflection failed: {}", name, reflectionError.detail)
+            );
         }
 
         o->name = name;
         o->pushConstantStageFlags |= toVkShaderStageFlags(o->pushConstantStages);
+
+        const auto deletePartiallyCreatedShader = [&] {
+            for (const auto& stageInfo : o->shaderStageInfos)
+                vkDestroyShaderModule(device, stageInfo.module, nullptr);
+
+            for (const auto descriptorSetLayout : o->descriptorSetLayouts) {
+                if (descriptorSetLayout != VK_NULL_HANDLE)
+                    vkDestroyDescriptorSetLayout(device, descriptorSetLayout, nullptr);
+            }
+
+            delete o;
+        };
 
         for (const auto& [stage, spirv] : stages) {
             const auto stageFlag = toVkShaderStageFlags(stage);
@@ -1859,39 +1875,11 @@ namespace Vixen {
                 .pCode = std::bit_cast<const uint32_t*>(spirv.data())
             };
 
-            VkShaderModule module;
-            if (vkCreateShaderModule(device, &shaderModuleInfo, nullptr, &module) != VK_SUCCESS)
+            VkShaderModule module = VK_NULL_HANDLE;
+            if (vkCreateShaderModule(device, &shaderModuleInfo, nullptr, &module) != VK_SUCCESS) {
+                deletePartiallyCreatedShader();
                 error<CantCreateError>("Call to vkCreateShaderModule failed.");
-
-            std::vector<VkDescriptorSetLayoutBinding> layoutBindings{};
-            layoutBindings.reserve(o->uniformSets.size());
-
-            for (const auto& uniformSet : o->uniformSets) {
-                const VkDescriptorSetLayoutBinding layoutBinding = {
-                    .binding = uniformSet.binding,
-                    .descriptorType = toVkDescriptorType(uniformSet.type),
-                    .descriptorCount = uniformSet.count,
-                    .stageFlags = toVkShaderStageFlags(uniformSet.stages),
-                    .pImmutableSamplers = nullptr
-                };
-                layoutBindings.push_back(layoutBinding);
             }
-
-            const VkDescriptorSetLayoutCreateInfo descriptorSetLayoutInfo{
-                .sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO,
-                .pNext = nullptr,
-                .flags = 0,
-                .bindingCount = static_cast<uint32_t>(layoutBindings.size()),
-                .pBindings = layoutBindings.data()
-            };
-
-            VkDescriptorSetLayout descriptorSetLayout = nullptr;
-            if (vkCreateDescriptorSetLayout(device, &descriptorSetLayoutInfo, nullptr, &descriptorSetLayout) !=
-                VK_SUCCESS) {
-                delete o;
-                error<CantCreateError>("Call to vkCreateDescriptorSetLayout failed.");
-            }
-            o->descriptorSetLayouts.push_back(descriptorSetLayout);
 
             o->shaderStageInfos.push_back(
                 {
@@ -1904,6 +1892,47 @@ namespace Vixen {
                     .pSpecializationInfo = nullptr
                 }
             );
+        }
+
+        uint32_t maxSet = 0;
+        for (const ShaderUniform& uniform : o->uniformSets)
+            maxSet = std::max(maxSet, uniform.set);
+
+        std::vector<std::vector<VkDescriptorSetLayoutBinding>> layoutBindings(maxSet + 1);
+        for (const auto& uniformSet : o->uniformSets) {
+            layoutBindings[uniformSet.set].push_back({
+                .binding = uniformSet.binding,
+                .descriptorType = toVkDescriptorType(uniformSet.type),
+                .descriptorCount = uniformSet.count,
+                .stageFlags = toVkShaderStageFlags(uniformSet.stages),
+                .pImmutableSamplers = nullptr
+            });
+        }
+
+        for (auto& bindings : layoutBindings)
+            std::ranges::sort(bindings, {}, &VkDescriptorSetLayoutBinding::binding);
+
+        o->descriptorSetLayouts.resize(maxSet + 1);
+
+        for (uint32_t set = 0; set <= maxSet; ++set) {
+            const auto& bindings = layoutBindings[set];
+
+            const VkDescriptorSetLayoutCreateInfo descriptorSetLayoutInfo{
+                .sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO,
+                .pNext = nullptr,
+                .flags = 0,
+                .bindingCount = static_cast<uint32_t>(bindings.size()),
+                .pBindings = bindings.data()
+            };
+
+            VkDescriptorSetLayout descriptorSetLayout = VK_NULL_HANDLE;
+            if (vkCreateDescriptorSetLayout(device, &descriptorSetLayoutInfo, nullptr, &descriptorSetLayout) !=
+                VK_SUCCESS) {
+                deletePartiallyCreatedShader();
+                error<CantCreateError>("Call to vkCreateDescriptorSetLayout failed.");
+            }
+
+            o->descriptorSetLayouts[set] = descriptorSetLayout;
         }
 
         const VkPushConstantRange pushConstantRange{
@@ -1922,11 +1951,9 @@ namespace Vixen {
             .pPushConstantRanges = pushConstantRange.size > 0 ? &pushConstantRange : nullptr
         };
 
-        VkPipelineLayout pipelineLayout;
+        VkPipelineLayout pipelineLayout = VK_NULL_HANDLE;
         if (vkCreatePipelineLayout(device, &pipelineLayoutInfo, nullptr, &pipelineLayout) != VK_SUCCESS) {
-            for (const auto& descriptorSetLayout : o->descriptorSetLayouts)
-                vkDestroyDescriptorSetLayout(device, descriptorSetLayout, nullptr);
-            delete o;
+            deletePartiallyCreatedShader();
             error<CantCreateError>("Call to vkCreatePipelineLayout failed.");
         }
         o->pipelineLayout = pipelineLayout;

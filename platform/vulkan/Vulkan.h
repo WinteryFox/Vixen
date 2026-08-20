@@ -552,8 +552,11 @@ namespace Vixen {
         if (flags.contains(PipelineStageBits::ComputeShader))
             vkFlags |= VK_PIPELINE_STAGE_2_COMPUTE_SHADER_BIT;
 
-        if (flags.contains(PipelineStageBits::Copy) || flags.contains(PipelineStageBits::Resolve))
-            vkFlags |= VK_PIPELINE_STAGE_2_TRANSFER_BIT;
+        if (flags.contains(PipelineStageBits::Copy))
+            vkFlags |= VK_PIPELINE_STAGE_2_COPY_BIT;
+
+        if (flags.contains(PipelineStageBits::Resolve))
+            vkFlags |= VK_PIPELINE_STAGE_2_RESOLVE_BIT;
 
         if (flags.contains(PipelineStageBits::Bottom))
             vkFlags |= VK_PIPELINE_STAGE_2_BOTTOM_OF_PIPE_BIT;
@@ -625,9 +628,14 @@ namespace Vixen {
             vkFlags |= VK_ACCESS_FRAGMENT_SHADING_RATE_ATTACHMENT_READ_BIT_KHR;
 
         // TODO
-        if (flags.contains(BarrierAccessBits::ResolveRead)) {}
-        if (flags.contains(BarrierAccessBits::ResolveWrite)) {}
-        if (flags.contains(BarrierAccessBits::StorageClear)) {}
+        if (flags.contains(BarrierAccessBits::ResolveRead))
+            vkFlags |= VK_ACCESS_TRANSFER_READ_BIT;
+
+        if (flags.contains(BarrierAccessBits::ResolveWrite))
+            vkFlags |= VK_ACCESS_TRANSFER_WRITE_BIT;
+
+        if (flags.contains(BarrierAccessBits::StorageClear))
+            vkFlags |= VK_ACCESS_TRANSFER_WRITE_BIT;
 
         return vkFlags;
     }

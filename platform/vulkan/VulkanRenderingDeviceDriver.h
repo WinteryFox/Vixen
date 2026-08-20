@@ -8,6 +8,7 @@
 #include <vector>
 #include <volk.h>
 
+#include "DeviceFeatureSupport.h"
 #include "core/RenderingDeviceDriver.h"
 #include "image/ImageSamples.h"
 
@@ -34,7 +35,7 @@ namespace Vixen {
 
         uint32_t deviceIndex;
         VkPhysicalDevice physicalDevice;
-        VkPhysicalDeviceFeatures physicalDeviceFeatures;
+        DeviceFeatureSupport physicalDeviceFeatures;
         VkPhysicalDeviceProperties physicalDeviceProperties;
 
         std::vector<std::string> enabledExtensionNames;

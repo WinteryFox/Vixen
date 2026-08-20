@@ -7,6 +7,7 @@
 
 #include "DriverDevice.h"
 #include "VSyncMode.h"
+#include "WindowMode.h"
 #include "error/Error.h"
 
 namespace Vixen {
@@ -38,6 +39,8 @@ namespace Vixen {
 
         void setWindowVSyncMode(Window* window, VSyncMode vsyncMode);
 
+        void setWindowMode(Window* window, WindowMode mode);
+
         void destroyWindow(Window* window);
 
         virtual auto createSurface(Window* window) -> std::expected<Surface*, Error> = 0;
@@ -49,6 +52,8 @@ namespace Vixen {
         virtual void setSurfaceSize(Surface* surface, uint32_t width, uint32_t height) = 0;
 
         virtual void setSurfaceVSyncMode(Surface* surface, VSyncMode vsyncMode) = 0;
+
+        virtual void setSurfaceWindowMode(Surface* surface, WindowMode mode) = 0;
 
         virtual void destroySurface(Surface* surface) = 0;
     };

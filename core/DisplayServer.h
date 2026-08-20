@@ -1,5 +1,6 @@
 #pragma once
 
+#include <expected>
 #include <map>
 #include <string>
 #include <vector>
@@ -11,6 +12,7 @@
 #include "VSyncMode.h"
 #include "WindowFlags.h"
 #include "WindowMode.h"
+#include "error/Error.h"
 
 struct GLFWwindow;
 
@@ -29,13 +31,13 @@ namespace Vixen {
 
         Window* mainWindow = nullptr;
 
-        Window* createWindow(
+        auto createWindow(
             const std::string& title,
             WindowMode mode,
             VSyncMode vsync,
             WindowFlags flags,
             glm::uvec2 resolution
-        );
+        ) -> std::expected<Window*, Error>;
 
         Window* getWindowFromHandle(GLFWwindow* handle);
 
@@ -89,14 +91,14 @@ namespace Vixen {
 
         void maximize(const Window* window);
 
-        void setWindowedMode(const Window *window, WindowMode mode) const;
+        void setWindowedMode(Window *window, WindowMode mode);
 
         void setVSyncMode(Window* window, VSyncMode mode) const;
 
-        [[nodiscard]] bool getWindowMonitor(const Window* window, Monitor& m);
+        [[nodiscard]] bool getWindowMonitor(const Window* window, Monitor& m) const;
 
         std::vector<Monitor> getMonitors();
 
-        void getFramebufferSize(const Window* window, int& width, int& height);
+        void getFramebufferSize(const Window* window, int& width, int& height) const;
     };
 }

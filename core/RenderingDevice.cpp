@@ -6,6 +6,7 @@
 
 #include "RenderingContextDriver.h"
 #include "RenderingDeviceDriver.h"
+#include "error/CantCreateError.h"
 #include "error/Macros.h"
 #include "error/SwapchainError.h"
 
@@ -139,7 +140,7 @@ namespace Vixen {
             )
         );
 
-        uint32_t deviceIndex = 0;
+        uint32_t deviceIndex = std::numeric_limits<uint32_t>::max();
         uint32_t deviceScore = 0;
         for (uint32_t i = 0; i < devices.size(); i++) {
             const auto& deviceOption = devices[i];
@@ -147,8 +148,15 @@ namespace Vixen {
                                              ? renderingContext->deviceSupportsPresent(i, mainSurface)
                                              : false;
 
+            if (!supportsPresent)
+                continue;
+
+            deviceIndex = i;
             // TODO: Score devices
         }
+
+        if (deviceIndex == std::numeric_limits<uint32_t>::max())
+            error<CantCreateError>("No suitable device found.");
 
         uint32_t frameCount = 2;
 
