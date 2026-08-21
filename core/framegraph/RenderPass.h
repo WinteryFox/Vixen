@@ -1,6 +1,8 @@
 #pragma once
 
+#include <algorithm>
 #include <functional>
+#include <limits>
 #include <optional>
 #include <stdexcept>
 #include <string>
@@ -89,6 +91,27 @@ namespace Vixen {
 
             std::optional<RenderAttachment> depthStencilAttachment;
 
+            void validateUnused(const ResourceId id) const {
+                const bool alreadyUsed = std::ranges::any_of(
+                    resourceUsages,
+                    [id](const ResourceUsage& usage) {
+                        return std::visit(
+                            [id](const auto& typedUsage) {
+                                return (typedUsage.input.isValid() && typedUsage.input.id.index == id.index) ||
+                                       (typedUsage.output.isValid() && typedUsage.output.id.index == id.index);
+                            },
+                            usage
+                        );
+                    }
+                );
+
+                if (alreadyUsed)
+                    throw std::logic_error{
+                        "Frame graph resource '" + resources[id.index].name +
+                        "' is declared more than once in pass '" + name + "'"
+                    };
+            }
+
             template <typename Handle>
             void validateCurrent(
                 const Handle handle,
@@ -115,8 +138,12 @@ namespace Vixen {
                 const ResourceType expectedType
             ) {
                 validateCurrent(handle, expectedType);
+                validateUnused(handle.id);
 
                 auto& node = resources[handle.id.index];
+
+                if (node.latestVersion == std::numeric_limits<uint32_t>::max())
+                    throw std::overflow_error{"Frame graph resource version limit exceeded"};
 
                 ++node.latestVersion;
 
@@ -150,6 +177,7 @@ namespace Vixen {
                 const PipelineStageFlags stages
             ) {
                 validateCurrent(handle, ResourceType::Image);
+                validateUnused(handle.id);
 
                 resourceUsages.emplace_back(
                     ImageResourceUsage{
@@ -210,6 +238,7 @@ namespace Vixen {
                 const PipelineStageFlags stages
             ) {
                 validateCurrent(handle, ResourceType::Buffer);
+                validateUnused(handle.id);
 
                 resourceUsages.emplace_back(
                     BufferResourceUsage{

@@ -33,6 +33,12 @@ namespace Vixen {
 
         ResourceDescription description;
 
+        /**
+         * Created resources begin at an uninitialized version zero. Imported
+         * resources begin at an externally initialized version zero. Producer
+         * and uninitialized-read validation is performed when the complete graph
+         * is compiled, where all passes and resources usages are available.
+         */
         uint32_t latestVersion;
 
         ImportedResource importedResource{};

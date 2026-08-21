@@ -30,6 +30,12 @@ namespace Vixen {
     };
 
     struct ResourceId {
+        /**
+         * Versions are linear declaration-order tokens. Reads retain the current
+         * version, while writes and read-writes produce the next version. Only the
+         * latest version may be declared by a later pass, and all versions of a
+         * logical resource resolve to the same physical resource.
+         */
         static constexpr uint32_t Invalid =
             std::numeric_limits<uint32_t>::max();
 

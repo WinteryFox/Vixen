@@ -36,6 +36,45 @@ namespace Vixen {
 
             std::vector<RenderPass> renderPasses;
 
+            template <typename PassData, typename Setup, typename Execute>
+            Builder& addPass(
+                std::string name,
+                const RenderPassType type,
+                Setup&& setup,
+                Execute&& execute
+            ) {
+                std::vector<uint32_t> versionsBefore;
+                versionsBefore.reserve(resources.size());
+                for (const auto& resource : resources)
+                    versionsBefore.push_back(resource.latestVersion);
+
+                try {
+                    PassData data{};
+
+                    RenderPass::Builder passBuilder{
+                        resources,
+                        std::move(name),
+                        type
+                    };
+
+                    std::invoke(std::forward<Setup>(setup), passBuilder, data);
+
+                    renderPasses.emplace_back(
+                        std::move(passBuilder).build<PassData>(
+                            std::move(data),
+                            std::forward<Execute>(execute)
+                        )
+                    );
+                } catch (...) {
+                    for (std::size_t i = 0; i < versionsBefore.size(); ++i)
+                        resources[i].latestVersion = versionsBefore[i];
+
+                    throw;
+                }
+
+                return *this;
+            }
+
             ResourceId addResource(
                 std::string name,
                 ResourceType type,
@@ -65,24 +104,12 @@ namespace Vixen {
                 Setup&& setup,
                 Execute&& execute
             ) {
-                PassData data{};
-
-                RenderPass::Builder passBuilder{
-                    resources,
+                return addPass<PassData>(
                     std::move(name),
-                    RenderPassType::Graphics
-                };
-
-                std::invoke(std::forward<Setup>(setup), passBuilder, data);
-
-                renderPasses.emplace_back(
-                    std::move(passBuilder).build<PassData>(
-                        std::move(data),
-                        std::forward<Execute>(execute)
-                    )
+                    RenderPassType::Graphics,
+                    std::forward<Setup>(setup),
+                    std::forward<Execute>(execute)
                 );
-
-                return *this;
             }
 
             template <typename PassData, typename Setup, typename Execute>
@@ -91,24 +118,12 @@ namespace Vixen {
                 Setup&& setup,
                 Execute&& execute
             ) {
-                PassData data{};
-
-                RenderPass::Builder passBuilder{
-                    resources,
+                return addPass<PassData>(
                     std::move(name),
-                    RenderPassType::Compute
-                };
-
-                std::invoke(std::forward<Setup>(setup), passBuilder, data);
-
-                renderPasses.emplace_back(
-                    std::move(passBuilder).build<PassData>(
-                        std::move(data),
-                        std::forward<Execute>(execute)
-                    )
+                    RenderPassType::Compute,
+                    std::forward<Setup>(setup),
+                    std::forward<Execute>(execute)
                 );
-
-                return *this;
             }
 
             ImageHandle createImage(
