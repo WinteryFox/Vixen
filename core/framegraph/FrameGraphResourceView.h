@@ -10,11 +10,11 @@ namespace Vixen {
     struct Image;
     using ResourceObject = std::variant<std::monostate, Image*, Buffer*>;
 
-    class FrameGraphResources {
+    class FrameGraphResourceView {
         std::span<const ResourceObject> resources;
 
     public:
-        explicit FrameGraphResources(std::span<const ResourceObject> resources) : resources(resources) {}
+        explicit FrameGraphResourceView(std::span<const ResourceObject> resources) : resources(resources) {}
 
         [[nodiscard]] Image* get(const ImageHandle handle) const {
             return std::get<Image*>(resources[handle.id.index]);

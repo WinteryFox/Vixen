@@ -72,6 +72,7 @@ add_library(
         Framebuffer.h
         error/Error.h
         Frame.h
+        DeferredRelease.h
         RenderingDevice.cpp
         RenderingDevice.h
         DriverDevice.h
@@ -84,9 +85,16 @@ add_library(
         framegraph/RenderPass.cpp
         framegraph/RenderPassType.h
         framegraph/Resource.h
+        framegraph/FrameGraphError.h
+        framegraph/ResourceStateMapping.h
+        framegraph/ResourceStateMapping.cpp
+        framegraph/BarrierBatch.h
+        framegraph/BarrierBatch.cpp
         framegraph/Node.h
         buffer/BufferFormat.h
-        framegraph/FrameGraphResources.h
+        framegraph/FrameGraphResourceView.h
+        framegraph/FrameGraphResourceStorage.h
+        framegraph/FrameGraphResourceStorage.cpp
         framegraph/RenderPassContext.h
         error/Shader.h
 )

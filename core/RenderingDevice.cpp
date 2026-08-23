@@ -26,6 +26,15 @@ namespace Vixen {
             waitForFrame(i);
     }
 
+    void RenderingDevice::drainDeferredReleases(Frame& frame) {
+        auto releases = std::move(frame.deferredReleases);
+
+        frame.deferredReleases.clear();
+
+        for (auto& release : releases)
+            release(*renderingDeviceDriver);
+    }
+
     void RenderingDevice::flushAndWaitForFrames() {
         waitForFrames();
         endFrame();
@@ -37,13 +46,12 @@ namespace Vixen {
         const bool presented
     ) {
         waitForFrame(frameIndex);
+        drainDeferredReleases(frames[frameIndex]);
 
         if (!renderingDeviceDriver->resetCommandPool(frames[frameIndex].commandPool))
             throw std::runtime_error("Failed to reset command pool");
         if (!renderingDeviceDriver->beginCommandBuffer(frames[frameIndex].commandBuffer))
             throw std::runtime_error("Failed to begin command buffer");
-
-        // TODO: Free this frame's resources
     }
 
     void RenderingDevice::endFrame() {
@@ -182,6 +190,7 @@ namespace Vixen {
                     .commandBuffer = renderingDeviceDriver->createCommandBuffer(commandPool.value()).value(),
                     .fence = renderingDeviceDriver->createFence().value(),
                     .fenceSignaled = false,
+                    .deferredReleases = {},
                     .waitSemaphores = {},
                     .swapchainsToPresent = {}
                 }
@@ -195,6 +204,9 @@ namespace Vixen {
     RenderingDevice::~RenderingDevice() {
         if (!frames.empty())
             flushAndWaitForFrames();
+
+        for (auto& frame : frames)
+            drainDeferredReleases(frame);
 
         for (const auto& frame : frames) {
             renderingDeviceDriver->destroyCommandPool(frame.commandPool);
@@ -233,6 +245,29 @@ namespace Vixen {
         beginFrame(true);
     }
 
+    void RenderingDevice::deferRelease(DeferredRelease release) {
+        if (release)
+            frames[frameIndex].deferredReleases.push_back(std::move(release));
+    }
+
+    void RenderingDevice::deferDestroy(Image* image) {
+        if (image == nullptr)
+            return;
+
+        deferRelease([image](RenderingDeviceDriver& driver) {
+            driver.destroyImage(image);
+        });
+    }
+
+    void RenderingDevice::deferDestroy(Buffer* buffer) {
+        if (buffer == nullptr)
+            return;
+
+        deferRelease([buffer](RenderingDeviceDriver& driver) {
+            driver.destroyBuffer(buffer);
+        });
+    }
+
     auto RenderingDevice::createScreen(
         Window* window
     ) -> std::expected<Swapchain*, Error> {
@@ -265,7 +300,8 @@ namespace Vixen {
                 if (!renderingDeviceDriver->executeCommandQueueAndPresent(graphicsQueue, {}, {}, {}, {}, {swapchain}))
                     return std::unexpected(Error::InitializationFailed);
 
-                frames[frameIndex].swapchainsToPresent.erase(frames[frameIndex].swapchainsToPresent.begin() + toPresentIndex);
+                frames[frameIndex].swapchainsToPresent.erase(
+                    frames[frameIndex].swapchainsToPresent.begin() + toPresentIndex);
             } else {
                 toPresentIndex++;
             }

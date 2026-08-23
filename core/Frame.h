@@ -2,6 +2,7 @@
 
 #include <vector>
 
+#include "DeferredRelease.h"
 #include "Swapchain.h"
 #include "command/CommandBuffer.h"
 #include "command/CommandPool.h"
@@ -14,6 +15,7 @@ namespace Vixen {
         CommandBuffer* commandBuffer;
         Fence* fence;
         bool fenceSignaled;
+        std::vector<DeferredRelease> deferredReleases;
         std::vector<Semaphore*> waitSemaphores;
         std::vector<Swapchain*> swapchainsToPresent;
     };

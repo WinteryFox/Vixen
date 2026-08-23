@@ -15,6 +15,8 @@ namespace Vixen {
     class RenderingDeviceDriver;
     struct Window;
     struct CommandQueue;
+    class Buffer;
+    struct Image;
 
     class RenderingDevice {
         RenderingContextDriver* renderingContextDriver;
@@ -38,6 +40,8 @@ namespace Vixen {
         );
 
         void waitForFrames();
+
+        void drainDeferredReleases(Frame& frame);
 
         void flushAndWaitForFrames();
 
@@ -72,6 +76,12 @@ namespace Vixen {
         void submit();
 
         void sync();
+
+        void deferRelease(DeferredRelease release);
+
+        void deferDestroy(Image* image);
+
+        void deferDestroy(Buffer* buffer);
 
         auto createScreen(
             Window* window
