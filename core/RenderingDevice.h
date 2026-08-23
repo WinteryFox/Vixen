@@ -24,10 +24,8 @@ namespace Vixen {
 
         uint32_t graphicsQueueFamily;
         uint32_t transferQueueFamily;
-        uint32_t presentQueueFamily;
         CommandQueue* graphicsQueue;
         CommandQueue* transferQueue;
-        CommandQueue* presentQueue;
 
         uint32_t frameIndex;
         std::vector<Frame> frames;

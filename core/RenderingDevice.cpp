@@ -78,28 +78,12 @@ namespace Vixen {
         const bool present
     ) {
         const bool canPresent = present && !frames[frameIndex].swapchainsToPresent.empty();
-        const bool separatePresentQueue = graphicsQueue != presentQueue;
 
-        Semaphore* semaphore = canPresent && separatePresentQueue ? frames[frameIndex].semaphore : nullptr;
-        const bool presentSwapchain = canPresent && !separatePresentQueue;
-
-        executeChainedCommands(presentSwapchain, frames[frameIndex].fence, semaphore);
+        executeChainedCommands(canPresent, frames[frameIndex].fence, nullptr);
         frames[frameIndex].fenceSignaled = true;
 
-        if (canPresent) {
-            if (separatePresentQueue) {
-                renderingDeviceDriver->executeCommandQueueAndPresent(
-                    presentQueue,
-                    {frames[frameIndex].semaphore},
-                    {},
-                    {},
-                    nullptr,
-                    frames[frameIndex].swapchainsToPresent
-                );
-            }
-
+        if (canPresent)
             frames[frameIndex].swapchainsToPresent.clear();
-        }
     }
 
     RenderingDevice::RenderingDevice(
@@ -183,10 +167,6 @@ namespace Vixen {
         transferQueueFamily = renderingDeviceDriver->getQueueFamily(QueueFamilyBits::Transfer, nullptr).value();
         transferQueue = renderingDeviceDriver->createCommandQueue(transferQueueFamily).value();
 
-        presentQueueFamily = renderingDeviceDriver->getQueueFamily(static_cast<QueueFamilyFlags>(0), mainSurface)
-                                                  .value();
-        presentQueue = renderingDeviceDriver->createCommandQueue(presentQueueFamily).value();
-
         frames.reserve(frameCount);
         for (uint32_t i = 0; i < frameCount; i++) {
             const auto commandPool = renderingDeviceDriver->createCommandPool(
@@ -200,7 +180,6 @@ namespace Vixen {
                 {
                     .commandPool = commandPool.value(),
                     .commandBuffer = renderingDeviceDriver->createCommandBuffer(commandPool.value()).value(),
-                    .semaphore = renderingDeviceDriver->createSemaphore().value(),
                     .fence = renderingDeviceDriver->createFence().value(),
                     .fenceSignaled = false,
                     .waitSemaphores = {},
@@ -219,15 +198,10 @@ namespace Vixen {
 
         for (const auto& frame : frames) {
             renderingDeviceDriver->destroyCommandPool(frame.commandPool);
-            renderingDeviceDriver->destroySemaphore(frame.semaphore);
             renderingDeviceDriver->destroyFence(frame.fence);
             delete frame.commandBuffer;
         }
         frames.clear();
-
-        if (presentQueue)
-            if (graphicsQueue != presentQueue)
-                renderingDeviceDriver->destroyCommandQueue(presentQueue);
 
         if (transferQueue)
             if (graphicsQueue != transferQueue)
@@ -288,7 +262,7 @@ namespace Vixen {
         uint32_t toPresentIndex = 0;
         while (toPresentIndex < frames[frameIndex].swapchainsToPresent.size()) {
             if (frames[frameIndex].swapchainsToPresent[toPresentIndex] == swapchain) {
-                if (!renderingDeviceDriver->executeCommandQueueAndPresent(presentQueue, {}, {}, {}, {}, {swapchain}))
+                if (!renderingDeviceDriver->executeCommandQueueAndPresent(graphicsQueue, {}, {}, {}, {}, {swapchain}))
                     return std::unexpected(Error::InitializationFailed);
 
                 frames[frameIndex].swapchainsToPresent.erase(frames[frameIndex].swapchainsToPresent.begin() + toPresentIndex);

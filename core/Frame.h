@@ -12,7 +12,6 @@ namespace Vixen {
     struct Frame {
         CommandPool* commandPool;
         CommandBuffer* commandBuffer;
-        Semaphore* semaphore;
         Fence* fence;
         bool fenceSignaled;
         std::vector<Semaphore*> waitSemaphores;

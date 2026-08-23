@@ -378,6 +378,19 @@ namespace Vixen {
         DEBUG_ASSERT(swapchain != nullptr);
 
         const auto vkSwapchain = dynamic_cast<VulkanSwapchain*>(swapchain);
+        const auto vkGraphicsQueue = dynamic_cast<VulkanCommandQueue*>(commandQueue);
+        if (vkSwapchain == nullptr || vkGraphicsQueue == nullptr)
+            return std::unexpected(Error::InitializationFailed);
+
+        if ((queueFamilyProperties[vkGraphicsQueue->queueFamily].queueFlags & VK_QUEUE_GRAPHICS_BIT) == 0)
+            return std::unexpected(Error::InitializationFailed);
+
+        const auto presentQueueFamily = getQueueFamily({}, vkSwapchain->surface);
+        if (!presentQueueFamily)
+            return std::unexpected(presentQueueFamily.error());
+
+        vkSwapchain->graphicsQueueFamily = vkGraphicsQueue->queueFamily;
+        vkSwapchain->presentQueueFamily = presentQueueFamily.value();
         releaseSwapchain(vkSwapchain);
 
         VkSurfaceCapabilitiesKHR surfaceCapabilities;
@@ -433,6 +446,12 @@ namespace Vixen {
         if (surface->resolution.x == 0 || surface->resolution.y == 0)
             return {};
 
+        const std::array queueFamilyIndices{
+            vkSwapchain->graphicsQueueFamily,
+            vkSwapchain->presentQueueFamily
+        };
+        const bool hasSeparatePresentQueue = queueFamilyIndices[0] != queueFamilyIndices[1];
+
         VkSwapchainCreateInfoKHR swapchainInfo{
             .sType = VK_STRUCTURE_TYPE_SWAPCHAIN_CREATE_INFO_KHR,
             .pNext = nullptr,
@@ -447,9 +466,9 @@ namespace Vixen {
             },
             .imageArrayLayers = 1,
             .imageUsage = VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT,
-            .imageSharingMode = VK_SHARING_MODE_EXCLUSIVE,
-            .queueFamilyIndexCount = 0,
-            .pQueueFamilyIndices = nullptr,
+            .imageSharingMode = hasSeparatePresentQueue ? VK_SHARING_MODE_CONCURRENT : VK_SHARING_MODE_EXCLUSIVE,
+            .queueFamilyIndexCount = hasSeparatePresentQueue ? static_cast<uint32_t>(queueFamilyIndices.size()) : 0,
+            .pQueueFamilyIndices = hasSeparatePresentQueue ? queueFamilyIndices.data() : nullptr,
             .preTransform = VK_SURFACE_TRANSFORM_IDENTITY_BIT_KHR,
             // TODO: Add support for transparent frames, useful for e.g. splash screens with transparent backgrounds.
             .compositeAlpha = VK_COMPOSITE_ALPHA_OPAQUE_BIT_KHR,
@@ -457,11 +476,6 @@ namespace Vixen {
             .clipped = VK_TRUE,
             .oldSwapchain = nullptr
         };
-
-        // TODO: Queue family index and image sharing mode should be set dynamically if the graphics queue family
-        //  and present queue family are not the same. In that case the imageSharingMode should be
-        //  VK_SHARING_MODE_CONCURRENT and both the graphics and present queue indices should be passed to
-        //  pQueueFamilyIndices.
 
         std::vector<VkPresentModeKHR> supportedPresentModes{};
         uint32_t presentModeCount;
@@ -618,7 +632,7 @@ namespace Vixen {
             };
             if (vkCreateFence(device, &fenceInfo, nullptr, &fence) != VK_SUCCESS)
                 return std::unexpected(Error::InitializationFailed);
-            vkSwapchain->presentFences.push_back(fence);
+            vkSwapchain->blitFences.push_back(fence);
 
             VkSemaphore semaphore = VK_NULL_HANDLE;
             VkSemaphoreCreateInfo semaphoreInfo{
@@ -628,7 +642,7 @@ namespace Vixen {
             };
             if (vkCreateSemaphore(device, &semaphoreInfo, nullptr, &semaphore) != VK_SUCCESS)
                 return std::unexpected(Error::InitializationFailed);
-            vkSwapchain->presentSemaphores.push_back(semaphore);
+            vkSwapchain->blitSemaphores.push_back(semaphore);
         }
 
         renderingContext->setSurfaceNeedsResize(surface, false);
@@ -706,27 +720,27 @@ namespace Vixen {
         // TODO: Use VK_EXT_swapchain_maintenance1 and VkSwapchainPresentFenceInfoKHR
         vkDeviceWaitIdle(device);
 
-        if (!swapchain->presentFences.empty()) {
-            vkWaitForFences(device, swapchain->presentFences.size(), swapchain->presentFences.data(), VK_TRUE,
+        if (!swapchain->blitFences.empty()) {
+            vkWaitForFences(device, swapchain->blitFences.size(), swapchain->blitFences.data(), VK_TRUE,
                             std::numeric_limits<uint64_t>::max());
 
-            for (const auto& fence : swapchain->presentFences)
+            for (const auto& fence : swapchain->blitFences)
                 vkDestroyFence(device, fence, nullptr);
         }
-        swapchain->presentFences.clear();
+        swapchain->blitFences.clear();
 
-        for (const auto& semaphore : swapchain->presentSemaphores)
+        for (const auto& semaphore : swapchain->blitSemaphores)
             vkDestroySemaphore(device, semaphore, nullptr);
-        swapchain->presentSemaphores.clear();
+        swapchain->blitSemaphores.clear();
 
-        if (swapchain->presentCommandPool != nullptr) {
-            vkFreeCommandBuffers(device, swapchain->presentCommandPool, swapchain->presentCommandBuffers.size(),
-                                 swapchain->presentCommandBuffers.data());
-            vkResetCommandPool(device, swapchain->presentCommandPool, 0);
-            vkDestroyCommandPool(device, swapchain->presentCommandPool, nullptr);
+        if (swapchain->blitCommandPool != nullptr) {
+            vkFreeCommandBuffers(device, swapchain->blitCommandPool, swapchain->blitCommandBuffers.size(),
+                                 swapchain->blitCommandBuffers.data());
+            vkResetCommandPool(device, swapchain->blitCommandPool, 0);
+            vkDestroyCommandPool(device, swapchain->blitCommandPool, nullptr);
         }
-        swapchain->presentCommandBuffers.clear();
-        swapchain->presentCommandPool = nullptr;
+        swapchain->blitCommandBuffers.clear();
+        swapchain->blitCommandPool = nullptr;
 
         for (uint32_t i = 0; i < swapchain->resolveImages.size(); i++) {
             delete swapchain->framebuffers[i];
@@ -1069,20 +1083,54 @@ namespace Vixen {
         const std::vector<Swapchain*>& swapchains
     ) -> std::expected<void, Error> {
         const auto vkCommandQueue = dynamic_cast<VulkanCommandQueue*>(commandQueue);
+        if (vkCommandQueue == nullptr)
+            return std::unexpected(Error::InitializationFailed);
+
+        if (!swapchains.empty() &&
+            (queueFamilyProperties[vkCommandQueue->queueFamily].queueFlags & VK_QUEUE_GRAPHICS_BIT) == 0)
+            return std::unexpected(Error::InitializationFailed);
+
+        for (const auto swapchain : swapchains) {
+            const auto vkSwapchain = dynamic_cast<VulkanSwapchain*>(swapchain);
+            if (vkSwapchain == nullptr || vkSwapchain->graphicsQueueFamily != vkCommandQueue->queueFamily ||
+                vkSwapchain->presentQueueFamily >= queueFamilies.size() ||
+                queueFamilies[vkSwapchain->presentQueueFamily].empty() ||
+                !VulkanRenderingContextDriver::queueFamilySupportsPresent(
+                    physicalDevice,
+                    vkSwapchain->presentQueueFamily,
+                    vkSwapchain->surface
+                ))
+                return std::unexpected(Error::InitializationFailed);
+        }
+
         Queue& queue = queueFamilies[vkCommandQueue->queueFamily][vkCommandQueue->queueIndex];
         const auto vkFence = dynamic_cast<VulkanFence*>(fence);
 
-        std::vector<VkSemaphoreSubmitInfo> waitSemaphoreInfos{};
-        waitSemaphoreInfos.reserve(waitSemaphores.size() + vkCommandQueue->pendingSemaphoresForExecute.size());
+        const auto associatePendingImageSemaphoresWithFence = [&] {
+            if (vkFence == nullptr || vkCommandQueue->pendingSemaphoresForFence.empty())
+                return;
 
-        if (!vkCommandQueue->pendingSemaphoresForExecute.empty()) {
+            vkFence->queueSignaledFrom = vkCommandQueue;
+            for (const uint32_t semaphoreIndex : vkCommandQueue->pendingSemaphoresForFence)
+                vkCommandQueue->imageSemaphoresForFences.emplace_back(vkFence, semaphoreIndex);
+
+            vkCommandQueue->pendingSemaphoresForFence.clear();
+        };
+
+        std::vector<VkSemaphoreSubmitInfo> waitSemaphoreInfos{};
+        waitSemaphoreInfos.reserve(waitSemaphores.size());
+
+        std::vector<VkSemaphoreSubmitInfo> acquireSemaphoreInfos{};
+        acquireSemaphoreInfos.reserve(vkCommandQueue->pendingSemaphoresForExecute.size());
+
+        if (!swapchains.empty() && !vkCommandQueue->pendingSemaphoresForExecute.empty()) {
             for (const auto semaphoreIndex : vkCommandQueue->pendingSemaphoresForExecute) {
-                waitSemaphoreInfos.push_back({
+                acquireSemaphoreInfos.push_back({
                     .sType = VK_STRUCTURE_TYPE_SEMAPHORE_SUBMIT_INFO,
                     .pNext = nullptr,
                     .semaphore = vkCommandQueue->imageSemaphores[semaphoreIndex],
                     .value = 0,
-                    .stageMask = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT,
+                    .stageMask = VK_PIPELINE_STAGE_2_TRANSFER_BIT,
                     .deviceIndex = 0
                 });
             }
@@ -1092,7 +1140,10 @@ namespace Vixen {
 
         for (const auto& semaphore : waitSemaphores) {
             const auto vkSemaphore = dynamic_cast<VulkanSemaphore*>(semaphore);
-            waitSemaphoreInfos.push_back({
+            auto& destination = commandBuffers.empty() && !swapchains.empty()
+                                    ? acquireSemaphoreInfos
+                                    : waitSemaphoreInfos;
+            destination.push_back({
                 .sType = VK_STRUCTURE_TYPE_SEMAPHORE_SUBMIT_INFO,
                 .pNext = nullptr,
                 .semaphore = vkSemaphore->semaphore,
@@ -1147,7 +1198,7 @@ namespace Vixen {
                 queue.queue,
                 1,
                 &submitInfo,
-                vkFence != nullptr ? vkFence->fence : VK_NULL_HANDLE
+                vkFence != nullptr && swapchains.empty() ? vkFence->fence : VK_NULL_HANDLE
             );
             queue.submitMutex.unlock();
 
@@ -1158,17 +1209,8 @@ namespace Vixen {
             if (submitResult != VK_SUCCESS)
                 return std::unexpected(Error::InitializationFailed);
 
-            if (vkFence != nullptr && !vkCommandQueue->pendingSemaphoresForFence.empty()) {
-                vkFence->queueSignaledFrom = vkCommandQueue;
-
-                for (uint32_t i = 0; i < vkCommandQueue->pendingSemaphoresForFence.size(); i++)
-                    vkCommandQueue->imageSemaphoresForFences.emplace_back(
-                        vkFence,
-                        vkCommandQueue->pendingSemaphoresForFence[i]
-                    );
-
-                vkCommandQueue->pendingSemaphoresForFence.clear();
-            }
+            if (swapchains.empty())
+                associatePendingImageSemaphoresWithFence();
 
             waitSemaphoreInfos.clear();
         }
@@ -1182,7 +1224,7 @@ namespace Vixen {
             for (const auto& swapchain : swapchains) {
                 const auto vkSwapchain = dynamic_cast<VulkanSwapchain*>(swapchain);
 
-                if (vkSwapchain->presentCommandPool == VK_NULL_HANDLE) {
+                if (vkSwapchain->blitCommandPool == VK_NULL_HANDLE) {
                     const VkCommandPoolCreateInfo poolInfo{
                         .sType = VK_STRUCTURE_TYPE_COMMAND_POOL_CREATE_INFO,
                         .pNext = nullptr,
@@ -1190,7 +1232,7 @@ namespace Vixen {
                         .queueFamilyIndex = vkCommandQueue->queueFamily
                     };
 
-                    if (vkCreateCommandPool(device, &poolInfo, nullptr, &vkSwapchain->presentCommandPool) != VK_SUCCESS)
+                    if (vkCreateCommandPool(device, &poolInfo, nullptr, &vkSwapchain->blitCommandPool) != VK_SUCCESS)
                         return std::unexpected(Error::InitializationFailed);
 
                     const auto commandBufferCount = static_cast<uint32_t>(vkSwapchain->resolveImages.size());
@@ -1198,34 +1240,34 @@ namespace Vixen {
                     const VkCommandBufferAllocateInfo commandBufferInfo{
                         .sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO,
                         .pNext = nullptr,
-                        .commandPool = vkSwapchain->presentCommandPool,
+                        .commandPool = vkSwapchain->blitCommandPool,
                         .level = VK_COMMAND_BUFFER_LEVEL_PRIMARY,
                         .commandBufferCount = commandBufferCount
                     };
 
-                    vkSwapchain->presentCommandBuffers.resize(commandBufferCount);
+                    vkSwapchain->blitCommandBuffers.resize(commandBufferCount);
 
-                    if (vkAllocateCommandBuffers(device, &commandBufferInfo, vkSwapchain->presentCommandBuffers.data())
+                    if (vkAllocateCommandBuffers(device, &commandBufferInfo, vkSwapchain->blitCommandBuffers.data())
                         != VK_SUCCESS)
                         return std::unexpected(Error::InitializationFailed);
                 }
 
                 const uint32_t imageIndex = vkSwapchain->imageIndex;
 
-                if (imageIndex >= vkSwapchain->presentCommandBuffers.size() ||
-                    imageIndex >= vkSwapchain->presentFences.size() ||
-                    imageIndex >= vkSwapchain->presentSemaphores.size()) {
+                if (imageIndex >= vkSwapchain->blitCommandBuffers.size() ||
+                    imageIndex >= vkSwapchain->blitFences.size() ||
+                    imageIndex >= vkSwapchain->blitSemaphores.size()) {
                     return std::unexpected(Error::InitializationFailed);
                 }
 
-                const auto presentFence = vkSwapchain->presentFences[imageIndex];
-                const auto commandBuffer = vkSwapchain->presentCommandBuffers[imageIndex];
+                const auto blitFence = vkSwapchain->blitFences[imageIndex];
+                const auto commandBuffer = vkSwapchain->blitCommandBuffers[imageIndex];
 
-                if (vkWaitForFences(device, 1, &presentFence, VK_TRUE, std::numeric_limits<uint64_t>::max()) !=
+                if (vkWaitForFences(device, 1, &blitFence, VK_TRUE, std::numeric_limits<uint64_t>::max()) !=
                     VK_SUCCESS)
                     return std::unexpected(Error::InitializationFailed);
 
-                if (vkResetFences(device, 1, &presentFence) != VK_SUCCESS)
+                if (vkResetFences(device, 1, &blitFence) != VK_SUCCESS)
                     return std::unexpected(Error::InitializationFailed);
 
                 if (vkResetCommandBuffer(commandBuffer, 0) != VK_SUCCESS)
@@ -1391,7 +1433,7 @@ namespace Vixen {
                     .deviceMask = 0
                 };
 
-                const auto presentSemaphore = vkSwapchain->presentSemaphores[imageIndex];
+                const auto presentSemaphore = vkSwapchain->blitSemaphores[imageIndex];
 
                 const VkSemaphoreSubmitInfo presentSignalInfo{
                     .sType = VK_STRUCTURE_TYPE_SEMAPHORE_SUBMIT_INFO,
@@ -1402,10 +1444,12 @@ namespace Vixen {
                     .deviceIndex = 0
                 };
 
-                const uint32_t waitCount = firstPresentSubmit ? static_cast<uint32_t>(waitSemaphoreInfos.size()) : 0;
+                const uint32_t waitCount = firstPresentSubmit
+                                               ? static_cast<uint32_t>(acquireSemaphoreInfos.size())
+                                               : 0;
 
                 const VkSemaphoreSubmitInfo* waits = waitCount > 0
-                                                         ? waitSemaphoreInfos.data()
+                                                         ? acquireSemaphoreInfos.data()
                                                          : nullptr;
 
                 const VkSubmitInfo2 submitInfo{
@@ -1426,7 +1470,7 @@ namespace Vixen {
                     queue.queue,
                     1,
                     &submitInfo,
-                    presentFence
+                    blitFence
                 );
 
                 queue.submitMutex.unlock();
@@ -1443,70 +1487,106 @@ namespace Vixen {
                 presentWaitSemaphores.push_back(presentSemaphore);
             }
 
-            std::vector<VkSwapchainKHR> vkSwapchains{};
-            std::vector<uint32_t> imageIndices{};
-            std::vector<VkResult> results(swapchains.size());
+            if (vkFence != nullptr) {
+                constexpr VkSubmitInfo2 fenceSubmitInfo{
+                    .sType = VK_STRUCTURE_TYPE_SUBMIT_INFO_2,
+                    .pNext = nullptr,
+                    .flags = 0,
+                    .waitSemaphoreInfoCount = 0,
+                    .pWaitSemaphoreInfos = nullptr,
+                    .commandBufferInfoCount = 0,
+                    .pCommandBufferInfos = nullptr,
+                    .signalSemaphoreInfoCount = 0,
+                    .pSignalSemaphoreInfos = nullptr
+                };
 
-            vkSwapchains.reserve(swapchains.size());
-            imageIndices.reserve(swapchains.size());
+                queue.submitMutex.lock();
+                const VkResult fenceSubmitResult = vkQueueSubmit2(queue.queue, 1, &fenceSubmitInfo, vkFence->fence);
+                queue.submitMutex.unlock();
 
-            for (const auto& swapchain : swapchains) {
-                const auto vkSwapchain =
-                    dynamic_cast<VulkanSwapchain*>(swapchain);
+                if (fenceSubmitResult == VK_ERROR_DEVICE_LOST) {
+                    CRASH("Vulkan device lost");
+                }
+                if (fenceSubmitResult != VK_SUCCESS)
+                    return std::unexpected(Error::InitializationFailed);
 
-                vkSwapchains.push_back(vkSwapchain->swapchain);
-                imageIndices.push_back(vkSwapchain->imageIndex);
+                associatePendingImageSemaphoresWithFence();
             }
 
-            const VkPresentInfoKHR presentInfo{
-                .sType = VK_STRUCTURE_TYPE_PRESENT_INFO_KHR,
-                .pNext = nullptr,
-                .waitSemaphoreCount =
-                static_cast<uint32_t>(presentWaitSemaphores.size()),
-                .pWaitSemaphores = presentWaitSemaphores.data(),
-                .swapchainCount =
-                static_cast<uint32_t>(vkSwapchains.size()),
-                .pSwapchains = vkSwapchains.data(),
-                .pImageIndices = imageIndices.data(),
-                .pResults = results.data()
-            };
-
-            queue.submitMutex.lock();
-            const VkResult presentResult = vkQueuePresentKHR(queue.queue, &presentInfo);
-            queue.submitMutex.unlock();
-
             bool resizeRequired = false;
+            bool presentationFailed = false;
 
+            std::map<uint32_t, std::vector<uint32_t>> swapchainsByPresentFamily{};
             for (uint32_t i = 0; i < swapchains.size(); ++i) {
                 const auto vkSwapchain = dynamic_cast<VulkanSwapchain*>(swapchains[i]);
+                swapchainsByPresentFamily[vkSwapchain->presentQueueFamily].push_back(i);
+            }
 
-                vkSwapchain->imageIndex =
-                    std::numeric_limits<uint32_t>::max();
+            for (const auto& [presentFamily, swapchainIndices] : swapchainsByPresentFamily) {
+                std::vector<VkSwapchainKHR> vkSwapchains{};
+                std::vector<uint32_t> imageIndices{};
+                std::vector<VkSemaphore> waitSemaphoresForFamily{};
+                std::vector<VkResult> results(swapchainIndices.size());
 
-                if (results[i] == VK_ERROR_OUT_OF_DATE_KHR ||
-                    results[i] == VK_SUBOPTIMAL_KHR) {
-                    renderingContext->setSurfaceNeedsResize(
-                        vkSwapchain->surface,
-                        true
+                vkSwapchains.reserve(swapchainIndices.size());
+                imageIndices.reserve(swapchainIndices.size());
+                waitSemaphoresForFamily.reserve(swapchainIndices.size());
+
+                for (const uint32_t swapchainIndex : swapchainIndices) {
+                    const auto vkSwapchain = dynamic_cast<VulkanSwapchain*>(swapchains[swapchainIndex]);
+                    vkSwapchains.push_back(vkSwapchain->swapchain);
+                    imageIndices.push_back(vkSwapchain->imageIndex);
+                    waitSemaphoresForFamily.push_back(presentWaitSemaphores[swapchainIndex]);
+                }
+
+                const VkPresentInfoKHR presentInfo{
+                    .sType = VK_STRUCTURE_TYPE_PRESENT_INFO_KHR,
+                    .pNext = nullptr,
+                    .waitSemaphoreCount = static_cast<uint32_t>(waitSemaphoresForFamily.size()),
+                    .pWaitSemaphores = waitSemaphoresForFamily.data(),
+                    .swapchainCount = static_cast<uint32_t>(vkSwapchains.size()),
+                    .pSwapchains = vkSwapchains.data(),
+                    .pImageIndices = imageIndices.data(),
+                    .pResults = results.data()
+                };
+
+                Queue& presentQueue = queueFamilies[presentFamily][0];
+                presentQueue.submitMutex.lock();
+                const VkResult presentResult = vkQueuePresentKHR(presentQueue.queue, &presentInfo);
+                presentQueue.submitMutex.unlock();
+
+                if (presentResult != VK_SUCCESS && presentResult != VK_ERROR_OUT_OF_DATE_KHR &&
+                    presentResult != VK_SUBOPTIMAL_KHR) {
+                    spdlog::error(
+                        "vkQueuePresentKHR failed with error: {}",
+                        string_VkResult(presentResult)
                     );
+                    presentationFailed = true;
+                }
 
+                if (presentResult == VK_ERROR_OUT_OF_DATE_KHR || presentResult == VK_SUBOPTIMAL_KHR) {
                     resizeRequired = true;
-                } else if (results[i] != VK_SUCCESS) {
-                    return std::unexpected(Error::InitializationFailed);
+                    for (const uint32_t swapchainIndex : swapchainIndices) {
+                        const auto vkSwapchain = dynamic_cast<VulkanSwapchain*>(swapchains[swapchainIndex]);
+                        renderingContext->setSurfaceNeedsResize(vkSwapchain->surface, true);
+                    }
+                }
+
+                for (uint32_t i = 0; i < swapchainIndices.size(); ++i) {
+                    const auto vkSwapchain = dynamic_cast<VulkanSwapchain*>(swapchains[swapchainIndices[i]]);
+                    vkSwapchain->imageIndex = std::numeric_limits<uint32_t>::max();
+
+                    if (results[i] == VK_ERROR_OUT_OF_DATE_KHR || results[i] == VK_SUBOPTIMAL_KHR) {
+                        renderingContext->setSurfaceNeedsResize(vkSwapchain->surface, true);
+                        resizeRequired = true;
+                    } else if (results[i] != VK_SUCCESS) {
+                        presentationFailed = true;
+                    }
                 }
             }
 
-            if (presentResult == VK_ERROR_OUT_OF_DATE_KHR || presentResult == VK_SUBOPTIMAL_KHR || resizeRequired)
+            if (resizeRequired || presentationFailed)
                 return std::unexpected(Error::InitializationFailed);
-
-            if (presentResult != VK_SUCCESS) {
-                spdlog::error(
-                    "vkQueuePresentKHR failed with error: {}",
-                    string_VkResult(presentResult)
-                );
-
-                return std::unexpected(Error::InitializationFailed);
-            }
         }
 
         return {};
