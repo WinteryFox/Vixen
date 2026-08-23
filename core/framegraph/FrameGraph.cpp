@@ -163,4 +163,11 @@ namespace Vixen {
             )
         };
     }
+
+    FrameGraph FrameGraph::Builder::build() && {
+        return {
+            std::move(resources),
+            std::move(renderPasses)
+        };
+    }
 }

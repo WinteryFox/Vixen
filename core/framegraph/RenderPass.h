@@ -389,14 +389,14 @@ namespace Vixen {
                     );
                 };
 
-                return RenderPass(
+                return {
                     std::move(name),
                     type,
                     std::move(resourceUsages),
                     std::move(colorAttachments),
-                    std::move(depthStencilAttachment),
+                    depthStencilAttachment,
                     ExecuteCallback(std::move(callback))
-                );
+                };
             }
         };
     };

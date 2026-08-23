@@ -152,12 +152,7 @@ namespace Vixen {
                 BufferState finalState
             );
 
-            [[nodiscard]] FrameGraph build() && {
-                return FrameGraph{
-                    std::move(resources),
-                    std::move(renderPasses)
-                };
-            }
+            [[nodiscard]] FrameGraph build() &&;
         };
     };
 } // namespace Vixen
