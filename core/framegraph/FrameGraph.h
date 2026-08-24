@@ -17,9 +17,14 @@ namespace Vixen {
     struct Image;
 
     class FrameGraph final {
+        struct VersionAccess {
+            uint32_t pass;
+            ResourceState state;
+        };
+
         struct ResourceVersion {
-            std::optional<uint32_t> producer;
-            std::vector<uint32_t> consumers;
+            std::optional<VersionAccess> producer;
+            std::vector<VersionAccess> consumers;
 
             bool initializedExternally = false;
         };
@@ -55,12 +60,18 @@ namespace Vixen {
 
         std::vector<ResourceNode> nodes;
 
+        DependencyPlan dependencyPlan;
+
         FrameGraphResourceStorage storage;
 
         std::vector<RenderPass> renderPasses;
 
-        FrameGraph(std::vector<ResourceNode>&& nodes, FrameGraphResourceStorage&& storage,
-                   std::vector<RenderPass>&& renderPasses);
+        FrameGraph(
+            std::vector<ResourceNode>&& nodes,
+            DependencyPlan&& dependencyPlan,
+            FrameGraphResourceStorage&& storage,
+            std::vector<RenderPass>&& renderPasses
+        );
 
     public:
         FrameGraph(const FrameGraph& other) = delete;

@@ -8,7 +8,11 @@ namespace Vixen {
         InvalidAccess,
         MissingPipelineStages,
         IncompatiblePipelineStages,
-        UsageNotDeclared
+        UsageNotDeclared,
+        ResourceVersionOverflow,
+        DuplicateProducer,
+        InvalidGraphInvariant,
+        IncompatiblePassStages
     };
 
     struct FrameGraphError {
