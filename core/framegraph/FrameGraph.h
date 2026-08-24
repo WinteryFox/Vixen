@@ -1,38 +1,80 @@
 #pragma once
 
+#include <expected>
 #include <functional>
 #include <string>
 #include <utility>
 #include <vector>
 
+#include "FrameGraphResourceStorage.h"
 #include "Node.h"
 #include "RenderPass.h"
 #include "RenderPassType.h"
 
 namespace Vixen {
+    struct FrameGraphError;
     class Buffer;
     struct Image;
 
     class FrameGraph final {
-        std::vector<ResourceNode> resources;
+        struct ResourceVersion {
+            std::optional<uint32_t> producer;
+            std::vector<uint32_t> consumers;
+
+            bool initializedExternally = false;
+        };
+
+        enum class DependencyType {
+            ReadAfterRead,
+            ReadAfterWrite,
+            WriteAfterRead,
+            WriteAfterWrite,
+            ExplicitOrdering
+        };
+
+        struct Dependency {
+            ResourceId handle;
+            DependencyType type = DependencyType::ExplicitOrdering;
+        };
+
+        struct PassEdge {
+            uint32_t pass;
+            std::vector<Dependency> dependencies;
+        };
+
+        struct PassDependencies {
+            std::vector<PassEdge> predecessors;
+            std::vector<PassEdge> successors;
+        };
+
+        struct DependencyPlan {
+            std::vector<std::vector<ResourceVersion>> resources;
+            std::vector<PassDependencies> passes;
+            std::vector<uint32_t> executionOrder;
+        };
+
+        std::vector<ResourceNode> nodes;
+
+        FrameGraphResourceStorage storage;
 
         std::vector<RenderPass> renderPasses;
 
-        FrameGraph(std::vector<ResourceNode>&& resources, std::vector<RenderPass>&& renderPasses);
+        FrameGraph(std::vector<ResourceNode>&& nodes, FrameGraphResourceStorage&& storage,
+                   std::vector<RenderPass>&& renderPasses);
 
     public:
         FrameGraph(const FrameGraph& other) = delete;
-
-        FrameGraph(FrameGraph&& other) noexcept = default;
-
         FrameGraph& operator=(const FrameGraph& other) = delete;
 
-        FrameGraph& operator=(FrameGraph&& other) noexcept = default;
+        FrameGraph(FrameGraph&& other) noexcept;
+        FrameGraph& operator=(FrameGraph&& other) noexcept = delete;
 
         ~FrameGraph() = default;
 
+        void execute(RenderPassContext& context);
+
         class Builder {
-            std::vector<ResourceNode> resources;
+            std::vector<ResourceNode> nodes;
 
             std::vector<RenderPass> renderPasses;
 
@@ -44,15 +86,15 @@ namespace Vixen {
                 Execute&& execute
             ) {
                 std::vector<uint32_t> versionsBefore;
-                versionsBefore.reserve(resources.size());
-                for (const auto& resource : resources)
+                versionsBefore.reserve(nodes.size());
+                for (const auto& resource : nodes)
                     versionsBefore.push_back(resource.latestVersion);
 
                 try {
                     PassData data{};
 
                     RenderPass::Builder passBuilder{
-                        resources,
+                        nodes,
                         std::move(name),
                         type
                     };
@@ -67,7 +109,7 @@ namespace Vixen {
                     );
                 } catch (...) {
                     for (std::size_t i = 0; i < versionsBefore.size(); ++i)
-                        resources[i].latestVersion = versionsBefore[i];
+                        nodes[i].latestVersion = versionsBefore[i];
 
                     throw;
                 }
@@ -89,11 +131,9 @@ namespace Vixen {
             Builder() = default;
 
             Builder(const Builder& other) = delete;
-
-            Builder(Builder&& other) noexcept = default;
-
             Builder& operator=(const Builder& other) = delete;
 
+            Builder(Builder&& other) noexcept = default;
             Builder& operator=(Builder&& other) noexcept = default;
 
             ~Builder() = default;
@@ -152,7 +192,7 @@ namespace Vixen {
                 BufferState finalState
             );
 
-            [[nodiscard]] FrameGraph build() &&;
+            [[nodiscard]] auto build(RenderingDevice& device) && -> std::expected<FrameGraph, FrameGraphError>;
         };
     };
 } // namespace Vixen

@@ -4,13 +4,29 @@
 #include <stdexcept>
 #include <utility>
 
+#include "FrameGraphError.h"
+#include "ResourceStateMapping.h"
 #include "buffer/Buffer.h"
 #include "image/Image.h"
 
 namespace Vixen {
-    FrameGraph::FrameGraph(std::vector<ResourceNode>&& resources, std::vector<RenderPass>&& renderPasses)
-        : resources(std::move(resources)),
-          renderPasses(std::move(renderPasses)) {}
+    FrameGraph::FrameGraph(
+        std::vector<ResourceNode>&& nodes,
+        FrameGraphResourceStorage&& storage,
+        std::vector<RenderPass>&& renderPasses
+    ) : nodes(std::move(nodes)),
+        storage(std::move(storage)),
+        renderPasses(std::move(renderPasses)) {}
+
+    FrameGraph::FrameGraph(FrameGraph&& other) noexcept = default;
+
+    void FrameGraph::execute(RenderPassContext& context) {
+        const auto resourceView = storage.getResources();
+
+        for (const auto& pass : renderPasses) {
+            // TODO: Execute pass
+        }
+    }
 
     ResourceId FrameGraph::Builder::addResource(
         std::string name,
@@ -24,12 +40,12 @@ namespace Vixen {
         if (name.empty())
             throw std::invalid_argument{"Frame graph resource name must not be empty"};
 
-        if (std::ranges::any_of(resources, [&](const ResourceNode& resource) {
+        if (std::ranges::any_of(nodes, [&](const ResourceNode& resource) {
             return resource.name == name;
         }))
             throw std::invalid_argument{"A frame graph resource named '" + name + "' already exists"};
 
-        if (resources.size() >= ResourceId::Invalid)
+        if (nodes.size() >= ResourceId::Invalid)
             throw std::overflow_error{"Frame graph resource limit exceeded"};
 
         const bool imported = lifetime == ResourceLifetime::Imported;
@@ -51,9 +67,9 @@ namespace Vixen {
                 throw std::logic_error{"Imported frame graph resource metadata has the wrong type"};
         }
 
-        const auto index = static_cast<uint32_t>(resources.size());
+        const auto index = static_cast<uint32_t>(nodes.size());
 
-        resources.push_back({
+        nodes.push_back({
             .name = std::move(name),
             .type = type,
             .lifetime = lifetime,
@@ -164,9 +180,61 @@ namespace Vixen {
         };
     }
 
-    FrameGraph FrameGraph::Builder::build() && {
-        return {
-            std::move(resources),
+    auto FrameGraph::Builder::build(RenderingDevice& device) && -> std::expected<FrameGraph, FrameGraphError> {
+        DependencyPlan plan;
+
+        for (const auto& node : nodes) {
+            if (node.latestVersion == ResourceId::Invalid)
+                return std::unexpected{
+                    FrameGraphError{
+                        .code = FrameGraphErrorCode::IncompatiblePipelineStages,
+                        .message = "Node with name '" + node.name + "' latestVersion overflows"
+                    }
+                };
+
+            auto& versions = plan.resources.emplace_back(node.latestVersion + 1);
+
+            versions[0].initializedExternally = node.lifetime == ResourceLifetime::Imported;
+        }
+
+        plan.passes.resize(renderPasses.size());
+        plan.executionOrder.reserve(renderPasses.size());
+
+        for (uint32_t i = 0; i < renderPasses.size(); i++) {
+            for (const auto& usage : renderPasses[i].getResourceUsages()) {
+                const auto& result = std::visit([&](const auto& typedUsage) -> std::expected<void, FrameGraphError> {
+                    if (typedUsage.input.isValid()) {
+                        auto& version = plan.resources[typedUsage.input.id.index][typedUsage.input.id.version];
+
+                        version.consumers.push_back(i);
+                    }
+
+                    if (typedUsage.output.isValid()) {
+                        auto& version = plan.resources[typedUsage.output.id.index][typedUsage.output.id.version];
+
+                        if (version.producer.has_value())
+                            return std::unexpected{
+                                FrameGraphError{
+                                    .code = FrameGraphErrorCode::IncompatiblePipelineStages,
+                                    .message = "Pass '" + renderPasses[i].getName() +
+                                    "' has a duplicate producer for a resource"
+                                }
+                            };
+
+                        version.producer = i;
+                    }
+
+                    return {};
+                }, usage);
+
+                if (!result)
+                    return std::unexpected{result.error()};
+            }
+        }
+
+        return FrameGraph{
+            std::move(nodes),
+            FrameGraphResourceStorage(device, nodes.size()),
             std::move(renderPasses)
         };
     }

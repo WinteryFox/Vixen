@@ -12,7 +12,7 @@ namespace Vixen {
         type(type),
         resourceUsages(std::move(resourceUsages)),
         colorAttachments(std::move(colorAttachments)),
-        depthStencilAttachment(std::move(depthStencilAttachment)),
+        depthStencilAttachment(depthStencilAttachment),
         executeCallback(std::move(executeCallback)) {}
 
     void RenderPass::execute(RenderPassContext& context) {

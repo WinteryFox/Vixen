@@ -12,7 +12,9 @@ namespace Vixen {
         enum class Ownership { Empty, Imported, Owned };
 
         RenderingDevice* device;
+
         std::vector<ResourceObject> resources;
+
         std::vector<Ownership> ownership;
 
         void requireEmpty(std::size_t index) const;
