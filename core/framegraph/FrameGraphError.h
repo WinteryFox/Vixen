@@ -17,7 +17,8 @@ namespace Vixen {
         InvalidGraphInvariant,
         IncompatiblePassStages,
         InvalidResourceDeclaration,
-        InvalidResourceOwnership
+        InvalidResourceOwnership,
+        InvalidUsageShape
     };
 
     struct FrameGraphError {
