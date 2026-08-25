@@ -89,6 +89,267 @@ namespace Vixen {
         };
     }
 
+    auto FrameGraph::Builder::compile() const -> std::expected<DependencyPlan, FrameGraphError> {
+        const auto resourceError = [this](
+            const FrameGraphErrorCode code,
+            std::string message,
+            uint32_t resourceIndex,
+            const std::optional<uint32_t> version = std::nullopt
+        ) {
+            return FrameGraphError{
+                .code = code,
+                .message = std::move(message),
+                .passIndex = std::nullopt,
+                .resourceIndex = resourceIndex,
+                .resourceVersion = version,
+                .passName = std::nullopt,
+                .resourceName = nodes[resourceIndex].name,
+                .details = {}
+            };
+        };
+
+        DependencyPlan plan;
+
+        plan.resources.reserve(nodes.size());
+
+        for (std::size_t resourceIndex = 0; resourceIndex < nodes.size(); resourceIndex++) {
+            const auto& node = nodes[resourceIndex];
+
+            if (node.latestVersion == ResourceId::Invalid)
+                return std::unexpected{
+                    resourceError(
+                        FrameGraphErrorCode::ResourceVersionOverflow,
+                        "Resource '" + node.name + "' has exhausted its version range",
+                        resourceIndex,
+                        node.latestVersion
+                    )
+                };
+
+            auto& versions = plan.resources.emplace_back(node.latestVersion + 1);
+
+            versions[0].initializedExternally = node.lifetime == ResourceLifetime::Imported;
+
+            switch (node.type) {
+                case ResourceType::Image: {
+                    if (!std::holds_alternative<ImageResourceDescription>(node.description))
+                        return std::unexpected{
+                            resourceError(
+                                FrameGraphErrorCode::InvalidResourceDeclaration,
+                                "Resource '" + node.name + "' has image type but description isn't that of an image",
+                                resourceIndex
+                            )
+                        };
+
+                    const auto& format = std::get<ImageResourceDescription>(node.description).format;
+
+                    if (format.width == 0 ||
+                        format.height == 0 ||
+                        format.depth == 0 ||
+                        format.layerCount == 0 ||
+                        format.mipmapCount == 0 ||
+                        format.usage.empty())
+                        return std::unexpected{
+                            resourceError(
+                                FrameGraphErrorCode::InvalidResourceDeclaration,
+                                "Image resource '" + node.name +
+                                "' has width/height/depth/layerCount/mipmapCount of 0 or empty usage flags",
+                                resourceIndex
+                            )
+                        };
+
+                    if (node.lifetime == ResourceLifetime::Imported) {
+                        const auto image = std::get_if<Image*>(&node.importedResource);
+
+                        if (!image || !*image)
+                            return std::unexpected{
+                                resourceError(
+                                    FrameGraphErrorCode::InvalidResourceOwnership,
+                                    "Image resource '" + node.name +
+                                    "' is imported but does not hold a valid image pointer",
+                                    resourceIndex
+                                )
+                            };
+
+                        if (!node.initialState.has_value() ||
+                            !node.finalState.has_value() ||
+                            !std::holds_alternative<ImageState>(*node.initialState) ||
+                            !std::holds_alternative<ImageState>(*node.finalState))
+                            return std::unexpected{
+                                resourceError(
+                                    FrameGraphErrorCode::InvalidResourceOwnership,
+                                    "Image resource '" + node.name +
+                                    "' is imported but has missing or incorrectly typed initial or final state",
+                                    resourceIndex
+                                )
+                            };
+                    }
+
+                    break;
+                }
+
+                case ResourceType::Buffer: {
+                    if (!std::holds_alternative<BufferFormat>(node.description))
+                        return std::unexpected{
+                            resourceError(
+                                FrameGraphErrorCode::InvalidResourceDeclaration,
+                                "Resource '" + node.name +
+                                "' has buffer type but description isn't that of a buffer",
+                                resourceIndex
+                            )
+                        };
+
+                    const auto& description = std::get<BufferFormat>(node.description);
+
+                    if (description.count == 0 ||
+                        description.stride == 0 ||
+                        description.usage.empty())
+                        return std::unexpected{
+                            resourceError(
+                                FrameGraphErrorCode::InvalidResourceDeclaration,
+                                "Buffer resource '" + node.name +
+                                "' has a count/stride of 0 or empty usage flags",
+                                resourceIndex
+                            )
+                        };
+
+                    if (node.lifetime == ResourceLifetime::Imported) {
+                        const auto buffer = std::get_if<Buffer*>(&node.importedResource);
+
+                        if (!buffer || !*buffer)
+                            return std::unexpected{
+                                resourceError(
+                                    FrameGraphErrorCode::InvalidResourceOwnership,
+                                    "Buffer resource '" + node.name +
+                                    "' is imported but does not hold a valid buffer pointer",
+                                    resourceIndex
+                                )
+                            };
+
+                        if (!node.initialState.has_value() ||
+                            !node.finalState.has_value() ||
+                            !std::holds_alternative<BufferState>(*node.initialState) ||
+                            !std::holds_alternative<BufferState>(*node.finalState))
+                            return std::unexpected{
+                                resourceError(
+                                    FrameGraphErrorCode::InvalidResourceOwnership,
+                                    "Buffer resource '" + node.name +
+                                    "' is imported but has missing or incorrectly typed initial or final state",
+                                    resourceIndex
+                                )
+                            };
+                    }
+
+                    break;
+                }
+
+                default:
+                    return std::unexpected{
+                        resourceError(
+                            FrameGraphErrorCode::InvalidResourceDeclaration,
+                            "Resource '" + node.name + "' has an unknown resource type",
+                            resourceIndex
+                        )
+                    };
+            }
+        }
+
+        plan.passes.resize(renderPasses.size());
+        plan.executionOrder.reserve(renderPasses.size());
+
+        for (uint32_t i = 0; i < renderPasses.size(); i++) {
+            const auto& pass = renderPasses[i];
+
+            for (const auto& usage : pass.getResourceUsages()) {
+                const auto& result = std::visit([&](const auto& typedUsage) -> std::expected<void, FrameGraphError> {
+                    using Usage = std::remove_cvref_t<decltype(typedUsage)>;
+
+                    const auto& handle = typedUsage.input.isValid()
+                                             ? typedUsage.input
+                                             : typedUsage.output;
+                    const auto& node = nodes[handle.id.index];
+
+                    auto state = [&]() -> std::expected<ResourceState, FrameGraphError> {
+                        if constexpr (std::is_same_v<Usage, ImageResourceUsage>) {
+                            const auto& description = std::get<ImageResourceDescription>(node.description);
+
+                            if (auto validation = validateImageUsage(description.format.usage, typedUsage.usage);
+                                !validation)
+                                return std::unexpected(validation.error());
+
+                            auto mapped = mapImageResourceState(
+                                typedUsage.access,
+                                typedUsage.usage,
+                                typedUsage.stages
+                            );
+                            if (!mapped)
+                                return std::unexpected(mapped.error());
+
+                            return ResourceState{*mapped};
+                        } else {
+                            static_assert(std::is_same_v<Usage, BufferResourceUsage>);
+
+                            const auto& description = std::get<BufferFormat>(node.description);
+
+                            if (auto validation = validateBufferUsage(description.usage, typedUsage.usage);
+                                !validation)
+                                return std::unexpected(validation.error());
+
+                            auto mapped = mapBufferResourceState(
+                                typedUsage.access,
+                                typedUsage.usage,
+                                typedUsage.stages
+                            );
+                            if (!mapped)
+                                return std::unexpected(mapped.error());
+
+                            return ResourceState{*mapped};
+                        }
+                    }();
+
+                    if (!state) {
+                        auto error = std::move(state).error();
+                        error.message = "Pass '" + pass.getName() + "' uses resource '" + node.name +
+                            "': " + error.message;
+                        return std::unexpected(std::move(error));
+                    }
+
+                    const VersionAccess access{
+                        .pass = i,
+                        .state = std::move(*state)
+                    };
+
+                    if (typedUsage.input.isValid()) {
+                        auto& version = plan.resources[typedUsage.input.id.index][typedUsage.input.id.version];
+
+                        version.consumers.push_back(access);
+                    }
+
+                    if (typedUsage.output.isValid()) {
+                        auto& version = plan.resources[typedUsage.output.id.index][typedUsage.output.id.version];
+
+                        if (version.producer.has_value())
+                            return std::unexpected{
+                                FrameGraphError{
+                                    .code = FrameGraphErrorCode::DuplicateProducer,
+                                    .message = "Pass '" + pass.getName() +
+                                    "' has a duplicate producer for a resource"
+                                }
+                            };
+
+                        version.producer = access;
+                    }
+
+                    return {};
+                }, usage);
+
+                if (!result)
+                    return std::unexpected{result.error()};
+            }
+        }
+
+        return plan;
+    }
+
     ImageHandle FrameGraph::Builder::createImage(
         std::string name,
         ImageResourceDescription description,
@@ -184,120 +445,17 @@ namespace Vixen {
     }
 
     auto FrameGraph::Builder::build(RenderingDevice& device) && -> std::expected<FrameGraph, FrameGraphError> {
-        DependencyPlan plan;
+        auto plan = compile();
 
-        for (const auto& node : nodes) {
-            if (node.latestVersion == ResourceId::Invalid)
-                return std::unexpected{
-                    FrameGraphError{
-                        .code = FrameGraphErrorCode::ResourceVersionOverflow,
-                        .message = "Node with name '" + node.name + "' latestVersion overflows"
-                    }
-                };
+        if (!plan)
+            return std::unexpected{std::move(plan).error()};
 
-            auto& versions = plan.resources.emplace_back(node.latestVersion + 1);
-
-            versions[0].initializedExternally = node.lifetime == ResourceLifetime::Imported;
-        }
-
-        plan.passes.resize(renderPasses.size());
-        plan.executionOrder.reserve(renderPasses.size());
-
-        for (uint32_t i = 0; i < renderPasses.size(); i++) {
-            const auto& pass = renderPasses[i];
-
-            for (const auto& usage : pass.getResourceUsages()) {
-                const auto& result = std::visit([&](const auto& typedUsage) -> std::expected<void, FrameGraphError> {
-                    using Usage = std::remove_cvref_t<decltype(typedUsage)>;
-
-                    const auto& handle = typedUsage.input.isValid()
-                                             ? typedUsage.input
-                                             : typedUsage.output;
-                    const auto& node = nodes[handle.id.index];
-
-                    auto state = [&]() -> std::expected<ResourceState, FrameGraphError> {
-                        if constexpr (std::is_same_v<Usage, ImageResourceUsage>) {
-                            const auto& description = std::get<ImageResourceDescription>(node.description);
-
-                            if (auto validation = validateImageUsage(description.format.usage, typedUsage.usage);
-                                !validation)
-                                return std::unexpected(validation.error());
-
-                            auto mapped = mapImageResourceState(
-                                typedUsage.access,
-                                typedUsage.usage,
-                                typedUsage.stages
-                            );
-                            if (!mapped)
-                                return std::unexpected(mapped.error());
-
-                            return ResourceState{*mapped};
-                        } else if constexpr (std::is_same_v<Usage, BufferResourceUsage>) {
-                            const auto& description = std::get<BufferFormat>(node.description);
-
-                            if (auto validation = validateBufferUsage(description.usage, typedUsage.usage);
-                                !validation)
-                                return std::unexpected(validation.error());
-
-                            auto mapped = mapBufferResourceState(
-                                typedUsage.access,
-                                typedUsage.usage,
-                                typedUsage.stages
-                            );
-                            if (!mapped)
-                                return std::unexpected(mapped.error());
-
-                            return ResourceState{*mapped};
-                        } else {
-                            // TODO: Compile time failure?
-                        }
-                    }();
-
-                    if (!state) {
-                        auto error = std::move(state).error();
-                        error.message = "Pass '" + pass.getName() + "' uses resource '" + node.name +
-                            "': " + error.message;
-                        return std::unexpected(std::move(error));
-                    }
-
-                    const VersionAccess access{
-                        .pass = i,
-                        .state = std::move(*state)
-                    };
-
-                    if (typedUsage.input.isValid()) {
-                        auto& version = plan.resources[typedUsage.input.id.index][typedUsage.input.id.version];
-
-                        version.consumers.push_back(access);
-                    }
-
-                    if (typedUsage.output.isValid()) {
-                        auto& version = plan.resources[typedUsage.output.id.index][typedUsage.output.id.version];
-
-                        if (version.producer.has_value())
-                            return std::unexpected{
-                                FrameGraphError{
-                                    .code = FrameGraphErrorCode::DuplicateProducer,
-                                    .message = "Pass '" + pass.getName() +
-                                    "' has a duplicate producer for a resource"
-                                }
-                            };
-
-                        version.producer = access;
-                    }
-
-                    return {};
-                }, usage);
-
-                if (!result)
-                    return std::unexpected{result.error()};
-            }
-        }
+        const std::size_t resourceCount = nodes.size();
 
         return FrameGraph{
             std::move(nodes),
-            std::move(plan),
-            FrameGraphResourceStorage(device, nodes.size()),
+            std::move(*plan),
+            FrameGraphResourceStorage(device, resourceCount),
             std::move(renderPasses)
         };
     }

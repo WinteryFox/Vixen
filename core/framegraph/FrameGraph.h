@@ -138,6 +138,8 @@ namespace Vixen {
                 std::optional<ResourceState> finalState = std::nullopt
             );
 
+            [[nodiscard]] auto compile() const -> std::expected<DependencyPlan, FrameGraphError>;
+
         public:
             Builder() = default;
 
