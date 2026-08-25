@@ -112,16 +112,18 @@ namespace Vixen {
         const auto passError = [this](
             const FrameGraphErrorCode code,
             std::string message,
-            uint32_t passIndex
+            uint32_t passIndex,
+            const std::optional<uint32_t> resourceIndex = std::nullopt,
+            const std::optional<uint32_t> resourceVersion = std::nullopt
         ) {
             return FrameGraphError{
                 .code = code,
                 .message = std::move(message),
                 .passIndex = passIndex,
-                .resourceIndex = std::nullopt,
-                .resourceVersion = std::nullopt,
+                .resourceIndex = resourceIndex,
+                .resourceVersion = resourceVersion,
                 .passName = renderPasses[passIndex].getName(),
-                .resourceName = std::nullopt,
+                .resourceName = resourceIndex.has_value() ? std::optional{nodes[*resourceIndex].name} : std::nullopt,
                 .details = {}
             };
         };
@@ -391,8 +393,40 @@ namespace Vixen {
                                 };
                         }
 
-                        const auto& handle = hasInput ? typedUsage.input : typedUsage.output;
+                        const auto handle = hasInput ? typedUsage.input : typedUsage.output;
+
+                        if (handle.id.index >= nodes.size()) {
+                            auto error = passError(
+                                FrameGraphErrorCode::InvalidResourceHandle,
+                                "Resource has an out-of-bounds handle",
+                                passIndex
+                            );
+
+                            error.resourceIndex = handle.id.index;
+                            error.resourceVersion = handle.id.version;
+
+                            return std::unexpected{std::move(error)};
+                        }
+
                         const auto& node = nodes[handle.id.index];
+
+                        constexpr bool isImageUsage = std::is_same_v<Usage, ImageResourceUsage>;
+                        constexpr bool isBufferUsage = std::is_same_v<Usage, BufferResourceUsage>;
+
+                        static_assert(isImageUsage || isBufferUsage, "Unsupported frame graph resource usage type");
+
+                        constexpr ResourceType expectedType = isImageUsage ? ResourceType::Image : ResourceType::Buffer;
+
+                        if (node.type != expectedType)
+                            return std::unexpected{
+                                passError(
+                                    FrameGraphErrorCode::ResourceTypeMismatch,
+                                    "Resource type does not match its usage variant type",
+                                    passIndex,
+                                    handle.id.index,
+                                    handle.id.version
+                                )
+                            };
 
                         auto state = [&]() -> std::expected<ResourceState, FrameGraphError> {
                             if constexpr (std::is_same_v<Usage, ImageResourceUsage>) {
@@ -411,7 +445,7 @@ namespace Vixen {
                                     return std::unexpected(mapped.error());
 
                                 return ResourceState{*mapped};
-                            } else if constexpr (std::is_same_v<Usage, BufferResourceUsage>) {
+                            } else {
                                 const auto& description = std::get<BufferFormat>(node.description);
 
                                 if (auto validation = validateBufferUsage(description.usage, typedUsage.usage);
@@ -427,11 +461,7 @@ namespace Vixen {
                                     return std::unexpected(mapped.error());
 
                                 return ResourceState{*mapped};
-                            } else {
-                                static_assert(false);
                             }
-
-                            std::unreachable();
                         }();
 
                         if (!state) {
