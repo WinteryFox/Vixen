@@ -139,7 +139,8 @@ namespace Vixen {
                 return std::unexpected{
                     resourceError(
                         FrameGraphErrorCode::ResourceVersionOverflow,
-                        "Resource '" + node.name + "' has exhausted its version range",
+                        "Resource '" + node.name +
+                        "' has reached the reserved invalid version and cannot represent another version",
                         resourceIndex,
                         node.latestVersion
                     )
@@ -155,7 +156,8 @@ namespace Vixen {
                         return std::unexpected{
                             resourceError(
                                 FrameGraphErrorCode::InvalidResourceDeclaration,
-                                "Resource '" + node.name + "' has image type but description isn't that of an image",
+                                "Resource '" + node.name +
+                                "' is declared as an image but does not contain an ImageResourceDescription",
                                 resourceIndex
                             )
                         };
@@ -172,7 +174,12 @@ namespace Vixen {
                             resourceError(
                                 FrameGraphErrorCode::InvalidResourceDeclaration,
                                 "Image resource '" + node.name +
-                                "' has width/height/depth/layerCount/mipmapCount of 0 or empty usage flags",
+                                "' has an invalid description (width=" + std::to_string(format.width) +
+                                ", height=" + std::to_string(format.height) +
+                                ", depth=" + std::to_string(format.depth) +
+                                ", layers=" + std::to_string(format.layerCount) +
+                                ", mipmaps=" + std::to_string(format.mipmapCount) +
+                                "); every dimension and count must be non-zero, and usage flags must not be empty",
                                 resourceIndex
                             )
                         };
@@ -185,7 +192,7 @@ namespace Vixen {
                                 resourceError(
                                     FrameGraphErrorCode::InvalidResourceOwnership,
                                     "Image resource '" + node.name +
-                                    "' is imported but does not hold a valid image pointer",
+                                    "' is declared as imported but does not contain a non-null Image pointer",
                                     resourceIndex
                                 )
                             };
@@ -197,8 +204,8 @@ namespace Vixen {
                             return std::unexpected{
                                 resourceError(
                                     FrameGraphErrorCode::InvalidResourceOwnership,
-                                    "Image resource '" + node.name +
-                                    "' is imported but has missing or incorrectly typed initial or final state",
+                                    "Imported image resource '" + node.name +
+                                    "' must define both its initial and final states as ImageState values",
                                     resourceIndex
                                 )
                             };
@@ -213,7 +220,7 @@ namespace Vixen {
                             resourceError(
                                 FrameGraphErrorCode::InvalidResourceDeclaration,
                                 "Resource '" + node.name +
-                                "' has buffer type but description isn't that of a buffer",
+                                "' is declared as a buffer but does not contain a BufferFormat",
                                 resourceIndex
                             )
                         };
@@ -227,7 +234,9 @@ namespace Vixen {
                             resourceError(
                                 FrameGraphErrorCode::InvalidResourceDeclaration,
                                 "Buffer resource '" + node.name +
-                                "' has a count/stride of 0 or empty usage flags",
+                                "' has an invalid description (count=" + std::to_string(description.count) +
+                                ", stride=" + std::to_string(description.stride) +
+                                "); count and stride must be non-zero, and usage flags must not be empty",
                                 resourceIndex
                             )
                         };
@@ -240,7 +249,7 @@ namespace Vixen {
                                 resourceError(
                                     FrameGraphErrorCode::InvalidResourceOwnership,
                                     "Buffer resource '" + node.name +
-                                    "' is imported but does not hold a valid buffer pointer",
+                                    "' is declared as imported but does not contain a non-null Buffer pointer",
                                     resourceIndex
                                 )
                             };
@@ -252,8 +261,8 @@ namespace Vixen {
                             return std::unexpected{
                                 resourceError(
                                     FrameGraphErrorCode::InvalidResourceOwnership,
-                                    "Buffer resource '" + node.name +
-                                    "' is imported but has missing or incorrectly typed initial or final state",
+                                    "Imported buffer resource '" + node.name +
+                                    "' must define both its initial and final states as BufferState values",
                                     resourceIndex
                                 )
                             };
@@ -266,7 +275,7 @@ namespace Vixen {
                     return std::unexpected{
                         resourceError(
                             FrameGraphErrorCode::InvalidResourceDeclaration,
-                            "Resource '" + node.name + "' has an unknown resource type",
+                            "Resource '" + node.name + "' has an unrecognized ResourceType value",
                             resourceIndex
                         )
                     };
@@ -285,7 +294,7 @@ namespace Vixen {
                             resourceError(
                                 FrameGraphErrorCode::InvalidResourceOwnership,
                                 "Owned resource '" + node.name +
-                                "' must not contain an imported object or boundary states",
+                                "' must not contain an imported object, an initial state, or a final state",
                                 resourceIndex
                             )
                         };
@@ -297,7 +306,7 @@ namespace Vixen {
                     return std::unexpected{
                         resourceError(
                             FrameGraphErrorCode::InvalidResourceOwnership,
-                            "Resource '" + node.name + "' has an unknown lifetime",
+                            "Resource '" + node.name + "' has an unrecognized ResourceLifetime value",
                             resourceIndex
                         )
                     };
@@ -306,6 +315,7 @@ namespace Vixen {
 
         plan.passes.resize(renderPasses.size());
         plan.executionOrder.reserve(renderPasses.size());
+        std::vector<uint32_t> declaredVersions(nodes.size(), 0);
 
         for (uint32_t passIndex = 0; passIndex < renderPasses.size(); passIndex++) {
             const auto& pass = renderPasses[passIndex];
@@ -324,7 +334,7 @@ namespace Vixen {
                                     return std::unexpected{
                                         passError(
                                             FrameGraphErrorCode::InvalidUsageShape,
-                                            "Read-only resource has no valid input handle or has a write handle",
+                                            "Read usage must provide one valid input handle and no output handle",
                                             passIndex
                                         )
                                     };
@@ -336,7 +346,7 @@ namespace Vixen {
                                     return std::unexpected{
                                         passError(
                                             FrameGraphErrorCode::InvalidUsageShape,
-                                            "Write-only resource has a valid input handle or no valid output handle",
+                                            "Write usage must provide one valid output handle and no input handle",
                                             passIndex
                                         )
                                     };
@@ -348,7 +358,7 @@ namespace Vixen {
                                     return std::unexpected{
                                         passError(
                                             FrameGraphErrorCode::InvalidUsageShape,
-                                            "Read-write resource has no valid input handle or no valid output handle",
+                                            "Read-write usage must provide both a valid input handle and a valid output handle",
                                             passIndex
                                         )
                                     };
@@ -357,7 +367,9 @@ namespace Vixen {
                                     return std::unexpected{
                                         passError(
                                             FrameGraphErrorCode::InvalidUsageShape,
-                                            "Read-write resource input and output do not refer to the same resource index",
+                                            "Read-write usage refers to different resources (input index " +
+                                            std::to_string(typedUsage.input.id.index) + ", output index " +
+                                            std::to_string(typedUsage.output.id.index) + ")",
                                             passIndex
                                         )
                                     };
@@ -366,7 +378,8 @@ namespace Vixen {
                                     return std::unexpected{
                                         passError(
                                             FrameGraphErrorCode::InvalidUsageShape,
-                                            "Read-write resource version overflows",
+                                            "Read-write usage cannot increment input version " +
+                                            std::to_string(typedUsage.input.id.version) + " without overflowing",
                                             passIndex
                                         )
                                     };
@@ -375,7 +388,9 @@ namespace Vixen {
                                     return std::unexpected{
                                         passError(
                                             FrameGraphErrorCode::InvalidUsageShape,
-                                            "Read-write resource version is not incremented by exactly one",
+                                            "Read-write usage must produce the immediate successor of input version " +
+                                            std::to_string(typedUsage.input.id.version) + "; received output version " +
+                                            std::to_string(typedUsage.output.id.version),
                                             passIndex
                                         )
                                     };
@@ -387,7 +402,7 @@ namespace Vixen {
                                 return std::unexpected{
                                     passError(
                                         FrameGraphErrorCode::InvalidUsageShape,
-                                        "Resource has unknown access type",
+                                        "Resource usage has an unrecognized ResourceAccess value",
                                         passIndex
                                     )
                                 };
@@ -398,7 +413,8 @@ namespace Vixen {
                         if (handle.id.index >= nodes.size()) {
                             auto error = passError(
                                 FrameGraphErrorCode::InvalidResourceHandle,
-                                "Resource has an out-of-bounds handle",
+                                "Resource handle index " + std::to_string(handle.id.index) +
+                                " is out of bounds for " + std::to_string(nodes.size()) + " resources",
                                 passIndex
                             );
 
@@ -408,12 +424,17 @@ namespace Vixen {
                             return std::unexpected{std::move(error)};
                         }
 
+                        const auto& node = nodes[handle.id.index];
+
                         if (hasInput &&
                             typedUsage.input.id.version >= plan.resources[typedUsage.input.id.index].size())
                             return std::unexpected{
                                 passError(
                                     FrameGraphErrorCode::InvalidResourceVersion,
-                                    "Resource version is out of bounds",
+                                    "Input handle requests version " +
+                                    std::to_string(typedUsage.input.id.version) + " of resource '" + node.name +
+                                    "', whose latest declared version is " +
+                                    std::to_string(node.latestVersion),
                                     passIndex,
                                     typedUsage.input.id.index,
                                     typedUsage.input.id.version
@@ -425,7 +446,8 @@ namespace Vixen {
                                 return std::unexpected{
                                     passError(
                                         FrameGraphErrorCode::InvalidResourceVersion,
-                                        "Output resource version cannot be 0",
+                                        "Output handle for resource '" + node.name +
+                                        "' uses reserved version 0; outputs must produce version 1 or later",
                                         passIndex,
                                         typedUsage.output.id.index,
                                         typedUsage.output.id.version
@@ -436,15 +458,16 @@ namespace Vixen {
                                 return std::unexpected{
                                     passError(
                                         FrameGraphErrorCode::InvalidResourceVersion,
-                                        "Output resource version is out of bounds",
+                                        "Output handle requests version " +
+                                        std::to_string(typedUsage.output.id.version) + " of resource '" + node.name +
+                                        "', whose latest declared version is " +
+                                        std::to_string(node.latestVersion),
                                         passIndex,
                                         typedUsage.output.id.index,
                                         typedUsage.output.id.version
                                     )
                                 };
                         }
-
-                        const auto& node = nodes[handle.id.index];
 
                         constexpr bool isImageUsage = std::is_same_v<Usage, ImageResourceUsage>;
                         constexpr bool isBufferUsage = std::is_same_v<Usage, BufferResourceUsage>;
@@ -457,12 +480,91 @@ namespace Vixen {
                             return std::unexpected{
                                 passError(
                                     FrameGraphErrorCode::ResourceTypeMismatch,
-                                    "Resource type does not match its usage variant type",
+                                    "Resource '" + node.name + "' is used as " +
+                                    (isImageUsage ? std::string{"an image"} : std::string{"a buffer"}) +
+                                    " but is not declared with that resource type",
                                     passIndex,
                                     handle.id.index,
                                     handle.id.version
                                 )
                             };
+
+                        const uint32_t currentVersion = declaredVersions[handle.id.index];
+                        if (hasOutput && currentVersion == std::numeric_limits<uint32_t>::max())
+                            return std::unexpected{
+                                passError(
+                                    FrameGraphErrorCode::InvalidResourceVersion,
+                                    "Resource '" + node.name +
+                                    "' cannot produce a successor to version " +
+                                    std::to_string(currentVersion) + " because the version number would overflow",
+                                    passIndex,
+                                    handle.id.index,
+                                    currentVersion
+                                )
+                            };
+
+                        bool versionSequenceMatches = false;
+                        switch (typedUsage.access) {
+                            case ResourceAccess::Read:
+                                versionSequenceMatches = typedUsage.input.id.version == currentVersion;
+                                break;
+
+                            case ResourceAccess::Write:
+                                versionSequenceMatches = typedUsage.output.id.version == currentVersion + 1;
+                                break;
+
+                            case ResourceAccess::ReadWrite:
+                                versionSequenceMatches = typedUsage.input.id.version == currentVersion &&
+                                    typedUsage.output.id.version == currentVersion + 1;
+                                break;
+
+                            default:
+                                break;
+                        }
+
+                        if (!versionSequenceMatches) {
+                            const uint32_t declaredVersion = hasInput
+                                                                 ? typedUsage.input.id.version
+                                                                 : typedUsage.output.id.version;
+                            std::string message;
+
+                            switch (typedUsage.access) {
+                                case ResourceAccess::Read:
+                                    message = "Read usage of resource '" + node.name + "' requests version " +
+                                              std::to_string(typedUsage.input.id.version) +
+                                              ", but its current version is " + std::to_string(currentVersion);
+                                    break;
+
+                                case ResourceAccess::Write:
+                                    message = "Write usage of resource '" + node.name + "' produces version " +
+                                              std::to_string(typedUsage.output.id.version) +
+                                              ", but its next required version is " +
+                                              std::to_string(currentVersion + 1);
+                                    break;
+
+                                case ResourceAccess::ReadWrite:
+                                    message = "Read-write usage of resource '" + node.name + "' uses versions " +
+                                              std::to_string(typedUsage.input.id.version) + " -> " +
+                                              std::to_string(typedUsage.output.id.version) +
+                                              ", but the required transition is " +
+                                              std::to_string(currentVersion) + " -> " +
+                                              std::to_string(currentVersion + 1);
+                                    break;
+
+                                default:
+                                    break;
+                            }
+
+                            return std::unexpected{
+                                passError(
+                                    FrameGraphErrorCode::InvalidResourceVersion,
+                                    std::move(message),
+                                    passIndex,
+                                    handle.id.index,
+                                    declaredVersion
+                                )
+                            };
+                        }
 
                         auto state = [&]() -> std::expected<ResourceState, FrameGraphError> {
                             if constexpr (std::is_same_v<Usage, ImageResourceUsage>) {
@@ -502,8 +604,15 @@ namespace Vixen {
 
                         if (!state) {
                             auto error = std::move(state).error();
+
                             error.message = "Pass '" + pass.getName() + "' uses resource '" + node.name +
                                 "': " + error.message;
+                            error.passIndex = passIndex;
+                            error.resourceIndex = handle.id.index;
+                            error.resourceVersion = handle.id.version;
+                            error.passName = pass.getName();
+                            error.resourceName = node.name;
+
                             return std::unexpected(std::move(error));
                         }
 
@@ -523,14 +632,21 @@ namespace Vixen {
 
                             if (version.producer.has_value())
                                 return std::unexpected{
-                                    FrameGraphError{
-                                        .code = FrameGraphErrorCode::DuplicateProducer,
-                                        .message = "Pass '" + pass.getName() +
-                                        "' has a duplicate producer for a resource"
-                                    }
+                                    passError(
+                                        FrameGraphErrorCode::DuplicateProducer,
+                                        "Resource '" + node.name + "' version " +
+                                        std::to_string(typedUsage.output.id.version) +
+                                        " is already produced by pass '" +
+                                        renderPasses[version.producer->pass].getName() +
+                                        "'; each resource version may have only one producer",
+                                        passIndex,
+                                        typedUsage.output.id.index,
+                                        typedUsage.output.id.version
+                                    )
                                 };
 
                             version.producer = access;
+                            declaredVersions[typedUsage.output.id.index] = typedUsage.output.id.version;
                         }
 
                         return {};
@@ -539,6 +655,21 @@ namespace Vixen {
                 if (!result)
                     return std::unexpected{result.error()};
             }
+        }
+
+        for (std::size_t resourceIndex = 0; resourceIndex < nodes.size(); resourceIndex++) {
+            if (declaredVersions[resourceIndex] != nodes[resourceIndex].latestVersion)
+                return std::unexpected{
+                    resourceError(
+                        FrameGraphErrorCode::InvalidResourceVersion,
+                        "Resource '" + nodes[resourceIndex].name +
+                        "' reaches version " + std::to_string(declaredVersions[resourceIndex]) +
+                        " during pass declaration, but advertises version " +
+                        std::to_string(nodes[resourceIndex].latestVersion) + " as its latest version",
+                        resourceIndex,
+                        nodes[resourceIndex].latestVersion
+                    )
+                };
         }
 
         return plan;
