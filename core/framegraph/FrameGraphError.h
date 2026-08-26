@@ -20,7 +20,8 @@ namespace Vixen {
         InvalidResourceOwnership,
         InvalidUsageShape,
         InvalidResourceHandle,
-        ResourceTypeMismatch
+        ResourceTypeMismatch,
+        InvalidResourceVersion
     };
 
     struct FrameGraphError {

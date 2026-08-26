@@ -408,6 +408,42 @@ namespace Vixen {
                             return std::unexpected{std::move(error)};
                         }
 
+                        if (hasInput &&
+                            typedUsage.input.id.version >= plan.resources[typedUsage.input.id.index].size())
+                            return std::unexpected{
+                                passError(
+                                    FrameGraphErrorCode::InvalidResourceVersion,
+                                    "Resource version is out of bounds",
+                                    passIndex,
+                                    typedUsage.input.id.index,
+                                    typedUsage.input.id.version
+                                )
+                            };
+
+                        if (hasOutput) {
+                            if (typedUsage.output.id.version == 0)
+                                return std::unexpected{
+                                    passError(
+                                        FrameGraphErrorCode::InvalidResourceVersion,
+                                        "Output resource version cannot be 0",
+                                        passIndex,
+                                        typedUsage.output.id.index,
+                                        typedUsage.output.id.version
+                                    )
+                                };
+
+                            if (typedUsage.output.id.version >= plan.resources[typedUsage.output.id.index].size())
+                                return std::unexpected{
+                                    passError(
+                                        FrameGraphErrorCode::InvalidResourceVersion,
+                                        "Output resource version is out of bounds",
+                                        passIndex,
+                                        typedUsage.output.id.index,
+                                        typedUsage.output.id.version
+                                    )
+                                };
+                        }
+
                         const auto& node = nodes[handle.id.index];
 
                         constexpr bool isImageUsage = std::is_same_v<Usage, ImageResourceUsage>;
