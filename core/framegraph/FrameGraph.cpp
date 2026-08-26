@@ -531,24 +531,24 @@ namespace Vixen {
                             switch (typedUsage.access) {
                                 case ResourceAccess::Read:
                                     message = "Read usage of resource '" + node.name + "' requests version " +
-                                              std::to_string(typedUsage.input.id.version) +
-                                              ", but its current version is " + std::to_string(currentVersion);
+                                        std::to_string(typedUsage.input.id.version) +
+                                        ", but its current version is " + std::to_string(currentVersion);
                                     break;
 
                                 case ResourceAccess::Write:
                                     message = "Write usage of resource '" + node.name + "' produces version " +
-                                              std::to_string(typedUsage.output.id.version) +
-                                              ", but its next required version is " +
-                                              std::to_string(currentVersion + 1);
+                                        std::to_string(typedUsage.output.id.version) +
+                                        ", but its next required version is " +
+                                        std::to_string(currentVersion + 1);
                                     break;
 
                                 case ResourceAccess::ReadWrite:
                                     message = "Read-write usage of resource '" + node.name + "' uses versions " +
-                                              std::to_string(typedUsage.input.id.version) + " -> " +
-                                              std::to_string(typedUsage.output.id.version) +
-                                              ", but the required transition is " +
-                                              std::to_string(currentVersion) + " -> " +
-                                              std::to_string(currentVersion + 1);
+                                        std::to_string(typedUsage.input.id.version) + " -> " +
+                                        std::to_string(typedUsage.output.id.version) +
+                                        ", but the required transition is " +
+                                        std::to_string(currentVersion) + " -> " +
+                                        std::to_string(currentVersion + 1);
                                     break;
 
                                 default:
@@ -564,6 +564,24 @@ namespace Vixen {
                                     declaredVersion
                                 )
                             };
+                        }
+
+                        if (hasInput) {
+                            const auto& inputVersion =
+                                plan.resources[typedUsage.input.id.index][typedUsage.input.id.version];
+
+                            if (!inputVersion.initializedExternally && !inputVersion.producer.has_value())
+                                return std::unexpected{
+                                    passError(
+                                        FrameGraphErrorCode::UninitializedResourceRead,
+                                        "Resource '" + node.name + "' version " +
+                                        std::to_string(typedUsage.input.id.version) +
+                                        " cannot be read because it is neither externally initialized nor produced by a pass",
+                                        passIndex,
+                                        typedUsage.input.id.index,
+                                        typedUsage.input.id.version
+                                    )
+                                };
                         }
 
                         auto state = [&]() -> std::expected<ResourceState, FrameGraphError> {
@@ -657,7 +675,7 @@ namespace Vixen {
             }
         }
 
-        for (std::size_t resourceIndex = 0; resourceIndex < nodes.size(); resourceIndex++) {
+        for (std::size_t resourceIndex = 0; resourceIndex < nodes.size(); resourceIndex++)
             if (declaredVersions[resourceIndex] != nodes[resourceIndex].latestVersion)
                 return std::unexpected{
                     resourceError(
@@ -670,7 +688,6 @@ namespace Vixen {
                         nodes[resourceIndex].latestVersion
                     )
                 };
-        }
 
         return plan;
     }
