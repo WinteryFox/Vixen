@@ -5,6 +5,7 @@
 #include <functional>
 #include <optional>
 #include <string>
+#include <unordered_set>
 #include <utility>
 #include <vector>
 
@@ -44,11 +45,7 @@ namespace Vixen {
             ResourceId handle;
             DependencyType type = DependencyType::ExplicitOrdering;
 
-            friend bool operator==(const Dependency& lhs, const Dependency& rhs) {
-                return lhs.handle.index == rhs.handle.index &&
-                    lhs.handle.version == rhs.handle.version &&
-                    lhs.type == rhs.type;
-            }
+            friend bool operator==(const Dependency& lhs, const Dependency& rhs) = default;
         };
 
         struct PassEdge {
@@ -96,6 +93,8 @@ namespace Vixen {
         class Builder {
             std::vector<ResourceNode> nodes;
 
+            std::unordered_set<std::string> resourceNames;
+
             std::vector<RenderPass> renderPasses;
 
             [[nodiscard]] FrameGraphError resourceError(
@@ -112,13 +111,6 @@ namespace Vixen {
                 std::optional<uint32_t> resourceIndex = std::nullopt,
                 std::optional<uint32_t> resourceVersion = std::nullopt
             ) const;
-
-            static void insertDependency(
-                DependencyPlan& plan,
-                uint32_t predecessor,
-                uint32_t successor,
-                const Dependency& dependency
-            );
 
             [[nodiscard]] auto validateAndInitializeResources(DependencyPlan& plan) const
                 -> std::expected<void, FrameGraphError>;

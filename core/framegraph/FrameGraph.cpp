@@ -1,12 +1,13 @@
 #include "FrameGraph.h"
 
-#include <algorithm>
 #include <cassert>
 #include <functional>
 #include <limits>
 #include <queue>
 #include <stdexcept>
 #include <type_traits>
+#include <unordered_map>
+#include <unordered_set>
 #include <utility>
 
 #include "FrameGraphError.h"
@@ -47,9 +48,7 @@ namespace Vixen {
         if (name.empty())
             throw std::invalid_argument{"Frame graph resource name must not be empty"};
 
-        if (std::ranges::any_of(nodes, [&](const ResourceNode& resource) {
-            return resource.name == name;
-        }))
+        if (resourceNames.contains(name))
             throw std::invalid_argument{"A frame graph resource named '" + name + "' already exists"};
 
         if (nodes.size() >= ResourceId::Invalid)
@@ -76,16 +75,24 @@ namespace Vixen {
 
         const auto index = static_cast<uint32_t>(nodes.size());
 
-        nodes.push_back({
-            .name = std::move(name),
-            .type = type,
-            .lifetime = lifetime,
-            .description = description,
-            .latestVersion = 0,
-            .importedResource = importedResource,
-            .initialState = initialState,
-            .finalState = finalState
-        });
+        const auto [namePosition, inserted] = resourceNames.insert(name);
+        assert(inserted);
+
+        try {
+            nodes.push_back({
+                .name = std::move(name),
+                .type = type,
+                .lifetime = lifetime,
+                .description = description,
+                .latestVersion = 0,
+                .importedResource = importedResource,
+                .initialState = initialState,
+                .finalState = finalState
+            });
+        } catch (...) {
+            resourceNames.erase(namePosition);
+            throw;
+        }
 
         return ResourceId{
             .index = index,
@@ -128,41 +135,6 @@ namespace Vixen {
             .resourceName = resourceIndex.has_value() ? std::optional{nodes[*resourceIndex].name} : std::nullopt,
             .details = {}
         };
-    }
-
-    void FrameGraph::Builder::insertDependency(
-        DependencyPlan& plan,
-        const uint32_t predecessor,
-        const uint32_t successor,
-        const Dependency& dependency
-    ) {
-        assert(predecessor < plan.passes.size());
-        assert(successor < plan.passes.size());
-
-        if (predecessor == successor)
-            return;
-
-        const auto insertOneSide = [&dependency](
-            std::vector<PassEdge>& edges,
-            const uint32_t adjacentPass
-        ) {
-            const auto edge = std::ranges::find(edges, adjacentPass, &PassEdge::pass);
-
-            if (edge == edges.end()) {
-                edges.push_back({
-                    .pass = adjacentPass,
-                    .dependencies = {dependency}
-                });
-
-                return;
-            }
-
-            if (!std::ranges::contains(edge->dependencies, dependency))
-                edge->dependencies.push_back(dependency);
-        };
-
-        insertOneSide(plan.passes[predecessor].successors, successor);
-        insertOneSide(plan.passes[successor].predecessors, predecessor);
     }
 
     auto FrameGraph::Builder::validateAndInitializeResources(DependencyPlan& plan) const
@@ -359,7 +331,7 @@ namespace Vixen {
             const auto& pass = renderPasses[passIndex];
 
             for (const auto& usage : pass.getResourceUsages()) {
-                const auto& result = std::visit(
+                auto result = std::visit(
                     [&]<typename T>(const T& typedUsage) -> std::expected<void, FrameGraphError> {
                         using Usage = std::remove_cvref_t<T>;
 
@@ -755,6 +727,123 @@ namespace Vixen {
     }
 
     void FrameGraph::Builder::buildDependencyEdges(DependencyPlan& plan) {
+        struct DependencyKey {
+            uint32_t predecessor;
+            uint32_t successor;
+            ResourceId handle;
+            DependencyType type;
+
+            bool operator==(const DependencyKey&) const = default;
+        };
+
+        struct DependencyKeyHash {
+            std::size_t operator()(const DependencyKey& key) const noexcept {
+                std::size_t result = 0;
+                const auto combine = [&result](const uint32_t value) {
+                    result ^= std::hash<uint32_t>{}(value) + 0x9e3779b9u +
+                        (result << 6u) + (result >> 2u);
+                };
+
+                combine(key.predecessor);
+                combine(key.successor);
+                combine(key.handle.index);
+                combine(key.handle.version);
+                combine(static_cast<uint32_t>(key.type));
+                return result;
+            }
+        };
+
+        std::vector<std::unordered_map<uint32_t, std::size_t>> successorEdgeIndices(plan.passes.size());
+        std::vector<std::unordered_map<uint32_t, std::size_t>> predecessorEdgeIndices(plan.passes.size());
+        std::unordered_set<DependencyKey, DependencyKeyHash> insertedDependencies;
+
+        const auto insertDependency = [&plan, &successorEdgeIndices, &predecessorEdgeIndices,
+                &insertedDependencies](
+            const uint32_t predecessor,
+            const uint32_t successor,
+            const Dependency& dependency
+        ) {
+            assert(predecessor < plan.passes.size());
+            assert(successor < plan.passes.size());
+
+            if (predecessor == successor)
+                return;
+
+            if (!insertedDependencies.insert({
+                .predecessor = predecessor,
+                .successor = successor,
+                .handle = dependency.handle,
+                .type = dependency.type
+            }).second)
+                return;
+
+            const auto appendDependency = [&dependency](
+                std::vector<PassEdge>& edges,
+                std::unordered_map<uint32_t, std::size_t>& edgeIndices,
+                const uint32_t adjacentPass
+            ) {
+                const auto [position, inserted] = edgeIndices.try_emplace(adjacentPass, edges.size());
+
+                if (inserted)
+                    edges.push_back({
+                        .pass = adjacentPass,
+                        .dependencies = {}
+                    });
+
+                edges[position->second].dependencies.push_back(dependency);
+            };
+
+            appendDependency(
+                plan.passes[predecessor].successors,
+                successorEdgeIndices[predecessor],
+                successor
+            );
+            appendDependency(
+                plan.passes[successor].predecessors,
+                predecessorEdgeIndices[successor],
+                predecessor
+            );
+        };
+
+        constexpr auto writeAccesses = BarrierAccessBits::ShaderWrite |
+            BarrierAccessBits::ColorAttachmentWrite |
+            BarrierAccessBits::DepthStencilAttachmentWrite |
+            BarrierAccessBits::CopyWrite |
+            BarrierAccessBits::HostWrite |
+            BarrierAccessBits::MemoryWrite |
+            BarrierAccessBits::ResolveWrite |
+            BarrierAccessBits::StorageClear;
+
+        // TODO: Passes currently share RenderingDevice's graphics queue family, so queue ownership is
+        //  compatible by construction. Queue-family identity must become part of this predicate
+        //  when per-pass queue assignment is introduced.
+        const auto readStatesCompatible = [writeAccesses](
+            const ResourceState& left,
+            const ResourceState& right
+        ) {
+            if (left.index() != right.index())
+                return false;
+
+            return std::visit(
+                [&right, writeAccesses]<typename T>(const T& typedLeft) {
+                    using State = std::remove_cvref_t<T>;
+                    const auto& typedRight = std::get<State>(right);
+
+                    const bool readOnly =
+                        (typedLeft.access.value() & writeAccesses.value()) == 0 &&
+                        (typedRight.access.value() & writeAccesses.value()) == 0;
+                    if (!readOnly)
+                        return false;
+
+                    if constexpr (std::is_same_v<State, ImageState>)
+                        return typedLeft.layout == typedRight.layout;
+                    else
+                        return true;
+                },
+                left
+            );
+        };
+
         for (uint32_t resourceIndex = 0; resourceIndex < plan.resources.size(); resourceIndex++) {
             const auto& versions = plan.resources[resourceIndex];
 
@@ -762,7 +851,7 @@ namespace Vixen {
                 const auto& version = versions[versionIndex];
 
                 if (version.producer.has_value()) {
-                    Dependency readAfterWrite{
+                    const Dependency readAfterWrite{
                         .handle = {
                             .index = resourceIndex,
                             .version = versionIndex
@@ -772,7 +861,6 @@ namespace Vixen {
 
                     for (const auto& consumer : version.consumers)
                         insertDependency(
-                            plan,
                             version.producer->pass,
                             consumer.pass,
                             readAfterWrite
@@ -780,7 +868,7 @@ namespace Vixen {
                 }
 
                 if (version.consumers.size() >= 2) {
-                    Dependency readAfterRead{
+                    const Dependency readAfterRead{
                         .handle = {
                             .index = resourceIndex,
                             .version = versionIndex
@@ -788,16 +876,34 @@ namespace Vixen {
                         .type = DependencyType::ReadAfterRead
                     };
 
+                    std::size_t previousGroupBegin = 0;
+                    std::size_t currentGroupBegin = 0;
+
+                    // Readers within a compatible group remain unordered. Every reader in the
+                    // previous group gates every reader in the next group so an image layout
+                    // transition cannot overlap a still-running reader.
                     for (std::size_t consumerIndex = 1; consumerIndex < version.consumers.size(); consumerIndex++) {
                         const auto& consumer = version.consumers[consumerIndex];
-                        const auto& previousConsumer = version.consumers[consumerIndex - 1];
 
-                        insertDependency(
-                            plan,
-                            previousConsumer.pass,
-                            consumer.pass,
-                            readAfterRead
-                        );
+                        if (!readStatesCompatible(
+                            version.consumers[currentGroupBegin].state,
+                            consumer.state
+                        )) {
+                            previousGroupBegin = currentGroupBegin;
+                            currentGroupBegin = consumerIndex;
+                        }
+
+                        if (currentGroupBegin == 0)
+                            continue;
+
+                        for (std::size_t previousIndex = previousGroupBegin;
+                             previousIndex < currentGroupBegin;
+                             previousIndex++)
+                            insertDependency(
+                                version.consumers[previousIndex].pass,
+                                consumer.pass,
+                                readAfterRead
+                            );
                     }
                 }
 
@@ -807,7 +913,7 @@ namespace Vixen {
                 const auto& previousVersion = versions[versionIndex - 1];
 
                 if (previousVersion.producer.has_value()) {
-                    Dependency writeAfterWrite{
+                    const Dependency writeAfterWrite{
                         .handle = {
                             .index = resourceIndex,
                             .version = versionIndex
@@ -816,14 +922,13 @@ namespace Vixen {
                     };
 
                     insertDependency(
-                        plan,
                         previousVersion.producer->pass,
                         version.producer->pass,
                         writeAfterWrite
                     );
                 }
 
-                Dependency writeAfterRead{
+                const Dependency writeAfterRead{
                     .handle = {
                         .index = resourceIndex,
                         .version = versionIndex
@@ -833,7 +938,6 @@ namespace Vixen {
 
                 for (const auto& consumer : previousVersion.consumers)
                     insertDependency(
-                        plan,
                         consumer.pass,
                         version.producer->pass,
                         writeAfterRead

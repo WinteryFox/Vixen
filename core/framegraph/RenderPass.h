@@ -1,6 +1,5 @@
 #pragma once
 
-#include <algorithm>
 #include <cstdint>
 #include <functional>
 #include <limits>
@@ -8,6 +7,7 @@
 #include <stdexcept>
 #include <string>
 #include <type_traits>
+#include <unordered_set>
 #include <utility>
 #include <vector>
 
@@ -88,25 +88,14 @@ namespace Vixen {
 
             std::vector<ResourceUsage> resourceUsages;
 
+            std::unordered_set<uint32_t> usedResourceIndices;
+
             std::vector<RenderAttachment> colorAttachments;
 
             std::optional<RenderAttachment> depthStencilAttachment;
 
             void validateUnused(const ResourceId id) const {
-                const bool alreadyUsed = std::ranges::any_of(
-                    resourceUsages,
-                    [id](const ResourceUsage& usage) {
-                        return std::visit(
-                            [id](const auto& typedUsage) {
-                                return (typedUsage.input.isValid() && typedUsage.input.id.index == id.index) ||
-                                       (typedUsage.output.isValid() && typedUsage.output.id.index == id.index);
-                            },
-                            usage
-                        );
-                    }
-                );
-
-                if (alreadyUsed)
+                if (usedResourceIndices.contains(id.index))
                     throw std::logic_error{
                         "Frame graph resource '" + resources[id.index].name +
                         "' is declared more than once in pass '" + name + "'"
@@ -189,6 +178,7 @@ namespace Vixen {
                         .stages = stages
                     }
                 );
+                usedResourceIndices.insert(handle.id.index);
 
                 return handle;
             }
@@ -209,6 +199,7 @@ namespace Vixen {
                         .stages = stages
                     }
                 );
+                usedResourceIndices.insert(handle.id.index);
 
                 return output;
             }
@@ -229,6 +220,7 @@ namespace Vixen {
                         .stages = stages
                     }
                 );
+                usedResourceIndices.insert(handle.id.index);
 
                 return output;
             }
@@ -250,6 +242,7 @@ namespace Vixen {
                         .stages = stages
                     }
                 );
+                usedResourceIndices.insert(handle.id.index);
 
                 return handle;
             }
@@ -270,6 +263,7 @@ namespace Vixen {
                         .stages = stages
                     }
                 );
+                usedResourceIndices.insert(handle.id.index);
 
                 return output;
             }
@@ -290,6 +284,7 @@ namespace Vixen {
                         .stages = stages
                     }
                 );
+                usedResourceIndices.insert(handle.id.index);
 
                 return output;
             }
