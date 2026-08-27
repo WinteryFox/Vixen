@@ -46,20 +46,44 @@ namespace Vixen {
         std::optional<ResourceState> finalState
     ) {
         if (name.empty())
-            throw std::invalid_argument{"Frame graph resource name must not be empty"};
+            throw std::invalid_argument{
+                "Cannot declare a frame graph resource with an empty name; resource names must be non-empty and unique"
+            };
 
         if (resourceNames.contains(name))
-            throw std::invalid_argument{"A frame graph resource named '" + name + "' already exists"};
+            throw std::invalid_argument{
+                "Cannot declare resource '" + name +
+                "': another frame graph resource already uses that name; resource names must be unique"
+            };
 
         if (nodes.size() >= ResourceId::Invalid)
-            throw std::overflow_error{"Frame graph resource limit exceeded"};
+            throw std::overflow_error{
+                "Cannot declare resource '" + name + "': the frame graph already contains " +
+                std::to_string(nodes.size()) + " resources, which is the maximum supported by ResourceId"
+            };
 
         const bool imported = lifetime == ResourceLifetime::Imported;
         const bool hasImportedResource = !std::holds_alternative<std::monostate>(importedResource);
         if (imported != hasImportedResource ||
             imported != initialState.has_value() ||
-            imported != finalState.has_value())
-            throw std::logic_error{"Invalid frame graph resource ownership metadata"};
+            imported != finalState.has_value()) {
+            const auto lifetimeName = lifetime == ResourceLifetime::Imported
+                                          ? "imported"
+                                          : lifetime == ResourceLifetime::Persistent
+                                                ? "persistent"
+                                                : "transient";
+
+            throw std::logic_error{
+                "Resource '" + name + "' is declared with " + lifetimeName +
+                " lifetime but has inconsistent ownership metadata: imported object is " +
+                (hasImportedResource ? "present" : "missing") + ", initial state is " +
+                (initialState.has_value() ? "present" : "missing") + ", and final state is " +
+                (finalState.has_value() ? "present" : "missing") +
+                (imported
+                     ? "; imported resources require all three"
+                     : "; transient and persistent resources require all three to be absent")
+            };
+        }
 
         if (imported) {
             const bool importedTypeMatches = type == ResourceType::Image
@@ -69,8 +93,35 @@ namespace Vixen {
                                                  : std::holds_alternative<Buffer*>(importedResource) &&
                                                  std::holds_alternative<BufferState>(*initialState) &&
                                                  std::holds_alternative<BufferState>(*finalState);
-            if (!importedTypeMatches)
-                throw std::logic_error{"Imported frame graph resource metadata has the wrong type"};
+            if (!importedTypeMatches) {
+                const auto importedObjectType = std::visit(
+                    []<typename T>(const T& value) -> const char* {
+                        using Imported = std::remove_cvref_t<T>;
+
+                        if constexpr (std::is_same_v<Imported, std::monostate>)
+                            return "none";
+                        else if constexpr (std::is_same_v<Imported, Image*>)
+                            return value == nullptr ? "null Image*" : "Image*";
+                        else
+                            return value == nullptr ? "null Buffer*" : "Buffer*";
+                    }, importedResource);
+
+                const auto stateType = [](const ResourceState& state) {
+                    return std::holds_alternative<ImageState>(state) ? "ImageState" : "BufferState";
+                };
+
+                const auto expectedObjectType = type == ResourceType::Image ? "Image*" : "Buffer*";
+                const auto expectedStateType = type == ResourceType::Image ? "ImageState" : "BufferState";
+
+                throw std::logic_error{
+                    "Imported resource '" + name + "' is declared as an " +
+                    (type == ResourceType::Image ? "image" : "buffer") +
+                    "; expected object=" + expectedObjectType + ", initial state=" +
+                    expectedStateType + ", and final state=" + expectedStateType +
+                    ", but received object=" + importedObjectType + ", initial state=" +
+                    stateType(*initialState) + ", and final state=" + stateType(*finalState)
+                };
+            }
         }
 
         const auto index = static_cast<uint32_t>(nodes.size());
@@ -1039,14 +1090,26 @@ namespace Vixen {
         const ResourceLifetime lifetime
     ) {
         if (lifetime == ResourceLifetime::Imported)
-            throw std::invalid_argument{"Imported images must be added through importImage"};
+            throw std::invalid_argument{
+                "Cannot create image resource '" + name +
+                "' with imported lifetime; use importImage to provide the external image and its initial and final states"
+            };
 
         if (description.format.width == 0 || description.format.height == 0 || description.format.depth == 0 ||
             description.format.layerCount == 0 || description.format.mipmapCount == 0)
-            throw std::invalid_argument{"Frame graph image dimensions, layer count, and mipmap count must be nonzero"};
+            throw std::invalid_argument{
+                "Image resource '" + name + "' has invalid dimensions or subresource counts: width=" +
+                std::to_string(description.format.width) + ", height=" +
+                std::to_string(description.format.height) + ", depth=" +
+                std::to_string(description.format.depth) + ", layers=" +
+                std::to_string(description.format.layerCount) + ", mip levels=" +
+                std::to_string(description.format.mipmapCount) + "; every value must be greater than zero"
+            };
 
         if (description.format.usage.empty())
-            throw std::invalid_argument{"Frame graph image usage must not be empty"};
+            throw std::invalid_argument{
+                "Image resource '" + name + "' has an empty usage mask; declare at least one permitted image usage"
+            };
 
         return ImageHandle{
             .id = addResource(
@@ -1064,13 +1127,22 @@ namespace Vixen {
         const ResourceLifetime lifetime
     ) {
         if (lifetime == ResourceLifetime::Imported)
-            throw std::invalid_argument{"Imported buffers must be added through importBuffer"};
+            throw std::invalid_argument{
+                "Cannot create buffer resource '" + name +
+                "' with imported lifetime; use importBuffer to provide the external buffer and its initial and final states"
+            };
 
         if (description.count == 0 || description.stride == 0)
-            throw std::invalid_argument{"Frame graph buffer count and stride must be nonzero"};
+            throw std::invalid_argument{
+                "Buffer resource '" + name + "' has invalid element dimensions: count=" +
+                std::to_string(description.count) + ", stride=" + std::to_string(description.stride) +
+                "; both values must be greater than zero"
+            };
 
         if (description.usage.empty())
-            throw std::invalid_argument{"Frame graph buffer usage must not be empty"};
+            throw std::invalid_argument{
+                "Buffer resource '" + name + "' has an empty usage mask; declare at least one permitted buffer usage"
+            };
 
         return BufferHandle{
             .id = addResource(

@@ -94,11 +94,24 @@ namespace Vixen {
 
             std::optional<RenderAttachment> depthStencilAttachment;
 
+            [[nodiscard]]
+            static constexpr const char* resourceTypeName(const ResourceType resourceType) noexcept {
+                switch (resourceType) {
+                    case ResourceType::Image:
+                        return "image";
+                    case ResourceType::Buffer:
+                        return "buffer";
+                    default:
+                        return "unrecognized";
+                }
+            }
+
             void validateUnused(const ResourceId id) const {
                 if (usedResourceIndices.contains(id.index))
                     throw std::logic_error{
-                        "Frame graph resource '" + resources[id.index].name +
-                        "' is declared more than once in pass '" + name + "'"
+                        "Pass '" + name + "' declares resource '" + resources[id.index].name +
+                        "' (index " + std::to_string(id.index) +
+                        ") more than once; each pass may declare a logical resource only once"
                     };
             }
 
@@ -108,18 +121,40 @@ namespace Vixen {
                 const ResourceType expectedType
             ) const {
                 if (!handle.isValid())
-                    throw std::invalid_argument("Invalid frame graph resource handle");
+                    throw std::invalid_argument{
+                        "Pass '" + name + "' received an invalid " + resourceTypeName(expectedType) +
+                        " resource handle (index " + std::to_string(handle.id.index) +
+                        ", version " + std::to_string(handle.id.version) +
+                        "); the handle must refer to a resource declared by this frame graph builder"
+                    };
 
                 if (handle.id.index >= resources.size())
-                    throw std::out_of_range("Frame graph resource handle is out of range");
+                    throw std::out_of_range{
+                        "Pass '" + name + "' received a " + resourceTypeName(expectedType) +
+                        " resource handle with index " + std::to_string(handle.id.index) +
+                        " and version " + std::to_string(handle.id.version) +
+                        ", but this frame graph contains " + std::to_string(resources.size()) +
+                        " resources; valid indices are in [0, " + std::to_string(resources.size()) + ")"
+                    };
 
                 const auto& node = resources[handle.id.index];
 
                 if (node.type != expectedType)
-                    throw std::invalid_argument("Frame graph resource type mismatch");
+                    throw std::invalid_argument{
+                        "Pass '" + name + "' expected resource '" + node.name +
+                        "' (index " + std::to_string(handle.id.index) +
+                        ", version " + std::to_string(handle.id.version) + ") to be a " +
+                        resourceTypeName(expectedType) + ", but it is declared as a " +
+                        resourceTypeName(node.type)
+                    };
 
                 if (handle.id.version != node.latestVersion)
-                    throw std::invalid_argument("Stale frame graph resource handle");
+                    throw std::invalid_argument{
+                        "Pass '" + name + "' received a stale handle for resource '" + node.name +
+                        "' (index " + std::to_string(handle.id.index) + "): supplied version " +
+                        std::to_string(handle.id.version) + ", but the latest version is " +
+                        std::to_string(node.latestVersion)
+                    };
             }
 
             template <typename Handle>
@@ -133,7 +168,12 @@ namespace Vixen {
                 auto& node = resources[handle.id.index];
 
                 if (node.latestVersion == std::numeric_limits<uint32_t>::max())
-                    throw std::overflow_error{"Frame graph resource version limit exceeded"};
+                    throw std::overflow_error{
+                        "Pass '" + name + "' cannot advance resource '" + node.name +
+                        "' (index " + std::to_string(handle.id.index) +
+                        ") beyond version " + std::to_string(node.latestVersion) +
+                        "; the resource version limit has been reached"
+                    };
 
                 ++node.latestVersion;
 
@@ -296,7 +336,10 @@ namespace Vixen {
                 const ClearValue& clearValue = {}
             ) {
                 if (type != RenderPassType::Graphics)
-                    throw std::logic_error("Compute pass cannot have color attachments");
+                    throw std::logic_error{
+                        "Pass '" + name +
+                        "' is a compute pass and cannot declare color attachments; use a graphics pass instead"
+                    };
 
                 const auto output = loadAction == LoadAction::Load
                                         ? readWrite(
@@ -329,7 +372,10 @@ namespace Vixen {
                 const ClearValue& clearValue = {}
             ) {
                 if (type != RenderPassType::Graphics)
-                    throw std::logic_error("Compute pass cannot have depth stencil attachment");
+                    throw std::logic_error{
+                        "Pass '" + name +
+                        "' is a compute pass and cannot declare a depth-stencil attachment; use a graphics pass instead"
+                    };
 
                 constexpr PipelineStageFlags stages = PipelineStageBits::EarlyFragmentTests |
                     PipelineStageBits::LateFragmentTests;
