@@ -23,7 +23,8 @@ namespace Vixen {
         ResourceTypeMismatch,
         InvalidResourceVersion,
         UninitializedResourceRead,
-        MissingProducer
+        MissingProducer,
+        DependencyCycle
     };
 
     struct FrameGraphError {

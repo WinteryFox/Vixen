@@ -2,7 +2,9 @@
 
 #include <algorithm>
 #include <cassert>
+#include <functional>
 #include <limits>
+#include <queue>
 #include <stdexcept>
 #include <type_traits>
 #include <utility>
@@ -750,46 +752,137 @@ namespace Vixen {
             for (uint32_t versionIndex = 0; versionIndex < versions.size(); versionIndex++) {
                 const auto& version = versions[versionIndex];
 
-                if (!version.producer.has_value())
-                    continue;
+                if (version.producer.has_value()) {
+                    Dependency readAfterWrite{
+                        .handle = {
+                            .index = resourceIndex,
+                            .version = versionIndex
+                        },
+                        .type = DependencyType::ReadAfterWrite
+                    };
 
-                Dependency readAfterWrite = {
-                    .handle = {
-                        .index = resourceIndex,
-                        .version = versionIndex
-                    },
-                    .type = DependencyType::ReadAfterWrite
-                };
+                    for (const auto& consumer : version.consumers)
+                        insertDependency(
+                            version.producer->pass,
+                            consumer.pass,
+                            readAfterWrite
+                        );
+                }
 
-                for (const auto& consumer : version.consumers)
-                    insertDependency(
-                        version.producer->pass,
-                        consumer.pass,
-                        readAfterWrite
-                    );
+                if (version.consumers.size() >= 2) {
+                    Dependency readAfterRead{
+                        .handle = {
+                            .index = resourceIndex,
+                            .version = versionIndex
+                        },
+                        .type = DependencyType::ReadAfterRead
+                    };
 
-                Dependency writeAfterWrite = {
-                    .handle = {
-                        .index = resourceIndex,
-                        .version = versionIndex
-                    },
-                    .type = DependencyType::WriteAfterWrite
-                };
+                    for (std::size_t consumerIndex = 1; consumerIndex < version.consumers.size(); consumerIndex++) {
+                        const auto& consumer = version.consumers[consumerIndex];
+                        const auto& previousConsumer = version.consumers[consumerIndex - 1];
+
+                        insertDependency(
+                            previousConsumer.pass,
+                            consumer.pass,
+                            readAfterRead
+                        );
+                    }
+                }
 
                 if (versionIndex == 0)
                     continue;
 
                 const auto& previousVersion = versions[versionIndex - 1];
 
-                if (!previousVersion.producer.has_value())
+                if (previousVersion.producer.has_value()) {
+                    Dependency writeAfterWrite{
+                        .handle = {
+                            .index = resourceIndex,
+                            .version = versionIndex
+                        },
+                        .type = DependencyType::WriteAfterWrite
+                    };
+
+                    insertDependency(
+                        previousVersion.producer->pass,
+                        version.producer->pass,
+                        writeAfterWrite
+                    );
+                }
+
+                Dependency writeAfterRead{
+                    .handle = {
+                        .index = resourceIndex,
+                        .version = versionIndex
+                    },
+                    .type = DependencyType::WriteAfterRead
+                };
+
+                for (const auto& consumer : previousVersion.consumers)
+                    insertDependency(
+                        consumer.pass,
+                        version.producer->pass,
+                        writeAfterRead
+                    );
+            }
+        }
+
+        std::vector<std::size_t> inDegrees(plan.passes.size());
+        std::priority_queue<uint32_t, std::vector<uint32_t>, std::greater<>> readyPasses;
+
+        for (std::size_t passIndex = 0; passIndex < plan.passes.size(); passIndex++) {
+            inDegrees[passIndex] = plan.passes[passIndex].predecessors.size();
+
+            if (inDegrees[passIndex] == 0)
+                readyPasses.push(static_cast<uint32_t>(passIndex));
+        }
+
+        while (!readyPasses.empty()) {
+            const uint32_t passIndex = readyPasses.top();
+            readyPasses.pop();
+
+            plan.executionOrder.push_back(passIndex);
+
+            for (const auto& successor : plan.passes[passIndex].successors) {
+                assert(successor.pass < inDegrees.size());
+
+                auto& successorInDegree = inDegrees[successor.pass];
+                assert(successorInDegree > 0);
+
+                successorInDegree--;
+                if (successorInDegree == 0)
+                    readyPasses.push(successor.pass);
+            }
+        }
+
+        if (plan.executionOrder.size() != plan.passes.size()) {
+            FrameGraphError error{
+                .code = FrameGraphErrorCode::DependencyCycle,
+                .message = "Frame graph contains a dependency cycle; scheduled " +
+                std::to_string(plan.executionOrder.size()) + " of " +
+                std::to_string(plan.passes.size()) + " passes",
+                .passIndex = std::nullopt,
+                .resourceIndex = std::nullopt,
+                .resourceVersion = std::nullopt,
+                .passName = std::nullopt,
+                .resourceName = std::nullopt,
+                .details = {}
+            };
+
+            for (std::size_t passIndex = 0; passIndex < inDegrees.size(); passIndex++) {
+                if (inDegrees[passIndex] == 0)
                     continue;
 
-                insertDependency(
-                    previousVersion.producer->pass,
-                    version.producer->pass,
-                    writeAfterWrite
+                const auto unresolvedCount = inDegrees[passIndex];
+                error.details.push_back(
+                    "Pass '" + renderPasses[passIndex].getName() + "' remains blocked by " +
+                    std::to_string(unresolvedCount) + " unresolved predecessor" +
+                    (unresolvedCount == 1 ? "" : "s")
                 );
             }
+
+            return std::unexpected{std::move(error)};
         }
 
         return plan;
