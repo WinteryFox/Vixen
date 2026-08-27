@@ -824,8 +824,9 @@ namespace Vixen {
                         )
                     };
 
-                if (const auto& imageUsage = std::get<ImageResourceUsage>(*usage);
-                    imageUsage.usage != expectedUsage)
+                const auto& imageUsage = std::get<ImageResourceUsage>(*usage);
+
+                if (imageUsage.usage != expectedUsage)
                     return std::unexpected{
                         passError(
                             FrameGraphErrorCode::InvalidAttachment,
@@ -835,6 +836,54 @@ namespace Vixen {
                                 pass.getName(),
                                 handleDescription,
                                 expectedUsageName
+                            ),
+                            passIndex,
+                            resourceIndex,
+                            resourceVersion
+                        )
+                    };
+
+                ResourceAccess expectedAccess;
+                const char* expectedAccessName;
+
+                switch (attachment.loadAction) {
+                    case LoadAction::Load:
+                        expectedAccess = ResourceAccess::ReadWrite;
+                        expectedAccessName = "ResourceAccess::ReadWrite";
+                        break;
+
+                    case LoadAction::Clear:
+                    case LoadAction::DontCare:
+                        expectedAccess = ResourceAccess::Write;
+                        expectedAccessName = "ResourceAccess::Write";
+                        break;
+
+                    default:
+                        return std::unexpected{
+                            passError(
+                                FrameGraphErrorCode::InvalidAttachment,
+                                std::format(
+                                    "{} in pass '{}' has an unrecognized load action",
+                                    attachmentName,
+                                    pass.getName()
+                                ),
+                                passIndex,
+                                resourceIndex,
+                                resourceVersion
+                            )
+                        };
+                }
+
+                if (imageUsage.access != expectedAccess)
+                    return std::unexpected{
+                        passError(
+                            FrameGraphErrorCode::InvalidAttachment,
+                            std::format(
+                                "{} in pass '{}' references {}, but its image usage is not declared with {} as required by its load action",
+                                attachmentName,
+                                pass.getName(),
+                                handleDescription,
+                                expectedAccessName
                             ),
                             passIndex,
                             resourceIndex,
