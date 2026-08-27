@@ -1,6 +1,7 @@
 #include "FrameGraph.h"
 
 #include <cassert>
+#include <format>
 #include <functional>
 #include <limits>
 #include <queue>
@@ -811,9 +812,12 @@ namespace Vixen {
                     return std::unexpected{
                         passError(
                             FrameGraphErrorCode::InvalidAttachment,
-                            attachmentName + " in pass '" + pass.getName() + "' references " +
-                            handleDescription +
-                            ", but the pass does not declare that exact handle as an image output",
+                            std::format(
+                                "{} in pass '{}' references {}, but the pass does not declare that exact handle as an image output",
+                                attachmentName,
+                                pass.getName(),
+                                handleDescription
+                            ),
                             passIndex,
                             resourceIndex,
                             resourceVersion
@@ -825,8 +829,13 @@ namespace Vixen {
                     return std::unexpected{
                         passError(
                             FrameGraphErrorCode::InvalidAttachment,
-                            attachmentName + " in pass '" + pass.getName() + "' references " +
-                            handleDescription + ", but its image usage is not declared as " + expectedUsageName,
+                            std::format(
+                                "{} in pass '{}' references {}, but its image usage is not declared as {}",
+                                attachmentName,
+                                pass.getName(),
+                                handleDescription,
+                                expectedUsageName
+                            ),
                             passIndex,
                             resourceIndex,
                             resourceVersion
@@ -848,8 +857,13 @@ namespace Vixen {
                     return std::unexpected{
                         passError(
                             FrameGraphErrorCode::InvalidAttachment,
-                            attachmentName + " in pass '" + pass.getName() + "' references " + handleDescription
-                            + ", but its image view format does not provide " + expectedAspect,
+                            std::format(
+                                "{} in pass '{}' references {}, but its image view format does not provide {}",
+                                attachmentName,
+                                pass.getName(),
+                                handleDescription,
+                                expectedAspect
+                            ),
                             passIndex,
                             resourceIndex,
                             resourceVersion
@@ -866,9 +880,12 @@ namespace Vixen {
                     return std::unexpected{
                         passError(
                             FrameGraphErrorCode::InvalidAttachment,
-                            attachmentName + " in pass '" + pass.getName() + "' references " +
-                            handleDescription +
-                            ", but that version is not produced by this pass",
+                            std::format(
+                                "{} in pass '{}' references {}, but that version is not produced by this pass",
+                                attachmentName,
+                                pass.getName(),
+                                handleDescription
+                            ),
                             passIndex,
                             resourceIndex,
                             resourceVersion
@@ -893,12 +910,18 @@ namespace Vixen {
                     return std::unexpected{
                         passError(
                             FrameGraphErrorCode::InvalidAttachment,
-                            attachmentName + " in pass '" + pass.getName() + "' references " +
-                            handleDescription + " with extent " + std::to_string(format.width) + "x" +
-                            std::to_string(format.height) + ", but " + referenceShape->attachmentName +
-                            " uses extent " + std::to_string(referenceShape->width) + "x" +
-                            std::to_string(referenceShape->height) +
-                            "; all attachments in a pass must have matching extents",
+                            std::format(
+                                "{} in pass '{}' references {} with extent {}x{}, but {} uses extent {}x{}; "
+                                "all attachments in a pass must have matching extents",
+                                attachmentName,
+                                pass.getName(),
+                                handleDescription,
+                                std::to_string(format.width),
+                                std::to_string(format.height),
+                                referenceShape->attachmentName,
+                                std::to_string(referenceShape->width),
+                                std::to_string(referenceShape->height)
+                            ),
                             passIndex,
                             resourceIndex,
                             resourceVersion
@@ -909,11 +932,16 @@ namespace Vixen {
                     return std::unexpected{
                         passError(
                             FrameGraphErrorCode::InvalidAttachment,
-                            attachmentName + " in pass '" + pass.getName() + "' references " +
-                            handleDescription + " with " + std::to_string(format.layerCount) +
-                            " layers, but " + referenceShape->attachmentName + " uses " +
-                            std::to_string(referenceShape->layerCount) +
-                            " layers; all attachments in a pass must have matching layer counts",
+                            std::format(
+                                "{} in pass '{}' references {} with {} layers, but {} uses {} layers; "
+                                "all attachments in a pass must have matching layer counts",
+                                attachmentName,
+                                pass.getName(),
+                                handleDescription,
+                                std::to_string(format.layerCount),
+                                referenceShape->attachmentName,
+                                std::to_string(referenceShape->layerCount)
+                            ),
                             passIndex,
                             resourceIndex,
                             resourceVersion
@@ -924,11 +952,16 @@ namespace Vixen {
                     return std::unexpected{
                         passError(
                             FrameGraphErrorCode::InvalidAttachment,
-                            attachmentName + " in pass '" + pass.getName() + "' references " +
-                            handleDescription + " using " + sampleDescription(format.samples) +
-                            ", but " + referenceShape->attachmentName + " uses " +
-                            sampleDescription(referenceShape->samples) +
-                            "; all attachments in a pass must have matching sample counts",
+                            std::format(
+                                "{} in pass '{}' references {} using {}, but {} uses {}; "
+                                "all attachments in a pass must have matching sample counts",
+                                attachmentName,
+                                pass.getName(),
+                                handleDescription,
+                                sampleDescription(format.samples),
+                                referenceShape->attachmentName,
+                                sampleDescription(referenceShape->samples)
+                            ),
                             passIndex,
                             resourceIndex,
                             resourceVersion
