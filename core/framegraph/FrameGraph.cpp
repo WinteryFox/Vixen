@@ -1,6 +1,7 @@
 #include "FrameGraph.h"
 
 #include <algorithm>
+#include <cassert>
 #include <limits>
 #include <stdexcept>
 #include <type_traits>
@@ -91,6 +92,9 @@ namespace Vixen {
     }
 
     auto FrameGraph::Builder::compile() const -> std::expected<DependencyPlan, FrameGraphError> {
+        DependencyPlan plan;
+        plan.resources.reserve(nodes.size());
+
         const auto resourceError = [this](
             const FrameGraphErrorCode code,
             std::string message,
@@ -128,9 +132,43 @@ namespace Vixen {
             };
         };
 
-        DependencyPlan plan;
+        /**
+         * Inserts dependency metadata into both adjacency views of an edge. Dependencies between
+         * the same pair of passes share one PassEdge, and identical metadata is stored only once.
+         **/
+        const auto insertDependency = [&plan](
+            const uint32_t predecessor,
+            const uint32_t successor,
+            const Dependency& dependency
+        ) {
+            assert(predecessor < plan.passes.size());
+            assert(successor < plan.passes.size());
 
-        plan.resources.reserve(nodes.size());
+            if (predecessor == successor)
+                return;
+
+            const auto insertOneSide = [&dependency](
+                std::vector<PassEdge>& edges,
+                const uint32_t adjacentPass
+            ) {
+                const auto edge = std::ranges::find(edges, adjacentPass, &PassEdge::pass);
+
+                if (edge == edges.end()) {
+                    edges.push_back({
+                        .pass = adjacentPass,
+                        .dependencies = {dependency}
+                    });
+
+                    return;
+                }
+
+                if (!std::ranges::contains(edge->dependencies, dependency))
+                    edge->dependencies.push_back(dependency);
+            };
+
+            insertOneSide(plan.passes[predecessor].successors, successor);
+            insertOneSide(plan.passes[successor].predecessors, predecessor);
+        };
 
         for (std::size_t resourceIndex = 0; resourceIndex < nodes.size(); resourceIndex++) {
             const auto& node = nodes[resourceIndex];
@@ -704,6 +742,54 @@ namespace Vixen {
                             version
                         )
                     };
+        }
+
+        for (uint32_t resourceIndex = 0; resourceIndex < plan.resources.size(); resourceIndex++) {
+            const auto& versions = plan.resources[resourceIndex];
+
+            for (uint32_t versionIndex = 0; versionIndex < versions.size(); versionIndex++) {
+                const auto& version = versions[versionIndex];
+
+                if (!version.producer.has_value())
+                    continue;
+
+                Dependency readAfterWrite = {
+                    .handle = {
+                        .index = resourceIndex,
+                        .version = versionIndex
+                    },
+                    .type = DependencyType::ReadAfterWrite
+                };
+
+                for (const auto& consumer : version.consumers)
+                    insertDependency(
+                        version.producer->pass,
+                        consumer.pass,
+                        readAfterWrite
+                    );
+
+                Dependency writeAfterWrite = {
+                    .handle = {
+                        .index = resourceIndex,
+                        .version = versionIndex
+                    },
+                    .type = DependencyType::WriteAfterWrite
+                };
+
+                if (versionIndex == 0)
+                    continue;
+
+                const auto& previousVersion = versions[versionIndex - 1];
+
+                if (!previousVersion.producer.has_value())
+                    continue;
+
+                insertDependency(
+                    previousVersion.producer->pass,
+                    version.producer->pass,
+                    writeAfterWrite
+                );
+            }
         }
 
         return plan;

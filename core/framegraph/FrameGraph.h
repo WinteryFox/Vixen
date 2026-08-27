@@ -40,6 +40,12 @@ namespace Vixen {
         struct Dependency {
             ResourceId handle;
             DependencyType type = DependencyType::ExplicitOrdering;
+
+            friend bool operator==(const Dependency& lhs, const Dependency& rhs) {
+                return lhs.handle.index == rhs.handle.index &&
+                    lhs.handle.version == rhs.handle.version &&
+                    lhs.type == rhs.type;
+            }
         };
 
         struct PassEdge {
@@ -138,6 +144,10 @@ namespace Vixen {
                 std::optional<ResourceState> finalState = std::nullopt
             );
 
+            /**
+             *
+             * @return A compiled FrameGraph::DependencyPlan or a FrameGraphError on compilation failure.
+             */
             [[nodiscard]] auto compile() const -> std::expected<DependencyPlan, FrameGraphError>;
 
         public:
