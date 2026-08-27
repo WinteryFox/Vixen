@@ -120,6 +120,10 @@ namespace Vixen {
                 std::vector<uint32_t>& declaredVersions
             ) const -> std::expected<void, FrameGraphError>;
 
+            [[nodiscard]] auto validateAttachments(
+                const DependencyPlan& plan
+            ) const -> std::expected<void, FrameGraphError>;
+
             [[nodiscard]] auto validateVersionTable(
                 const DependencyPlan& plan,
                 const std::vector<uint32_t>& declaredVersions

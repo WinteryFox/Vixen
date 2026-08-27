@@ -377,6 +377,12 @@ namespace Vixen {
                         "' is a compute pass and cannot declare a depth-stencil attachment; use a graphics pass instead"
                     };
 
+                if (depthStencilAttachment.has_value())
+                    throw std::logic_error{
+                        "Pass '" + name +
+                        "' already has a depth-stencil attachment; a graphics pass may declare only one"
+                    };
+
                 constexpr PipelineStageFlags stages = PipelineStageBits::EarlyFragmentTests |
                     PipelineStageBits::LateFragmentTests;
 

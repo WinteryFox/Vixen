@@ -24,7 +24,8 @@ namespace Vixen {
         InvalidResourceVersion,
         UninitializedResourceRead,
         MissingProducer,
-        DependencyCycle
+        DependencyCycle,
+        InvalidAttachment
     };
 
     struct FrameGraphError {

@@ -70,8 +70,8 @@ namespace Vixen {
             const auto lifetimeName = lifetime == ResourceLifetime::Imported
                                           ? "imported"
                                           : lifetime == ResourceLifetime::Persistent
-                                                ? "persistent"
-                                                : "transient";
+                                          ? "persistent"
+                                          : "transient";
 
             throw std::logic_error{
                 "Resource '" + name + "' is declared with " + lifetimeName +
@@ -739,6 +739,94 @@ namespace Vixen {
         return {};
     }
 
+    auto FrameGraph::Builder::validateAttachments(
+        const DependencyPlan& plan
+    ) const -> std::expected<void, FrameGraphError> {
+        for (uint32_t passIndex = 0; passIndex < renderPasses.size(); passIndex++) {
+            const auto& pass = renderPasses[passIndex];
+            const auto& usages = pass.getResourceUsages();
+
+            const auto validateAttachment = [&](const RenderAttachment& attachment, const std::string& attachmentName)
+                -> std::expected<void, FrameGraphError> {
+                const auto usage = std::ranges::find_if(
+                    usages,
+                    [&attachment](const ResourceUsage& resourceUsage) {
+                        const auto* imageUsage = std::get_if<ImageResourceUsage>(&resourceUsage);
+                        return imageUsage != nullptr && imageUsage->output == attachment.handle;
+                    }
+                );
+
+                const auto handle = attachment.handle;
+                const auto hasKnownResource = handle.isValid() && handle.id.index < nodes.size();
+                const auto resourceIndex = hasKnownResource
+                                               ? std::optional{handle.id.index}
+                                               : std::nullopt;
+                const auto resourceVersion = handle.isValid()
+                                                 ? std::optional{handle.id.version}
+                                                 : std::nullopt;
+                const auto handleDescription = !handle.isValid()
+                                                   ? "an invalid image handle"
+                                                   : hasKnownResource
+                                                   ? "resource '" + nodes[handle.id.index].name +
+                                                   "' (index " + std::to_string(handle.id.index) +
+                                                   ", version " + std::to_string(handle.id.version) + ")"
+                                                   : "resource index " + std::to_string(handle.id.index) +
+                                                   " version " + std::to_string(handle.id.version);
+
+                if (usage == usages.end()) {
+                    return std::unexpected{
+                        passError(
+                            FrameGraphErrorCode::InvalidAttachment,
+                            attachmentName + " in pass '" + pass.getName() + "' references " +
+                            handleDescription +
+                            ", but the pass does not declare that exact handle as an image output",
+                            passIndex,
+                            resourceIndex,
+                            resourceVersion
+                        )
+                    };
+                }
+
+                const auto hasMatchingProducer = handle.id.index < plan.resources.size() &&
+                    handle.id.version < plan.resources[handle.id.index].size() &&
+                    plan.resources[handle.id.index][handle.id.version].producer.has_value() &&
+                    plan.resources[handle.id.index][handle.id.version].producer->pass == passIndex;
+
+                if (!hasMatchingProducer)
+                    return std::unexpected{
+                        passError(
+                            FrameGraphErrorCode::InvalidAttachment,
+                            attachmentName + " in pass '" + pass.getName() + "' references " +
+                            handleDescription +
+                            ", but that version is not produced by this pass",
+                            passIndex,
+                            resourceIndex,
+                            resourceVersion
+                        )
+                    };
+
+                return {};
+            };
+
+            for (std::size_t attachmentIndex = 0;
+                 attachmentIndex < pass.getColorAttachments().size();
+                 attachmentIndex++) {
+                if (auto result = validateAttachment(
+                    pass.getColorAttachments()[attachmentIndex],
+                    "Color attachment " + std::to_string(attachmentIndex)
+                ); !result)
+                    return std::unexpected{std::move(result).error()};
+            }
+
+            if (const auto& attachment = pass.getDepthStencilAttachment(); attachment.has_value())
+                if (auto result = validateAttachment(*attachment, "Depth-stencil attachment");
+                    !result)
+                    return std::unexpected{std::move(result).error()};
+        }
+
+        return {};
+    }
+
     auto FrameGraph::Builder::validateVersionTable(
         const DependencyPlan& plan,
         const std::vector<uint32_t>& declaredVersions
@@ -1071,6 +1159,9 @@ namespace Vixen {
 
         std::vector<uint32_t> declaredVersions(nodes.size(), 0);
         if (auto result = recordPassUsages(plan, declaredVersions); !result)
+            return std::unexpected{std::move(result).error()};
+
+        if (auto result = validateAttachments(plan); !result)
             return std::unexpected{std::move(result).error()};
 
         if (auto result = validateVersionTable(plan, declaredVersions); !result)
