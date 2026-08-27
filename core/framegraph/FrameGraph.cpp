@@ -740,6 +740,81 @@ namespace Vixen {
         return {};
     }
 
+    auto FrameGraph::Builder::validatePassStages() const -> std::expected<void, FrameGraphError> {
+        constexpr auto graphicsOnlyStages = PipelineStageBits::VertexInput |
+            PipelineStageBits::VertexShader |
+            PipelineStageBits::TessellationControl |
+            PipelineStageBits::TessellationEvaluation |
+            PipelineStageBits::GeometryShader |
+            PipelineStageBits::FragmentShader |
+            PipelineStageBits::EarlyFragmentTests |
+            PipelineStageBits::LateFragmentTests |
+            PipelineStageBits::ColorAttachmentOutput |
+            PipelineStageBits::AllGraphics;
+
+        for (size_t passIndex = 0; passIndex < renderPasses.size(); passIndex++) {
+            const auto& pass = renderPasses[passIndex];
+            const auto passType = pass.getType();
+
+            if (passType != RenderPassType::Graphics && passType != RenderPassType::Compute)
+                return std::unexpected{
+                    passError(
+                        FrameGraphErrorCode::InvalidGraphInvariant,
+                        std::format(
+                            "Pass '{}' has an unrecognized RenderPassType value ({})",
+                            pass.getName(),
+                            static_cast<std::underlying_type_t<RenderPassType>>(passType)
+                        ),
+                        passIndex
+                    )
+                };
+
+            const bool graphicsPass = passType == RenderPassType::Graphics;
+
+            for (const auto& usage : pass.getResourceUsages()) {
+                if (const auto res = std::visit([&](const auto& u) -> std::expected<void, FrameGraphError> {
+                    const auto handle = u.input.isValid() ? u.input : u.output;
+                    const auto& node = nodes[handle.id.index];
+
+                    if (graphicsPass && u.stages.contains(PipelineStageBits::ComputeShader))
+                        return std::unexpected{
+                            passError(
+                                FrameGraphErrorCode::IncompatiblePassStages,
+                                std::format(
+                                    "Graphics pass '{}' declares compute pipeline stage for resource '{}'",
+                                    pass.getName(),
+                                    node.name
+                                ),
+                                passIndex,
+                                handle.id.index,
+                                handle.id.version
+                            )
+                        };
+
+                    if (!graphicsPass && !(u.stages & graphicsOnlyStages).empty())
+                        return std::unexpected{
+                            passError(
+                                FrameGraphErrorCode::IncompatiblePassStages,
+                                std::format(
+                                    "Compute pass '{}' declares graphics-only pipeline stages for resource '{}'",
+                                    pass.getName(),
+                                    node.name
+                                ),
+                                passIndex,
+                                handle.id.index,
+                                handle.id.version
+                            )
+                        };
+
+                    return {};
+                }, usage); !res)
+                    return res;
+            }
+        }
+
+        return {};
+    }
+
     auto FrameGraph::Builder::validateAttachments(
         const DependencyPlan& plan
     ) const -> std::expected<void, FrameGraphError> {
@@ -1379,6 +1454,9 @@ namespace Vixen {
 
         std::vector<uint32_t> declaredVersions(nodes.size(), 0);
         if (auto result = recordPassUsages(plan, declaredVersions); !result)
+            return std::unexpected{std::move(result).error()};
+
+        if (auto result = validatePassStages(); !result)
             return std::unexpected{std::move(result).error()};
 
         if (auto result = validateAttachments(plan); !result)

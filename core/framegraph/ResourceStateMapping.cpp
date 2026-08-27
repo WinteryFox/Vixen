@@ -8,6 +8,7 @@ namespace Vixen {
             PipelineStageBits::GeometryShader |
             PipelineStageBits::FragmentShader |
             PipelineStageBits::ComputeShader;
+
         constexpr auto depthStages = PipelineStageBits::EarlyFragmentTests |
             PipelineStageBits::LateFragmentTests;
 
