@@ -742,12 +742,46 @@ namespace Vixen {
     auto FrameGraph::Builder::validateAttachments(
         const DependencyPlan& plan
     ) const -> std::expected<void, FrameGraphError> {
+        struct AttachmentShape {
+            uint32_t width;
+            uint32_t height;
+            uint32_t layerCount;
+            ImageSamples samples;
+            std::string attachmentName;
+        };
+
+        const auto sampleDescription = [](const ImageSamples samples) {
+            switch (samples) {
+                case ImageSamples::One:
+                    return "1 sample";
+                case ImageSamples::Two:
+                    return "2 samples";
+                case ImageSamples::Four:
+                    return "4 samples";
+                case ImageSamples::Eight:
+                    return "8 samples";
+                case ImageSamples::Sixteen:
+                    return "16 samples";
+                case ImageSamples::ThirtyTwo:
+                    return "32 samples";
+                case ImageSamples::SixtyFour:
+                    return "64 samples";
+                default:
+                    return "an unrecognized sample count";
+            }
+        };
+
         for (uint32_t passIndex = 0; passIndex < renderPasses.size(); passIndex++) {
             const auto& pass = renderPasses[passIndex];
             const auto& usages = pass.getResourceUsages();
+            std::optional<AttachmentShape> referenceShape;
 
-            const auto validateAttachment = [&](const RenderAttachment& attachment, const std::string& attachmentName)
-                -> std::expected<void, FrameGraphError> {
+            const auto validateAttachment = [&](
+                const RenderAttachment& attachment,
+                const std::string& attachmentName,
+                const ImageUsageBits expectedUsage,
+                const char* expectedUsageName
+            ) -> std::expected<void, FrameGraphError> {
                 const auto usage = std::ranges::find_if(
                     usages,
                     [&attachment](const ResourceUsage& resourceUsage) {
@@ -773,13 +807,49 @@ namespace Vixen {
                                                    : "resource index " + std::to_string(handle.id.index) +
                                                    " version " + std::to_string(handle.id.version);
 
-                if (usage == usages.end()) {
+                if (usage == usages.end())
                     return std::unexpected{
                         passError(
                             FrameGraphErrorCode::InvalidAttachment,
                             attachmentName + " in pass '" + pass.getName() + "' references " +
                             handleDescription +
                             ", but the pass does not declare that exact handle as an image output",
+                            passIndex,
+                            resourceIndex,
+                            resourceVersion
+                        )
+                    };
+
+                if (const auto& imageUsage = std::get<ImageResourceUsage>(*usage);
+                    imageUsage.usage != expectedUsage)
+                    return std::unexpected{
+                        passError(
+                            FrameGraphErrorCode::InvalidAttachment,
+                            attachmentName + " in pass '" + pass.getName() + "' references " +
+                            handleDescription + ", but its image usage is not declared as " + expectedUsageName,
+                            passIndex,
+                            resourceIndex,
+                            resourceVersion
+                        )
+                    };
+
+                const auto& description = std::get<ImageResourceDescription>(nodes[handle.id.index].description);
+                const auto aspects = getImageAspects(description.view.format);
+
+                const bool expectsColor = expectedUsage == ImageUsageBits::ColorAttachment;
+                const bool hasCompatibleAspect = expectsColor
+                                                     ? aspects.contains(ImageAspectBits::Color)
+                                                     : aspects.contains(ImageAspectBits::Depth) ||
+                                                     aspects.contains(ImageAspectBits::Stencil);
+
+                if (!hasCompatibleAspect) {
+                    const auto expectedAspect = expectsColor ? "a color aspect" : "a depth or stencil aspect";
+
+                    return std::unexpected{
+                        passError(
+                            FrameGraphErrorCode::InvalidAttachment,
+                            attachmentName + " in pass '" + pass.getName() + "' references " + handleDescription
+                            + ", but its image view format does not provide " + expectedAspect,
                             passIndex,
                             resourceIndex,
                             resourceVersion
@@ -805,6 +875,66 @@ namespace Vixen {
                         )
                     };
 
+                const auto& format = description.format;
+
+                if (!referenceShape.has_value()) {
+                    referenceShape = AttachmentShape{
+                        .width = format.width,
+                        .height = format.height,
+                        .layerCount = format.layerCount,
+                        .samples = format.samples,
+                        .attachmentName = attachmentName
+                    };
+
+                    return {};
+                }
+
+                if (format.width != referenceShape->width || format.height != referenceShape->height)
+                    return std::unexpected{
+                        passError(
+                            FrameGraphErrorCode::InvalidAttachment,
+                            attachmentName + " in pass '" + pass.getName() + "' references " +
+                            handleDescription + " with extent " + std::to_string(format.width) + "x" +
+                            std::to_string(format.height) + ", but " + referenceShape->attachmentName +
+                            " uses extent " + std::to_string(referenceShape->width) + "x" +
+                            std::to_string(referenceShape->height) +
+                            "; all attachments in a pass must have matching extents",
+                            passIndex,
+                            resourceIndex,
+                            resourceVersion
+                        )
+                    };
+
+                if (format.layerCount != referenceShape->layerCount)
+                    return std::unexpected{
+                        passError(
+                            FrameGraphErrorCode::InvalidAttachment,
+                            attachmentName + " in pass '" + pass.getName() + "' references " +
+                            handleDescription + " with " + std::to_string(format.layerCount) +
+                            " layers, but " + referenceShape->attachmentName + " uses " +
+                            std::to_string(referenceShape->layerCount) +
+                            " layers; all attachments in a pass must have matching layer counts",
+                            passIndex,
+                            resourceIndex,
+                            resourceVersion
+                        )
+                    };
+
+                if (format.samples != referenceShape->samples)
+                    return std::unexpected{
+                        passError(
+                            FrameGraphErrorCode::InvalidAttachment,
+                            attachmentName + " in pass '" + pass.getName() + "' references " +
+                            handleDescription + " using " + sampleDescription(format.samples) +
+                            ", but " + referenceShape->attachmentName + " uses " +
+                            sampleDescription(referenceShape->samples) +
+                            "; all attachments in a pass must have matching sample counts",
+                            passIndex,
+                            resourceIndex,
+                            resourceVersion
+                        )
+                    };
+
                 return {};
             };
 
@@ -812,14 +942,22 @@ namespace Vixen {
                  attachmentIndex < pass.getColorAttachments().size();
                  attachmentIndex++) {
                 if (auto result = validateAttachment(
-                    pass.getColorAttachments()[attachmentIndex],
-                    "Color attachment " + std::to_string(attachmentIndex)
-                ); !result)
+                        pass.getColorAttachments()[attachmentIndex],
+                        "Color attachment " + std::to_string(attachmentIndex),
+                        ImageUsageBits::ColorAttachment,
+                        "ImageUsageBits::ColorAttachment"
+                    );
+                    !result)
                     return std::unexpected{std::move(result).error()};
             }
 
             if (const auto& attachment = pass.getDepthStencilAttachment(); attachment.has_value())
-                if (auto result = validateAttachment(*attachment, "Depth-stencil attachment");
+                if (auto result = validateAttachment(
+                        *attachment,
+                        "Depth-stencil attachment",
+                        ImageUsageBits::DepthStencilAttachment,
+                        "ImageUsageBits::DepthStencilAttachment"
+                    );
                     !result)
                     return std::unexpected{std::move(result).error()};
         }
