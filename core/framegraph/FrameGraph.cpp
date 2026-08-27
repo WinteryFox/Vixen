@@ -689,6 +689,23 @@ namespace Vixen {
                     )
                 };
 
+        for (std::size_t resourceIndex = 0; resourceIndex < plan.resources.size(); resourceIndex++) {
+            const auto& node = nodes[resourceIndex];
+
+            for (std::size_t version = 1; version <= node.latestVersion; version++)
+                if (const auto& info = plan.resources[resourceIndex][version];
+                    !info.producer.has_value())
+                    return std::unexpected{
+                        resourceError(
+                            FrameGraphErrorCode::MissingProducer,
+                            "Resource '" + node.name + "' version " + std::to_string(version) +
+                            " has no producer; every non-zero resource version must be produced by exactly one pass",
+                            resourceIndex,
+                            version
+                        )
+                    };
+        }
+
         return plan;
     }
 
