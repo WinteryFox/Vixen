@@ -37,121 +37,6 @@ namespace Vixen {
         }
     }
 
-    ResourceId FrameGraph::Builder::addResource(
-        std::string name,
-        const ResourceType type,
-        const ResourceLifetime lifetime,
-        ResourceDescription description,
-        ImportedResource importedResource,
-        std::optional<ResourceState> initialState,
-        std::optional<ResourceState> finalState
-    ) {
-        if (name.empty())
-            throw std::invalid_argument{
-                "Cannot declare a frame graph resource with an empty name; resource names must be non-empty and unique"
-            };
-
-        if (resourceNames.contains(name))
-            throw std::invalid_argument{
-                "Cannot declare resource '" + name +
-                "': another frame graph resource already uses that name; resource names must be unique"
-            };
-
-        if (nodes.size() >= ResourceId::Invalid)
-            throw std::overflow_error{
-                "Cannot declare resource '" + name + "': the frame graph already contains " +
-                std::to_string(nodes.size()) + " resources, which is the maximum supported by ResourceId"
-            };
-
-        const bool imported = lifetime == ResourceLifetime::Imported;
-        const bool hasImportedResource = !std::holds_alternative<std::monostate>(importedResource);
-        if (imported != hasImportedResource ||
-            imported != initialState.has_value() ||
-            imported != finalState.has_value()) {
-            const auto lifetimeName = lifetime == ResourceLifetime::Imported
-                                          ? "imported"
-                                          : lifetime == ResourceLifetime::Persistent
-                                          ? "persistent"
-                                          : "transient";
-
-            throw std::logic_error{
-                "Resource '" + name + "' is declared with " + lifetimeName +
-                " lifetime but has inconsistent ownership metadata: imported object is " +
-                (hasImportedResource ? "present" : "missing") + ", initial state is " +
-                (initialState.has_value() ? "present" : "missing") + ", and final state is " +
-                (finalState.has_value() ? "present" : "missing") +
-                (imported
-                     ? "; imported resources require all three"
-                     : "; transient and persistent resources require all three to be absent")
-            };
-        }
-
-        if (imported) {
-            const bool importedTypeMatches = type == ResourceType::Image
-                                                 ? std::holds_alternative<Image*>(importedResource) &&
-                                                 std::holds_alternative<ImageState>(*initialState) &&
-                                                 std::holds_alternative<ImageState>(*finalState)
-                                                 : std::holds_alternative<Buffer*>(importedResource) &&
-                                                 std::holds_alternative<BufferState>(*initialState) &&
-                                                 std::holds_alternative<BufferState>(*finalState);
-            if (!importedTypeMatches) {
-                const auto importedObjectType = std::visit(
-                    []<typename T>(const T& value) -> const char* {
-                        using Imported = std::remove_cvref_t<T>;
-
-                        if constexpr (std::is_same_v<Imported, std::monostate>)
-                            return "none";
-                        else if constexpr (std::is_same_v<Imported, Image*>)
-                            return value == nullptr ? "null Image*" : "Image*";
-                        else
-                            return value == nullptr ? "null Buffer*" : "Buffer*";
-                    }, importedResource);
-
-                const auto stateType = [](const ResourceState& state) {
-                    return std::holds_alternative<ImageState>(state) ? "ImageState" : "BufferState";
-                };
-
-                const auto expectedObjectType = type == ResourceType::Image ? "Image*" : "Buffer*";
-                const auto expectedStateType = type == ResourceType::Image ? "ImageState" : "BufferState";
-
-                throw std::logic_error{
-                    "Imported resource '" + name + "' is declared as an " +
-                    (type == ResourceType::Image ? "image" : "buffer") +
-                    "; expected object=" + expectedObjectType + ", initial state=" +
-                    expectedStateType + ", and final state=" + expectedStateType +
-                    ", but received object=" + importedObjectType + ", initial state=" +
-                    stateType(*initialState) + ", and final state=" + stateType(*finalState)
-                };
-            }
-        }
-
-        const auto index = static_cast<uint32_t>(nodes.size());
-
-        const auto [namePosition, inserted] = resourceNames.insert(name);
-        assert(inserted);
-
-        try {
-            nodes.push_back({
-                .name = std::move(name),
-                .type = type,
-                .lifetime = lifetime,
-                .description = description,
-                .latestVersion = 0,
-                .importedResource = importedResource,
-                .initialState = initialState,
-                .finalState = finalState
-            });
-        } catch (...) {
-            resourceNames.erase(namePosition);
-            throw;
-        }
-
-        return ResourceId{
-            .index = index,
-            .version = 0
-        };
-    }
-
     FrameGraphError FrameGraph::Builder::resourceError(
         const FrameGraphErrorCode code,
         std::string message,
@@ -1440,6 +1325,121 @@ namespace Vixen {
         }
 
         return {};
+    }
+
+    ResourceId FrameGraph::Builder::addResource(
+        std::string name,
+        const ResourceType type,
+        const ResourceLifetime lifetime,
+        ResourceDescription description,
+        ImportedResource importedResource,
+        std::optional<ResourceState> initialState,
+        std::optional<ResourceState> finalState
+    ) {
+        if (name.empty())
+            throw std::invalid_argument{
+                "Cannot declare a frame graph resource with an empty name; resource names must be non-empty and unique"
+            };
+
+        if (resourceNames.contains(name))
+            throw std::invalid_argument{
+                "Cannot declare resource '" + name +
+                "': another frame graph resource already uses that name; resource names must be unique"
+            };
+
+        if (nodes.size() >= ResourceId::Invalid)
+            throw std::overflow_error{
+                "Cannot declare resource '" + name + "': the frame graph already contains " +
+                std::to_string(nodes.size()) + " resources, which is the maximum supported by ResourceId"
+            };
+
+        const bool imported = lifetime == ResourceLifetime::Imported;
+        const bool hasImportedResource = !std::holds_alternative<std::monostate>(importedResource);
+        if (imported != hasImportedResource ||
+            imported != initialState.has_value() ||
+            imported != finalState.has_value()) {
+            const auto lifetimeName = lifetime == ResourceLifetime::Imported
+                                          ? "imported"
+                                          : lifetime == ResourceLifetime::Persistent
+                                          ? "persistent"
+                                          : "transient";
+
+            throw std::logic_error{
+                "Resource '" + name + "' is declared with " + lifetimeName +
+                " lifetime but has inconsistent ownership metadata: imported object is " +
+                (hasImportedResource ? "present" : "missing") + ", initial state is " +
+                (initialState.has_value() ? "present" : "missing") + ", and final state is " +
+                (finalState.has_value() ? "present" : "missing") +
+                (imported
+                     ? "; imported resources require all three"
+                     : "; transient and persistent resources require all three to be absent")
+            };
+        }
+
+        if (imported) {
+            const bool importedTypeMatches = type == ResourceType::Image
+                                                 ? std::holds_alternative<Image*>(importedResource) &&
+                                                 std::holds_alternative<ImageState>(*initialState) &&
+                                                 std::holds_alternative<ImageState>(*finalState)
+                                                 : std::holds_alternative<Buffer*>(importedResource) &&
+                                                 std::holds_alternative<BufferState>(*initialState) &&
+                                                 std::holds_alternative<BufferState>(*finalState);
+            if (!importedTypeMatches) {
+                const auto importedObjectType = std::visit(
+                    []<typename T>(const T& value) -> const char* {
+                        using Imported = std::remove_cvref_t<T>;
+
+                        if constexpr (std::is_same_v<Imported, std::monostate>)
+                            return "none";
+                        else if constexpr (std::is_same_v<Imported, Image*>)
+                            return value == nullptr ? "null Image*" : "Image*";
+                        else
+                            return value == nullptr ? "null Buffer*" : "Buffer*";
+                    }, importedResource);
+
+                const auto stateType = [](const ResourceState& state) {
+                    return std::holds_alternative<ImageState>(state) ? "ImageState" : "BufferState";
+                };
+
+                const auto expectedObjectType = type == ResourceType::Image ? "Image*" : "Buffer*";
+                const auto expectedStateType = type == ResourceType::Image ? "ImageState" : "BufferState";
+
+                throw std::logic_error{
+                    "Imported resource '" + name + "' is declared as an " +
+                    (type == ResourceType::Image ? "image" : "buffer") +
+                    "; expected object=" + expectedObjectType + ", initial state=" +
+                    expectedStateType + ", and final state=" + expectedStateType +
+                    ", but received object=" + importedObjectType + ", initial state=" +
+                    stateType(*initialState) + ", and final state=" + stateType(*finalState)
+                };
+            }
+        }
+
+        const auto index = static_cast<uint32_t>(nodes.size());
+
+        const auto [namePosition, inserted] = resourceNames.insert(name);
+        assert(inserted);
+
+        try {
+            nodes.push_back({
+                .name = std::move(name),
+                .type = type,
+                .lifetime = lifetime,
+                .description = description,
+                .latestVersion = 0,
+                .importedResource = importedResource,
+                .initialState = initialState,
+                .finalState = finalState
+            });
+        } catch (...) {
+            resourceNames.erase(namePosition);
+            throw;
+        }
+
+        return ResourceId{
+            .index = index,
+            .version = 0
+        };
     }
 
     auto FrameGraph::Builder::compile() const -> std::expected<DependencyPlan, FrameGraphError> {
