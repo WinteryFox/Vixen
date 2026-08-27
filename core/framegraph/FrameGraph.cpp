@@ -93,85 +93,80 @@ namespace Vixen {
         };
     }
 
-    auto FrameGraph::Builder::compile() const -> std::expected<DependencyPlan, FrameGraphError> {
-        DependencyPlan plan;
-        plan.resources.reserve(nodes.size());
-
-        const auto resourceError = [this](
-            const FrameGraphErrorCode code,
-            std::string message,
-            uint32_t resourceIndex,
-            const std::optional<uint32_t> version = std::nullopt
-        ) {
-            return FrameGraphError{
-                .code = code,
-                .message = std::move(message),
-                .passIndex = std::nullopt,
-                .resourceIndex = resourceIndex,
-                .resourceVersion = version,
-                .passName = std::nullopt,
-                .resourceName = nodes[resourceIndex].name,
-                .details = {}
-            };
+    FrameGraphError FrameGraph::Builder::resourceError(
+        const FrameGraphErrorCode code,
+        std::string message,
+        const uint32_t resourceIndex,
+        const std::optional<uint32_t> version
+    ) const {
+        return FrameGraphError{
+            .code = code,
+            .message = std::move(message),
+            .passIndex = std::nullopt,
+            .resourceIndex = resourceIndex,
+            .resourceVersion = version,
+            .passName = std::nullopt,
+            .resourceName = nodes[resourceIndex].name,
+            .details = {}
         };
+    }
 
-        const auto passError = [this](
-            const FrameGraphErrorCode code,
-            std::string message,
-            uint32_t passIndex,
-            const std::optional<uint32_t> resourceIndex = std::nullopt,
-            const std::optional<uint32_t> resourceVersion = std::nullopt
-        ) {
-            return FrameGraphError{
-                .code = code,
-                .message = std::move(message),
-                .passIndex = passIndex,
-                .resourceIndex = resourceIndex,
-                .resourceVersion = resourceVersion,
-                .passName = renderPasses[passIndex].getName(),
-                .resourceName = resourceIndex.has_value() ? std::optional{nodes[*resourceIndex].name} : std::nullopt,
-                .details = {}
-            };
+    FrameGraphError FrameGraph::Builder::passError(
+        const FrameGraphErrorCode code,
+        std::string message,
+        const uint32_t passIndex,
+        const std::optional<uint32_t> resourceIndex,
+        const std::optional<uint32_t> resourceVersion
+    ) const {
+        return FrameGraphError{
+            .code = code,
+            .message = std::move(message),
+            .passIndex = passIndex,
+            .resourceIndex = resourceIndex,
+            .resourceVersion = resourceVersion,
+            .passName = renderPasses[passIndex].getName(),
+            .resourceName = resourceIndex.has_value() ? std::optional{nodes[*resourceIndex].name} : std::nullopt,
+            .details = {}
         };
+    }
 
-        /**
-         * Inserts dependency metadata into both adjacency views of an edge. Dependencies between
-         * the same pair of passes share one PassEdge, and identical metadata is stored only once.
-         **/
-        const auto insertDependency = [&plan](
-            const uint32_t predecessor,
-            const uint32_t successor,
-            const Dependency& dependency
+    void FrameGraph::Builder::insertDependency(
+        DependencyPlan& plan,
+        const uint32_t predecessor,
+        const uint32_t successor,
+        const Dependency& dependency
+    ) {
+        assert(predecessor < plan.passes.size());
+        assert(successor < plan.passes.size());
+
+        if (predecessor == successor)
+            return;
+
+        const auto insertOneSide = [&dependency](
+            std::vector<PassEdge>& edges,
+            const uint32_t adjacentPass
         ) {
-            assert(predecessor < plan.passes.size());
-            assert(successor < plan.passes.size());
+            const auto edge = std::ranges::find(edges, adjacentPass, &PassEdge::pass);
 
-            if (predecessor == successor)
+            if (edge == edges.end()) {
+                edges.push_back({
+                    .pass = adjacentPass,
+                    .dependencies = {dependency}
+                });
+
                 return;
+            }
 
-            const auto insertOneSide = [&dependency](
-                std::vector<PassEdge>& edges,
-                const uint32_t adjacentPass
-            ) {
-                const auto edge = std::ranges::find(edges, adjacentPass, &PassEdge::pass);
-
-                if (edge == edges.end()) {
-                    edges.push_back({
-                        .pass = adjacentPass,
-                        .dependencies = {dependency}
-                    });
-
-                    return;
-                }
-
-                if (!std::ranges::contains(edge->dependencies, dependency))
-                    edge->dependencies.push_back(dependency);
-            };
-
-            insertOneSide(plan.passes[predecessor].successors, successor);
-            insertOneSide(plan.passes[successor].predecessors, predecessor);
+            if (!std::ranges::contains(edge->dependencies, dependency))
+                edge->dependencies.push_back(dependency);
         };
 
+        insertOneSide(plan.passes[predecessor].successors, successor);
+        insertOneSide(plan.passes[successor].predecessors, predecessor);
+    }
+
+    auto FrameGraph::Builder::validateAndInitializeResources(DependencyPlan& plan) const
+        -> std::expected<void, FrameGraphError> {
         for (std::size_t resourceIndex = 0; resourceIndex < nodes.size(); resourceIndex++) {
             const auto& node = nodes[resourceIndex];
 
@@ -353,10 +348,13 @@ namespace Vixen {
             }
         }
 
-        plan.passes.resize(renderPasses.size());
-        plan.executionOrder.reserve(renderPasses.size());
-        std::vector<uint32_t> declaredVersions(nodes.size(), 0);
+        return {};
+    }
 
+    auto FrameGraph::Builder::recordPassUsages(
+        DependencyPlan& plan,
+        std::vector<uint32_t>& declaredVersions
+    ) const -> std::expected<void, FrameGraphError> {
         for (uint32_t passIndex = 0; passIndex < renderPasses.size(); passIndex++) {
             const auto& pass = renderPasses[passIndex];
 
@@ -715,6 +713,13 @@ namespace Vixen {
             }
         }
 
+        return {};
+    }
+
+    auto FrameGraph::Builder::validateVersionTable(
+        const DependencyPlan& plan,
+        const std::vector<uint32_t>& declaredVersions
+    ) const -> std::expected<void, FrameGraphError> {
         for (std::size_t resourceIndex = 0; resourceIndex < nodes.size(); resourceIndex++)
             if (declaredVersions[resourceIndex] != nodes[resourceIndex].latestVersion)
                 return std::unexpected{
@@ -746,6 +751,10 @@ namespace Vixen {
                     };
         }
 
+        return {};
+    }
+
+    void FrameGraph::Builder::buildDependencyEdges(DependencyPlan& plan) {
         for (uint32_t resourceIndex = 0; resourceIndex < plan.resources.size(); resourceIndex++) {
             const auto& versions = plan.resources[resourceIndex];
 
@@ -763,6 +772,7 @@ namespace Vixen {
 
                     for (const auto& consumer : version.consumers)
                         insertDependency(
+                            plan,
                             version.producer->pass,
                             consumer.pass,
                             readAfterWrite
@@ -783,6 +793,7 @@ namespace Vixen {
                         const auto& previousConsumer = version.consumers[consumerIndex - 1];
 
                         insertDependency(
+                            plan,
                             previousConsumer.pass,
                             consumer.pass,
                             readAfterRead
@@ -805,6 +816,7 @@ namespace Vixen {
                     };
 
                     insertDependency(
+                        plan,
                         previousVersion.producer->pass,
                         version.producer->pass,
                         writeAfterWrite
@@ -821,13 +833,17 @@ namespace Vixen {
 
                 for (const auto& consumer : previousVersion.consumers)
                     insertDependency(
+                        plan,
                         consumer.pass,
                         version.producer->pass,
                         writeAfterRead
                     );
             }
         }
+    }
 
+    auto FrameGraph::Builder::buildExecutionOrder(DependencyPlan& plan) const
+        -> std::expected<void, FrameGraphError> {
         std::vector<std::size_t> inDegrees(plan.passes.size());
         std::priority_queue<uint32_t, std::vector<uint32_t>, std::greater<>> readyPasses;
 
@@ -884,6 +900,31 @@ namespace Vixen {
 
             return std::unexpected{std::move(error)};
         }
+
+        return {};
+    }
+
+    auto FrameGraph::Builder::compile() const -> std::expected<DependencyPlan, FrameGraphError> {
+        DependencyPlan plan;
+        plan.resources.reserve(nodes.size());
+
+        if (auto result = validateAndInitializeResources(plan); !result)
+            return std::unexpected{std::move(result).error()};
+
+        plan.passes.resize(renderPasses.size());
+        plan.executionOrder.reserve(renderPasses.size());
+
+        std::vector<uint32_t> declaredVersions(nodes.size(), 0);
+        if (auto result = recordPassUsages(plan, declaredVersions); !result)
+            return std::unexpected{std::move(result).error()};
+
+        if (auto result = validateVersionTable(plan, declaredVersions); !result)
+            return std::unexpected{std::move(result).error()};
+
+        buildDependencyEdges(plan);
+
+        if (auto result = buildExecutionOrder(plan); !result)
+            return std::unexpected{std::move(result).error()};
 
         return plan;
     }

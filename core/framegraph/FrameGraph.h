@@ -1,7 +1,9 @@
 #pragma once
 
+#include <cstdint>
 #include <expected>
 #include <functional>
+#include <optional>
 #include <string>
 #include <utility>
 #include <vector>
@@ -12,6 +14,7 @@
 #include "RenderPassType.h"
 
 namespace Vixen {
+    enum class FrameGraphErrorCode;
     struct FrameGraphError;
     class Buffer;
     struct Image;
@@ -95,6 +98,46 @@ namespace Vixen {
 
             std::vector<RenderPass> renderPasses;
 
+            [[nodiscard]] FrameGraphError resourceError(
+                FrameGraphErrorCode code,
+                std::string message,
+                uint32_t resourceIndex,
+                std::optional<uint32_t> version = std::nullopt
+            ) const;
+
+            [[nodiscard]] FrameGraphError passError(
+                FrameGraphErrorCode code,
+                std::string message,
+                uint32_t passIndex,
+                std::optional<uint32_t> resourceIndex = std::nullopt,
+                std::optional<uint32_t> resourceVersion = std::nullopt
+            ) const;
+
+            static void insertDependency(
+                DependencyPlan& plan,
+                uint32_t predecessor,
+                uint32_t successor,
+                const Dependency& dependency
+            );
+
+            [[nodiscard]] auto validateAndInitializeResources(DependencyPlan& plan) const
+                -> std::expected<void, FrameGraphError>;
+
+            [[nodiscard]] auto recordPassUsages(
+                DependencyPlan& plan,
+                std::vector<uint32_t>& declaredVersions
+            ) const -> std::expected<void, FrameGraphError>;
+
+            [[nodiscard]] auto validateVersionTable(
+                const DependencyPlan& plan,
+                const std::vector<uint32_t>& declaredVersions
+            ) const -> std::expected<void, FrameGraphError>;
+
+            static void buildDependencyEdges(DependencyPlan& plan);
+
+            [[nodiscard]] auto buildExecutionOrder(DependencyPlan& plan) const
+                -> std::expected<void, FrameGraphError>;
+
             template <typename PassData, typename Setup, typename Execute>
             Builder& addPass(
                 std::string name,
@@ -145,8 +188,17 @@ namespace Vixen {
             );
 
             /**
+             * Compiles the declarations collected by the builder into an executable dependency plan.
+             * Compilation proceeds through the following phases:
              *
-             * @return A compiled FrameGraph::DependencyPlan or a FrameGraphError on compilation failure.
+             * 1. Validate resource declarations and initialize the version table for each resource.
+             * 2. Validate pass resource usages and record each version's producer and consumers.
+             * 3. Verify that declaration-time version cursors and producer records are complete.
+             * 4. Convert resource accesses into dependencies between passes.
+             * 5. Produce a stable topological execution order and reject dependency cycles.
+             *
+             * @return The compiled FrameGraph::DependencyPlan, or a FrameGraphError describing the
+             * first compilation failure.
              */
             [[nodiscard]] auto compile() const -> std::expected<DependencyPlan, FrameGraphError>;
 
