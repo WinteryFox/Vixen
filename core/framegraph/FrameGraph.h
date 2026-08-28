@@ -97,6 +97,12 @@ namespace Vixen {
 
             std::vector<RenderPass> renderPasses;
 
+            [[nodiscard]] FrameGraphError allocationError(
+                FrameGraphErrorCode code,
+                std::string message,
+                uint32_t resourceIndex
+            ) const;
+
             [[nodiscard]] FrameGraphError resourceError(
                 FrameGraphErrorCode code,
                 std::string message,

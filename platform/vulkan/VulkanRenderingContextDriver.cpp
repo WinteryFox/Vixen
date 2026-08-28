@@ -319,16 +319,22 @@ namespace Vixen {
                 case VK_PHYSICAL_DEVICE_TYPE_INTEGRATED_GPU:
                     deviceType = DriverDeviceType::Integrated;
                     break;
+
                 case VK_PHYSICAL_DEVICE_TYPE_DISCRETE_GPU:
                     deviceType = DriverDeviceType::Discrete;
                     break;
+
                 case VK_PHYSICAL_DEVICE_TYPE_VIRTUAL_GPU:
                     deviceType = DriverDeviceType::Virtual;
                     break;
+
                 case VK_PHYSICAL_DEVICE_TYPE_CPU:
                     deviceType = DriverDeviceType::Cpu;
                     break;
-                default:
+
+                case VK_PHYSICAL_DEVICE_TYPE_OTHER:
+                case VK_PHYSICAL_DEVICE_TYPE_MAX_ENUM:
+                    deviceType = DriverDeviceType::Other;
                     break;
             }
 

@@ -82,27 +82,23 @@ namespace Vixen {
         });
 
         switch (driver) {
-                #ifdef VULKAN_ENABLED
             case RenderingDriver::Vulkan:
+                #ifdef VULKAN_ENABLED
                 renderingContextDriver = new VulkanRenderingContextDriver(applicationName, applicationVersion);
-                break;
                 #endif
+                break;
 
-                #ifdef D3D12_ENABLED
             case RenderingDriver::D3D12:
+                #ifdef D3D12_ENABLED
                 renderingContextDriver = new D3D12Rendering(applicationName, applicationVersion);
-                break;
                 #endif
+                break;
 
-                #ifdef OPENGL_ENABLED
             case RenderingDriver::OpenGL:
+                #ifdef OPENGL_ENABLED
                 renderingContextDriver = new VulkanRenderingContextDriver(applicationName, applicationVersion);
-                break;
-            }
                 #endif
-
-            default:
-                throw std::runtime_error("Failed to create display server");
+                break;
         }
 
         const auto window = createWindow(applicationName, windowMode, vsyncMode, flags, resolution);

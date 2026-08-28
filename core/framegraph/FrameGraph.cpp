@@ -12,6 +12,8 @@
 #include <utility>
 
 #include "FrameGraphError.h"
+#include "RenderingDevice.h"
+#include "RenderingDeviceDriver.h"
 #include "ResourceStateMapping.h"
 #include "buffer/Buffer.h"
 #include "image/Image.h"
@@ -35,6 +37,23 @@ namespace Vixen {
         for (const auto& pass : renderPasses) {
             // TODO: Execute pass
         }
+    }
+
+    FrameGraphError FrameGraph::Builder::allocationError(
+        const FrameGraphErrorCode code,
+        std::string message,
+        uint32_t resourceIndex
+    ) const {
+        return FrameGraphError{
+            .code = code,
+            .message = std::move(message),
+            .passIndex = std::nullopt,
+            .resourceIndex = resourceIndex,
+            .resourceVersion = std::nullopt,
+            .passName = std::nullopt,
+            .resourceName = nodes[resourceIndex].name,
+            .details = {}
+        };
     }
 
     FrameGraphError FrameGraph::Builder::resourceError(
@@ -1594,10 +1613,128 @@ namespace Vixen {
         if (!plan)
             return std::unexpected{std::move(plan).error()};
 
+        FrameGraphResourceStorage localStorage{device, std::span(nodes)};
+
+        for (size_t resourceIndex = 0; resourceIndex < nodes.size(); resourceIndex++) {
+            const auto& resource = nodes[resourceIndex];
+
+            switch (resource.lifetime) {
+                case ResourceLifetime::Transient:
+                case ResourceLifetime::Persistent: {
+                    switch (resource.type) {
+                        case ResourceType::Image: {
+                            const auto description = std::get<ImageResourceDescription>(resource.description);
+
+                            const auto image = device.getRenderingDeviceDriver()->createImage(
+                                description.format,
+                                description.view
+                            );
+                            if (!image || !*image)
+                                return std::unexpected{
+                                    allocationError(
+                                        FrameGraphErrorCode::ResourceAllocationFailed,
+                                        std::format(
+                                            "Failed to create backing image for resource '{}' at index {}",
+                                            resource.name,
+                                            resourceIndex
+                                        ),
+                                        resourceIndex
+                                    )
+                                };
+
+                            try {
+                                localStorage.setOwned(resourceIndex, *image);
+                            } catch (...) {
+                                device.getRenderingDeviceDriver()->destroyImage(*image);
+                                throw;
+                            }
+                            break;
+                        }
+
+                        case ResourceType::Buffer: {
+                            const auto description = std::get<BufferFormat>(resource.description);
+
+                            const auto buffer = device.getRenderingDeviceDriver()->createBuffer(
+                                description.usage,
+                                description.count,
+                                description.stride
+                            );
+                            if (!buffer || !*buffer)
+                                return std::unexpected{
+                                    allocationError(
+                                        FrameGraphErrorCode::ResourceAllocationFailed,
+                                        std::format(
+                                            "Failed to create backing buffer for resource '{}' at index {}",
+                                            resource.name,
+                                            resourceIndex
+                                        ),
+                                        resourceIndex
+                                    )
+                                };
+
+                            try {
+                                localStorage.setOwned(resourceIndex, *buffer);
+                            } catch (...) {
+                                device.getRenderingDeviceDriver()->destroyBuffer(*buffer);
+                                throw;
+                            }
+                            break;
+                        }
+                    }
+
+                    break;
+                }
+
+                case ResourceLifetime::Imported: {
+                    switch (resource.type) {
+                        case ResourceType::Image: {
+                            const auto image = std::get_if<Image*>(&resource.importedResource);
+                            if (!image || !*image)
+                                return std::unexpected{
+                                    allocationError(
+                                        FrameGraphErrorCode::InvalidResourceOwnership,
+                                        std::format(
+                                            "Resource '{}' at index {} does not contain a non-null Image pointer",
+                                            resource.name,
+                                            resourceIndex
+                                        ),
+                                        resourceIndex
+                                    )
+                                };
+
+                            localStorage.setImported(resourceIndex, *image);
+                            break;
+                        }
+
+                        case ResourceType::Buffer: {
+                            const auto buffer = std::get_if<Buffer*>(&resource.importedResource);
+                            if (!buffer || !*buffer)
+                                return std::unexpected{
+                                    allocationError(
+                                        FrameGraphErrorCode::InvalidResourceOwnership,
+                                        std::format(
+                                            "Resource '{}' at index {} does not contain a non-null Buffer pointer",
+                                            resource.name,
+                                            resourceIndex
+                                        ),
+                                        resourceIndex
+                                    )
+                                };
+
+                            localStorage.setImported(resourceIndex, *buffer);
+                            break;
+                        }
+                    }
+
+                    break;
+                }
+            }
+        }
+
         return FrameGraph{
             std::move(nodes),
             std::move(*plan),
-            FrameGraphResourceStorage(device, std::span(nodes)),
+            std::move(localStorage),
             std::move(renderPasses)
         };
     }

@@ -21,8 +21,8 @@ function(vixen_configure_target target)
     target_compile_options(
             ${target}
             PRIVATE
-            $<$<COMPILE_LANG_AND_ID:CXX,GNU,Clang,AppleClang>:-Wall;-Wextra;-Wpedantic>
-            $<$<COMPILE_LANG_AND_ID:CXX,MSVC>:/W4;/permissive->
+            $<$<COMPILE_LANG_AND_ID:CXX,GNU,Clang,AppleClang>:-Wall;-Wextra;-Wpedantic;-Wswitch;-Wswitch-enum;-Wreturn-type;-Werror=switch;-Werror=switch-enum;-Werror=return-type>
+            $<$<COMPILE_LANG_AND_ID:CXX,MSVC>:/W4;/permissive-;/w14061;/we4061;/we4062;/we4715>
     )
     target_compile_definitions(${target} PRIVATE $<$<CONFIG:Debug>:DEBUG_ENABLED>)
 endfunction()
@@ -98,14 +98,14 @@ set(GLFW_BUILD_EXAMPLES OFF)
 set(GLFW_BUILD_TESTS OFF)
 set(GLFW_BUILD_DOCS OFF)
 set(GLFW_INSTALL OFF)
-add_subdirectory(thirdparty/glfw)
+add_subdirectory(thirdparty/glfw SYSTEM)
 set(ENABLE_OPT OFF)
-add_subdirectory(thirdparty/glslang)
-add_subdirectory(thirdparty/SPIRV-Cross)
-add_subdirectory(thirdparty/glm)
+add_subdirectory(thirdparty/glslang SYSTEM)
+add_subdirectory(thirdparty/SPIRV-Cross SYSTEM)
+add_subdirectory(thirdparty/glm SYSTEM)
 # TODO: Temporary fix for https://gcc.gnu.org/bugzilla/show_bug.cgi?id=110572
 set(SPDLOG_BUILD_SHARED ON)
-add_subdirectory(thirdparty/spdlog)
+add_subdirectory(thirdparty/spdlog SYSTEM)
 set(ASSIMP_WARNINGS_AS_ERRORS OFF)
 set(ASSIMP_INSTALL OFF)
 set(ASSIMP_BUILD_TESTS OFF)
@@ -113,18 +113,18 @@ set(ASSIMP_BUILD_ALL_IMPORTERS_BY_DEFAULT OFF)
 set(ASSIMP_BUILD_ALL_EXPORTERS_BY_DEFAULT OFF)
 set(ASSIMP_BUILD_GLTF_IMPORTER ON)
 set(BUILD_SHARED_LIBS OFF)
-add_subdirectory(thirdparty/assimp)
+add_subdirectory(thirdparty/assimp SYSTEM)
 
 add_subdirectory(core)
 
 if (ENABLE_VULKAN)
-    add_subdirectory(thirdparty/VulkanMemoryAllocator)
+    add_subdirectory(thirdparty/VulkanMemoryAllocator SYSTEM)
     if (WIN32)
         set(VOLK_STATIC_DEFINES VK_USE_PLATFORM_WIN32_KHR)
     elseif (APPLE)
         set(VOLK_STATIC_DEFINES VK_USE_PLATFORM_METAL_EXT)
     endif ()
-    add_subdirectory(thirdparty/volk)
+    add_subdirectory(thirdparty/volk SYSTEM)
     add_subdirectory(platform/vulkan)
 endif ()
 

@@ -145,6 +145,10 @@ target_include_directories(
         PUBLIC
         ${CMAKE_SOURCE_DIR}
         ${CMAKE_CURRENT_SOURCE_DIR}
+)
+target_include_directories(
+        Vixen
+        SYSTEM PUBLIC
         ${CMAKE_SOURCE_DIR}/thirdparty/imgui
         ${CMAKE_SOURCE_DIR}/thirdparty/glslang/SPIRV
         ${CMAKE_SOURCE_DIR}/thirdparty/glslang/glslang
