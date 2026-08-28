@@ -16,14 +16,19 @@ namespace Vixen {
             throw std::logic_error{"Frame-graph resource slot is already populated"};
     }
 
-    void FrameGraphResourceStorage::requireType(const std::size_t index, ResourceType type) const {
+    void FrameGraphResourceStorage::requireType(const std::size_t index, const ResourceType type) const {
         if (slots[index].type != type)
-            throw std::invalid_argument{"The requested resource is not an image"};
+            throw std::logic_error{"Resource is not of the expected type"};
     }
 
-    void FrameGraphResourceStorage::requireOwnership(const std::size_t index, const Ownership ownership) const {
-        if (slots[index].ownership != ownership)
-            throw std::invalid_argument{"The requested resource is not imported"};
+    void FrameGraphResourceStorage::requireOwnedLifetime(const std::size_t index) const {
+        if (slots[index].lifetime == ResourceLifetime::Imported)
+            throw std::logic_error{"An imported resource slot cannot adopt an owned object"};
+    }
+
+    void FrameGraphResourceStorage::requireImportedLifetime(const std::size_t index) const {
+        if (slots[index].lifetime != ResourceLifetime::Imported)
+            throw std::logic_error{"A transient or persistent resource slot cannot adopt an imported object"};
     }
 
     FrameGraphResourceStorage::FrameGraphResourceStorage(
@@ -53,7 +58,7 @@ namespace Vixen {
     void FrameGraphResourceStorage::setOwned(const std::size_t index, Image* image) {
         requireEmpty(index);
         requireType(index, ResourceType::Image);
-        requireOwnership(index, Ownership::Owned);
+        requireOwnedLifetime(index);
 
         if (image == nullptr)
             throw std::invalid_argument{"An owned frame-graph image cannot be null"};
@@ -65,7 +70,7 @@ namespace Vixen {
     void FrameGraphResourceStorage::setOwned(const std::size_t index, Buffer* buffer) {
         requireEmpty(index);
         requireType(index, ResourceType::Buffer);
-        requireOwnership(index, Ownership::Owned);
+        requireOwnedLifetime(index);
 
         if (buffer == nullptr)
             throw std::invalid_argument{"An owned frame-graph buffer cannot be null"};
@@ -77,7 +82,7 @@ namespace Vixen {
     void FrameGraphResourceStorage::setImported(const std::size_t index, Image* image) {
         requireEmpty(index);
         requireType(index, ResourceType::Image);
-        requireOwnership(index, Ownership::Imported);
+        requireImportedLifetime(index);
 
         if (image == nullptr)
             throw std::invalid_argument{"An imported frame-graph image cannot be null"};
@@ -89,7 +94,7 @@ namespace Vixen {
     void FrameGraphResourceStorage::setImported(const std::size_t index, Buffer* buffer) {
         requireEmpty(index);
         requireType(index, ResourceType::Buffer);
-        requireOwnership(index, Ownership::Imported);
+        requireImportedLifetime(index);
 
         if (buffer == nullptr)
             throw std::invalid_argument{"An imported frame-graph buffer cannot be null"};

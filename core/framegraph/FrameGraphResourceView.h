@@ -114,11 +114,28 @@ namespace Vixen {
                 return std::unexpected{std::move(resource).error()};
 
             const auto pointer = std::get_if<Image*>(&*resource);
-            if (!pointer || !*pointer)
+
+            if (pointer == nullptr)
+                return std::unexpected{
+                    FrameGraphError{
+                        .code = FrameGraphErrorCode::InvalidGraphInvariant,
+                        .message = std::format(
+                            "Resource slot {} is declared as an image but stores a different object type",
+                            handle.id.index
+                        ),
+                        .resourceIndex = handle.id.index,
+                        .resourceVersion = handle.id.version
+                    }
+                };
+
+            if (*pointer == nullptr)
                 return std::unexpected{
                     FrameGraphError{
                         .code = FrameGraphErrorCode::UnresolvedResource,
-                        .message = std::format("Requested image resource is not an image"),
+                        .message = std::format(
+                            "Image resource {} resolves to a null pointer",
+                            handle.id.index
+                        ),
                         .resourceIndex = handle.id.index,
                         .resourceVersion = handle.id.version
                     }
@@ -133,11 +150,28 @@ namespace Vixen {
                 return std::unexpected{std::move(resource).error()};
 
             const auto pointer = std::get_if<Buffer*>(&*resource);
-            if (!pointer || !*pointer)
+
+            if (pointer == nullptr)
+                return std::unexpected{
+                    FrameGraphError{
+                        .code = FrameGraphErrorCode::InvalidGraphInvariant,
+                        .message = std::format(
+                            "Resource slot {} is declared as a buffer but stores a different object type",
+                            handle.id.index
+                        ),
+                        .resourceIndex = handle.id.index,
+                        .resourceVersion = handle.id.version
+                    }
+                };
+
+            if (*pointer == nullptr)
                 return std::unexpected{
                     FrameGraphError{
                         .code = FrameGraphErrorCode::UnresolvedResource,
-                        .message = std::format("Requested buffer resource is not an buffer"),
+                        .message = std::format(
+                            "Buffer resource {} resolves to a null pointer",
+                            handle.id.index
+                        ),
                         .resourceIndex = handle.id.index,
                         .resourceVersion = handle.id.version
                     }

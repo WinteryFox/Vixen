@@ -18,7 +18,9 @@ namespace Vixen {
 
         void requireType(std::size_t index, ResourceType type) const;
 
-        void requireOwnership(std::size_t index, Ownership ownership) const;
+        void requireOwnedLifetime(std::size_t index) const;
+
+        void requireImportedLifetime(std::size_t index) const;
 
     public:
         FrameGraphResourceStorage(RenderingDevice& device, std::span<const ResourceNode> nodes);
