@@ -1594,12 +1594,10 @@ namespace Vixen {
         if (!plan)
             return std::unexpected{std::move(plan).error()};
 
-        const std::size_t resourceCount = nodes.size();
-
         return FrameGraph{
             std::move(nodes),
             std::move(*plan),
-            FrameGraphResourceStorage(device, resourceCount),
+            FrameGraphResourceStorage(device, std::span(nodes)),
             std::move(renderPasses)
         };
     }

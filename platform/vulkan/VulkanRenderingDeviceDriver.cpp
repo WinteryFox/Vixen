@@ -252,27 +252,6 @@ namespace Vixen {
         return {};
     }
 
-    VkSampleCountFlagBits VulkanRenderingDeviceDriver::findClosestSupportedSampleCount(
-        const ImageSamples& samples
-    ) const {
-        const auto limits = physicalDeviceProperties.limits;
-
-        const VkSampleCountFlags flags = limits.framebufferColorSampleCounts & limits.framebufferDepthSampleCounts;
-        if (flags & toVkSampleCountFlagBits(samples))
-            return toVkSampleCountFlagBits(samples);
-
-        VkSampleCountFlagBits sampleCount = toVkSampleCountFlagBits(samples);
-        while (sampleCount > VK_SAMPLE_COUNT_1_BIT) {
-            if (flags & sampleCount) {
-                return sampleCount;
-            }
-
-            sampleCount = static_cast<VkSampleCountFlagBits>(sampleCount >> 1);
-        }
-
-        return VK_SAMPLE_COUNT_1_BIT;
-    }
-
     VulkanRenderingDeviceDriver::VulkanRenderingDeviceDriver(
         VulkanRenderingContextDriver* renderingContext,
         const uint32_t deviceIndex,
@@ -1721,7 +1700,7 @@ namespace Vixen {
             },
             .mipLevels = format.mipmapCount,
             .arrayLayers = format.layerCount,
-            .samples = findClosestSupportedSampleCount(format.samples),
+            .samples = toVkSampleCountFlagBits(format.samples),
             .tiling = format.usage.contains(ImageUsageBits::CpuRead) ? VK_IMAGE_TILING_LINEAR : VK_IMAGE_TILING_OPTIMAL,
             .usage = 0,
             .sharingMode = VK_SHARING_MODE_EXCLUSIVE,
@@ -1758,18 +1737,17 @@ namespace Vixen {
             imageCreateInfo.usage |= VK_IMAGE_USAGE_TRANSFER_DST_BIT;
 
         VmaAllocationCreateInfo allocationCreateInfo{
-            .flags = static_cast<VmaAllocationCreateFlags>(
-                format.usage.contains(ImageUsageBits::CpuRead)
-                    ? VMA_ALLOCATION_CREATE_HOST_ACCESS_RANDOM_BIT
-                    : 0
-            ),
+            .flags = format.usage.contains(ImageUsageBits::CpuRead)
+                         ? VMA_ALLOCATION_CREATE_HOST_ACCESS_RANDOM_BIT
+                         : VmaAllocationCreateFlags{},
             .usage = VMA_MEMORY_USAGE_AUTO,
             .requiredFlags = 0,
             .preferredFlags = 0,
             .memoryTypeBits = 0,
             .pool = nullptr,
             .pUserData = nullptr,
-            .priority = 0.0f
+            .priority = 0.0f,
+            .minAlignment = 0
         };
 
         if (format.usage.contains(ImageUsageBits::TransientAttachment)) {
@@ -1797,6 +1775,10 @@ namespace Vixen {
 
         // TODO: Handle small allocations
 
+        // TODO: Compatible mutable-format views should be added later with first-class image views
+        if (view.format != format.format)
+            return std::unexpected{Error::InitializationFailed};
+
         VkImage image;
         VmaAllocation allocation;
         if (vmaCreateImage(
@@ -1809,14 +1791,13 @@ namespace Vixen {
         ) != VK_SUCCESS)
             return std::unexpected(Error::InitializationFailed);
 
-        VkImageView imageView;
         const VkImageViewCreateInfo imageViewInfo{
             .sType = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO,
             .pNext = nullptr,
             .flags = 0,
             .image = image,
             .viewType = toVkImageViewType(format.type),
-            .format = imageCreateInfo.format,
+            .format = toVkDataFormat[view.format],
             .components = {
                 .r = static_cast<VkComponentSwizzle>(view.swizzleRed),
                 .g = static_cast<VkComponentSwizzle>(view.swizzleGreen),
@@ -1832,6 +1813,7 @@ namespace Vixen {
             }
         };
 
+        VkImageView imageView;
         if (const auto e = vkCreateImageView(device, &imageViewInfo, nullptr, &imageView);
             e != VK_SUCCESS) {
             vmaDestroyImage(allocator, image, allocation);

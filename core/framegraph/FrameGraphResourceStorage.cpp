@@ -3,29 +3,48 @@
 #include <stdexcept>
 #include <utility>
 
+#include "Node.h"
+#include "ResourceSlot.h"
 #include "../RenderingDevice.h"
 
 namespace Vixen {
     void FrameGraphResourceStorage::requireEmpty(const std::size_t index) const {
-        if (index >= resources.size())
+        if (index >= slots.size())
             throw std::out_of_range{"Frame-graph resource index is out of range"};
 
-        if (ownership[index] != Ownership::Empty)
+        if (slots[index].ownership != Ownership::Empty)
             throw std::logic_error{"Frame-graph resource slot is already populated"};
+    }
+
+    void FrameGraphResourceStorage::requireType(const std::size_t index, ResourceType type) const {
+        if (slots[index].type != type)
+            throw std::invalid_argument{"The requested resource is not an image"};
+    }
+
+    void FrameGraphResourceStorage::requireOwnership(const std::size_t index, const Ownership ownership) const {
+        if (slots[index].ownership != ownership)
+            throw std::invalid_argument{"The requested resource is not imported"};
     }
 
     FrameGraphResourceStorage::FrameGraphResourceStorage(
         RenderingDevice& device,
-        const std::size_t resourceCount
-    ) : device(&device),
-        resources(resourceCount),
-        ownership(resourceCount, Ownership::Empty) {}
+        const std::span<const ResourceNode> nodes
+    ) : device(&device) {
+        slots.reserve(nodes.size());
+        for (const auto& node : nodes)
+            slots.push_back({
+                .type = node.type,
+                .lifetime = node.lifetime,
+                .latestVersion = node.latestVersion,
+                .object = std::monostate{},
+                .ownership = Ownership::Empty
+            });
+    }
 
     FrameGraphResourceStorage::FrameGraphResourceStorage(
         FrameGraphResourceStorage&& other
     ) noexcept : device(std::exchange(other.device, nullptr)),
-                 resources(std::move(other.resources)),
-                 ownership(std::move(other.ownership)) {}
+                 slots(std::move(other.slots)) {}
 
     FrameGraphResourceStorage::~FrameGraphResourceStorage() {
         reset();
@@ -33,64 +52,71 @@ namespace Vixen {
 
     void FrameGraphResourceStorage::setOwned(const std::size_t index, Image* image) {
         requireEmpty(index);
+        requireType(index, ResourceType::Image);
+        requireOwnership(index, Ownership::Owned);
 
         if (image == nullptr)
             throw std::invalid_argument{"An owned frame-graph image cannot be null"};
 
-        resources[index] = image;
-        ownership[index] = Ownership::Owned;
+        slots[index].object = image;
+        slots[index].ownership = Ownership::Owned;
     }
 
     void FrameGraphResourceStorage::setOwned(const std::size_t index, Buffer* buffer) {
         requireEmpty(index);
+        requireType(index, ResourceType::Buffer);
+        requireOwnership(index, Ownership::Owned);
 
         if (buffer == nullptr)
             throw std::invalid_argument{"An owned frame-graph buffer cannot be null"};
 
-        resources[index] = buffer;
-        ownership[index] = Ownership::Owned;
+        slots[index].object = buffer;
+        slots[index].ownership = Ownership::Owned;
     }
 
     void FrameGraphResourceStorage::setImported(const std::size_t index, Image* image) {
         requireEmpty(index);
+        requireType(index, ResourceType::Image);
+        requireOwnership(index, Ownership::Imported);
 
         if (image == nullptr)
             throw std::invalid_argument{"An imported frame-graph image cannot be null"};
 
-        resources[index] = image;
-        ownership[index] = Ownership::Imported;
+        slots[index].object = image;
+        slots[index].ownership = Ownership::Imported;
     }
 
     void FrameGraphResourceStorage::setImported(const std::size_t index, Buffer* buffer) {
         requireEmpty(index);
+        requireType(index, ResourceType::Buffer);
+        requireOwnership(index, Ownership::Imported);
 
         if (buffer == nullptr)
             throw std::invalid_argument{"An imported frame-graph buffer cannot be null"};
 
-        resources[index] = buffer;
-        ownership[index] = Ownership::Imported;
+        slots[index].object = buffer;
+        slots[index].ownership = Ownership::Imported;
     }
 
     void FrameGraphResourceStorage::reset() {
         if (device == nullptr)
             return;
 
-        for (std::size_t i = resources.size(); i-- > 0;) {
-            if (ownership[i] != Ownership::Owned)
+        for (std::size_t i = slots.size(); i-- > 0;) {
+            if (slots[i].ownership != Ownership::Owned)
                 continue;
 
-            if (const auto image = std::get_if<Image*>(&resources[i]))
+            if (const auto image = std::get_if<Image*>(&slots[i].object))
                 device->deferDestroy(*image);
 
-            else if (const auto buffer = std::get_if<Buffer*>(&resources[i]))
+            else if (const auto buffer = std::get_if<Buffer*>(&slots[i].object))
                 device->deferDestroy(*buffer);
         }
 
-        resources.clear();
-        ownership.clear();
+        slots.clear();
     }
 
     FrameGraphResourceView FrameGraphResourceStorage::getResources() const noexcept {
-        return FrameGraphResourceView{resources};
+        return FrameGraphResourceView{slots};
     }
 }

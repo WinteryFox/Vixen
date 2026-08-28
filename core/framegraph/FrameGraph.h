@@ -265,6 +265,12 @@ namespace Vixen {
                 BufferState finalState
             );
 
+            /**
+             * Compiles the frame graph and allocates and creates resources required for the compiled graph.
+             * @param device The Vixen::RenderingDevice to allocate and create the resources required for the compiled render graph.
+             * @return Returns the compiled Vixen::FrameGraph with its required resources allocated.
+             * @see Vixen::FrameGraph::Builder::compile
+             */
             [[nodiscard]] auto build(RenderingDevice& device) && -> std::expected<FrameGraph, FrameGraphError>;
         };
     };

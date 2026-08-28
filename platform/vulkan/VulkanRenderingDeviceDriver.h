@@ -57,10 +57,6 @@ namespace Vixen {
 
         auto initializeDevice() -> std::expected<void, Error>;
 
-        [[nodiscard]] VkSampleCountFlagBits findClosestSupportedSampleCount(
-            const ImageSamples& samples
-        ) const;
-
         void releaseSwapchain(
             VulkanSwapchain* swapchain
         );
