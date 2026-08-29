@@ -10,7 +10,7 @@ namespace Vixen {
         ColorAttachment = 1u << 1,
         DepthStencilAttachment = 1u << 2,
         Storage = 1u << 3,
-        StorageAtomic = 1u << 4,
+        AtomicStorage = 1u << 4,
         CpuRead = 1u << 5,
         Update = 1u << 6,
         CopySource = 1u << 7,

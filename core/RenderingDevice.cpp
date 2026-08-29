@@ -1,7 +1,11 @@
 #include "RenderingDevice.h"
 
 #include <algorithm>
+#include <bit>
+#include <format>
 #include <ranges>
+#include <stdexcept>
+#include <utility>
 #include <spdlog/spdlog.h>
 
 #include "RenderingContextDriver.h"
@@ -336,6 +340,423 @@ namespace Vixen {
 
         renderingDeviceDriver->destroySwapchain(pair->second);
         swapchains.erase(window);
+    }
+
+    auto RenderingDevice::createBuffer(
+        const uint64_t size,
+        const BufferUsageFlags usage,
+        const MemoryAllocationType memoryType
+    ) const -> std::expected<Buffer*, ResourceCreationError> {
+        if (size == 0)
+            return std::unexpected{
+                ResourceCreationError{
+                    .code = ResourceCreationErrorCode::InvalidDescription,
+                    .message = "Cannot create a buffer with a size of 0"
+                }
+            };
+
+        if (usage.empty())
+            return std::unexpected{
+                ResourceCreationError{
+                    .code = ResourceCreationErrorCode::InvalidDescription,
+                    .message = "Cannot create a buffer with an empty usage mask"
+                }
+            };
+
+        constexpr auto knownBufferUsages = BufferUsageBits::CopySource |
+            BufferUsageBits::CopyDestination |
+            BufferUsageBits::UniformTexel |
+            BufferUsageBits::StorageTexel |
+            BufferUsageBits::Uniform |
+            BufferUsageBits::Storage |
+            BufferUsageBits::Vertex |
+            BufferUsageBits::Index |
+            BufferUsageBits::Indirect;
+
+        if (const auto unknownUsageBits = usage.value() & ~knownBufferUsages.value();
+            unknownUsageBits != 0)
+            return std::unexpected{
+                ResourceCreationError{
+                    .code = ResourceCreationErrorCode::UnsupportedUsage,
+                    .message = std::format(
+                        "Buffer usage contains unknown bits ({:#x})",
+                        unknownUsageBits
+                    )
+                }
+            };
+
+        switch (memoryType) {
+            case MemoryAllocationType::Cpu:
+            case MemoryAllocationType::Gpu:
+                break;
+
+            default:
+                return std::unexpected{
+                    ResourceCreationError{
+                        .code = ResourceCreationErrorCode::InvalidDescription,
+                        .message = "Buffer memory allocation type is not recognized"
+                    }
+                };
+        }
+
+        const auto maxBufferSize = renderingDeviceDriver->getMaxBufferSize();
+        if (size > maxBufferSize)
+            return std::unexpected{
+                ResourceCreationError{
+                    .code = ResourceCreationErrorCode::ExceedsDeviceLimits,
+                    .message = std::format(
+                        "Buffer size of {} bytes exceeds the device limit of {} bytes",
+                        size,
+                        maxBufferSize
+                    ),
+                    .limitViolation = ResourceCreationLimitViolation{
+                        .limit = "maxBufferSize",
+                        .requested = size,
+                        .supported = maxBufferSize
+                    }
+                }
+            };
+
+        const auto buffer = renderingDeviceDriver->createBuffer(
+            size,
+            usage,
+            memoryType
+        );
+        if (!buffer)
+            return std::unexpected{std::move(buffer).error()};
+
+        if (*buffer == nullptr)
+            return std::unexpected{
+                ResourceCreationError{
+                    .code = ResourceCreationErrorCode::NativeObjectCreationFailed,
+                    .message = "The rendering backend reported successful buffer creation but returned a null buffer"
+                }
+            };
+
+        return *buffer;
+    }
+
+    auto RenderingDevice::createVertexBuffer(
+        const uint64_t size
+    ) const -> std::expected<Buffer*, ResourceCreationError> {
+        return createBuffer(
+            size,
+            BufferUsageBits::CopySource |
+            BufferUsageBits::CopyDestination |
+            BufferUsageBits::Vertex,
+            MemoryAllocationType::Gpu
+        );
+    }
+
+    auto RenderingDevice::createUniformBuffer(
+        const uint64_t size
+    ) const -> std::expected<Buffer*, ResourceCreationError> {
+        return createBuffer(
+            size,
+            BufferUsageBits::CopyDestination |
+            BufferUsageBits::Uniform,
+            MemoryAllocationType::Gpu
+        );
+    }
+
+    auto RenderingDevice::createStorageBuffer(
+        const uint64_t size
+    ) const -> std::expected<Buffer*, ResourceCreationError> {
+        return createBuffer(
+            size,
+            BufferUsageBits::CopySource |
+            BufferUsageBits::CopyDestination |
+            BufferUsageBits::Storage,
+            MemoryAllocationType::Gpu
+        );
+    }
+
+    auto RenderingDevice::createTexelBuffer(
+        const uint32_t elementCount,
+        const ImageDataFormat format,
+        const BufferUsageBits usage
+    ) const -> std::expected<Buffer*, ResourceCreationError> {
+        if (elementCount == 0)
+            return std::unexpected{
+                ResourceCreationError{
+                    .code = ResourceCreationErrorCode::InvalidDescription,
+                    .message = "A texel buffer must contain at least one texel"
+                }
+            };
+
+        if (usage != BufferUsageBits::UniformTexel && usage != BufferUsageBits::StorageTexel)
+            return std::unexpected{
+                ResourceCreationError{
+                    .code = ResourceCreationErrorCode::InvalidDescription,
+                    .message = "A texel buffer must use either UniformTexel or StorageTexel usage"
+                }
+            };
+
+        const auto texelSize = getTexelSize(format);
+        if (texelSize == 0)
+            return std::unexpected{
+                ResourceCreationError{
+                    .code = ResourceCreationErrorCode::UnsupportedFormat,
+                    .message = "The requested format cannot be used as a texel-buffer format"
+                }
+            };
+
+        const auto supportedUsages = renderingDeviceDriver->getTexelBufferUsageSupportedByFormat(format);
+        if (!supportedUsages)
+            return std::unexpected{std::move(supportedUsages).error()};
+
+        if (!supportedUsages->contains(usage))
+            return std::unexpected{
+                ResourceCreationError{
+                    .code = ResourceCreationErrorCode::UnsupportedUsage,
+                    .message = usage == BufferUsageBits::UniformTexel
+                                   ? "Uniform texel-buffer access is not supported for the requested format"
+                                   : "Storage texel-buffer access is not supported for the requested format"
+                }
+            };
+
+        const auto maxElements = renderingDeviceDriver->getMaxTexelBufferElements();
+        if (elementCount > maxElements)
+            return std::unexpected{
+                ResourceCreationError{
+                    .code = ResourceCreationErrorCode::ExceedsDeviceLimits,
+                    .message = std::format(
+                        "Texel-buffer element count {} exceeds the device limit of {}",
+                        elementCount,
+                        maxElements
+                    ),
+                    .limitViolation = ResourceCreationLimitViolation{
+                        .limit = "maxTexelBufferElements",
+                        .requested = elementCount,
+                        .supported = maxElements
+                    }
+                }
+            };
+
+        return createBuffer(
+            static_cast<uint64_t>(elementCount) * texelSize,
+            BufferUsageBits::CopySource |
+            BufferUsageBits::CopyDestination |
+            usage,
+            MemoryAllocationType::Gpu
+        );
+    }
+
+    auto RenderingDevice::createUniformTexelBuffer(
+        const uint32_t elementCount,
+        const ImageDataFormat format
+    ) const -> std::expected<Buffer*, ResourceCreationError> {
+        return createTexelBuffer(elementCount, format, BufferUsageBits::UniformTexel);
+    }
+
+    auto RenderingDevice::createStorageTexelBuffer(
+        const uint32_t elementCount,
+        const ImageDataFormat format
+    ) const -> std::expected<Buffer*, ResourceCreationError> {
+        return createTexelBuffer(elementCount, format, BufferUsageBits::StorageTexel);
+    }
+
+    auto RenderingDevice::createImage(
+        const ImageFormat& format,
+        const ImageView& view
+    ) const -> std::expected<Image*, ResourceCreationError> {
+        const auto invalidDescription = [](std::string message)
+            -> std::expected<Image*, ResourceCreationError> {
+            return std::unexpected{
+                ResourceCreationError{
+                    .code = ResourceCreationErrorCode::InvalidDescription,
+                    .message = std::move(message)
+                }
+            };
+        };
+
+        if (format.width == 0 ||
+            format.height == 0 ||
+            format.depth == 0 ||
+            format.mipmapCount == 0 ||
+            format.layerCount == 0)
+            return invalidDescription(
+                "Image width, height, depth, mipmap count, and layer count must all be greater than zero"
+            );
+
+        const auto maxMipmapCount = static_cast<uint32_t>(std::bit_width(
+            std::max({format.width, format.height, format.depth})
+        ));
+        if (format.mipmapCount > maxMipmapCount)
+            return invalidDescription(
+                std::format(
+                    "Image requests {} mip levels, but extent {}x{}x{} supports at most {}",
+                    format.mipmapCount,
+                    format.width,
+                    format.height,
+                    format.depth,
+                    maxMipmapCount
+                )
+            );
+
+        if (format.usage.empty())
+            return invalidDescription("Image usage flags must not be empty");
+
+        if (format.usage.value() == ImageUsageFlags{ImageUsageBits::CpuRead}.value())
+            return invalidDescription(
+                "CpuRead is a memory-placement capability and must be combined with a device image usage, "
+                "such as CopyDestination for a readback image"
+            );
+
+        constexpr auto knownImageUsages = ImageUsageBits::Sampling |
+            ImageUsageBits::ColorAttachment |
+            ImageUsageBits::DepthStencilAttachment |
+            ImageUsageBits::Storage |
+            ImageUsageBits::AtomicStorage |
+            ImageUsageBits::CpuRead |
+            ImageUsageBits::Update |
+            ImageUsageBits::CopySource |
+            ImageUsageBits::CopyDestination |
+            ImageUsageBits::InputAttachment |
+            ImageUsageBits::TransientAttachment;
+
+        if (const auto unknownUsageBits = format.usage.value() & ~knownImageUsages.value();
+            unknownUsageBits != 0)
+            return std::unexpected{
+                ResourceCreationError{
+                    .code = ResourceCreationErrorCode::UnsupportedUsage,
+                    .message = std::format(
+                        "Image usage contains unknown bits ({:#x})",
+                        unknownUsageBits
+                    )
+                }
+            };
+
+        switch (format.type) {
+            case ImageType::OneD:
+                if (format.height != 1 || format.depth != 1)
+                    return invalidDescription(
+                        "One-dimensional images must have height 1 and depth 1"
+                    );
+                if (format.layerCount != 1)
+                    return invalidDescription("Non-array one-dimensional images must have exactly one layer");
+                break;
+
+            case ImageType::OneDArray:
+                if (format.height != 1 || format.depth != 1)
+                    return invalidDescription(
+                        "One-dimensional image arrays must have height 1 and depth 1"
+                    );
+                break;
+
+            case ImageType::TwoD:
+                if (format.depth != 1)
+                    return invalidDescription("Two-dimensional images must have depth 1");
+                if (format.layerCount != 1)
+                    return invalidDescription("Non-array two-dimensional images must have exactly one layer");
+                break;
+
+            case ImageType::TwoDArray:
+                if (format.depth != 1)
+                    return invalidDescription("Two-dimensional image arrays must have depth 1");
+                break;
+
+            case ImageType::ThreeD:
+                if (format.layerCount != 1)
+                    return invalidDescription("Three-dimensional images must have exactly one array layer");
+                break;
+
+            case ImageType::Cube:
+                if (format.depth != 1)
+                    return invalidDescription("Cube images must have depth 1");
+                if (format.width != format.height)
+                    return invalidDescription("Cube images must have equal width and height");
+                if (format.layerCount != 6)
+                    return invalidDescription("Cube images must have exactly six array layers");
+                break;
+
+            case ImageType::CubeArray:
+                if (format.depth != 1)
+                    return invalidDescription("Cube-array images must have depth 1");
+                if (format.width != format.height)
+                    return invalidDescription("Cube-array images must have equal width and height");
+                if (format.layerCount < 6 || format.layerCount % 6 != 0)
+                    return invalidDescription(
+                        "Cube-array images must have a positive multiple of six array layers"
+                    );
+                break;
+        }
+
+        if (format.samples != ImageSamples::One) {
+            if (format.type != ImageType::TwoD && format.type != ImageType::TwoDArray)
+                return invalidDescription(
+                    "Multisampled images must be two-dimensional or two-dimensional arrays"
+                );
+
+            if (format.mipmapCount != 1)
+                return invalidDescription("Multisampled images must have exactly one mip level");
+        }
+
+        const auto supportedUsages = renderingDeviceDriver->getImageUsageSupportedByFormat(
+            format.format,
+            format.usage.contains(ImageUsageBits::CpuRead)
+        );
+        if (!supportedUsages)
+            return std::unexpected{std::move(supportedUsages).error()};
+
+        if (format.usage.contains(ImageUsageBits::Sampling) &&
+            !supportedUsages->contains(ImageUsageBits::Sampling))
+            return std::unexpected{
+                ResourceCreationError{
+                    .code = ResourceCreationErrorCode::UnsupportedUsage,
+                    .message = "Sampling is not supported for this format"
+                }
+            };
+
+        if (format.usage.contains(ImageUsageBits::ColorAttachment) &&
+            !supportedUsages->contains(ImageUsageBits::ColorAttachment))
+            return std::unexpected{
+                ResourceCreationError{
+                    .code = ResourceCreationErrorCode::UnsupportedUsage,
+                    .message = "Color attachment is not supported for this format"
+                }
+            };
+
+        if (format.usage.contains(ImageUsageBits::DepthStencilAttachment) &&
+            !supportedUsages->contains(ImageUsageBits::DepthStencilAttachment))
+            return std::unexpected{
+                ResourceCreationError{
+                    .code = ResourceCreationErrorCode::UnsupportedUsage,
+                    .message = "Depth-stencil attachment is not supported for this format"
+                }
+            };
+
+        if (format.usage.contains(ImageUsageBits::Storage) &&
+            !supportedUsages->contains(ImageUsageBits::Storage))
+            return std::unexpected{
+                ResourceCreationError{
+                    .code = ResourceCreationErrorCode::UnsupportedUsage,
+                    .message = "Storage is not supported for this format"
+                }
+            };
+
+        if (format.usage.contains(ImageUsageBits::AtomicStorage) &&
+            !supportedUsages->contains(ImageUsageBits::AtomicStorage))
+            return std::unexpected{
+                ResourceCreationError{
+                    .code = ResourceCreationErrorCode::UnsupportedUsage,
+                    .message = "Atomic storage-image access is not supported for this format"
+                }
+            };
+
+        const auto image = renderingDeviceDriver->createImage(format, view);
+        if (!image)
+            return std::unexpected{std::move(image).error()};
+
+        if (*image == nullptr)
+            return std::unexpected{
+                ResourceCreationError{
+                    .code = ResourceCreationErrorCode::NativeObjectCreationFailed,
+                    .message = "The rendering backend reported successful image creation but returned a null image"
+                }
+            };
+
+        return *image;
     }
 
     RenderingContextDriver* RenderingDevice::getRenderingContextDriver() const {

@@ -1,5 +1,6 @@
 #pragma once
 
+#include <cstdint>
 #include <utility>
 
 #include "image/ImageAspectFlags.h"
@@ -695,5 +696,155 @@ namespace Vixen {
             aspects |= ImageAspectBits::Color;
 
         return aspects;
+    }
+
+    [[nodiscard]] constexpr uint32_t getTexelSize(const ImageDataFormat format) noexcept {
+        switch (std::to_underlying(format)) {
+            case R4G4_UNORM_PACK8:
+            case R8_UNORM:
+            case R8_SNORM:
+            case R8_USCALED:
+            case R8_SSCALED:
+            case R8_UINT:
+            case R8_SINT:
+            case R8_SRGB:
+                return 1;
+
+            case R4G4B4A4_UNORM_PACK16:
+            case B4G4R4A4_UNORM_PACK16:
+            case R5G6B5_UNORM_PACK16:
+            case B5G6R5_UNORM_PACK16:
+            case R5G5B5A1_UNORM_PACK16:
+            case B5G5R5A1_UNORM_PACK16:
+            case A1R5G5B5_UNORM_PACK16:
+            case R8G8_UNORM:
+            case R8G8_SNORM:
+            case R8G8_USCALED:
+            case R8G8_SSCALED:
+            case R8G8_UINT:
+            case R8G8_SINT:
+            case R8G8_SRGB:
+            case R16_UNORM:
+            case R16_SNORM:
+            case R16_USCALED:
+            case R16_SSCALED:
+            case R16_UINT:
+            case R16_SINT:
+            case R16_SFLOAT:
+                return 2;
+
+            case R8G8B8_UNORM:
+            case R8G8B8_SNORM:
+            case R8G8B8_USCALED:
+            case R8G8B8_SSCALED:
+            case R8G8B8_UINT:
+            case R8G8B8_SINT:
+            case R8G8B8_SRGB:
+            case B8G8R8_UNORM:
+            case B8G8R8_SNORM:
+            case B8G8R8_USCALED:
+            case B8G8R8_SSCALED:
+            case B8G8R8_UINT:
+            case B8G8R8_SINT:
+            case B8G8R8_SRGB:
+                return 3;
+
+            case R8G8B8A8_UNORM:
+            case R8G8B8A8_SNORM:
+            case R8G8B8A8_USCALED:
+            case R8G8B8A8_SSCALED:
+            case R8G8B8A8_UINT:
+            case R8G8B8A8_SINT:
+            case R8G8B8A8_SRGB:
+            case B8G8R8A8_UNORM:
+            case B8G8R8A8_SNORM:
+            case B8G8R8A8_USCALED:
+            case B8G8R8A8_SSCALED:
+            case B8G8R8A8_UINT:
+            case B8G8R8A8_SINT:
+            case B8G8R8A8_SRGB:
+            case A8B8G8R8_UNORM_PACK32:
+            case A8B8G8R8_SNORM_PACK32:
+            case A8B8G8R8_USCALED_PACK32:
+            case A8B8G8R8_SSCALED_PACK32:
+            case A8B8G8R8_UINT_PACK32:
+            case A8B8G8R8_SINT_PACK32:
+            case A8B8G8R8_SRGB_PACK32:
+            case A2R10G10B10_UNORM_PACK32:
+            case A2R10G10B10_SNORM_PACK32:
+            case A2R10G10B10_USCALED_PACK32:
+            case A2R10G10B10_SSCALED_PACK32:
+            case A2R10G10B10_UINT_PACK32:
+            case A2R10G10B10_SINT_PACK32:
+            case A2B10G10R10_UNORM_PACK32:
+            case A2B10G10R10_SNORM_PACK32:
+            case A2B10G10R10_USCALED_PACK32:
+            case A2B10G10R10_SSCALED_PACK32:
+            case A2B10G10R10_UINT_PACK32:
+            case A2B10G10R10_SINT_PACK32:
+            case R16G16_UNORM:
+            case R16G16_SNORM:
+            case R16G16_USCALED:
+            case R16G16_SSCALED:
+            case R16G16_UINT:
+            case R16G16_SINT:
+            case R16G16_SFLOAT:
+            case R32_UINT:
+            case R32_SINT:
+            case R32_SFLOAT:
+            case B10G11R11_UFLOAT_PACK32:
+            case E5B9G9R9_UFLOAT_PACK32:
+                return 4;
+
+            case R16G16B16_UNORM:
+            case R16G16B16_SNORM:
+            case R16G16B16_USCALED:
+            case R16G16B16_SSCALED:
+            case R16G16B16_UINT:
+            case R16G16B16_SINT:
+            case R16G16B16_SFLOAT:
+                return 6;
+
+            case R16G16B16A16_UNORM:
+            case R16G16B16A16_SNORM:
+            case R16G16B16A16_USCALED:
+            case R16G16B16A16_SSCALED:
+            case R16G16B16A16_UINT:
+            case R16G16B16A16_SINT:
+            case R16G16B16A16_SFLOAT:
+            case R32G32_UINT:
+            case R32G32_SINT:
+            case R32G32_SFLOAT:
+            case R64_UINT:
+            case R64_SINT:
+            case R64_SFLOAT:
+                return 8;
+
+            case R32G32B32_UINT:
+            case R32G32B32_SINT:
+            case R32G32B32_SFLOAT:
+                return 12;
+
+            case R32G32B32A32_UINT:
+            case R32G32B32A32_SINT:
+            case R32G32B32A32_SFLOAT:
+            case R64G64_UINT:
+            case R64G64_SINT:
+            case R64G64_SFLOAT:
+                return 16;
+
+            case R64G64B64_UINT:
+            case R64G64B64_SINT:
+            case R64G64B64_SFLOAT:
+                return 24;
+
+            case R64G64B64A64_UINT:
+            case R64G64B64A64_SINT:
+            case R64G64B64A64_SFLOAT:
+                return 32;
+
+            default:
+                return 0;
+        }
     }
 }

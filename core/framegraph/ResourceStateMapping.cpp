@@ -114,7 +114,7 @@ namespace Vixen {
                     .layout = ImageLayout::StorageOptimal
                 };
 
-            case ImageUsageBits::StorageAtomic:
+            case ImageUsageBits::AtomicStorage:
                 if (auto result = requireAccess(access, ResourceAccess::ReadWrite); !result)
                     return std::unexpected(result.error());
 
@@ -244,8 +244,7 @@ namespace Vixen {
                     .access = BarrierAccessBits::UniformRead
                 };
 
-            case BufferUsageBits::Storage:
-            case BufferUsageBits::Texel:
+            case BufferUsageBits::StorageTexel:
                 if (auto result = requireStages(stages, shaderStages); !result)
                     return std::unexpected(result.error());
 
@@ -288,6 +287,27 @@ namespace Vixen {
                 return BufferState{
                     .stages = stages,
                     .access = BarrierAccessBits::IndirectCommandsRead
+                };
+
+            case BufferUsageBits::UniformTexel:
+                if (auto result = requireAccess(access, ResourceAccess::Read); !result)
+                    return std::unexpected(result.error());
+
+                if (auto result = requireStages(stages, shaderStages); !result)
+                    return std::unexpected(result.error());
+
+                return BufferState{
+                    .stages = stages,
+                    .access = BarrierAccessBits::ShaderRead
+                };
+
+            case BufferUsageBits::Storage:
+                if (auto result = requireStages(stages, shaderStages); !result)
+                    return std::unexpected(result.error());
+
+                return BufferState{
+                    .stages = stages,
+                    .access = shaderAccess(access)
                 };
         }
 

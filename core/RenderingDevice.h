@@ -7,7 +7,13 @@
 
 #include "DriverDevice.h"
 #include "Frame.h"
+#include "ImageDataFormat.h"
+#include "MemoryAllocationType.h"
+#include "buffer/BufferUsage.h"
 #include "error/Error.h"
+#include "error/ResourceCreationError.h"
+#include "image/ImageFormat.h"
+#include "image/ImageView.h"
 
 namespace Vixen {
     struct Framebuffer;
@@ -61,6 +67,12 @@ namespace Vixen {
             bool present
         );
 
+        [[nodiscard]] auto createTexelBuffer(
+            uint32_t elementCount,
+            ImageDataFormat format,
+            BufferUsageBits usage
+        ) const -> std::expected<Buffer*, ResourceCreationError>;
+
     public:
         RenderingDevice(
             RenderingContextDriver* renderingContext,
@@ -94,6 +106,33 @@ namespace Vixen {
         void destroyScreen(
             Window* window
         );
+
+        [[nodiscard]] auto createBuffer(
+            uint64_t size,
+            BufferUsageFlags usage,
+            MemoryAllocationType memoryType
+        ) const -> std::expected<Buffer*, ResourceCreationError>;
+
+        [[nodiscard]] auto createVertexBuffer(uint64_t size) const -> std::expected<Buffer*, ResourceCreationError>;
+
+        [[nodiscard]] auto createUniformBuffer(uint64_t size) const -> std::expected<Buffer*, ResourceCreationError>;
+
+        [[nodiscard]] auto createStorageBuffer(uint64_t size) const -> std::expected<Buffer*, ResourceCreationError>;
+
+        [[nodiscard]] auto createUniformTexelBuffer(
+            uint32_t elementCount,
+            ImageDataFormat format
+        ) const -> std::expected<Buffer*, ResourceCreationError>;
+
+        [[nodiscard]] auto createStorageTexelBuffer(
+            uint32_t elementCount,
+            ImageDataFormat format
+        ) const -> std::expected<Buffer*, ResourceCreationError>;
+
+        [[nodiscard]] auto createImage(
+            const ImageFormat& format,
+            const ImageView& view
+        ) const -> std::expected<Image*, ResourceCreationError>;
 
         [[nodiscard]] RenderingContextDriver* getRenderingContextDriver() const;
 

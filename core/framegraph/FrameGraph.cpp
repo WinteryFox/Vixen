@@ -1623,7 +1623,7 @@ namespace Vixen {
                         case ResourceType::Image: {
                             const auto description = std::get<ImageResourceDescription>(resource.description);
 
-                            const auto image = device.getRenderingDeviceDriver()->createImage(
+                            const auto image = device.createImage(
                                 description.format,
                                 description.view
                             );
@@ -1667,7 +1667,7 @@ namespace Vixen {
                         case ResourceType::Buffer: {
                             const auto description = std::get<BufferFormat>(resource.description);
 
-                            const auto buffer = device.getRenderingDeviceDriver()->createBuffer(
+                            const auto buffer = device.createBuffer(
                                 description.size,
                                 description.usage,
                                 MemoryAllocationType::Gpu

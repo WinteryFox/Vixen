@@ -27,6 +27,7 @@
 #include "core/PipelineStageFlags.h"
 #include "core/QueueFamilyFlags.h"
 #include "core/StoreAction.h"
+#include "core/buffer/BufferUsage.h"
 #include "core/error/ResourceCreationError.h"
 
 #include "core/command/CommandBufferType.h"
@@ -1258,8 +1259,11 @@ namespace Vixen {
         if (flags.contains(BufferUsageBits::CopyDestination))
             vkFlags |= VK_BUFFER_USAGE_TRANSFER_DST_BIT;
 
-        if (flags.contains(BufferUsageBits::Texel))
+        if (flags.contains(BufferUsageBits::UniformTexel))
             vkFlags |= VK_BUFFER_USAGE_UNIFORM_TEXEL_BUFFER_BIT;
+
+        if (flags.contains(BufferUsageBits::StorageTexel))
+            vkFlags |= VK_BUFFER_USAGE_STORAGE_TEXEL_BUFFER_BIT;
 
         if (flags.contains(BufferUsageBits::Uniform))
             vkFlags |= VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT;

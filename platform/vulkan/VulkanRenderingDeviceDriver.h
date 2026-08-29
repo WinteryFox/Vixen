@@ -37,7 +37,7 @@ namespace Vixen {
         VkPhysicalDevice physicalDevice;
         DeviceFeatureSupport physicalDeviceFeatures;
         VkPhysicalDeviceProperties physicalDeviceProperties;
-        VkImageFormatProperties2 imageFormatProperties;
+        VkDeviceSize maxBufferSize;
 
         std::vector<std::string> enabledExtensionNames;
 
@@ -74,7 +74,8 @@ namespace Vixen {
             bool releaseOnSwapchain
         ) const -> std::expected<void, Error>;
 
-        auto validateImageFormatSupport(VkImageCreateInfo info) const -> std::expected<void, ResourceCreationError>;
+        auto validateImageFormatSupport(const VkImageCreateInfo& info) const
+            -> std::expected<void, ResourceCreationError>;
 
     public:
         VulkanRenderingDeviceDriver(
@@ -342,5 +343,18 @@ namespace Vixen {
         void commandEndLabel(
             CommandBuffer* commandBuffer
         ) override;
+
+        auto getImageUsageSupportedByFormat(
+            ImageDataFormat format,
+            bool isCpuReadable
+        ) const -> std::expected<ImageUsageFlags, ResourceCreationError> override;
+
+        auto getTexelBufferUsageSupportedByFormat(
+            ImageDataFormat format
+        ) const -> std::expected<BufferUsageFlags, ResourceCreationError> override;
+
+        uint64_t getMaxBufferSize() const override;
+
+        uint32_t getMaxTexelBufferElements() const override;
     };
 }

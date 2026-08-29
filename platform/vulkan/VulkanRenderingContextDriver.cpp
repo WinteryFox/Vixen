@@ -131,7 +131,7 @@ namespace Vixen {
         #endif
 
         std::vector<const char*> enabledInstanceExtensionsStr{enabledInstanceExtensions.size()};
-        for (auto i = 0; i < enabledInstanceExtensions.size(); i++) {
+        for (size_t i = 0; i < enabledInstanceExtensions.size(); i++) {
             enabledInstanceExtensionsStr[i] = enabledInstanceExtensions[i].c_str();
         }
 
@@ -210,7 +210,11 @@ namespace Vixen {
 
         for (const VkPhysicalDevice handle : availableDevices) {
             PhysicalDeviceRecord record{
-                .handle = handle
+                .handle = handle,
+                .properties{},
+                .memoryProperties{},
+                .description{},
+                .queueFamilies{}
             };
 
             vkGetPhysicalDeviceProperties(handle, &record.properties);

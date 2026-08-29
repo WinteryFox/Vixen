@@ -305,5 +305,18 @@ namespace Vixen {
         virtual void commandEndLabel(
             CommandBuffer* commandBuffer
         ) = 0;
+
+        virtual auto getImageUsageSupportedByFormat(
+            ImageDataFormat format,
+            bool isCpuReadable
+        ) const -> std::expected<ImageUsageFlags, ResourceCreationError> = 0;
+
+        virtual auto getTexelBufferUsageSupportedByFormat(
+            ImageDataFormat format
+        ) const -> std::expected<BufferUsageFlags, ResourceCreationError> = 0;
+
+        virtual uint64_t getMaxBufferSize() const = 0;
+
+        virtual uint32_t getMaxTexelBufferElements() const = 0;
     };
 }
