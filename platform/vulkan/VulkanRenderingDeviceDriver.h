@@ -344,17 +344,17 @@ namespace Vixen {
             CommandBuffer* commandBuffer
         ) override;
 
-        auto getImageUsageSupportedByFormat(
+        [[nodiscard]] auto getImageUsageSupportedByFormat(
             ImageDataFormat format,
             bool isCpuReadable
         ) const -> std::expected<ImageUsageFlags, ResourceCreationError> override;
 
-        auto getTexelBufferUsageSupportedByFormat(
+        [[nodiscard]] auto getTexelBufferUsageSupportedByFormat(
             ImageDataFormat format
         ) const -> std::expected<BufferUsageFlags, ResourceCreationError> override;
 
-        uint64_t getMaxBufferSize() const override;
+        [[nodiscard]] uint64_t getMaxBufferSize() const override;
 
-        uint32_t getMaxTexelBufferElements() const override;
+        [[nodiscard]] uint32_t getMaxTexelBufferElements() const override;
     };
 }
