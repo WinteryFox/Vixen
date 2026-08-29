@@ -448,7 +448,11 @@ namespace Vixen {
             .flags = info.flags
         };
 
-        VkImageFormatProperties2 properties;
+        VkImageFormatProperties2 properties{
+            .sType = VK_STRUCTURE_TYPE_IMAGE_FORMAT_PROPERTIES_2,
+            .pNext = nullptr,
+            .imageFormatProperties = {}
+        };
         const auto result = vkGetPhysicalDeviceImageFormatProperties2(physicalDevice, &format, &properties);
 
         if (result == VK_ERROR_FORMAT_NOT_SUPPORTED)
@@ -1830,7 +1834,9 @@ namespace Vixen {
             .minAlignment = 0
         };
 
-        VkBuffer buffer;
+        auto buffer = new VulkanBuffer(usage, count, stride, nullptr, nullptr);
+
+        VkBuffer vkBuffer;
         VmaAllocation allocation;
         VmaAllocationInfo allocationInfo;
 
@@ -1838,20 +1844,19 @@ namespace Vixen {
                 allocator,
                 &bufferCreateInfo,
                 &allocationCreateInfo,
-                &buffer,
+                &vkBuffer,
                 &allocation,
                 &allocationInfo
             );
-            result != VK_SUCCESS)
+            result != VK_SUCCESS) {
+            delete buffer;
             return std::unexpected{makeResourceCreationError(result, "Vulkan buffer creation")};
+        }
 
-        return new VulkanBuffer(
-            usage,
-            count,
-            stride,
-            buffer,
-            allocation
-        );
+        buffer->buffer = vkBuffer;
+        buffer->allocation = allocation;
+
+        return buffer;
     }
 
     void VulkanRenderingDeviceDriver::destroyBuffer(
@@ -1866,6 +1871,16 @@ namespace Vixen {
         const ImageFormat& format,
         const ImageView& view
     ) -> std::expected<Image*, ResourceCreationError> {
+        const auto invalidDescription = [](std::string message)
+            -> std::expected<Image*, ResourceCreationError> {
+            return std::unexpected{
+                ResourceCreationError{
+                    .code = ResourceCreationErrorCode::InvalidDescription,
+                    .message = std::move(message)
+                }
+            };
+        };
+
         // TODO: Compatible mutable-format views should be added later with first-class image views
         if (view.format != format.format)
             return std::unexpected{
@@ -1875,9 +1890,107 @@ namespace Vixen {
                 }
             };
 
+        if (format.width == 0 ||
+            format.height == 0 ||
+            format.depth == 0 ||
+            format.mipmapCount == 0 ||
+            format.layerCount == 0)
+            return invalidDescription(
+                "Image width, height, depth, mipmap count, and layer count must all be greater than zero"
+            );
+
+        const auto maxMipmapCount = std::floor(
+            std::log2(
+                std::max(
+                    std::max(format.width, format.height),
+                    format.depth)
+            )
+        ) + 1;
+        if (format.mipmapCount > maxMipmapCount)
+            return invalidDescription(
+                "Maximum mipmap count of " + std::to_string(maxMipmapCount) + " exceeded for given extent");
+
+        if (format.usage.empty())
+            return invalidDescription("Image usage flags must not be empty");
+
+        constexpr auto knownImageUsages = ImageUsageBits::Sampling |
+            ImageUsageBits::ColorAttachment |
+            ImageUsageBits::DepthStencilAttachment |
+            ImageUsageBits::Storage |
+            ImageUsageBits::StorageAtomic |
+            ImageUsageBits::CpuRead |
+            ImageUsageBits::Update |
+            ImageUsageBits::CopySource |
+            ImageUsageBits::CopyDestination |
+            ImageUsageBits::InputAttachment |
+            ImageUsageBits::TransientAttachment;
+
+        const auto unknownUsageBits = format.usage.value() & ~knownImageUsages.value();
+        if (unknownUsageBits != 0)
+            return std::unexpected{
+                ResourceCreationError{
+                    .code = ResourceCreationErrorCode::UnsupportedUsage,
+                    .message = std::format(
+                        "Image usage contains unknown bits ({:#x})",
+                        unknownUsageBits
+                    )
+                }
+            };
+
         const auto imageType = toVkImageType(format.type);
         if (!imageType)
             return std::unexpected{imageType.error()};
+
+        switch (format.type) {
+            case ImageType::OneD:
+            case ImageType::OneDArray:
+                if (format.height != 1 || format.depth != 1)
+                    return invalidDescription(
+                        "One-dimensional images must have height 1 and depth 1"
+                    );
+                break;
+
+            case ImageType::TwoD:
+            case ImageType::TwoDArray:
+                if (format.depth != 1)
+                    return invalidDescription("Two-dimensional images must have depth 1");
+                break;
+
+            case ImageType::ThreeD:
+                if (format.layerCount != 1)
+                    return invalidDescription("Three-dimensional images must have exactly one array layer");
+                break;
+
+            case ImageType::Cube:
+                if (format.depth != 1)
+                    return invalidDescription("Cube images must have depth 1");
+                if (format.width != format.height)
+                    return invalidDescription("Cube images must have equal width and height");
+                if (format.layerCount != 6)
+                    return invalidDescription("Cube images must have exactly six array layers");
+                break;
+
+            case ImageType::CubeArray:
+                if (format.depth != 1)
+                    return invalidDescription("Cube-array images must have depth 1");
+                if (format.width != format.height)
+                    return invalidDescription("Cube-array images must have equal width and height");
+                if (format.layerCount < 6 || format.layerCount % 6 != 0)
+                    return invalidDescription(
+                        "Cube-array images must have a positive multiple of six array layers"
+                    );
+                break;
+        }
+
+        if (format.samples != ImageSamples::One) {
+            if (format.type != ImageType::TwoD && format.type != ImageType::TwoDArray)
+                return invalidDescription(
+                    "Multisampled images must be two-dimensional or two-dimensional arrays"
+                );
+
+            if (format.mipmapCount != 1)
+                return invalidDescription("Multisampled images must have exactly one mip level");
+        }
 
         const auto imageFormat = toVkDataFormat(format.format);
         if (!imageFormat)
@@ -1910,6 +2023,23 @@ namespace Vixen {
         const auto alphaSwizzle = toVkComponentSwizzle(view.swizzleAlpha);
         if (!alphaSwizzle)
             return std::unexpected{alphaSwizzle.error()};
+
+        if (format.usage.contains(ImageUsageBits::StorageAtomic)) {
+            VkFormatProperties2 properties{
+                .sType = VK_STRUCTURE_TYPE_FORMAT_PROPERTIES_2,
+                .pNext = nullptr,
+                .formatProperties = {}
+            };
+            vkGetPhysicalDeviceFormatProperties2(physicalDevice, *imageFormat, &properties);
+
+            if ((properties.formatProperties.bufferFeatures & VK_FORMAT_FEATURE_2_STORAGE_IMAGE_ATOMIC_BIT) != 0)
+                return std::unexpected{
+                    ResourceCreationError{
+                        .code = ResourceCreationErrorCode::UnsupportedUsage,
+                        .message = "Atomic storage is not supported by this device"
+                    }
+                };
+        }
 
         VkImageCreateInfo imageCreateInfo{
             .sType = VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO,
@@ -1960,9 +2090,8 @@ namespace Vixen {
         if (format.usage.contains(ImageUsageBits::CopyDestination))
             imageCreateInfo.usage |= VK_IMAGE_USAGE_TRANSFER_DST_BIT;
 
-        const auto validationResult = validateImageFormatSupport(imageCreateInfo);
-        if (!validationResult)
-            return std::unexpected{std::move(validationResult).error()};
+        if (format.usage.contains(ImageUsageBits::CpuRead))
+            imageCreateInfo.usage |= VK_IMAGE_USAGE_TRANSFER_SRC_BIT;
 
         VmaAllocationCreateInfo allocationCreateInfo{
             .flags = format.usage.contains(ImageUsageBits::CpuRead)
@@ -1979,6 +2108,31 @@ namespace Vixen {
         };
 
         if (format.usage.contains(ImageUsageBits::TransientAttachment)) {
+            constexpr auto transientCompatibleUsages = ImageUsageBits::TransientAttachment |
+                ImageUsageBits::ColorAttachment |
+                ImageUsageBits::DepthStencilAttachment |
+                ImageUsageBits::InputAttachment;
+
+            if ((format.usage.value() & ~transientCompatibleUsages.value()) != 0)
+                return std::unexpected{
+                    ResourceCreationError{
+                        .code = ResourceCreationErrorCode::UnsupportedUsage,
+                        .message = "Transient attachments may only also declare color-attachment, "
+                        "depth-stencil-attachment, or input-attachment usage"
+                    }
+                };
+
+            constexpr auto attachmentUsages = ImageUsageBits::ColorAttachment |
+                ImageUsageBits::DepthStencilAttachment |
+                ImageUsageBits::InputAttachment;
+            if ((format.usage & attachmentUsages).empty())
+                return std::unexpected{
+                    ResourceCreationError{
+                        .code = ResourceCreationErrorCode::UnsupportedUsage,
+                        .message = "Transient-attachment usage requires at least one attachment usage"
+                    }
+                };
+
             uint32_t memoryTypeIndex = 0;
             VmaAllocationCreateInfo lazyMemoryRequirements = allocationCreateInfo;
             lazyMemoryRequirements.usage = VMA_MEMORY_USAGE_GPU_LAZILY_ALLOCATED;
@@ -1991,36 +2145,43 @@ namespace Vixen {
                 result == VK_SUCCESS) {
                 allocationCreateInfo = lazyMemoryRequirements;
                 imageCreateInfo.usage |= VK_IMAGE_USAGE_TRANSIENT_ATTACHMENT_BIT;
-                imageCreateInfo.usage &= VK_IMAGE_USAGE_TRANSIENT_ATTACHMENT_BIT | VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT
-                    | VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT |
-                    VK_IMAGE_USAGE_INPUT_ATTACHMENT_BIT;
             } else {
                 allocationCreateInfo.preferredFlags = VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT;
             }
+        } else if (format.usage.contains(ImageUsageBits::CpuRead)) {
+            imageCreateInfo.usage |= VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT;
         } else {
             allocationCreateInfo.preferredFlags = VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT;
         }
 
         // TODO: Handle small allocations
 
-        VkImage image;
+        const auto validationResult = validateImageFormatSupport(imageCreateInfo);
+        if (!validationResult)
+            return std::unexpected{std::move(validationResult).error()};
+
+        auto image = new VulkanImage();
+
+        VkImage vkImage;
         VmaAllocation allocation;
         if (const VkResult result = vmaCreateImage(
                 allocator,
                 &imageCreateInfo,
                 &allocationCreateInfo,
-                &image,
+                &vkImage,
                 &allocation,
                 nullptr
             );
-            result != VK_SUCCESS)
+            result != VK_SUCCESS) {
+            delete image;
             return std::unexpected{makeResourceCreationError(result, "Vulkan image creation")};
+        }
 
         const VkImageViewCreateInfo imageViewInfo{
             .sType = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO,
             .pNext = nullptr,
             .flags = 0,
-            .image = image,
+            .image = vkImage,
             .viewType = *imageViewType,
             .format = *viewFormat,
             .components = {
@@ -2041,7 +2202,8 @@ namespace Vixen {
         VkImageView imageView;
         if (const auto e = vkCreateImageView(device, &imageViewInfo, nullptr, &imageView);
             e != VK_SUCCESS) {
-            vmaDestroyImage(allocator, image, allocation);
+            delete image;
+            vmaDestroyImage(allocator, vkImage, allocation);
             return std::unexpected{
                 makeResourceCreationError(
                     e,
@@ -2051,13 +2213,12 @@ namespace Vixen {
             };
         }
 
-        const auto o = new VulkanImage();
-        o->format = format;
-        o->view = view;
-        o->image = image;
-        o->imageView = imageView;
-        o->allocation = allocation;
-        return o;
+        image->format = format;
+        image->view = view;
+        image->image = vkImage;
+        image->imageView = imageView;
+        image->allocation = allocation;
+        return image;
     }
 
     std::byte* VulkanRenderingDeviceDriver::mapImage(
