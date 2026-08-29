@@ -29,4 +29,4 @@ namespace Vixen {
     struct EnableFlags<PipelineStageBits> : std::true_type {};
 
     using PipelineStageFlags = Flags<PipelineStageBits>;
-} // namespace Vixen
+}

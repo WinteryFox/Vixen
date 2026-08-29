@@ -1315,4 +1315,4 @@ namespace Vixen {
         return VK_FALSE;
     };
     #endif
-} // namespace Vixen
+}

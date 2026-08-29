@@ -20,4 +20,4 @@ namespace Vixen {
     struct EnableFlags<BufferUsageBits> : std::true_type {};
 
     using BufferUsageFlags = Flags<BufferUsageBits>;
-} // namespace Vixen
+}

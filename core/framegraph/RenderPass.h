@@ -448,4 +448,4 @@ namespace Vixen {
             }
         };
     };
-} // namespace Vixen
+}

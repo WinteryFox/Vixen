@@ -281,4 +281,4 @@ namespace Vixen {
             [[nodiscard]] auto build(RenderingDevice& device) && -> std::expected<FrameGraph, FrameGraphError>;
         };
     };
-} // namespace Vixen
+}
