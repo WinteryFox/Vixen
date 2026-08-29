@@ -11,8 +11,8 @@ namespace Vixen {
         Texel = 1u << 2,
         Uniform = 1u << 3,
         Storage = 1u << 4,
-        Vertex = 1u << 5,
-        Index = 1u << 6,
+        Index = 1u << 5,
+        Vertex = 1u << 6,
         Indirect = 1u << 7
     };
 

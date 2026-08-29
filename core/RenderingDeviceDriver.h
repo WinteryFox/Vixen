@@ -8,6 +8,7 @@
 
 #include "BufferBarrier.h"
 #include "ImageBarrier.h"
+#include "MemoryAllocationType.h"
 #include "MemoryBarrier.h"
 #include "PipelineStageFlags.h"
 #include "QueueFamilyFlags.h"
@@ -119,9 +120,9 @@ namespace Vixen {
         ) = 0;
 
         virtual auto createBuffer(
+            uint64_t size,
             BufferUsageFlags usage,
-            uint32_t count,
-            uint32_t stride
+            MemoryAllocationType memoryType
         ) -> std::expected<Buffer*, ResourceCreationError> = 0;
 
         virtual void destroyBuffer(

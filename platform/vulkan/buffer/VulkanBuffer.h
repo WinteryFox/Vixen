@@ -12,11 +12,10 @@ namespace Vixen {
     struct VulkanBuffer final : Buffer {
         VulkanBuffer(
             const BufferUsageFlags usage,
-            const uint32_t count,
-            const uint32_t stride,
-            VkBuffer buffer,
-            VmaAllocation allocation
-        ) : Buffer(usage, count, stride),
+            const uint64_t size,
+            const VkBuffer buffer,
+            const VmaAllocation allocation
+        ) : Buffer(usage, size),
             buffer(buffer),
             allocation(allocation) {
         }

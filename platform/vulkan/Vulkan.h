@@ -1249,6 +1249,36 @@ namespace Vixen {
         return vkFlags;
     }
 
+    static constexpr VkBufferUsageFlags toVkBufferUsageFlags(const BufferUsageFlags flags) {
+        VkBufferUsageFlags vkFlags = 0;
+
+        if (flags.contains(BufferUsageBits::CopySource))
+            vkFlags |= VK_BUFFER_USAGE_TRANSFER_SRC_BIT;
+
+        if (flags.contains(BufferUsageBits::CopyDestination))
+            vkFlags |= VK_BUFFER_USAGE_TRANSFER_DST_BIT;
+
+        if (flags.contains(BufferUsageBits::Texel))
+            vkFlags |= VK_BUFFER_USAGE_UNIFORM_TEXEL_BUFFER_BIT;
+
+        if (flags.contains(BufferUsageBits::Uniform))
+            vkFlags |= VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT;
+
+        if (flags.contains(BufferUsageBits::Storage))
+            vkFlags |= VK_BUFFER_USAGE_STORAGE_BUFFER_BIT;
+
+        if (flags.contains(BufferUsageBits::Index))
+            vkFlags |= VK_BUFFER_USAGE_INDEX_BUFFER_BIT;
+
+        if (flags.contains(BufferUsageBits::Vertex))
+            vkFlags |= VK_BUFFER_USAGE_VERTEX_BUFFER_BIT;
+
+        if (flags.contains(BufferUsageBits::Indirect))
+            vkFlags |= VK_BUFFER_USAGE_INDIRECT_BUFFER_BIT;
+
+        return vkFlags;
+    }
+
     [[maybe_unused]] static constexpr std::string getVersionString(const glm::uvec3 version) {
         return std::to_string(version.x) + "." + std::to_string(version.y) + "." + std::to_string(version.z);
     }

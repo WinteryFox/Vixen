@@ -2,7 +2,7 @@
 
 namespace Vixen {
     enum class MemoryAllocationType {
-        CPU,
-        GPU
+        Cpu,
+        Gpu
     };
 }

@@ -1748,23 +1748,15 @@ namespace Vixen {
     }
 
     auto VulkanRenderingDeviceDriver::createBuffer(
+        const uint64_t size,
         const BufferUsageFlags usage,
-        const uint32_t count,
-        const uint32_t stride
+        const MemoryAllocationType memoryType
     ) -> std::expected<Buffer*, ResourceCreationError> {
-        if (count == 0)
+        if (size == 0)
             return std::unexpected{
                 ResourceCreationError{
                     .code = ResourceCreationErrorCode::InvalidDescription,
-                    .message = "Cannot create a buffer with an element count of zero"
-                }
-            };
-
-        if (stride == 0)
-            return std::unexpected{
-                ResourceCreationError{
-                    .code = ResourceCreationErrorCode::InvalidDescription,
-                    .message = "Cannot create a buffer with an element stride of zero"
+                    .message = "Cannot create a buffer with a size of 0"
                 }
             };
 
@@ -1797,56 +1789,21 @@ namespace Vixen {
                 }
             };
 
-        VmaAllocationCreateFlags allocationFlags = 0;
-        VkBufferUsageFlags bufferUsageFlags = 0;
-        VkMemoryPropertyFlags requiredFlags = 0;
-
-        if (usage.contains(BufferUsageBits::Vertex))
-            bufferUsageFlags |= VK_BUFFER_USAGE_VERTEX_BUFFER_BIT;
-
-        if (usage.contains(BufferUsageBits::Index))
-            bufferUsageFlags |= VK_BUFFER_USAGE_INDEX_BUFFER_BIT;
-
-        if (usage.contains(BufferUsageBits::CopySource)) {
-            allocationFlags |= VMA_ALLOCATION_CREATE_MAPPED_BIT |
-                VMA_ALLOCATION_CREATE_HOST_ACCESS_SEQUENTIAL_WRITE_BIT;
-            bufferUsageFlags |= VK_BUFFER_USAGE_TRANSFER_SRC_BIT;
-        }
-
-        if (usage.contains(BufferUsageBits::CopyDestination))
-            bufferUsageFlags |= VK_BUFFER_USAGE_TRANSFER_DST_BIT;
-
-        if (usage.contains(BufferUsageBits::Uniform)) {
-            allocationFlags |= VMA_ALLOCATION_CREATE_MAPPED_BIT |
-                VMA_ALLOCATION_CREATE_HOST_ACCESS_SEQUENTIAL_WRITE_BIT;
-            bufferUsageFlags |= VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT;
-            requiredFlags |= VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT;
-        }
-
-        if (usage.contains(BufferUsageBits::Storage))
-            bufferUsageFlags |= VK_BUFFER_USAGE_STORAGE_BUFFER_BIT;
-
-        if (usage.contains(BufferUsageBits::Indirect))
-            bufferUsageFlags |= VK_BUFFER_USAGE_INDIRECT_BUFFER_BIT;
-
-        if (usage.contains(BufferUsageBits::Texel))
-            bufferUsageFlags |= VK_BUFFER_USAGE_UNIFORM_TEXEL_BUFFER_BIT;
-
         const VkBufferCreateInfo bufferCreateInfo{
             .sType = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO,
             .pNext = nullptr,
             .flags = 0,
-            .size = static_cast<VkDeviceSize>(count) * stride,
-            .usage = bufferUsageFlags,
+            .size = size,
+            .usage = toVkBufferUsageFlags(usage),
             .sharingMode = VK_SHARING_MODE_EXCLUSIVE,
             .queueFamilyIndexCount = 0,
             .pQueueFamilyIndices = nullptr
         };
 
-        const VmaAllocationCreateInfo allocationCreateInfo = {
-            .flags = allocationFlags,
-            .usage = VMA_MEMORY_USAGE_AUTO,
-            .requiredFlags = requiredFlags,
+        VmaAllocationCreateInfo allocationCreateInfo = {
+            .flags = 0,
+            .usage = VMA_MEMORY_USAGE_UNKNOWN,
+            .requiredFlags = 0,
             .preferredFlags = 0,
             .memoryTypeBits = 0,
             .pool = nullptr,
@@ -1855,7 +1812,35 @@ namespace Vixen {
             .minAlignment = 0
         };
 
-        auto buffer = new VulkanBuffer(usage, count, stride, nullptr, nullptr);
+        switch (memoryType) {
+            case MemoryAllocationType::Cpu: {
+                const bool isSource = usage.contains(BufferUsageBits::CopySource);
+                const bool isDestination = usage.contains(BufferUsageBits::CopyDestination);
+
+                if (isSource && !isDestination) {
+                    allocationCreateInfo.flags = VMA_ALLOCATION_CREATE_HOST_ACCESS_SEQUENTIAL_WRITE_BIT;
+                    allocationCreateInfo.preferredFlags |= VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT;
+                }
+
+                if (!isSource && isDestination) {
+                    allocationCreateInfo.flags = VMA_ALLOCATION_CREATE_HOST_ACCESS_RANDOM_BIT;
+                    allocationCreateInfo.preferredFlags |= VK_MEMORY_PROPERTY_HOST_CACHED_BIT;
+                }
+
+                allocationCreateInfo.usage = VMA_MEMORY_USAGE_AUTO_PREFER_HOST;
+
+                break;
+            }
+
+            case MemoryAllocationType::Gpu: {
+                allocationCreateInfo.preferredFlags = VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT;
+                allocationCreateInfo.usage = VMA_MEMORY_USAGE_AUTO_PREFER_DEVICE;
+
+                break;
+            }
+        }
+
+        auto buffer = new VulkanBuffer(usage, size, nullptr, nullptr);
 
         VkBuffer vkBuffer;
         VmaAllocation allocation;

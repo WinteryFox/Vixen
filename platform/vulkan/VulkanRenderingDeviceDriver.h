@@ -177,9 +177,9 @@ namespace Vixen {
         ) override;
 
         auto createBuffer(
+            uint64_t size,
             BufferUsageFlags usage,
-            uint32_t count,
-            uint32_t stride
+            MemoryAllocationType memoryType
         ) -> std::expected<Buffer*, ResourceCreationError> override;
 
         void destroyBuffer(

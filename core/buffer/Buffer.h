@@ -8,20 +8,14 @@ namespace Vixen {
     class Buffer {
         BufferUsageFlags usage;
 
-        uint32_t count;
-
-        uint32_t stride;
+        uint64_t size;
 
     public:
-        Buffer(BufferUsageFlags usage, uint32_t count, uint32_t stride);
+        Buffer(BufferUsageFlags usage, uint64_t size);
 
         virtual ~Buffer() = default;
 
         [[nodiscard]] BufferUsageFlags getUsage() const;
-
-        [[nodiscard]] uint32_t getCount() const;
-
-        [[nodiscard]] uint32_t getStride() const;
 
         [[nodiscard]] uint64_t getSize() const;
     };

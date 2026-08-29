@@ -192,16 +192,14 @@ namespace Vixen {
 
                     const auto& description = std::get<BufferFormat>(node.description);
 
-                    if (description.count == 0 ||
-                        description.stride == 0 ||
+                    if (description.size == 0 ||
                         description.usage.empty())
                         return std::unexpected{
                             resourceError(
                                 FrameGraphErrorCode::InvalidResourceDeclaration,
                                 "Buffer resource '" + node.name +
-                                "' has an invalid description (count=" + std::to_string(description.count) +
-                                ", stride=" + std::to_string(description.stride) +
-                                "); count and stride must be non-zero, and usage flags must not be empty",
+                                "' has an invalid description (size=" + std::to_string(description.size) +
+                                "); size must be non-zero, and usage flags must not be empty",
                                 resourceIndex
                             )
                         };
@@ -1542,11 +1540,10 @@ namespace Vixen {
                 "' with imported lifetime; use importBuffer to provide the external buffer and its initial and final states"
             };
 
-        if (description.count == 0 || description.stride == 0)
+        if (description.size == 0)
             throw std::invalid_argument{
-                "Buffer resource '" + name + "' has invalid element dimensions: count=" +
-                std::to_string(description.count) + ", stride=" + std::to_string(description.stride) +
-                "; both values must be greater than zero"
+                "Buffer resource '" + name + "' has invalid element dimensions: size=" +
+                std::to_string(description.size) + "; size must be greater than zero"
             };
 
         if (description.usage.empty())
@@ -1598,8 +1595,7 @@ namespace Vixen {
                 ResourceType::Buffer,
                 ResourceLifetime::Imported,
                 BufferFormat{
-                    .count = buffer.getCount(),
-                    .stride = buffer.getStride(),
+                    .size = buffer.getSize(),
                     .usage = buffer.getUsage()
                 },
                 &buffer,
@@ -1672,9 +1668,9 @@ namespace Vixen {
                             const auto description = std::get<BufferFormat>(resource.description);
 
                             const auto buffer = device.getRenderingDeviceDriver()->createBuffer(
+                                description.size,
                                 description.usage,
-                                description.count,
-                                description.stride
+                                MemoryAllocationType::Gpu
                             );
                             if (!buffer)
                                 return std::unexpected{
