@@ -42,7 +42,8 @@ namespace Vixen {
     FrameGraphError FrameGraph::Builder::allocationError(
         const FrameGraphErrorCode code,
         std::string message,
-        uint32_t resourceIndex
+        uint32_t resourceIndex,
+        std::optional<ResourceCreationError> cause
     ) const {
         return FrameGraphError{
             .code = code,
@@ -52,6 +53,7 @@ namespace Vixen {
             .resourceVersion = std::nullopt,
             .passName = std::nullopt,
             .resourceName = nodes[resourceIndex].name,
+            .cause = std::move(cause),
             .details = {}
         };
     }
@@ -1629,12 +1631,27 @@ namespace Vixen {
                                 description.format,
                                 description.view
                             );
-                            if (!image || !*image)
+                            if (!image)
                                 return std::unexpected{
                                     allocationError(
                                         FrameGraphErrorCode::ResourceAllocationFailed,
                                         std::format(
-                                            "Failed to create backing image for resource '{}' at index {}",
+                                            "Failed to create backing image for resource '{}' at index {}: {}",
+                                            resource.name,
+                                            resourceIndex,
+                                            image.error().message
+                                        ),
+                                        resourceIndex,
+                                        image.error()
+                                    )
+                                };
+
+                            if (!*image)
+                                return std::unexpected{
+                                    allocationError(
+                                        FrameGraphErrorCode::ResourceAllocationFailed,
+                                        std::format(
+                                            "The driver returned a null backing image for resource '{}' at index {}",
                                             resource.name,
                                             resourceIndex
                                         ),
@@ -1659,12 +1676,27 @@ namespace Vixen {
                                 description.count,
                                 description.stride
                             );
-                            if (!buffer || !*buffer)
+                            if (!buffer)
                                 return std::unexpected{
                                     allocationError(
                                         FrameGraphErrorCode::ResourceAllocationFailed,
                                         std::format(
-                                            "Failed to create backing buffer for resource '{}' at index {}",
+                                            "Failed to create backing buffer for resource '{}' at index {}: {}",
+                                            resource.name,
+                                            resourceIndex,
+                                            buffer.error().message
+                                        ),
+                                        resourceIndex,
+                                        buffer.error()
+                                    )
+                                };
+
+                            if (!*buffer)
+                                return std::unexpected{
+                                    allocationError(
+                                        FrameGraphErrorCode::ResourceAllocationFailed,
+                                        std::format(
+                                            "The driver returned a null backing buffer for resource '{}' at index {}",
                                             resource.name,
                                             resourceIndex
                                         ),

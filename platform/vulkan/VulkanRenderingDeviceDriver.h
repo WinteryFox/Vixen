@@ -37,6 +37,7 @@ namespace Vixen {
         VkPhysicalDevice physicalDevice;
         DeviceFeatureSupport physicalDeviceFeatures;
         VkPhysicalDeviceProperties physicalDeviceProperties;
+        VkImageFormatProperties2 imageFormatProperties;
 
         std::vector<std::string> enabledExtensionNames;
 
@@ -72,6 +73,8 @@ namespace Vixen {
             uint32_t semaphoreIndex,
             bool releaseOnSwapchain
         ) const -> std::expected<void, Error>;
+
+        auto validateImageFormatSupport(VkImageCreateInfo info) const -> std::expected<void, ResourceCreationError>;
 
     public:
         VulkanRenderingDeviceDriver(
@@ -177,7 +180,7 @@ namespace Vixen {
             BufferUsageFlags usage,
             uint32_t count,
             uint32_t stride
-        ) -> std::expected<Buffer*, Error> override;
+        ) -> std::expected<Buffer*, ResourceCreationError> override;
 
         void destroyBuffer(
             Buffer* buffer
@@ -186,7 +189,7 @@ namespace Vixen {
         auto createImage(
             const ImageFormat& format,
             const ImageView& view
-        ) -> std::expected<Image*, Error> override;
+        ) -> std::expected<Image*, ResourceCreationError> override;
 
         std::byte* mapImage(
             Image* image

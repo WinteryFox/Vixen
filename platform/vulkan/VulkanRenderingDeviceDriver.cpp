@@ -5,6 +5,8 @@
 #include <array>
 #include <map>
 #include <ranges>
+#include <stdexcept>
+#include <string_view>
 #include <vk_mem_alloc.h>
 #include "Vulkan.h"
 
@@ -29,6 +31,74 @@
 #include "shader/VulkanShader.h"
 
 namespace Vixen {
+    namespace {
+        [[nodiscard]] auto resourceCreationErrorCode(
+            const VkResult result,
+            const ResourceCreationErrorCode fallback
+        ) noexcept -> ResourceCreationErrorCode {
+            if (result == VK_ERROR_OUT_OF_HOST_MEMORY)
+                return ResourceCreationErrorCode::OutOfHostMemory;
+
+            if (result == VK_ERROR_OUT_OF_DEVICE_MEMORY)
+                return ResourceCreationErrorCode::OutOfDeviceMemory;
+
+            if (result == VK_ERROR_FORMAT_NOT_SUPPORTED)
+                return ResourceCreationErrorCode::UnsupportedFormat;
+
+            if (result == VK_ERROR_IMAGE_USAGE_NOT_SUPPORTED_KHR ||
+                result == VK_ERROR_FEATURE_NOT_PRESENT ||
+                result == VK_ERROR_NOT_PERMITTED)
+                return ResourceCreationErrorCode::UnsupportedUsage;
+
+            if (result == VK_ERROR_TOO_MANY_OBJECTS ||
+                result == VK_ERROR_OUT_OF_POOL_MEMORY ||
+                result == VK_ERROR_FRAGMENTED_POOL ||
+                result == VK_ERROR_FRAGMENTATION ||
+                result == VK_ERROR_COMPRESSION_EXHAUSTED_EXT ||
+                result == VK_ERROR_NOT_ENOUGH_SPACE_KHR)
+                return ResourceCreationErrorCode::ExceedsDeviceLimits;
+
+            if (result == VK_ERROR_VALIDATION_FAILED)
+                return ResourceCreationErrorCode::InvalidDescription;
+
+            return fallback;
+        }
+
+        [[nodiscard]] auto makeResourceCreationError(
+            const VkResult result,
+            const std::string_view operation,
+            const ResourceCreationErrorCode fallback = ResourceCreationErrorCode::NativeObjectCreationFailed
+        ) -> ResourceCreationError {
+            const auto resultName = std::string{string_VkResult(result)};
+
+            return ResourceCreationError{
+                .code = resourceCreationErrorCode(result, fallback),
+                .message = std::format(
+                    "{} failed with {} ({})",
+                    operation,
+                    resultName,
+                    static_cast<int32_t>(result)
+                ),
+                .nativeError = NativeResourceCreationError{
+                    .backend = "Vulkan",
+                    .operation = std::string{operation},
+                    .code = static_cast<int64_t>(result),
+                    .name = resultName
+                }
+            };
+        }
+
+        template <typename Value>
+        [[nodiscard]] auto requireVkConversion(
+            std::expected<Value, ResourceCreationError> conversion
+        ) -> Value {
+            if (!conversion)
+                throw std::invalid_argument{conversion.error().message};
+
+            return *conversion;
+        }
+    }
+
     auto VulkanRenderingDeviceDriver::initializeExtensions() -> std::expected<void, Error> {
         std::map<std::string, bool> requestedExtensions;
 
@@ -248,6 +318,206 @@ namespace Vixen {
 
         if (vmaCreateAllocator(&allocatorInfo, &allocator) != VK_SUCCESS)
             return std::unexpected(Error::InitializationFailed);
+
+        return {};
+    }
+
+    void VulkanRenderingDeviceDriver::releaseSwapchain(
+        VulkanSwapchain* swapchain
+    ) {
+        // TODO: Use VK_EXT_swapchain_maintenance1 and VkSwapchainPresentFenceInfoKHR
+        vkDeviceWaitIdle(device);
+
+        if (!swapchain->blitFences.empty()) {
+            vkWaitForFences(device, swapchain->blitFences.size(), swapchain->blitFences.data(), VK_TRUE,
+                            std::numeric_limits<uint64_t>::max());
+
+            for (const auto& fence : swapchain->blitFences)
+                vkDestroyFence(device, fence, nullptr);
+        }
+        swapchain->blitFences.clear();
+
+        for (const auto& semaphore : swapchain->blitSemaphores)
+            vkDestroySemaphore(device, semaphore, nullptr);
+        swapchain->blitSemaphores.clear();
+
+        if (swapchain->blitCommandPool != nullptr) {
+            vkFreeCommandBuffers(device, swapchain->blitCommandPool, swapchain->blitCommandBuffers.size(),
+                                 swapchain->blitCommandBuffers.data());
+            vkResetCommandPool(device, swapchain->blitCommandPool, 0);
+            vkDestroyCommandPool(device, swapchain->blitCommandPool, nullptr);
+        }
+        swapchain->blitCommandBuffers.clear();
+        swapchain->blitCommandPool = nullptr;
+
+        for (uint32_t i = 0; i < swapchain->resolveImages.size(); i++) {
+            delete swapchain->framebuffers[i];
+
+            destroyImage(swapchain->colorTargets[i]);
+            destroyImage(swapchain->depthTargets[i]);
+            vkDestroyImageView(device, swapchain->resolveImageViews[i], nullptr);
+        }
+
+        swapchain->colorTargets.clear();
+        swapchain->depthTargets.clear();
+        swapchain->imageIndex = std::numeric_limits<uint32_t>::max();
+        swapchain->resolveImages.clear();
+        swapchain->resolveImageViews.clear();
+        swapchain->framebuffers.clear();
+
+        if (swapchain->swapchain != nullptr) {
+            vkDestroySwapchainKHR(device, swapchain->swapchain, nullptr);
+            swapchain->swapchain = nullptr;
+        }
+
+        for (uint32_t i = 0; i < swapchain->acquiredCommandQueues.size(); i++)
+            recreateImageSemaphore(
+                swapchain->acquiredCommandQueues[i],
+                swapchain->acquiredCommandQueueSemaphores[i],
+                false
+            );
+
+        swapchain->acquiredCommandQueues.clear();
+        swapchain->acquiredCommandQueueSemaphores.clear();
+    }
+
+    auto VulkanRenderingDeviceDriver::releaseImageSemaphore(
+        VulkanCommandQueue* commandQueue,
+        const uint32_t semaphoreIndex,
+        const bool releaseOnSwapchain
+    ) -> std::expected<void, Error> {
+        if (const auto swapchain = dynamic_cast<VulkanSwapchain*>(
+                commandQueue->imageSemaphoresSwapchains[semaphoreIndex]);
+            swapchain != nullptr) {
+            commandQueue->imageSemaphoresSwapchains[semaphoreIndex] = nullptr;
+
+            if (releaseOnSwapchain) {
+                for (uint32_t i = 0; i < swapchain->acquiredCommandQueues.size(); i++) {
+                    if (swapchain->acquiredCommandQueues[i] == commandQueue && swapchain->
+                        acquiredCommandQueueSemaphores[i] == semaphoreIndex) {
+                        swapchain->acquiredCommandQueues.erase(swapchain->acquiredCommandQueues.begin() + i);
+                        swapchain->acquiredCommandQueueSemaphores.erase(
+                            swapchain->acquiredCommandQueueSemaphores.begin() + i
+                        );
+                    }
+                }
+            }
+
+            return {};
+        }
+
+        return std::unexpected(Error::InitializationFailed);
+    }
+
+    auto VulkanRenderingDeviceDriver::recreateImageSemaphore(
+        VulkanCommandQueue* commandQueue,
+        const uint32_t semaphoreIndex,
+        const bool releaseOnSwapchain
+    ) const -> std::expected<void, Error> {
+        if (!releaseImageSemaphore(commandQueue, semaphoreIndex, releaseOnSwapchain))
+            return std::unexpected(Error::InitializationFailed);
+
+        constexpr VkSemaphoreCreateInfo semaphoreInfo{
+            .sType = VK_STRUCTURE_TYPE_SEMAPHORE_CREATE_INFO,
+            .pNext = nullptr,
+            .flags = 0
+        };
+
+        VkSemaphore semaphore;
+        if (vkCreateSemaphore(device, &semaphoreInfo, nullptr, &semaphore) != VK_SUCCESS)
+            return std::unexpected(Error::InitializationFailed);
+
+        vkDestroySemaphore(device, commandQueue->imageSemaphores[semaphoreIndex], nullptr);
+
+        commandQueue->imageSemaphores[semaphoreIndex] = semaphore;
+        commandQueue->freeImageSemaphores.push_back(semaphoreIndex);
+
+        return {};
+    }
+
+    auto VulkanRenderingDeviceDriver::validateImageFormatSupport(
+        const VkImageCreateInfo info
+    ) const -> std::expected<void, ResourceCreationError> {
+        const VkPhysicalDeviceImageFormatInfo2 format{
+            .sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_IMAGE_FORMAT_INFO_2,
+            .pNext = nullptr,
+            .format = info.format,
+            .type = info.imageType,
+            .tiling = info.tiling,
+            .usage = info.usage,
+            .flags = info.flags
+        };
+
+        VkImageFormatProperties2 properties;
+        const auto result = vkGetPhysicalDeviceImageFormatProperties2(physicalDevice, &format, &properties);
+
+        if (result == VK_ERROR_FORMAT_NOT_SUPPORTED)
+            return std::unexpected{
+                ResourceCreationError{
+                    .code = ResourceCreationErrorCode::UnsupportedFormat,
+                    .message = "The request image format/type/tiling/usage combination is not supported"
+                }
+            };
+
+        if (result != VK_SUCCESS)
+            return std::unexpected{
+                ResourceCreationError{
+                    .code = ResourceCreationErrorCode::CompatibilityError,
+                    .message = "Failed to query physical-device image capabilities"
+                }
+            };
+
+        const auto& limits = properties.imageFormatProperties;
+
+        if (info.extent.width > limits.maxExtent.width ||
+            info.extent.height > limits.maxExtent.height ||
+            info.extent.depth > limits.maxExtent.depth)
+            return std::unexpected{
+                ResourceCreationError{
+                    .code = ResourceCreationErrorCode::ExtentExceedsDeviceLimits,
+                    .message = std::format(
+                        "Request extent {}x{}x{} exceeds the supported maximum {}x{}x{}",
+                        info.extent.width,
+                        info.extent.height,
+                        info.extent.depth,
+                        limits.maxExtent.width,
+                        limits.maxExtent.height,
+                        limits.maxExtent.depth
+                    )
+                }
+            };
+
+        if (info.mipLevels > limits.maxMipLevels)
+            return std::unexpected{
+                ResourceCreationError{
+                    .code = ResourceCreationErrorCode::MipCountExceedsDeviceLimits,
+                    .message = std::format(
+                        "Requested {} mip levels, but this image configuration supports at most {}",
+                        info.mipLevels,
+                        limits.maxMipLevels
+                    )
+                }
+            };
+
+        if (info.arrayLayers > limits.maxArrayLayers)
+            return std::unexpected{
+                ResourceCreationError{
+                    .code = ResourceCreationErrorCode::LayerCountExceedsDeviceLimits,
+                    .message = std::format(
+                        "Requested {} array layers, but this image configuration supports at most {}",
+                        info.arrayLayers,
+                        limits.maxArrayLayers
+                    )
+                }
+            };
+
+        if ((limits.sampleCounts & info.samples) == 0)
+            return std::unexpected{
+                ResourceCreationError{
+                    .code = ResourceCreationErrorCode::UnsupportedSampleCount,
+                    .message = "The requested sample count is not supported for this image configuration"
+                }
+            };
 
         return {};
     }
@@ -693,119 +963,6 @@ namespace Vixen {
         return framebuffer;
     }
 
-    void VulkanRenderingDeviceDriver::releaseSwapchain(
-        VulkanSwapchain* swapchain
-    ) {
-        // TODO: Use VK_EXT_swapchain_maintenance1 and VkSwapchainPresentFenceInfoKHR
-        vkDeviceWaitIdle(device);
-
-        if (!swapchain->blitFences.empty()) {
-            vkWaitForFences(device, swapchain->blitFences.size(), swapchain->blitFences.data(), VK_TRUE,
-                            std::numeric_limits<uint64_t>::max());
-
-            for (const auto& fence : swapchain->blitFences)
-                vkDestroyFence(device, fence, nullptr);
-        }
-        swapchain->blitFences.clear();
-
-        for (const auto& semaphore : swapchain->blitSemaphores)
-            vkDestroySemaphore(device, semaphore, nullptr);
-        swapchain->blitSemaphores.clear();
-
-        if (swapchain->blitCommandPool != nullptr) {
-            vkFreeCommandBuffers(device, swapchain->blitCommandPool, swapchain->blitCommandBuffers.size(),
-                                 swapchain->blitCommandBuffers.data());
-            vkResetCommandPool(device, swapchain->blitCommandPool, 0);
-            vkDestroyCommandPool(device, swapchain->blitCommandPool, nullptr);
-        }
-        swapchain->blitCommandBuffers.clear();
-        swapchain->blitCommandPool = nullptr;
-
-        for (uint32_t i = 0; i < swapchain->resolveImages.size(); i++) {
-            delete swapchain->framebuffers[i];
-
-            destroyImage(swapchain->colorTargets[i]);
-            destroyImage(swapchain->depthTargets[i]);
-            vkDestroyImageView(device, swapchain->resolveImageViews[i], nullptr);
-        }
-
-        swapchain->colorTargets.clear();
-        swapchain->depthTargets.clear();
-        swapchain->imageIndex = std::numeric_limits<uint32_t>::max();
-        swapchain->resolveImages.clear();
-        swapchain->resolveImageViews.clear();
-        swapchain->framebuffers.clear();
-
-        if (swapchain->swapchain != nullptr) {
-            vkDestroySwapchainKHR(device, swapchain->swapchain, nullptr);
-            swapchain->swapchain = nullptr;
-        }
-
-        for (uint32_t i = 0; i < swapchain->acquiredCommandQueues.size(); i++)
-            recreateImageSemaphore(
-                swapchain->acquiredCommandQueues[i],
-                swapchain->acquiredCommandQueueSemaphores[i],
-                false
-            );
-
-        swapchain->acquiredCommandQueues.clear();
-        swapchain->acquiredCommandQueueSemaphores.clear();
-    }
-
-    auto VulkanRenderingDeviceDriver::releaseImageSemaphore(
-        VulkanCommandQueue* commandQueue,
-        const uint32_t semaphoreIndex,
-        const bool releaseOnSwapchain
-    ) -> std::expected<void, Error> {
-        if (const auto swapchain = dynamic_cast<VulkanSwapchain*>(
-                commandQueue->imageSemaphoresSwapchains[semaphoreIndex]);
-            swapchain != nullptr) {
-            commandQueue->imageSemaphoresSwapchains[semaphoreIndex] = nullptr;
-
-            if (releaseOnSwapchain) {
-                for (uint32_t i = 0; i < swapchain->acquiredCommandQueues.size(); i++) {
-                    if (swapchain->acquiredCommandQueues[i] == commandQueue && swapchain->
-                        acquiredCommandQueueSemaphores[i] == semaphoreIndex) {
-                        swapchain->acquiredCommandQueues.erase(swapchain->acquiredCommandQueues.begin() + i);
-                        swapchain->acquiredCommandQueueSemaphores.erase(
-                            swapchain->acquiredCommandQueueSemaphores.begin() + i
-                        );
-                    }
-                }
-            }
-
-            return {};
-        }
-
-        return std::unexpected(Error::InitializationFailed);
-    }
-
-    auto VulkanRenderingDeviceDriver::recreateImageSemaphore(
-        VulkanCommandQueue* commandQueue,
-        const uint32_t semaphoreIndex,
-        const bool releaseOnSwapchain
-    ) const -> std::expected<void, Error> {
-        if (!releaseImageSemaphore(commandQueue, semaphoreIndex, releaseOnSwapchain))
-            return std::unexpected(Error::InitializationFailed);
-
-        constexpr VkSemaphoreCreateInfo semaphoreInfo{
-            .sType = VK_STRUCTURE_TYPE_SEMAPHORE_CREATE_INFO,
-            .pNext = nullptr,
-            .flags = 0
-        };
-
-        VkSemaphore semaphore;
-        if (vkCreateSemaphore(device, &semaphoreInfo, nullptr, &semaphore) != VK_SUCCESS)
-            return std::unexpected(Error::InitializationFailed);
-
-        vkDestroySemaphore(device, commandQueue->imageSemaphores[semaphoreIndex], nullptr);
-
-        commandQueue->imageSemaphores[semaphoreIndex] = semaphore;
-        commandQueue->freeImageSemaphores.push_back(semaphoreIndex);
-
-        return {};
-    }
-
     void VulkanRenderingDeviceDriver::destroySwapchain(
         Swapchain* swapchain
     ) {
@@ -991,7 +1148,7 @@ namespace Vixen {
             .sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO,
             .pNext = nullptr,
             .commandPool = p->pool,
-            .level = toVkCommandBufferLevel(p->type),
+            .level = requireVkConversion(toVkCommandBufferLevel(p->type)),
             .commandBufferCount = 1
         };
 
@@ -1590,11 +1747,30 @@ namespace Vixen {
         const BufferUsageFlags usage,
         const uint32_t count,
         const uint32_t stride
-    ) -> std::expected<Buffer*, Error> {
-        if (count <= 0)
-            throw std::runtime_error("Count cannot be equal to or less than 0");
-        if (stride <= 0)
-            throw std::runtime_error("Stride cannot be equal to or less than 0");
+    ) -> std::expected<Buffer*, ResourceCreationError> {
+        if (count == 0)
+            return std::unexpected{
+                ResourceCreationError{
+                    .code = ResourceCreationErrorCode::InvalidDescription,
+                    .message = "Cannot create a buffer with an element count of zero"
+                }
+            };
+
+        if (stride == 0)
+            return std::unexpected{
+                ResourceCreationError{
+                    .code = ResourceCreationErrorCode::InvalidDescription,
+                    .message = "Cannot create a buffer with an element stride of zero"
+                }
+            };
+
+        if (usage.empty())
+            return std::unexpected{
+                ResourceCreationError{
+                    .code = ResourceCreationErrorCode::InvalidDescription,
+                    .message = "Cannot create a buffer with an empty usage mask"
+                }
+            };
 
         VmaAllocationCreateFlags allocationFlags = 0;
         VkBufferUsageFlags bufferUsageFlags = 0;
@@ -1650,21 +1826,24 @@ namespace Vixen {
             .memoryTypeBits = 0,
             .pool = nullptr,
             .pUserData = nullptr,
-            .priority = 0.0f
+            .priority = 0.0f,
+            .minAlignment = 0
         };
 
         VkBuffer buffer;
         VmaAllocation allocation;
         VmaAllocationInfo allocationInfo;
-        if (vmaCreateBuffer(
-            allocator,
-            &bufferCreateInfo,
-            &allocationCreateInfo,
-            &buffer,
-            &allocation,
-            &allocationInfo
-        ) != VK_SUCCESS)
-            return std::unexpected(Error::InitializationFailed);
+
+        if (const VkResult result = vmaCreateBuffer(
+                allocator,
+                &bufferCreateInfo,
+                &allocationCreateInfo,
+                &buffer,
+                &allocation,
+                &allocationInfo
+            );
+            result != VK_SUCCESS)
+            return std::unexpected{makeResourceCreationError(result, "Vulkan buffer creation")};
 
         return new VulkanBuffer(
             usage,
@@ -1686,13 +1865,58 @@ namespace Vixen {
     auto VulkanRenderingDeviceDriver::createImage(
         const ImageFormat& format,
         const ImageView& view
-    ) -> std::expected<Image*, Error> {
+    ) -> std::expected<Image*, ResourceCreationError> {
+        // TODO: Compatible mutable-format views should be added later with first-class image views
+        if (view.format != format.format)
+            return std::unexpected{
+                ResourceCreationError{
+                    .code = ResourceCreationErrorCode::UnsupportedFormat,
+                    .message = "Image view format must match the image format until mutable-format views are supported"
+                }
+            };
+
+        const auto imageType = toVkImageType(format.type);
+        if (!imageType)
+            return std::unexpected{imageType.error()};
+
+        const auto imageFormat = toVkDataFormat(format.format);
+        if (!imageFormat)
+            return std::unexpected{imageFormat.error()};
+
+        const auto sampleCount = toVkSampleCountFlagBits(format.samples);
+        if (!sampleCount)
+            return std::unexpected{sampleCount.error()};
+
+        const auto imageViewType = toVkImageViewType(format.type);
+        if (!imageViewType)
+            return std::unexpected{imageViewType.error()};
+
+        const auto viewFormat = toVkDataFormat(view.format);
+        if (!viewFormat)
+            return std::unexpected{viewFormat.error()};
+
+        const auto redSwizzle = toVkComponentSwizzle(view.swizzleRed);
+        if (!redSwizzle)
+            return std::unexpected{redSwizzle.error()};
+
+        const auto greenSwizzle = toVkComponentSwizzle(view.swizzleGreen);
+        if (!greenSwizzle)
+            return std::unexpected{greenSwizzle.error()};
+
+        const auto blueSwizzle = toVkComponentSwizzle(view.swizzleBlue);
+        if (!blueSwizzle)
+            return std::unexpected{blueSwizzle.error()};
+
+        const auto alphaSwizzle = toVkComponentSwizzle(view.swizzleAlpha);
+        if (!alphaSwizzle)
+            return std::unexpected{alphaSwizzle.error()};
+
         VkImageCreateInfo imageCreateInfo{
             .sType = VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO,
             .pNext = nullptr,
             .flags = 0,
-            .imageType = toVkImageType(format.type),
-            .format = toVkDataFormat[format.format],
+            .imageType = *imageType,
+            .format = *imageFormat,
             .extent = {
                 .width = format.width,
                 .height = format.height,
@@ -1700,7 +1924,7 @@ namespace Vixen {
             },
             .mipLevels = format.mipmapCount,
             .arrayLayers = format.layerCount,
-            .samples = toVkSampleCountFlagBits(format.samples),
+            .samples = *sampleCount,
             .tiling = format.usage.contains(ImageUsageBits::CpuRead) ? VK_IMAGE_TILING_LINEAR : VK_IMAGE_TILING_OPTIMAL,
             .usage = 0,
             .sharingMode = VK_SHARING_MODE_EXCLUSIVE,
@@ -1735,6 +1959,10 @@ namespace Vixen {
 
         if (format.usage.contains(ImageUsageBits::CopyDestination))
             imageCreateInfo.usage |= VK_IMAGE_USAGE_TRANSFER_DST_BIT;
+
+        const auto validationResult = validateImageFormatSupport(imageCreateInfo);
+        if (!validationResult)
+            return std::unexpected{std::move(validationResult).error()};
 
         VmaAllocationCreateInfo allocationCreateInfo{
             .flags = format.usage.contains(ImageUsageBits::CpuRead)
@@ -1775,34 +2003,31 @@ namespace Vixen {
 
         // TODO: Handle small allocations
 
-        // TODO: Compatible mutable-format views should be added later with first-class image views
-        if (view.format != format.format)
-            return std::unexpected{Error::InitializationFailed};
-
         VkImage image;
         VmaAllocation allocation;
-        if (vmaCreateImage(
-            allocator,
-            &imageCreateInfo,
-            &allocationCreateInfo,
-            &image,
-            &allocation,
-            nullptr
-        ) != VK_SUCCESS)
-            return std::unexpected(Error::InitializationFailed);
+        if (const VkResult result = vmaCreateImage(
+                allocator,
+                &imageCreateInfo,
+                &allocationCreateInfo,
+                &image,
+                &allocation,
+                nullptr
+            );
+            result != VK_SUCCESS)
+            return std::unexpected{makeResourceCreationError(result, "Vulkan image creation")};
 
         const VkImageViewCreateInfo imageViewInfo{
             .sType = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO,
             .pNext = nullptr,
             .flags = 0,
             .image = image,
-            .viewType = toVkImageViewType(format.type),
-            .format = toVkDataFormat[view.format],
+            .viewType = *imageViewType,
+            .format = *viewFormat,
             .components = {
-                .r = static_cast<VkComponentSwizzle>(view.swizzleRed),
-                .g = static_cast<VkComponentSwizzle>(view.swizzleGreen),
-                .b = static_cast<VkComponentSwizzle>(view.swizzleBlue),
-                .a = static_cast<VkComponentSwizzle>(view.swizzleAlpha)
+                .r = *redSwizzle,
+                .g = *greenSwizzle,
+                .b = *blueSwizzle,
+                .a = *alphaSwizzle
             },
             .subresourceRange = {
                 .aspectMask = toVkImageAspectFlags(getImageAspects(format.format)),
@@ -1817,7 +2042,13 @@ namespace Vixen {
         if (const auto e = vkCreateImageView(device, &imageViewInfo, nullptr, &imageView);
             e != VK_SUCCESS) {
             vmaDestroyImage(allocator, image, allocation);
-            return std::unexpected(Error::InitializationFailed);
+            return std::unexpected{
+                makeResourceCreationError(
+                    e,
+                    "Vulkan image-view creation",
+                    ResourceCreationErrorCode::NativeViewCreationFailed
+                )
+            };
         }
 
         const auto o = new VulkanImage();
@@ -1866,9 +2097,9 @@ namespace Vixen {
             .mipmapMode = state.mip == SamplerFilter::Linear
                               ? VK_SAMPLER_MIPMAP_MODE_LINEAR
                               : VK_SAMPLER_MIPMAP_MODE_NEAREST,
-            .addressModeU = static_cast<VkSamplerAddressMode>(state.u),
-            .addressModeV = static_cast<VkSamplerAddressMode>(state.v),
-            .addressModeW = static_cast<VkSamplerAddressMode>(state.w),
+            .addressModeU = requireVkConversion(toVkSamplerAddressMode(state.u)),
+            .addressModeV = requireVkConversion(toVkSamplerAddressMode(state.v)),
+            .addressModeW = requireVkConversion(toVkSamplerAddressMode(state.w)),
             .mipLodBias = state.lodBias,
             .anisotropyEnable = state.useAnisotropy && physicalDeviceFeatures.core.features.samplerAnisotropy,
             .maxAnisotropy = state.maxAnisotropy,
@@ -1876,7 +2107,7 @@ namespace Vixen {
             .compareOp = static_cast<VkCompareOp>(state.compareOperator),
             .minLod = state.minLod,
             .maxLod = state.maxLod,
-            .borderColor = static_cast<VkBorderColor>(state.borderColor),
+            .borderColor = requireVkConversion(toVkBorderColor(state.borderColor)),
             .unnormalizedCoordinates = state.unnormalizedCoordinates ? VK_TRUE : VK_FALSE
         };
 
@@ -2160,7 +2391,7 @@ namespace Vixen {
         for (const auto& uniformSet : o->uniformSets) {
             layoutBindings[uniformSet.set].push_back({
                 .binding = uniformSet.binding,
-                .descriptorType = toVkDescriptorType(uniformSet.type),
+                .descriptorType = requireVkConversion(toVkDescriptorType(uniformSet.type)),
                 .descriptorCount = uniformSet.count,
                 .stageFlags = toVkShaderStageFlags(uniformSet.stages),
                 .pImmutableSamplers = nullptr
@@ -2293,8 +2524,6 @@ namespace Vixen {
 
             DEBUG_ASSERT(vkImage != nullptr);
 
-            const VkFormat format = toVkDataFormat[attachment.image->format.format];
-
             // TODO: Handle resolve
 
             colorAttachments.emplace_back(
@@ -2302,12 +2531,12 @@ namespace Vixen {
                     .sType = VK_STRUCTURE_TYPE_RENDERING_ATTACHMENT_INFO,
                     .pNext = nullptr,
                     .imageView = vkImage->imageView,
-                    .imageLayout = toVkImageLayout(attachment.layout),
+                    .imageLayout = requireVkConversion(toVkImageLayout(attachment.layout)),
                     .resolveMode = VK_RESOLVE_MODE_NONE,
                     .resolveImageView = VK_NULL_HANDLE,
                     .resolveImageLayout = VK_IMAGE_LAYOUT_UNDEFINED,
-                    .loadOp = toVkLoadAction(attachment.loadAction),
-                    .storeOp = toVkStoreAction(attachment.storeAction),
+                    .loadOp = requireVkConversion(toVkLoadAction(attachment.loadAction)),
+                    .storeOp = requireVkConversion(toVkStoreAction(attachment.storeAction)),
                     .clearValue = {
                         .color = {
                             {
@@ -2346,12 +2575,12 @@ namespace Vixen {
                 .sType = VK_STRUCTURE_TYPE_RENDERING_ATTACHMENT_INFO,
                 .pNext = nullptr,
                 .imageView = vkImage->imageView,
-                .imageLayout = toVkImageLayout(attachment.layout),
+                .imageLayout = requireVkConversion(toVkImageLayout(attachment.layout)),
                 .resolveMode = VK_RESOLVE_MODE_NONE,
                 .resolveImageView = VK_NULL_HANDLE,
                 .resolveImageLayout = VK_IMAGE_LAYOUT_UNDEFINED,
-                .loadOp = toVkLoadAction(attachment.loadAction),
-                .storeOp = toVkStoreAction(attachment.storeAction),
+                .loadOp = requireVkConversion(toVkLoadAction(attachment.loadAction)),
+                .storeOp = requireVkConversion(toVkStoreAction(attachment.storeAction)),
                 .clearValue = {
                     .depthStencil = {
                         .depth = attachment.clearValue.depth,
@@ -2482,7 +2711,7 @@ namespace Vixen {
             dynamic_cast<VulkanCommandBuffer*>(commandBuffer)->commandBuffer,
             dynamic_cast<VulkanBuffer*>(buffer)->buffer,
             offset,
-            toVkIndexType(format)
+            requireVkConversion(toVkIndexType(format))
         );
     }
 
@@ -2541,8 +2770,8 @@ namespace Vixen {
                     .srcAccessMask = toVkAccessFlags(sourceAccess),
                     .dstStageMask = toVkPipelineStages(destinationStages),
                     .dstAccessMask = toVkAccessFlags(destinationAccess),
-                    .oldLayout = toVkImageLayout(oldLayout),
-                    .newLayout = toVkImageLayout(newLayout),
+                    .oldLayout = requireVkConversion(toVkImageLayout(oldLayout)),
+                    .newLayout = requireVkConversion(toVkImageLayout(newLayout)),
                     .srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED,
                     .dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED,
                     .image = dynamic_cast<VulkanImage*>(image)->image,
@@ -2655,9 +2884,9 @@ namespace Vixen {
         vkCmdCopyImage(
             dynamic_cast<VulkanCommandBuffer*>(commandBuffer)->commandBuffer,
             dynamic_cast<VulkanImage*>(source)->image,
-            toVkImageLayout(sourceLayout),
+            requireVkConversion(toVkImageLayout(sourceLayout)),
             dynamic_cast<VulkanImage*>(destination)->image,
-            toVkImageLayout(destinationLayout),
+            requireVkConversion(toVkImageLayout(destinationLayout)),
             vkRegions.size(),
             vkRegions.data()
         );
@@ -2707,9 +2936,9 @@ namespace Vixen {
         vkCmdResolveImage(
             dynamic_cast<VulkanCommandBuffer*>(commandBuffer)->commandBuffer,
             dynamic_cast<VulkanImage*>(source)->image,
-            toVkImageLayout(sourceLayout),
+            requireVkConversion(toVkImageLayout(sourceLayout)),
             dynamic_cast<VulkanImage*>(destination)->image,
-            toVkImageLayout(destinationLayout),
+            requireVkConversion(toVkImageLayout(destinationLayout)),
             1,
             &region
         );
@@ -2741,7 +2970,7 @@ namespace Vixen {
         vkCmdClearColorImage(
             dynamic_cast<VulkanCommandBuffer*>(commandBuffer)->commandBuffer,
             dynamic_cast<VulkanImage*>(image)->image,
-            toVkImageLayout(imageLayout),
+            requireVkConversion(toVkImageLayout(imageLayout)),
             &vkColor,
             1,
             &vkSubresource
@@ -2764,7 +2993,7 @@ namespace Vixen {
             dynamic_cast<VulkanCommandBuffer*>(commandBuffer)->commandBuffer,
             dynamic_cast<VulkanBuffer*>(buffer)->buffer,
             dynamic_cast<VulkanImage*>(image)->image,
-            toVkImageLayout(layout),
+            requireVkConversion(toVkImageLayout(layout)),
             vkRegions.size(),
             vkRegions.data()
         );
@@ -2785,7 +3014,7 @@ namespace Vixen {
         vkCmdCopyImageToBuffer(
             dynamic_cast<VulkanCommandBuffer*>(commandBuffer)->commandBuffer,
             dynamic_cast<VulkanImage*>(image)->image,
-            toVkImageLayout(layout),
+            requireVkConversion(toVkImageLayout(layout)),
             dynamic_cast<VulkanBuffer*>(buffer)->buffer,
             vkRegions.size(),
             vkRegions.data()

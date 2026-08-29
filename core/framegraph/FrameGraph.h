@@ -100,7 +100,8 @@ namespace Vixen {
             [[nodiscard]] FrameGraphError allocationError(
                 FrameGraphErrorCode code,
                 std::string message,
-                uint32_t resourceIndex
+                uint32_t resourceIndex,
+                std::optional<ResourceCreationError> cause = std::nullopt
             ) const;
 
             [[nodiscard]] FrameGraphError resourceError(

@@ -5,6 +5,8 @@
 #include <string>
 #include <vector>
 
+#include "error/ResourceCreationError.h"
+
 namespace Vixen {
     enum class FrameGraphErrorCode {
         UnsupportedUsage,
@@ -34,13 +36,14 @@ namespace Vixen {
         FrameGraphErrorCode code;
         std::string message;
 
-        std::optional<uint32_t> passIndex{};
-        std::optional<uint32_t> resourceIndex{};
-        std::optional<uint32_t> resourceVersion{};
+        std::optional<uint32_t> passIndex = std::nullopt;
+        std::optional<uint32_t> resourceIndex = std::nullopt;
+        std::optional<uint32_t> resourceVersion = std::nullopt;
 
-        std::optional<std::string> passName{};
-        std::optional<std::string> resourceName{};
+        std::optional<std::string> passName = std::nullopt;
+        std::optional<std::string> resourceName = std::nullopt;
 
+        std::optional<ResourceCreationError> cause = std::nullopt;
         std::vector<std::string> details{};
     };
 }

@@ -1,10 +1,12 @@
 #pragma once
 
 #include <cstdint>
+#include <expected>
 #include <string>
 #include <utility>
 
 #include <volk.h>
+#include <vulkan/vk_enum_string_helper.h>
 
 // WinBase.h exposes MemoryBarrier as a macro when Win32 Vulkan declarations are enabled.
 // Vixen has a backend-independent MemoryBarrier type with the same name.
@@ -16,15 +18,16 @@
 #ifdef DEBUG_ENABLED
 #include <spdlog/spdlog.h>
 #include <spdlog/sinks/stdout_color_sinks.h>
-#include <vulkan/vk_enum_string_helper.h>
 #endif
 
 #include "core/BarrierAccessFlags.h"
+#include "core/ImageDataFormat.h"
 #include "core/IndexFormat.h"
 #include "core/LoadAction.h"
 #include "core/PipelineStageFlags.h"
 #include "core/QueueFamilyFlags.h"
 #include "core/StoreAction.h"
+#include "core/error/ResourceCreationError.h"
 
 #include "core/command/CommandBufferType.h"
 
@@ -40,283 +43,769 @@
 #include "core/shader/ShaderUniformType.h"
 
 namespace Vixen {
-    constexpr VkComponentSwizzle toVkComponentSwizzle(const ImageSwizzle swizzle) {
+    constexpr auto toVkComponentSwizzle(
+        const ImageSwizzle swizzle
+    ) -> std::expected<VkComponentSwizzle, ResourceCreationError> {
         switch (swizzle) {
             case ImageSwizzle::Identity:
                 return VK_COMPONENT_SWIZZLE_IDENTITY;
+
             case ImageSwizzle::Zero:
                 return VK_COMPONENT_SWIZZLE_ZERO;
+
             case ImageSwizzle::One:
                 return VK_COMPONENT_SWIZZLE_ONE;
+
             case ImageSwizzle::Red:
                 return VK_COMPONENT_SWIZZLE_R;
+
             case ImageSwizzle::Green:
                 return VK_COMPONENT_SWIZZLE_G;
+
             case ImageSwizzle::Blue:
                 return VK_COMPONENT_SWIZZLE_B;
+
             case ImageSwizzle::Alpha:
                 return VK_COMPONENT_SWIZZLE_A;
         }
 
-        std::unreachable();
+        return std::unexpected{
+            ResourceCreationError{
+                .code = ResourceCreationErrorCode::InvalidDescription,
+                .message = "Image component swizzle contains an unrecognized value"
+            }
+        };
     }
 
-    constexpr VkBorderColor toVkBorderColor(const SamplerBorderColor borderColor) {
+    constexpr auto toVkBorderColor(
+        const SamplerBorderColor borderColor
+    ) -> std::expected<VkBorderColor, ResourceCreationError> {
         switch (borderColor) {
             case SamplerBorderColor::FloatTransparentBlack:
                 return VK_BORDER_COLOR_FLOAT_TRANSPARENT_BLACK;
+
             case SamplerBorderColor::IntTransparentBlack:
                 return VK_BORDER_COLOR_INT_TRANSPARENT_BLACK;
+
             case SamplerBorderColor::FloatOpaqueBlack:
                 return VK_BORDER_COLOR_FLOAT_OPAQUE_BLACK;
+
             case SamplerBorderColor::IntOpaqueBlack:
                 return VK_BORDER_COLOR_INT_OPAQUE_BLACK;
+
             case SamplerBorderColor::FloatOpaqueWhite:
                 return VK_BORDER_COLOR_FLOAT_OPAQUE_WHITE;
+
             case SamplerBorderColor::IntOpaqueWhite:
                 return VK_BORDER_COLOR_INT_OPAQUE_WHITE;
         }
 
-        std::unreachable();
+        return std::unexpected{
+            ResourceCreationError{
+                .code = ResourceCreationErrorCode::InvalidDescription,
+                .message = "Sampler border color contains an unrecognized value"
+            }
+        };
     }
 
-    constexpr VkSamplerAddressMode toVkSamplerAddressMode(SamplerRepeatMode samplerRepeatMode) {
+    constexpr auto toVkSamplerAddressMode(
+        const SamplerRepeatMode samplerRepeatMode
+    ) -> std::expected<VkSamplerAddressMode, ResourceCreationError> {
         switch (samplerRepeatMode) {
             case SamplerRepeatMode::Repeat:
                 return VK_SAMPLER_ADDRESS_MODE_REPEAT;
+
             case SamplerRepeatMode::MirroredRepeat:
                 return VK_SAMPLER_ADDRESS_MODE_MIRRORED_REPEAT;
+
             case SamplerRepeatMode::ClampToEdge:
                 return VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE;
+
             case SamplerRepeatMode::ClampToBorder:
                 return VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_BORDER;
+
             case SamplerRepeatMode::MirrorClampToEdge:
                 return VK_SAMPLER_ADDRESS_MODE_MIRROR_CLAMP_TO_EDGE;
         }
+
+        return std::unexpected{
+            ResourceCreationError{
+                .code = ResourceCreationErrorCode::InvalidDescription,
+                .message = "Sampler repeat mode contains an unrecognized value"
+            }
+        };
     }
 
-    static constexpr VkFormat toVkDataFormat[] = {
-        VK_FORMAT_R4G4_UNORM_PACK8,
-        VK_FORMAT_R4G4B4A4_UNORM_PACK16,
-        VK_FORMAT_B4G4R4A4_UNORM_PACK16,
-        VK_FORMAT_R5G6B5_UNORM_PACK16,
-        VK_FORMAT_B5G6R5_UNORM_PACK16,
-        VK_FORMAT_R5G5B5A1_UNORM_PACK16,
-        VK_FORMAT_B5G5R5A1_UNORM_PACK16,
-        VK_FORMAT_A1R5G5B5_UNORM_PACK16,
-        VK_FORMAT_R8_UNORM,
-        VK_FORMAT_R8_SNORM,
-        VK_FORMAT_R8_USCALED,
-        VK_FORMAT_R8_SSCALED,
-        VK_FORMAT_R8_UINT,
-        VK_FORMAT_R8_SINT,
-        VK_FORMAT_R8_SRGB,
-        VK_FORMAT_R8G8_UNORM,
-        VK_FORMAT_R8G8_SNORM,
-        VK_FORMAT_R8G8_USCALED,
-        VK_FORMAT_R8G8_SSCALED,
-        VK_FORMAT_R8G8_UINT,
-        VK_FORMAT_R8G8_SINT,
-        VK_FORMAT_R8G8_SRGB,
-        VK_FORMAT_R8G8B8_UNORM,
-        VK_FORMAT_R8G8B8_SNORM,
-        VK_FORMAT_R8G8B8_USCALED,
-        VK_FORMAT_R8G8B8_SSCALED,
-        VK_FORMAT_R8G8B8_UINT,
-        VK_FORMAT_R8G8B8_SINT,
-        VK_FORMAT_R8G8B8_SRGB,
-        VK_FORMAT_B8G8R8_UNORM,
-        VK_FORMAT_B8G8R8_SNORM,
-        VK_FORMAT_B8G8R8_USCALED,
-        VK_FORMAT_B8G8R8_SSCALED,
-        VK_FORMAT_B8G8R8_UINT,
-        VK_FORMAT_B8G8R8_SINT,
-        VK_FORMAT_B8G8R8_SRGB,
-        VK_FORMAT_R8G8B8A8_UNORM,
-        VK_FORMAT_R8G8B8A8_SNORM,
-        VK_FORMAT_R8G8B8A8_USCALED,
-        VK_FORMAT_R8G8B8A8_SSCALED,
-        VK_FORMAT_R8G8B8A8_UINT,
-        VK_FORMAT_R8G8B8A8_SINT,
-        VK_FORMAT_R8G8B8A8_SRGB,
-        VK_FORMAT_B8G8R8A8_UNORM,
-        VK_FORMAT_B8G8R8A8_SNORM,
-        VK_FORMAT_B8G8R8A8_USCALED,
-        VK_FORMAT_B8G8R8A8_SSCALED,
-        VK_FORMAT_B8G8R8A8_UINT,
-        VK_FORMAT_B8G8R8A8_SINT,
-        VK_FORMAT_B8G8R8A8_SRGB,
-        VK_FORMAT_A8B8G8R8_UNORM_PACK32,
-        VK_FORMAT_A8B8G8R8_SNORM_PACK32,
-        VK_FORMAT_A8B8G8R8_USCALED_PACK32,
-        VK_FORMAT_A8B8G8R8_SSCALED_PACK32,
-        VK_FORMAT_A8B8G8R8_UINT_PACK32,
-        VK_FORMAT_A8B8G8R8_SINT_PACK32,
-        VK_FORMAT_A8B8G8R8_SRGB_PACK32,
-        VK_FORMAT_A2R10G10B10_UNORM_PACK32,
-        VK_FORMAT_A2R10G10B10_SNORM_PACK32,
-        VK_FORMAT_A2R10G10B10_USCALED_PACK32,
-        VK_FORMAT_A2R10G10B10_SSCALED_PACK32,
-        VK_FORMAT_A2R10G10B10_UINT_PACK32,
-        VK_FORMAT_A2R10G10B10_SINT_PACK32,
-        VK_FORMAT_A2B10G10R10_UNORM_PACK32,
-        VK_FORMAT_A2B10G10R10_SNORM_PACK32,
-        VK_FORMAT_A2B10G10R10_USCALED_PACK32,
-        VK_FORMAT_A2B10G10R10_SSCALED_PACK32,
-        VK_FORMAT_A2B10G10R10_UINT_PACK32,
-        VK_FORMAT_A2B10G10R10_SINT_PACK32,
-        VK_FORMAT_R16_UNORM,
-        VK_FORMAT_R16_SNORM,
-        VK_FORMAT_R16_USCALED,
-        VK_FORMAT_R16_SSCALED,
-        VK_FORMAT_R16_UINT,
-        VK_FORMAT_R16_SINT,
-        VK_FORMAT_R16_SFLOAT,
-        VK_FORMAT_R16G16_UNORM,
-        VK_FORMAT_R16G16_SNORM,
-        VK_FORMAT_R16G16_USCALED,
-        VK_FORMAT_R16G16_SSCALED,
-        VK_FORMAT_R16G16_UINT,
-        VK_FORMAT_R16G16_SINT,
-        VK_FORMAT_R16G16_SFLOAT,
-        VK_FORMAT_R16G16B16_UNORM,
-        VK_FORMAT_R16G16B16_SNORM,
-        VK_FORMAT_R16G16B16_USCALED,
-        VK_FORMAT_R16G16B16_SSCALED,
-        VK_FORMAT_R16G16B16_UINT,
-        VK_FORMAT_R16G16B16_SINT,
-        VK_FORMAT_R16G16B16_SFLOAT,
-        VK_FORMAT_R16G16B16A16_UNORM,
-        VK_FORMAT_R16G16B16A16_SNORM,
-        VK_FORMAT_R16G16B16A16_USCALED,
-        VK_FORMAT_R16G16B16A16_SSCALED,
-        VK_FORMAT_R16G16B16A16_UINT,
-        VK_FORMAT_R16G16B16A16_SINT,
-        VK_FORMAT_R16G16B16A16_SFLOAT,
-        VK_FORMAT_R32_UINT,
-        VK_FORMAT_R32_SINT,
-        VK_FORMAT_R32_SFLOAT,
-        VK_FORMAT_R32G32_UINT,
-        VK_FORMAT_R32G32_SINT,
-        VK_FORMAT_R32G32_SFLOAT,
-        VK_FORMAT_R32G32B32_UINT,
-        VK_FORMAT_R32G32B32_SINT,
-        VK_FORMAT_R32G32B32_SFLOAT,
-        VK_FORMAT_R32G32B32A32_UINT,
-        VK_FORMAT_R32G32B32A32_SINT,
-        VK_FORMAT_R32G32B32A32_SFLOAT,
-        VK_FORMAT_R64_UINT,
-        VK_FORMAT_R64_SINT,
-        VK_FORMAT_R64_SFLOAT,
-        VK_FORMAT_R64G64_UINT,
-        VK_FORMAT_R64G64_SINT,
-        VK_FORMAT_R64G64_SFLOAT,
-        VK_FORMAT_R64G64B64_UINT,
-        VK_FORMAT_R64G64B64_SINT,
-        VK_FORMAT_R64G64B64_SFLOAT,
-        VK_FORMAT_R64G64B64A64_UINT,
-        VK_FORMAT_R64G64B64A64_SINT,
-        VK_FORMAT_R64G64B64A64_SFLOAT,
-        VK_FORMAT_B10G11R11_UFLOAT_PACK32,
-        VK_FORMAT_E5B9G9R9_UFLOAT_PACK32,
-        VK_FORMAT_D16_UNORM,
-        VK_FORMAT_X8_D24_UNORM_PACK32,
-        VK_FORMAT_D32_SFLOAT,
-        VK_FORMAT_S8_UINT,
-        VK_FORMAT_D16_UNORM_S8_UINT,
-        VK_FORMAT_D24_UNORM_S8_UINT,
-        VK_FORMAT_D32_SFLOAT_S8_UINT,
-        VK_FORMAT_BC1_RGB_UNORM_BLOCK,
-        VK_FORMAT_BC1_RGB_SRGB_BLOCK,
-        VK_FORMAT_BC1_RGBA_UNORM_BLOCK,
-        VK_FORMAT_BC1_RGBA_SRGB_BLOCK,
-        VK_FORMAT_BC2_UNORM_BLOCK,
-        VK_FORMAT_BC2_SRGB_BLOCK,
-        VK_FORMAT_BC3_UNORM_BLOCK,
-        VK_FORMAT_BC3_SRGB_BLOCK,
-        VK_FORMAT_BC4_UNORM_BLOCK,
-        VK_FORMAT_BC4_SNORM_BLOCK,
-        VK_FORMAT_BC5_UNORM_BLOCK,
-        VK_FORMAT_BC5_SNORM_BLOCK,
-        VK_FORMAT_BC6H_UFLOAT_BLOCK,
-        VK_FORMAT_BC6H_SFLOAT_BLOCK,
-        VK_FORMAT_BC7_UNORM_BLOCK,
-        VK_FORMAT_BC7_SRGB_BLOCK,
-        VK_FORMAT_ETC2_R8G8B8_UNORM_BLOCK,
-        VK_FORMAT_ETC2_R8G8B8_SRGB_BLOCK,
-        VK_FORMAT_ETC2_R8G8B8A1_UNORM_BLOCK,
-        VK_FORMAT_ETC2_R8G8B8A1_SRGB_BLOCK,
-        VK_FORMAT_ETC2_R8G8B8A8_UNORM_BLOCK,
-        VK_FORMAT_ETC2_R8G8B8A8_SRGB_BLOCK,
-        VK_FORMAT_EAC_R11_UNORM_BLOCK,
-        VK_FORMAT_EAC_R11_SNORM_BLOCK,
-        VK_FORMAT_EAC_R11G11_UNORM_BLOCK,
-        VK_FORMAT_EAC_R11G11_SNORM_BLOCK,
-        VK_FORMAT_ASTC_4x4_UNORM_BLOCK,
-        VK_FORMAT_ASTC_4x4_SRGB_BLOCK,
-        VK_FORMAT_ASTC_5x4_UNORM_BLOCK,
-        VK_FORMAT_ASTC_5x4_SRGB_BLOCK,
-        VK_FORMAT_ASTC_5x5_UNORM_BLOCK,
-        VK_FORMAT_ASTC_5x5_SRGB_BLOCK,
-        VK_FORMAT_ASTC_6x5_UNORM_BLOCK,
-        VK_FORMAT_ASTC_6x5_SRGB_BLOCK,
-        VK_FORMAT_ASTC_6x6_UNORM_BLOCK,
-        VK_FORMAT_ASTC_6x6_SRGB_BLOCK,
-        VK_FORMAT_ASTC_8x5_UNORM_BLOCK,
-        VK_FORMAT_ASTC_8x5_SRGB_BLOCK,
-        VK_FORMAT_ASTC_8x6_UNORM_BLOCK,
-        VK_FORMAT_ASTC_8x6_SRGB_BLOCK,
-        VK_FORMAT_ASTC_8x8_UNORM_BLOCK,
-        VK_FORMAT_ASTC_8x8_SRGB_BLOCK,
-        VK_FORMAT_ASTC_10x5_UNORM_BLOCK,
-        VK_FORMAT_ASTC_10x5_SRGB_BLOCK,
-        VK_FORMAT_ASTC_10x6_UNORM_BLOCK,
-        VK_FORMAT_ASTC_10x6_SRGB_BLOCK,
-        VK_FORMAT_ASTC_10x8_UNORM_BLOCK,
-        VK_FORMAT_ASTC_10x8_SRGB_BLOCK,
-        VK_FORMAT_ASTC_10x10_UNORM_BLOCK,
-        VK_FORMAT_ASTC_10x10_SRGB_BLOCK,
-        VK_FORMAT_ASTC_12x10_UNORM_BLOCK,
-        VK_FORMAT_ASTC_12x10_SRGB_BLOCK,
-        VK_FORMAT_ASTC_12x12_UNORM_BLOCK,
-        VK_FORMAT_ASTC_12x12_SRGB_BLOCK,
-        VK_FORMAT_G8B8G8R8_422_UNORM,
-        VK_FORMAT_B8G8R8G8_422_UNORM,
-        VK_FORMAT_G8_B8_R8_3PLANE_420_UNORM,
-        VK_FORMAT_G8_B8R8_2PLANE_420_UNORM,
-        VK_FORMAT_G8_B8_R8_3PLANE_422_UNORM,
-        VK_FORMAT_G8_B8R8_2PLANE_422_UNORM,
-        VK_FORMAT_G8_B8_R8_3PLANE_444_UNORM,
-        VK_FORMAT_R10X6_UNORM_PACK16,
-        VK_FORMAT_R10X6G10X6_UNORM_2PACK16,
-        VK_FORMAT_R10X6G10X6B10X6A10X6_UNORM_4PACK16,
-        VK_FORMAT_G10X6B10X6G10X6R10X6_422_UNORM_4PACK16,
-        VK_FORMAT_B10X6G10X6R10X6G10X6_422_UNORM_4PACK16,
-        VK_FORMAT_G10X6_B10X6_R10X6_3PLANE_420_UNORM_3PACK16,
-        VK_FORMAT_G10X6_B10X6R10X6_2PLANE_420_UNORM_3PACK16,
-        VK_FORMAT_G10X6_B10X6_R10X6_3PLANE_422_UNORM_3PACK16,
-        VK_FORMAT_G10X6_B10X6R10X6_2PLANE_422_UNORM_3PACK16,
-        VK_FORMAT_G10X6_B10X6_R10X6_3PLANE_444_UNORM_3PACK16,
-        VK_FORMAT_R12X4_UNORM_PACK16,
-        VK_FORMAT_R12X4G12X4_UNORM_2PACK16,
-        VK_FORMAT_R12X4G12X4B12X4A12X4_UNORM_4PACK16,
-        VK_FORMAT_G12X4B12X4G12X4R12X4_422_UNORM_4PACK16,
-        VK_FORMAT_B12X4G12X4R12X4G12X4_422_UNORM_4PACK16,
-        VK_FORMAT_G12X4_B12X4_R12X4_3PLANE_420_UNORM_3PACK16,
-        VK_FORMAT_G12X4_B12X4R12X4_2PLANE_420_UNORM_3PACK16,
-        VK_FORMAT_G12X4_B12X4_R12X4_3PLANE_422_UNORM_3PACK16,
-        VK_FORMAT_G12X4_B12X4R12X4_2PLANE_422_UNORM_3PACK16,
-        VK_FORMAT_G12X4_B12X4_R12X4_3PLANE_444_UNORM_3PACK16,
-        VK_FORMAT_G16B16G16R16_422_UNORM,
-        VK_FORMAT_B16G16R16G16_422_UNORM,
-        VK_FORMAT_G16_B16_R16_3PLANE_420_UNORM,
-        VK_FORMAT_G16_B16R16_2PLANE_420_UNORM,
-        VK_FORMAT_G16_B16_R16_3PLANE_422_UNORM,
-        VK_FORMAT_G16_B16R16_2PLANE_422_UNORM,
-        VK_FORMAT_G16_B16_R16_3PLANE_444_UNORM
-    };
+    static constexpr auto toVkDataFormat(
+        const ImageDataFormat format
+    ) -> std::expected<VkFormat, ResourceCreationError> {
+        switch (format) {
+            case R4G4_UNORM_PACK8:
+                return VK_FORMAT_R4G4_UNORM_PACK8;
 
-    static constexpr VkCommandBufferLevel toVkCommandBufferLevel(const CommandBufferType type) {
+            case R4G4B4A4_UNORM_PACK16:
+                return VK_FORMAT_R4G4B4A4_UNORM_PACK16;
+
+            case B4G4R4A4_UNORM_PACK16:
+                return VK_FORMAT_B4G4R4A4_UNORM_PACK16;
+
+            case R5G6B5_UNORM_PACK16:
+                return VK_FORMAT_R5G6B5_UNORM_PACK16;
+
+            case B5G6R5_UNORM_PACK16:
+                return VK_FORMAT_B5G6R5_UNORM_PACK16;
+
+            case R5G5B5A1_UNORM_PACK16:
+                return VK_FORMAT_R5G5B5A1_UNORM_PACK16;
+
+            case B5G5R5A1_UNORM_PACK16:
+                return VK_FORMAT_B5G5R5A1_UNORM_PACK16;
+
+            case A1R5G5B5_UNORM_PACK16:
+                return VK_FORMAT_A1R5G5B5_UNORM_PACK16;
+
+            case R8_UNORM:
+                return VK_FORMAT_R8_UNORM;
+
+            case R8_SNORM:
+                return VK_FORMAT_R8_SNORM;
+
+            case R8_USCALED:
+                return VK_FORMAT_R8_USCALED;
+
+            case R8_SSCALED:
+                return VK_FORMAT_R8_SSCALED;
+
+            case R8_UINT:
+                return VK_FORMAT_R8_UINT;
+
+            case R8_SINT:
+                return VK_FORMAT_R8_SINT;
+
+            case R8_SRGB:
+                return VK_FORMAT_R8_SRGB;
+
+            case R8G8_UNORM:
+                return VK_FORMAT_R8G8_UNORM;
+
+            case R8G8_SNORM:
+                return VK_FORMAT_R8G8_SNORM;
+
+            case R8G8_USCALED:
+                return VK_FORMAT_R8G8_USCALED;
+
+            case R8G8_SSCALED:
+                return VK_FORMAT_R8G8_SSCALED;
+
+            case R8G8_UINT:
+                return VK_FORMAT_R8G8_UINT;
+
+            case R8G8_SINT:
+                return VK_FORMAT_R8G8_SINT;
+
+            case R8G8_SRGB:
+                return VK_FORMAT_R8G8_SRGB;
+
+            case R8G8B8_UNORM:
+                return VK_FORMAT_R8G8B8_UNORM;
+
+            case R8G8B8_SNORM:
+                return VK_FORMAT_R8G8B8_SNORM;
+
+            case R8G8B8_USCALED:
+                return VK_FORMAT_R8G8B8_USCALED;
+
+            case R8G8B8_SSCALED:
+                return VK_FORMAT_R8G8B8_SSCALED;
+
+            case R8G8B8_UINT:
+                return VK_FORMAT_R8G8B8_UINT;
+
+            case R8G8B8_SINT:
+                return VK_FORMAT_R8G8B8_SINT;
+
+            case R8G8B8_SRGB:
+                return VK_FORMAT_R8G8B8_SRGB;
+
+            case B8G8R8_UNORM:
+                return VK_FORMAT_B8G8R8_UNORM;
+
+            case B8G8R8_SNORM:
+                return VK_FORMAT_B8G8R8_SNORM;
+
+            case B8G8R8_USCALED:
+                return VK_FORMAT_B8G8R8_USCALED;
+
+            case B8G8R8_SSCALED:
+                return VK_FORMAT_B8G8R8_SSCALED;
+
+            case B8G8R8_UINT:
+                return VK_FORMAT_B8G8R8_UINT;
+
+            case B8G8R8_SINT:
+                return VK_FORMAT_B8G8R8_SINT;
+
+            case B8G8R8_SRGB:
+                return VK_FORMAT_B8G8R8_SRGB;
+
+            case R8G8B8A8_UNORM:
+                return VK_FORMAT_R8G8B8A8_UNORM;
+
+            case R8G8B8A8_SNORM:
+                return VK_FORMAT_R8G8B8A8_SNORM;
+
+            case R8G8B8A8_USCALED:
+                return VK_FORMAT_R8G8B8A8_USCALED;
+
+            case R8G8B8A8_SSCALED:
+                return VK_FORMAT_R8G8B8A8_SSCALED;
+
+            case R8G8B8A8_UINT:
+                return VK_FORMAT_R8G8B8A8_UINT;
+
+            case R8G8B8A8_SINT:
+                return VK_FORMAT_R8G8B8A8_SINT;
+
+            case R8G8B8A8_SRGB:
+                return VK_FORMAT_R8G8B8A8_SRGB;
+
+            case B8G8R8A8_UNORM:
+                return VK_FORMAT_B8G8R8A8_UNORM;
+
+            case B8G8R8A8_SNORM:
+                return VK_FORMAT_B8G8R8A8_SNORM;
+
+            case B8G8R8A8_USCALED:
+                return VK_FORMAT_B8G8R8A8_USCALED;
+
+            case B8G8R8A8_SSCALED:
+                return VK_FORMAT_B8G8R8A8_SSCALED;
+
+            case B8G8R8A8_UINT:
+                return VK_FORMAT_B8G8R8A8_UINT;
+
+            case B8G8R8A8_SINT:
+                return VK_FORMAT_B8G8R8A8_SINT;
+
+            case B8G8R8A8_SRGB:
+                return VK_FORMAT_B8G8R8A8_SRGB;
+
+            case A8B8G8R8_UNORM_PACK32:
+                return VK_FORMAT_A8B8G8R8_UNORM_PACK32;
+
+            case A8B8G8R8_SNORM_PACK32:
+                return VK_FORMAT_A8B8G8R8_SNORM_PACK32;
+
+            case A8B8G8R8_USCALED_PACK32:
+                return VK_FORMAT_A8B8G8R8_USCALED_PACK32;
+
+            case A8B8G8R8_SSCALED_PACK32:
+                return VK_FORMAT_A8B8G8R8_SSCALED_PACK32;
+
+            case A8B8G8R8_UINT_PACK32:
+                return VK_FORMAT_A8B8G8R8_UINT_PACK32;
+
+            case A8B8G8R8_SINT_PACK32:
+                return VK_FORMAT_A8B8G8R8_SINT_PACK32;
+
+            case A8B8G8R8_SRGB_PACK32:
+                return VK_FORMAT_A8B8G8R8_SRGB_PACK32;
+
+            case A2R10G10B10_UNORM_PACK32:
+                return VK_FORMAT_A2R10G10B10_UNORM_PACK32;
+
+            case A2R10G10B10_SNORM_PACK32:
+                return VK_FORMAT_A2R10G10B10_SNORM_PACK32;
+
+            case A2R10G10B10_USCALED_PACK32:
+                return VK_FORMAT_A2R10G10B10_USCALED_PACK32;
+
+            case A2R10G10B10_SSCALED_PACK32:
+                return VK_FORMAT_A2R10G10B10_SSCALED_PACK32;
+
+            case A2R10G10B10_UINT_PACK32:
+                return VK_FORMAT_A2R10G10B10_UINT_PACK32;
+
+            case A2R10G10B10_SINT_PACK32:
+                return VK_FORMAT_A2R10G10B10_SINT_PACK32;
+
+            case A2B10G10R10_UNORM_PACK32:
+                return VK_FORMAT_A2B10G10R10_UNORM_PACK32;
+
+            case A2B10G10R10_SNORM_PACK32:
+                return VK_FORMAT_A2B10G10R10_SNORM_PACK32;
+
+            case A2B10G10R10_USCALED_PACK32:
+                return VK_FORMAT_A2B10G10R10_USCALED_PACK32;
+
+            case A2B10G10R10_SSCALED_PACK32:
+                return VK_FORMAT_A2B10G10R10_SSCALED_PACK32;
+
+            case A2B10G10R10_UINT_PACK32:
+                return VK_FORMAT_A2B10G10R10_UINT_PACK32;
+
+            case A2B10G10R10_SINT_PACK32:
+                return VK_FORMAT_A2B10G10R10_SINT_PACK32;
+
+            case R16_UNORM:
+                return VK_FORMAT_R16_UNORM;
+
+            case R16_SNORM:
+                return VK_FORMAT_R16_SNORM;
+
+            case R16_USCALED:
+                return VK_FORMAT_R16_USCALED;
+
+            case R16_SSCALED:
+                return VK_FORMAT_R16_SSCALED;
+
+            case R16_UINT:
+                return VK_FORMAT_R16_UINT;
+
+            case R16_SINT:
+                return VK_FORMAT_R16_SINT;
+
+            case R16_SFLOAT:
+                return VK_FORMAT_R16_SFLOAT;
+
+            case R16G16_UNORM:
+                return VK_FORMAT_R16G16_UNORM;
+
+            case R16G16_SNORM:
+                return VK_FORMAT_R16G16_SNORM;
+
+            case R16G16_USCALED:
+                return VK_FORMAT_R16G16_USCALED;
+
+            case R16G16_SSCALED:
+                return VK_FORMAT_R16G16_SSCALED;
+
+            case R16G16_UINT:
+                return VK_FORMAT_R16G16_UINT;
+
+            case R16G16_SINT:
+                return VK_FORMAT_R16G16_SINT;
+
+            case R16G16_SFLOAT:
+                return VK_FORMAT_R16G16_SFLOAT;
+
+            case R16G16B16_UNORM:
+                return VK_FORMAT_R16G16B16_UNORM;
+
+            case R16G16B16_SNORM:
+                return VK_FORMAT_R16G16B16_SNORM;
+
+            case R16G16B16_USCALED:
+                return VK_FORMAT_R16G16B16_USCALED;
+
+            case R16G16B16_SSCALED:
+                return VK_FORMAT_R16G16B16_SSCALED;
+
+            case R16G16B16_UINT:
+                return VK_FORMAT_R16G16B16_UINT;
+
+            case R16G16B16_SINT:
+                return VK_FORMAT_R16G16B16_SINT;
+
+            case R16G16B16_SFLOAT:
+                return VK_FORMAT_R16G16B16_SFLOAT;
+
+            case R16G16B16A16_UNORM:
+                return VK_FORMAT_R16G16B16A16_UNORM;
+
+            case R16G16B16A16_SNORM:
+                return VK_FORMAT_R16G16B16A16_SNORM;
+
+            case R16G16B16A16_USCALED:
+                return VK_FORMAT_R16G16B16A16_USCALED;
+
+            case R16G16B16A16_SSCALED:
+                return VK_FORMAT_R16G16B16A16_SSCALED;
+
+            case R16G16B16A16_UINT:
+                return VK_FORMAT_R16G16B16A16_UINT;
+
+            case R16G16B16A16_SINT:
+                return VK_FORMAT_R16G16B16A16_SINT;
+
+            case R16G16B16A16_SFLOAT:
+                return VK_FORMAT_R16G16B16A16_SFLOAT;
+
+            case R32_UINT:
+                return VK_FORMAT_R32_UINT;
+
+            case R32_SINT:
+                return VK_FORMAT_R32_SINT;
+
+            case R32_SFLOAT:
+                return VK_FORMAT_R32_SFLOAT;
+
+            case R32G32_UINT:
+                return VK_FORMAT_R32G32_UINT;
+
+            case R32G32_SINT:
+                return VK_FORMAT_R32G32_SINT;
+
+            case R32G32_SFLOAT:
+                return VK_FORMAT_R32G32_SFLOAT;
+
+            case R32G32B32_UINT:
+                return VK_FORMAT_R32G32B32_UINT;
+
+            case R32G32B32_SINT:
+                return VK_FORMAT_R32G32B32_SINT;
+
+            case R32G32B32_SFLOAT:
+                return VK_FORMAT_R32G32B32_SFLOAT;
+
+            case R32G32B32A32_UINT:
+                return VK_FORMAT_R32G32B32A32_UINT;
+
+            case R32G32B32A32_SINT:
+                return VK_FORMAT_R32G32B32A32_SINT;
+
+            case R32G32B32A32_SFLOAT:
+                return VK_FORMAT_R32G32B32A32_SFLOAT;
+
+            case R64_UINT:
+                return VK_FORMAT_R64_UINT;
+
+            case R64_SINT:
+                return VK_FORMAT_R64_SINT;
+
+            case R64_SFLOAT:
+                return VK_FORMAT_R64_SFLOAT;
+
+            case R64G64_UINT:
+                return VK_FORMAT_R64G64_UINT;
+
+            case R64G64_SINT:
+                return VK_FORMAT_R64G64_SINT;
+
+            case R64G64_SFLOAT:
+                return VK_FORMAT_R64G64_SFLOAT;
+
+            case R64G64B64_UINT:
+                return VK_FORMAT_R64G64B64_UINT;
+
+            case R64G64B64_SINT:
+                return VK_FORMAT_R64G64B64_SINT;
+
+            case R64G64B64_SFLOAT:
+                return VK_FORMAT_R64G64B64_SFLOAT;
+
+            case R64G64B64A64_UINT:
+                return VK_FORMAT_R64G64B64A64_UINT;
+
+            case R64G64B64A64_SINT:
+                return VK_FORMAT_R64G64B64A64_SINT;
+
+            case R64G64B64A64_SFLOAT:
+                return VK_FORMAT_R64G64B64A64_SFLOAT;
+
+            case B10G11R11_UFLOAT_PACK32:
+                return VK_FORMAT_B10G11R11_UFLOAT_PACK32;
+
+            case E5B9G9R9_UFLOAT_PACK32:
+                return VK_FORMAT_E5B9G9R9_UFLOAT_PACK32;
+
+            case D16_UNORM:
+                return VK_FORMAT_D16_UNORM;
+
+            case X8_D24_UNORM_PACK32:
+                return VK_FORMAT_X8_D24_UNORM_PACK32;
+
+            case D32_SFLOAT:
+                return VK_FORMAT_D32_SFLOAT;
+
+            case S8_UINT:
+                return VK_FORMAT_S8_UINT;
+
+            case D16_UNORM_S8_UINT:
+                return VK_FORMAT_D16_UNORM_S8_UINT;
+
+            case D24_UNORM_S8_UINT:
+                return VK_FORMAT_D24_UNORM_S8_UINT;
+
+            case D32_SFLOAT_S8_UINT:
+                return VK_FORMAT_D32_SFLOAT_S8_UINT;
+
+            case BC1_RGB_UNORM_BLOCK:
+                return VK_FORMAT_BC1_RGB_UNORM_BLOCK;
+
+            case BC1_RGB_SRGB_BLOCK:
+                return VK_FORMAT_BC1_RGB_SRGB_BLOCK;
+
+            case BC1_RGBA_UNORM_BLOCK:
+                return VK_FORMAT_BC1_RGBA_UNORM_BLOCK;
+
+            case BC1_RGBA_SRGB_BLOCK:
+                return VK_FORMAT_BC1_RGBA_SRGB_BLOCK;
+
+            case BC2_UNORM_BLOCK:
+                return VK_FORMAT_BC2_UNORM_BLOCK;
+
+            case BC2_SRGB_BLOCK:
+                return VK_FORMAT_BC2_SRGB_BLOCK;
+
+            case BC3_UNORM_BLOCK:
+                return VK_FORMAT_BC3_UNORM_BLOCK;
+
+            case BC3_SRGB_BLOCK:
+                return VK_FORMAT_BC3_SRGB_BLOCK;
+
+            case BC4_UNORM_BLOCK:
+                return VK_FORMAT_BC4_UNORM_BLOCK;
+
+            case BC4_SNORM_BLOCK:
+                return VK_FORMAT_BC4_SNORM_BLOCK;
+
+            case BC5_UNORM_BLOCK:
+                return VK_FORMAT_BC5_UNORM_BLOCK;
+
+            case BC5_SNORM_BLOCK:
+                return VK_FORMAT_BC5_SNORM_BLOCK;
+
+            case BC6H_UFLOAT_BLOCK:
+                return VK_FORMAT_BC6H_UFLOAT_BLOCK;
+
+            case BC6H_SFLOAT_BLOCK:
+                return VK_FORMAT_BC6H_SFLOAT_BLOCK;
+
+            case BC7_UNORM_BLOCK:
+                return VK_FORMAT_BC7_UNORM_BLOCK;
+
+            case BC7_SRGB_BLOCK:
+                return VK_FORMAT_BC7_SRGB_BLOCK;
+
+            case ETC2_R8G8B8_UNORM_BLOCK:
+                return VK_FORMAT_ETC2_R8G8B8_UNORM_BLOCK;
+
+            case ETC2_R8G8B8_SRGB_BLOCK:
+                return VK_FORMAT_ETC2_R8G8B8_SRGB_BLOCK;
+
+            case ETC2_R8G8B8A1_UNORM_BLOCK:
+                return VK_FORMAT_ETC2_R8G8B8A1_UNORM_BLOCK;
+
+            case ETC2_R8G8B8A1_SRGB_BLOCK:
+                return VK_FORMAT_ETC2_R8G8B8A1_SRGB_BLOCK;
+
+            case ETC2_R8G8B8A8_UNORM_BLOCK:
+                return VK_FORMAT_ETC2_R8G8B8A8_UNORM_BLOCK;
+
+            case ETC2_R8G8B8A8_SRGB_BLOCK:
+                return VK_FORMAT_ETC2_R8G8B8A8_SRGB_BLOCK;
+
+            case EAC_R11_UNORM_BLOCK:
+                return VK_FORMAT_EAC_R11_UNORM_BLOCK;
+
+            case EAC_R11_SNORM_BLOCK:
+                return VK_FORMAT_EAC_R11_SNORM_BLOCK;
+
+            case EAC_R11G11_UNORM_BLOCK:
+                return VK_FORMAT_EAC_R11G11_UNORM_BLOCK;
+
+            case EAC_R11G11_SNORM_BLOCK:
+                return VK_FORMAT_EAC_R11G11_SNORM_BLOCK;
+
+            case ASTC_4x4_UNORM_BLOCK:
+                return VK_FORMAT_ASTC_4x4_UNORM_BLOCK;
+
+            case ASTC_4x4_SRGB_BLOCK:
+                return VK_FORMAT_ASTC_4x4_SRGB_BLOCK;
+
+            case ASTC_5x4_UNORM_BLOCK:
+                return VK_FORMAT_ASTC_5x4_UNORM_BLOCK;
+
+            case ASTC_5x4_SRGB_BLOCK:
+                return VK_FORMAT_ASTC_5x4_SRGB_BLOCK;
+
+            case ASTC_5x5_UNORM_BLOCK:
+                return VK_FORMAT_ASTC_5x5_UNORM_BLOCK;
+
+            case ASTC_5x5_SRGB_BLOCK:
+                return VK_FORMAT_ASTC_5x5_SRGB_BLOCK;
+
+            case ASTC_6x5_UNORM_BLOCK:
+                return VK_FORMAT_ASTC_6x5_UNORM_BLOCK;
+
+            case ASTC_6x5_SRGB_BLOCK:
+                return VK_FORMAT_ASTC_6x5_SRGB_BLOCK;
+
+            case ASTC_6x6_UNORM_BLOCK:
+                return VK_FORMAT_ASTC_6x6_UNORM_BLOCK;
+
+            case ASTC_6x6_SRGB_BLOCK:
+                return VK_FORMAT_ASTC_6x6_SRGB_BLOCK;
+
+            case ASTC_8x5_UNORM_BLOCK:
+                return VK_FORMAT_ASTC_8x5_UNORM_BLOCK;
+
+            case ASTC_8x5_SRGB_BLOCK:
+                return VK_FORMAT_ASTC_8x5_SRGB_BLOCK;
+
+            case ASTC_8x6_UNORM_BLOCK:
+                return VK_FORMAT_ASTC_8x6_UNORM_BLOCK;
+
+            case ASTC_8x6_SRGB_BLOCK:
+                return VK_FORMAT_ASTC_8x6_SRGB_BLOCK;
+
+            case ASTC_8x8_UNORM_BLOCK:
+                return VK_FORMAT_ASTC_8x8_UNORM_BLOCK;
+
+            case ASTC_8x8_SRGB_BLOCK:
+                return VK_FORMAT_ASTC_8x8_SRGB_BLOCK;
+
+            case ASTC_10x5_UNORM_BLOCK:
+                return VK_FORMAT_ASTC_10x5_UNORM_BLOCK;
+
+            case ASTC_10x5_SRGB_BLOCK:
+                return VK_FORMAT_ASTC_10x5_SRGB_BLOCK;
+
+            case ASTC_10x6_UNORM_BLOCK:
+                return VK_FORMAT_ASTC_10x6_UNORM_BLOCK;
+
+            case ASTC_10x6_SRGB_BLOCK:
+                return VK_FORMAT_ASTC_10x6_SRGB_BLOCK;
+
+            case ASTC_10x8_UNORM_BLOCK:
+                return VK_FORMAT_ASTC_10x8_UNORM_BLOCK;
+
+            case ASTC_10x8_SRGB_BLOCK:
+                return VK_FORMAT_ASTC_10x8_SRGB_BLOCK;
+
+            case ASTC_10x10_UNORM_BLOCK:
+                return VK_FORMAT_ASTC_10x10_UNORM_BLOCK;
+
+            case ASTC_10x10_SRGB_BLOCK:
+                return VK_FORMAT_ASTC_10x10_SRGB_BLOCK;
+
+            case ASTC_12x10_UNORM_BLOCK:
+                return VK_FORMAT_ASTC_12x10_UNORM_BLOCK;
+
+            case ASTC_12x10_SRGB_BLOCK:
+                return VK_FORMAT_ASTC_12x10_SRGB_BLOCK;
+
+            case ASTC_12x12_UNORM_BLOCK:
+                return VK_FORMAT_ASTC_12x12_UNORM_BLOCK;
+
+            case ASTC_12x12_SRGB_BLOCK:
+                return VK_FORMAT_ASTC_12x12_SRGB_BLOCK;
+
+            case G8B8G8R8_422_UNORM:
+                return VK_FORMAT_G8B8G8R8_422_UNORM;
+
+            case B8G8R8G8_422_UNORM:
+                return VK_FORMAT_B8G8R8G8_422_UNORM;
+
+            case G8_B8_R8_3PLANE_420_UNORM:
+                return VK_FORMAT_G8_B8_R8_3PLANE_420_UNORM;
+
+            case G8_B8R8_2PLANE_420_UNORM:
+                return VK_FORMAT_G8_B8R8_2PLANE_420_UNORM;
+
+            case G8_B8_R8_3PLANE_422_UNORM:
+                return VK_FORMAT_G8_B8_R8_3PLANE_422_UNORM;
+
+            case G8_B8R8_2PLANE_422_UNORM:
+                return VK_FORMAT_G8_B8R8_2PLANE_422_UNORM;
+
+            case G8_B8_R8_3PLANE_444_UNORM:
+                return VK_FORMAT_G8_B8_R8_3PLANE_444_UNORM;
+
+            case R10X6_UNORM_PACK16:
+                return VK_FORMAT_R10X6_UNORM_PACK16;
+
+            case R10X6G10X6_UNORM_2PACK16:
+                return VK_FORMAT_R10X6G10X6_UNORM_2PACK16;
+
+            case R10X6G10X6B10X6A10X6_UNORM_4PACK16:
+                return VK_FORMAT_R10X6G10X6B10X6A10X6_UNORM_4PACK16;
+
+            case G10X6B10X6G10X6R10X6_422_UNORM_4PACK16:
+                return VK_FORMAT_G10X6B10X6G10X6R10X6_422_UNORM_4PACK16;
+
+            case B10X6G10X6R10X6G10X6_422_UNORM_4PACK16:
+                return VK_FORMAT_B10X6G10X6R10X6G10X6_422_UNORM_4PACK16;
+
+            case G10X6_B10X6_R10X6_3PLANE_420_UNORM_3PACK16:
+                return VK_FORMAT_G10X6_B10X6_R10X6_3PLANE_420_UNORM_3PACK16;
+
+            case G10X6_B10X6R10X6_2PLANE_420_UNORM_3PACK16:
+                return VK_FORMAT_G10X6_B10X6R10X6_2PLANE_420_UNORM_3PACK16;
+
+            case G10X6_B10X6_R10X6_3PLANE_422_UNORM_3PACK16:
+                return VK_FORMAT_G10X6_B10X6_R10X6_3PLANE_422_UNORM_3PACK16;
+
+            case G10X6_B10X6R10X6_2PLANE_422_UNORM_3PACK16:
+                return VK_FORMAT_G10X6_B10X6R10X6_2PLANE_422_UNORM_3PACK16;
+
+            case G10X6_B10X6_R10X6_3PLANE_444_UNORM_3PACK16:
+                return VK_FORMAT_G10X6_B10X6_R10X6_3PLANE_444_UNORM_3PACK16;
+
+            case R12X4_UNORM_PACK16:
+                return VK_FORMAT_R12X4_UNORM_PACK16;
+
+            case R12X4G12X4_UNORM_2PACK16:
+                return VK_FORMAT_R12X4G12X4_UNORM_2PACK16;
+
+            case R12X4G12X4B12X4A12X4_UNORM_4PACK16:
+                return VK_FORMAT_R12X4G12X4B12X4A12X4_UNORM_4PACK16;
+
+            case G12X4B12X4G12X4R12X4_422_UNORM_4PACK16:
+                return VK_FORMAT_G12X4B12X4G12X4R12X4_422_UNORM_4PACK16;
+
+            case B12X4G12X4R12X4G12X4_422_UNORM_4PACK16:
+                return VK_FORMAT_B12X4G12X4R12X4G12X4_422_UNORM_4PACK16;
+
+            case G12X4_B12X4_R12X4_3PLANE_420_UNORM_3PACK16:
+                return VK_FORMAT_G12X4_B12X4_R12X4_3PLANE_420_UNORM_3PACK16;
+
+            case G12X4_B12X4R12X4_2PLANE_420_UNORM_3PACK16:
+                return VK_FORMAT_G12X4_B12X4R12X4_2PLANE_420_UNORM_3PACK16;
+
+            case G12X4_B12X4_R12X4_3PLANE_422_UNORM_3PACK16:
+                return VK_FORMAT_G12X4_B12X4_R12X4_3PLANE_422_UNORM_3PACK16;
+
+            case G12X4_B12X4R12X4_2PLANE_422_UNORM_3PACK16:
+                return VK_FORMAT_G12X4_B12X4R12X4_2PLANE_422_UNORM_3PACK16;
+
+            case G12X4_B12X4_R12X4_3PLANE_444_UNORM_3PACK16:
+                return VK_FORMAT_G12X4_B12X4_R12X4_3PLANE_444_UNORM_3PACK16;
+
+            case G16B16G16R16_422_UNORM:
+                return VK_FORMAT_G16B16G16R16_422_UNORM;
+
+            case B16G16R16G16_422_UNORM:
+                return VK_FORMAT_B16G16R16G16_422_UNORM;
+
+            case G16_B16_R16_3PLANE_420_UNORM:
+                return VK_FORMAT_G16_B16_R16_3PLANE_420_UNORM;
+
+            case G16_B16R16_2PLANE_420_UNORM:
+                return VK_FORMAT_G16_B16R16_2PLANE_420_UNORM;
+
+            case G16_B16_R16_3PLANE_422_UNORM:
+                return VK_FORMAT_G16_B16_R16_3PLANE_422_UNORM;
+
+            case G16_B16R16_2PLANE_422_UNORM:
+                return VK_FORMAT_G16_B16R16_2PLANE_422_UNORM;
+
+            case G16_B16_R16_3PLANE_444_UNORM:
+                return VK_FORMAT_G16_B16_R16_3PLANE_444_UNORM;
+        }
+
+        return std::unexpected{
+            ResourceCreationError{
+                .code = ResourceCreationErrorCode::InvalidDescription,
+                .message = "Image data format contains an unrecognized value"
+            }
+        };
+    }
+
+    static constexpr auto toVkCommandBufferLevel(
+        const CommandBufferType type
+    ) -> std::expected<VkCommandBufferLevel, ResourceCreationError> {
         switch (type) {
             case CommandBufferType::Primary:
                 return VK_COMMAND_BUFFER_LEVEL_PRIMARY;
@@ -325,10 +814,15 @@ namespace Vixen {
                 return VK_COMMAND_BUFFER_LEVEL_SECONDARY;
         }
 
-        std::unreachable();
+        return std::unexpected{
+            ResourceCreationError{
+                .code = ResourceCreationErrorCode::InvalidDescription,
+                .message = "Command-buffer type contains an unrecognized value"
+            }
+        };
     }
 
-    static constexpr VkIndexType toVkIndexType(const IndexFormat format) {
+    static constexpr auto toVkIndexType(const IndexFormat format) -> std::expected<VkIndexType, ResourceCreationError> {
         switch (format) {
             case IndexFormat::UnsignedInt16:
                 return VK_INDEX_TYPE_UINT16;
@@ -337,10 +831,17 @@ namespace Vixen {
                 return VK_INDEX_TYPE_UINT32;
         }
 
-        std::unreachable();
+        return std::unexpected{
+            ResourceCreationError{
+                .code = ResourceCreationErrorCode::InvalidDescription,
+                .message = "Index format contains an unrecognized value"
+            }
+        };
     }
 
-    static constexpr VkSampleCountFlagBits toVkSampleCountFlagBits(const ImageSamples& samples) {
+    static constexpr auto toVkSampleCountFlagBits(
+        const ImageSamples& samples
+    ) -> std::expected<VkSampleCountFlagBits, ResourceCreationError> {
         switch (samples) {
                 using enum ImageSamples;
 
@@ -366,7 +867,12 @@ namespace Vixen {
                 return VK_SAMPLE_COUNT_64_BIT;
         }
 
-        std::unreachable();
+        return std::unexpected{
+            ResourceCreationError{
+                .code = ResourceCreationErrorCode::InvalidDescription,
+                .message = "Image sample count contains an unrecognized value"
+            }
+        };
     }
 
     static constexpr VkQueueFlags toVkQueueFlags(const QueueFamilyFlags flags) {
@@ -408,7 +914,8 @@ namespace Vixen {
         return stages;
     }
 
-    static constexpr VkDescriptorType toVkDescriptorType(const ShaderUniformType type) {
+    static constexpr auto toVkDescriptorType(
+        const ShaderUniformType type) -> std::expected<VkDescriptorType, ResourceCreationError> {
         switch (type) {
             case ShaderUniformType::Sampler:
                 return VK_DESCRIPTOR_TYPE_SAMPLER;
@@ -438,10 +945,15 @@ namespace Vixen {
                 return VK_DESCRIPTOR_TYPE_INPUT_ATTACHMENT;
         }
 
-        std::unreachable();
+        return std::unexpected{
+            ResourceCreationError{
+                .code = ResourceCreationErrorCode::InvalidDescription,
+                .message = "Shader uniform type does not map to a Vulkan descriptor type"
+            }
+        };
     }
 
-    static constexpr VkImageType toVkImageType(const ImageType& type) {
+    static constexpr auto toVkImageType(const ImageType& type) -> std::expected<VkImageType, ResourceCreationError> {
         switch (type) {
             case ImageType::OneD:
             case ImageType::OneDArray:
@@ -457,72 +969,97 @@ namespace Vixen {
                 return VK_IMAGE_TYPE_3D;
         }
 
-        std::unreachable();
+        return std::unexpected{
+            ResourceCreationError{
+                .code = ResourceCreationErrorCode::InvalidDescription,
+                .message = "Image type contains an unrecognized value"
+            }
+        };
     }
 
-    static constexpr VkImageViewType toVkImageViewType(const ImageType& type) {
+    static constexpr auto toVkImageViewType(
+        const ImageType& type
+    ) -> std::expected<VkImageViewType, ResourceCreationError> {
         switch (type) {
             case ImageType::OneD:
                 return VK_IMAGE_VIEW_TYPE_1D;
+
             case ImageType::TwoD:
                 return VK_IMAGE_VIEW_TYPE_2D;
+
             case ImageType::ThreeD:
                 return VK_IMAGE_VIEW_TYPE_3D;
+
             case ImageType::Cube:
                 return VK_IMAGE_VIEW_TYPE_CUBE;
+
             case ImageType::OneDArray:
                 return VK_IMAGE_VIEW_TYPE_1D_ARRAY;
+
             case ImageType::TwoDArray:
                 return VK_IMAGE_VIEW_TYPE_2D_ARRAY;
+
             case ImageType::CubeArray:
                 return VK_IMAGE_VIEW_TYPE_CUBE_ARRAY;
         }
 
-        std::unreachable();
+        return std::unexpected{
+            ResourceCreationError{
+                .code = ResourceCreationErrorCode::InvalidDescription,
+                .message = "Image type does not map to a Vulkan image-view type"
+            }
+        };
     }
 
-    [[maybe_unused]] static constexpr VkAttachmentLoadOp toVkLoadAction(const LoadAction loadAction) {
+    [[maybe_unused]] static constexpr auto toVkLoadAction(
+        const LoadAction loadAction
+    ) -> std::expected<VkAttachmentLoadOp, ResourceCreationError> {
         switch (loadAction) {
                 using enum LoadAction;
 
             case Load:
                 return VK_ATTACHMENT_LOAD_OP_LOAD;
-                break;
 
             case Clear:
                 return VK_ATTACHMENT_LOAD_OP_CLEAR;
-                break;
 
             case DontCare:
                 return VK_ATTACHMENT_LOAD_OP_DONT_CARE;
-                break;
         }
 
-        std::unreachable();
+        return std::unexpected{
+            ResourceCreationError{
+                .code = ResourceCreationErrorCode::InvalidDescription,
+                .message = "Attachment load action contains an unrecognized value"
+            }
+        };
     }
 
-    [[maybe_unused]] static constexpr VkAttachmentStoreOp toVkStoreAction(const StoreAction storeAction) {
+    [[maybe_unused]] static constexpr auto toVkStoreAction(
+        const StoreAction storeAction
+    ) -> std::expected<VkAttachmentStoreOp, ResourceCreationError> {
         switch (storeAction) {
                 using enum StoreAction;
 
             case Store:
                 return VK_ATTACHMENT_STORE_OP_STORE;
-                break;
 
             case Resolve:
                 return VK_ATTACHMENT_STORE_OP_NONE;
-                break;
 
             case StoreAndResolve:
                 return VK_ATTACHMENT_STORE_OP_STORE;
-                break;
 
             case DontCare:
                 return VK_ATTACHMENT_STORE_OP_DONT_CARE;
-                break;
         }
 
-        std::unreachable();
+        return std::unexpected{
+            ResourceCreationError{
+                .code = ResourceCreationErrorCode::InvalidDescription,
+                .message = "Attachment store action contains an unrecognized value"
+            }
+        };
     }
 
     static constexpr VkPipelineStageFlags2 toVkPipelineStages(const PipelineStageFlags flags) {
@@ -652,12 +1189,13 @@ namespace Vixen {
         return vkFlags;
     }
 
-    static constexpr VkImageLayout toVkImageLayout(const ImageLayout layout) {
+    static constexpr auto toVkImageLayout(
+        const ImageLayout layout
+    ) -> std::expected<VkImageLayout, ResourceCreationError> {
         switch (layout) {
                 using enum ImageLayout;
             case Undefined:
                 return VK_IMAGE_LAYOUT_UNDEFINED;
-                break;
 
             case General:
             case StorageOptimal:
@@ -688,7 +1226,12 @@ namespace Vixen {
                 return VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL;
         }
 
-        std::unreachable();
+        return std::unexpected{
+            ResourceCreationError{
+                .code = ResourceCreationErrorCode::InvalidDescription,
+                .message = "Image layout contains an unrecognized value"
+            }
+        };
     }
 
     static constexpr VkImageAspectFlags toVkImageAspectFlags(const ImageAspectFlags flags) {
@@ -720,7 +1263,7 @@ namespace Vixen {
     vkDebugCallback(const VkDebugUtilsMessageSeverityFlagBitsEXT messageSeverity,
                     const VkDebugUtilsMessageTypeFlagsEXT messageTypes,
                     const VkDebugUtilsMessengerCallbackDataEXT* pCallbackData, [[maybe_unused]] void* pUserData) {
-        spdlog::level::level_enum level;
+        spdlog::level::level_enum level{};
         switch (messageSeverity) {
             case VK_DEBUG_UTILS_MESSAGE_SEVERITY_VERBOSE_BIT_EXT:
                 level = spdlog::level::debug;

@@ -12,6 +12,7 @@
 #include "PipelineStageFlags.h"
 #include "QueueFamilyFlags.h"
 #include "buffer/BufferUsage.h"
+#include "error/ResourceCreationError.h"
 #include "glm/vec2.hpp"
 #include "glm/vec3.hpp"
 #include "glm/vec4.hpp"
@@ -121,7 +122,7 @@ namespace Vixen {
             BufferUsageFlags usage,
             uint32_t count,
             uint32_t stride
-        ) -> std::expected<Buffer*, Error> = 0;
+        ) -> std::expected<Buffer*, ResourceCreationError> = 0;
 
         virtual void destroyBuffer(
             Buffer* buffer
@@ -152,7 +153,7 @@ namespace Vixen {
         virtual auto createImage(
             const ImageFormat& format,
             const ImageView& view
-        ) -> std::expected<Image*, Error> = 0;
+        ) -> std::expected<Image*, ResourceCreationError> = 0;
 
         virtual std::byte* mapImage(
             Image* image

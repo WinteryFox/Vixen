@@ -21,7 +21,7 @@ namespace Vixen {
             const ResourceId id,
             const ResourceType type
         ) const -> std::expected<ResourceObject, FrameGraphError> {
-            if (id == ResourceId{})
+            if (!id.isValid())
                 return std::unexpected{
                     FrameGraphError{
                         .code = FrameGraphErrorCode::InvalidResourceHandle,

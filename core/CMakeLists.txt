@@ -98,6 +98,7 @@ add_library(
         framegraph/RenderPassContext.h
         error/Shader.h
         framegraph/ResourceSlot.h
+        error/ResourceCreationError.h
 )
 vixen_configure_target(Vixen)
 target_compile_definitions(
