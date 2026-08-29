@@ -1776,6 +1776,27 @@ namespace Vixen {
                 }
             };
 
+        constexpr auto knownBufferUsages = BufferUsageBits::CopySource |
+            BufferUsageBits::CopyDestination |
+            BufferUsageBits::Texel |
+            BufferUsageBits::Uniform |
+            BufferUsageBits::Storage |
+            BufferUsageBits::Vertex |
+            BufferUsageBits::Index |
+            BufferUsageBits::Indirect;
+
+        const auto unknownUsageBits = usage.value() & ~knownBufferUsages.value();
+        if (unknownUsageBits != 0)
+            return std::unexpected{
+                ResourceCreationError{
+                    .code = ResourceCreationErrorCode::UnsupportedUsage,
+                    .message = std::format(
+                        "Buffer usage contains unknown bits ({:#x})",
+                        unknownUsageBits
+                    )
+                }
+            };
+
         VmaAllocationCreateFlags allocationFlags = 0;
         VkBufferUsageFlags bufferUsageFlags = 0;
         VkMemoryPropertyFlags requiredFlags = 0;
