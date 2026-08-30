@@ -199,6 +199,12 @@ namespace Vixen {
             [[nodiscard]] auto buildInitialTrackedStates() const
                 -> std::expected<std::vector<TrackedResourceState>, FrameGraphError>;
 
+            [[nodiscard]] auto planResourceAccess(
+                TrackedResourceState& tracker,
+                const PassDependencies::CompiledResourceAccess& access,
+                std::vector<Transition>& transitions
+            ) const -> std::expected<void, FrameGraphError>;
+
             template <typename PassData, typename Setup, typename Execute>
             Builder& addPass(
                 std::string name,

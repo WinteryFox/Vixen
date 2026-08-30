@@ -1578,6 +1578,253 @@ namespace Vixen {
         return states;
     }
 
+    auto FrameGraph::Builder::planResourceAccess(
+        TrackedResourceState& tracker,
+        const PassDependencies::CompiledResourceAccess& access,
+        std::vector<Transition>& transitions
+    ) const -> std::expected<void, FrameGraphError> {
+        if (!access.handle.isValid())
+            return std::unexpected{
+                FrameGraphError{
+                    .code = FrameGraphErrorCode::InvalidGraphInvariant,
+                    .message = std::format(
+                        "Compiled resource access contains an invalid handle (index={}, version={})",
+                        access.handle.index,
+                        access.handle.version
+                    ),
+                    .resourceVersion = access.handle.version
+                }
+            };
+
+        if (access.handle.index >= nodes.size())
+            return std::unexpected{
+                FrameGraphError{
+                    .code = FrameGraphErrorCode::InvalidGraphInvariant,
+                    .message = std::format(
+                        "Compiled resource access references resource index {}, but the graph contains {} resources",
+                        access.handle.index,
+                        nodes.size()
+                    ),
+                    .resourceIndex = access.handle.index,
+                    .resourceVersion = access.handle.version
+                }
+            };
+
+        const auto& node = nodes[access.handle.index];
+
+        if (access.handle.version > node.latestVersion)
+            return std::unexpected{
+                resourceError(
+                    FrameGraphErrorCode::InvalidGraphInvariant,
+                    std::format(
+                        "Compiled access to resource '{}' references version {}, but its latest declared version is {}",
+                        node.name,
+                        access.handle.version,
+                        node.latestVersion
+                    ),
+                    access.handle.index,
+                    access.handle.version
+                )
+            };
+
+        if (tracker.lastHandle.index != access.handle.index)
+            return std::unexpected{
+                resourceError(
+                    FrameGraphErrorCode::InvalidGraphInvariant,
+                    std::format(
+                        "Tracked state for resource '{}' belongs to resource index {}, but it was asked to process "
+                        "an access to resource index {}",
+                        node.name,
+                        tracker.lastHandle.index,
+                        access.handle.index
+                    ),
+                    access.handle.index,
+                    access.handle.version
+                )
+            };
+
+        switch (node.type) {
+            case ResourceType::Image:
+                if (!std::holds_alternative<ImageResourceDescription>(node.description))
+                    return std::unexpected{
+                        resourceError(
+                            FrameGraphErrorCode::InvalidGraphInvariant,
+                            "Cannot plan access to image resource '" + node.name +
+                            "': the validated node does not contain an ImageResourceDescription",
+                            access.handle.index,
+                            access.handle.version
+                        )
+                    };
+
+                if (!std::holds_alternative<ImageState>(access.state))
+                    return std::unexpected{
+                        resourceError(
+                            FrameGraphErrorCode::InvalidGraphInvariant,
+                            "Cannot plan access to image resource '" + node.name +
+                            "': its compiled access contains a " + resourceStateKind(access.state) + " state",
+                            access.handle.index,
+                            access.handle.version
+                        )
+                    };
+
+                if (tracker.state.has_value() &&
+                    !std::holds_alternative<ImageState>(*tracker.state))
+                    return std::unexpected{
+                        resourceError(
+                            FrameGraphErrorCode::InvalidGraphInvariant,
+                            "Cannot plan access to image resource '" + node.name +
+                            "': its tracker contains a " + resourceStateKind(*tracker.state) + " state",
+                            access.handle.index,
+                            access.handle.version
+                        )
+                    };
+
+                break;
+
+            case ResourceType::Buffer:
+                if (!std::holds_alternative<BufferFormat>(node.description))
+                    return std::unexpected{
+                        resourceError(
+                            FrameGraphErrorCode::InvalidGraphInvariant,
+                            "Cannot plan access to buffer resource '" + node.name +
+                            "': the validated node does not contain a BufferFormat",
+                            access.handle.index,
+                            access.handle.version
+                        )
+                    };
+
+                if (!std::holds_alternative<BufferState>(access.state))
+                    return std::unexpected{
+                        resourceError(
+                            FrameGraphErrorCode::InvalidGraphInvariant,
+                            "Cannot plan access to buffer resource '" + node.name +
+                            "': its compiled access contains an " + resourceStateKind(access.state) + " state",
+                            access.handle.index,
+                            access.handle.version
+                        )
+                    };
+
+                if (tracker.state.has_value() &&
+                    !std::holds_alternative<BufferState>(*tracker.state))
+                    return std::unexpected{
+                        resourceError(
+                            FrameGraphErrorCode::InvalidGraphInvariant,
+                            "Cannot plan access to buffer resource '" + node.name +
+                            "': its tracker contains an " + resourceStateKind(*tracker.state) + " state",
+                            access.handle.index,
+                            access.handle.version
+                        )
+                    };
+
+                break;
+
+            default:
+                return std::unexpected{
+                    resourceError(
+                        FrameGraphErrorCode::InvalidGraphInvariant,
+                        "Cannot plan access to resource '" + node.name +
+                        "': the validated node has an unrecognized ResourceType value",
+                        access.handle.index,
+                        access.handle.version
+                    )
+                };
+        }
+
+        if (!tracker.state) {
+            if (node.type != ResourceType::Buffer)
+                return std::unexpected{
+                    resourceError(
+                        FrameGraphErrorCode::InvalidGraphInvariant,
+                        "Cannot plan access to image resource '" + node.name +
+                        "': its tracker has no state; only a newly created buffer may lack an initial state",
+                        access.handle.index,
+                        access.handle.version
+                    )
+                };
+
+            tracker.state = access.state;
+            tracker.lastHandle = access.handle;
+
+            return {};
+        }
+
+        auto isBarrierRequired = needsBarrier(*tracker.state, access.state);
+        if (!isBarrierRequired) {
+            auto error = std::move(isBarrierRequired).error();
+            error.resourceIndex = access.handle.index;
+            error.resourceVersion = access.handle.version;
+            error.resourceName = nodes[access.handle.index].name;
+
+            return std::unexpected{std::move(error)};
+        }
+
+        if (!*isBarrierRequired) {
+            std::visit(
+                [&access]<typename State>(State& current) {
+                    const auto& desired = std::get<State>(access.state);
+
+                    current.stages |= desired.stages;
+                    current.access |= desired.access;
+                },
+                *tracker.state
+            );
+
+            tracker.lastHandle = access.handle;
+
+            return {};
+        }
+
+        std::visit(
+            [&]<typename State>(State& current) {
+                if constexpr (std::is_same_v<State, ImageState>) {
+                    const auto& description = std::get<ImageResourceDescription>(
+                        nodes[access.handle.index].description);
+
+                    transitions.emplace_back(ImageTransition{
+                        .handle = ImageHandle{
+                            .id = {
+                                .index = access.handle.index,
+                                .version = access.handle.version
+                            }
+                        },
+                        .source = current,
+                        .destination = std::get<ImageState>(access.state),
+                        .subresources = {
+                            .aspect = getImageAspects(description.format.format),
+                            .baseMipmap = 0,
+                            .mipmapCount = description.format.mipmapCount,
+                            .baseLayer = 0,
+                            .layerCount = description.format.layerCount
+                        }
+                    });
+                } else {
+                    static_assert(std::is_same_v<State, BufferState>);
+
+                    const auto& description = std::get<BufferFormat>(nodes[access.handle.index].description);
+
+                    transitions.emplace_back(BufferTransition{
+                        .handle = BufferHandle{
+                            .id = {
+                                .index = access.handle.index,
+                                .version = access.handle.version
+                            }
+                        },
+                        .source = current,
+                        .destination = std::get<BufferState>(access.state),
+                        .offset = 0,
+                        .size = description.size
+                    });
+                }
+            },
+            *tracker.state
+        );
+
+        tracker.state = access.state;
+        tracker.lastHandle = access.handle;
+
+        return {};
+    }
+
     ResourceId FrameGraph::Builder::addResource(
         std::string name,
         const ResourceType type,
