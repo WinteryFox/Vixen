@@ -1,5 +1,7 @@
-cmake_minimum_required(VERSION 3.25)
+cmake_minimum_required(VERSION 3.26)
 project("Vixen" LANGUAGES C CXX)
+
+set_property(GLOBAL PROPERTY USE_FOLDERS ON)
 
 set(ENGINE_NAME "Vixen")
 set(ENGINE_VERSION_MAJOR 1)
@@ -17,6 +19,7 @@ function(vixen_configure_target target)
             CXX_STANDARD 23
             CXX_STANDARD_REQUIRED YES
             CXX_EXTENSIONS NO
+            FOLDER "Vixen"
     )
     target_compile_options(
             ${target}
@@ -42,7 +45,7 @@ option(ENABLE_D3D12 "Enable or disable D3D12 support" OFF)
 option(ENABLE_OPENGL "Enable or disable OpenGL support" OFF)
 option(ENABLE_TESTS "Enable or disable building of the tests" OFF)
 option(ENABLE_EDITOR "Enable or disable the editor" ON)
-option(ENABLE_DOCUMENTATION "Enable the Doxygen API documentation target" OFF)
+option(ENABLE_DOCUMENTATION "Enable the Doxygen API documentation target" ON)
 
 if (ENABLE_DOCUMENTATION)
     find_package(Doxygen REQUIRED)
@@ -88,6 +91,11 @@ if (ENABLE_DOCUMENTATION)
             ${CMAKE_SOURCE_DIR}/platform/d3d12
             ${CMAKE_SOURCE_DIR}/README.MD
             COMMENT "Generate Vixen API documentation"
+    )
+    set_target_properties(
+            VixenDocs
+            PROPERTIES
+            FOLDER "Vixen"
     )
 endif ()
 
