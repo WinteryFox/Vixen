@@ -56,14 +56,14 @@ namespace Vixen {
         };
 
         struct PassDependencies {
+            struct CompiledResourceAccess {
+                ResourceId handle;
+                ResourceState state;
+            };
+
             std::vector<PassEdge> predecessors;
             std::vector<PassEdge> successors;
-        };
-
-        struct DependencyPlan {
-            std::vector<std::vector<ResourceVersion>> resources;
-            std::vector<PassDependencies> passes;
-            std::vector<uint32_t> executionOrder;
+            std::vector<CompiledResourceAccess> resourceAccesses;
         };
 
         struct ImageTransition {
@@ -77,18 +77,25 @@ namespace Vixen {
             BufferHandle handle;
             BufferState source;
             BufferState destination;
-            uint64_t offset = 0;
-            uint64_t size = 0;
+            uint64_t offset;
+            uint64_t size;
         };
 
         using Transition = std::variant<ImageTransition, BufferTransition>;
 
         struct TransitionPlan {
             /**
-             * Represents the state before this pass. Indexed by the pass index.
+             * Represents the transitions required for this pass. Indexed by the pass index.
              */
             std::vector<std::vector<Transition>> beforePass;
             std::vector<Transition> finalTransitions;
+        };
+
+        struct DependencyPlan {
+            std::vector<std::vector<ResourceVersion>> resources;
+            std::vector<PassDependencies> passes;
+            std::vector<uint32_t> executionOrder;
+            TransitionPlan transitions;
         };
 
         struct BarrierPlan {
@@ -103,8 +110,6 @@ namespace Vixen {
 
         DependencyPlan dependencyPlan;
 
-        TransitionPlan transitionPlan;
-
         BarrierPlan barrierPlan;
 
         FrameGraphResourceStorage storage;
@@ -114,7 +119,6 @@ namespace Vixen {
         FrameGraph(
             std::vector<ResourceNode>&& nodes,
             DependencyPlan&& dependencyPlan,
-            TransitionPlan&& transitionPlan,
             BarrierPlan&& barrierPlan,
             FrameGraphResourceStorage&& storage,
             std::vector<RenderPass>&& renderPasses
@@ -179,7 +183,9 @@ namespace Vixen {
                 const std::vector<uint32_t>& declaredVersions
             ) const -> std::expected<void, FrameGraphError>;
 
-            static void buildDependencyEdges(DependencyPlan& plan);
+            [[nodiscard]] auto buildDependencyEdges(
+                DependencyPlan& plan
+            ) const -> std::expected<void, FrameGraphError>;
 
             [[nodiscard]] auto buildExecutionOrder(DependencyPlan& plan) const
                 -> std::expected<void, FrameGraphError>;

@@ -19,16 +19,106 @@
 #include "image/Image.h"
 
 namespace Vixen {
+    namespace {
+        constexpr auto writeAccesses = BarrierAccessBits::ShaderWrite |
+            BarrierAccessBits::ColorAttachmentWrite |
+            BarrierAccessBits::DepthStencilAttachmentWrite |
+            BarrierAccessBits::CopyWrite |
+            BarrierAccessBits::HostWrite |
+            BarrierAccessBits::MemoryWrite |
+            BarrierAccessBits::ResolveWrite |
+            BarrierAccessBits::StorageClear;
+
+        [[nodiscard]]
+        constexpr bool hasWriteAccess(const BarrierAccessFlags access) noexcept {
+            return !(access & writeAccesses).empty();
+        }
+
+        [[nodiscard]]
+        const char* resourceStateKind(const ResourceState& state) noexcept {
+            if (std::holds_alternative<ImageState>(state))
+                return "image";
+            if (std::holds_alternative<BufferState>(state))
+                return "buffer";
+
+            return "valueless";
+        }
+
+        [[nodiscard]]
+        auto invalidStateComparison(
+            const ResourceState& source,
+            const ResourceState& destination
+        ) -> std::unexpected<FrameGraphError> {
+            return std::unexpected{
+                FrameGraphError{
+                    .code = FrameGraphErrorCode::InvalidGraphInvariant,
+                    .message = std::format(
+                        "Cannot compare frame-graph resource states ('{}' and '{}'); both states must hold the same "
+                        "valid resource-state kind for one logical resource",
+                        resourceStateKind(source),
+                        resourceStateKind(destination)
+                    )
+                }
+            };
+        }
+
+        template <typename State>
+        [[nodiscard]]
+        constexpr bool typedStatesNeedBarrier(
+            const State& source,
+            const State& destination
+        ) noexcept {
+            if constexpr (std::is_same_v<State, ImageState>)
+                if (source.layout != destination.layout)
+                    return true;
+
+            return hasWriteAccess(source.access) || hasWriteAccess(destination.access);
+        }
+
+        [[nodiscard]]
+        auto needsBarrier(
+            const ResourceState& source,
+            const ResourceState& destination
+        ) -> std::expected<bool, FrameGraphError> {
+            if (source.valueless_by_exception() || destination.valueless_by_exception() ||
+                source.index() != destination.index())
+                return invalidStateComparison(source, destination);
+
+            return std::visit(
+                [&destination]<typename State>(const State& typedSource) {
+                    return typedStatesNeedBarrier(
+                        typedSource,
+                        std::get<State>(destination)
+                    );
+                },
+                source
+            );
+        }
+
+        // TODO: Passes currently share RenderingDevice's graphics queue family, so queue ownership is
+        //  compatible by construction. Queue-family identity must become part of this predicate
+        //  when per-pass queue assignment is introduced.
+        [[nodiscard]]
+        auto readStatesCompatible(
+            const ResourceState& left,
+            const ResourceState& right
+        ) -> std::expected<bool, FrameGraphError> {
+            auto barrierRequired = needsBarrier(left, right);
+            if (!barrierRequired)
+                return std::unexpected{std::move(barrierRequired).error()};
+
+            return !*barrierRequired;
+        }
+    }
+
     FrameGraph::FrameGraph(
         std::vector<ResourceNode>&& nodes,
         DependencyPlan&& dependencyPlan,
-        TransitionPlan&& transitionPlan,
         BarrierPlan&& barrierPlan,
         FrameGraphResourceStorage&& storage,
         std::vector<RenderPass>&& renderPasses
     ) : nodes(std::move(nodes)),
         dependencyPlan(std::move(dependencyPlan)),
-        transitionPlan(std::move(transitionPlan)),
         barrierPlan(std::move(barrierPlan)),
         storage(std::move(storage)),
         renderPasses(std::move(renderPasses)) {}
@@ -289,6 +379,7 @@ namespace Vixen {
     ) const -> std::expected<void, FrameGraphError> {
         for (uint32_t passIndex = 0; passIndex < renderPasses.size(); passIndex++) {
             const auto& pass = renderPasses[passIndex];
+            plan.passes[passIndex].resourceAccesses.reserve(pass.getResourceUsages().size());
 
             for (const auto& usage : pass.getResourceUsages()) {
                 auto result = std::visit(
@@ -562,13 +653,13 @@ namespace Vixen {
                                     !validation)
                                     return std::unexpected(validation.error());
 
-                                auto mapped = mapImageResourceState(
+                                const auto mapped = mapImageResourceState(
                                     typedUsage.access,
                                     typedUsage.usage,
                                     typedUsage.stages
                                 );
                                 if (!mapped)
-                                    return std::unexpected(mapped.error());
+                                    return std::unexpected(std::move(mapped).error());
 
                                 return ResourceState{*mapped};
                             } else {
@@ -603,6 +694,11 @@ namespace Vixen {
 
                             return std::unexpected(std::move(error));
                         }
+
+                        plan.passes[passIndex].resourceAccesses.push_back({
+                            .handle = handle.id,
+                            .state = *state
+                        });
 
                         const VersionAccess access{
                             .pass = passIndex,
@@ -1068,7 +1164,9 @@ namespace Vixen {
         return {};
     }
 
-    void FrameGraph::Builder::buildDependencyEdges(DependencyPlan& plan) {
+    auto FrameGraph::Builder::buildDependencyEdges(
+        DependencyPlan& plan
+    ) const -> std::expected<void, FrameGraphError> {
         struct DependencyKey {
             uint32_t predecessor;
             uint32_t successor;
@@ -1147,45 +1245,6 @@ namespace Vixen {
             );
         };
 
-        constexpr auto writeAccesses = BarrierAccessBits::ShaderWrite |
-            BarrierAccessBits::ColorAttachmentWrite |
-            BarrierAccessBits::DepthStencilAttachmentWrite |
-            BarrierAccessBits::CopyWrite |
-            BarrierAccessBits::HostWrite |
-            BarrierAccessBits::MemoryWrite |
-            BarrierAccessBits::ResolveWrite |
-            BarrierAccessBits::StorageClear;
-
-        // TODO: Passes currently share RenderingDevice's graphics queue family, so queue ownership is
-        //  compatible by construction. Queue-family identity must become part of this predicate
-        //  when per-pass queue assignment is introduced.
-        const auto readStatesCompatible = [writeAccesses](
-            const ResourceState& left,
-            const ResourceState& right
-        ) {
-            if (left.index() != right.index())
-                return false;
-
-            return std::visit(
-                [&right, writeAccesses]<typename T>(const T& typedLeft) {
-                    using State = std::remove_cvref_t<T>;
-                    const auto& typedRight = std::get<State>(right);
-
-                    const bool readOnly =
-                        (typedLeft.access.value() & writeAccesses.value()) == 0 &&
-                        (typedRight.access.value() & writeAccesses.value()) == 0;
-                    if (!readOnly)
-                        return false;
-
-                    if constexpr (std::is_same_v<State, ImageState>)
-                        return typedLeft.layout == typedRight.layout;
-                    else
-                        return true;
-                },
-                left
-            );
-        };
-
         for (uint32_t resourceIndex = 0; resourceIndex < plan.resources.size(); resourceIndex++) {
             const auto& versions = plan.resources[resourceIndex];
 
@@ -1227,10 +1286,19 @@ namespace Vixen {
                     for (std::size_t consumerIndex = 1; consumerIndex < version.consumers.size(); consumerIndex++) {
                         const auto& consumer = version.consumers[consumerIndex];
 
-                        if (!readStatesCompatible(
+                        auto compatible = readStatesCompatible(
                             version.consumers[currentGroupBegin].state,
                             consumer.state
-                        )) {
+                        );
+                        if (!compatible) {
+                            auto error = std::move(compatible).error();
+                            error.resourceIndex = resourceIndex;
+                            error.resourceVersion = versionIndex;
+                            error.resourceName = nodes[resourceIndex].name;
+                            return std::unexpected{std::move(error)};
+                        }
+
+                        if (!*compatible) {
                             previousGroupBegin = currentGroupBegin;
                             currentGroupBegin = consumerIndex;
                         }
@@ -1286,6 +1354,8 @@ namespace Vixen {
                     );
             }
         }
+
+        return {};
     }
 
     auto FrameGraph::Builder::buildExecutionOrder(DependencyPlan& plan) const
@@ -1466,16 +1536,19 @@ namespace Vixen {
     }
 
     auto FrameGraph::Builder::compile() const -> std::expected<DependencyPlan, FrameGraphError> {
-        DependencyPlan plan;
-        plan.resources.reserve(nodes.size());
+        const auto nodeCount = nodes.size();
+
+        DependencyPlan plan{};
+        plan.resources.reserve(nodeCount);
 
         if (auto result = validateAndInitializeResources(plan); !result)
             return std::unexpected{std::move(result).error()};
 
-        plan.passes.resize(renderPasses.size());
-        plan.executionOrder.reserve(renderPasses.size());
+        const auto passCount = renderPasses.size();
+        plan.passes.resize(passCount);
+        plan.executionOrder.reserve(passCount);
 
-        std::vector<uint32_t> declaredVersions(nodes.size(), 0);
+        std::vector<uint32_t> declaredVersions(nodeCount, 0);
         if (auto result = recordPassUsages(plan, declaredVersions); !result)
             return std::unexpected{std::move(result).error()};
 
@@ -1488,7 +1561,8 @@ namespace Vixen {
         if (auto result = validateVersionTable(plan, declaredVersions); !result)
             return std::unexpected{std::move(result).error()};
 
-        buildDependencyEdges(plan);
+        if (auto result = buildDependencyEdges(plan); !result)
+            return std::unexpected{std::move(result).error()};
 
         if (auto result = buildExecutionOrder(plan); !result)
             return std::unexpected{std::move(result).error()};
@@ -1776,7 +1850,6 @@ namespace Vixen {
         return FrameGraph{
             std::move(nodes),
             std::move(*plan),
-            {}, // TODO
             {}, // TODO
             std::move(*localStorage),
             std::move(renderPasses)
