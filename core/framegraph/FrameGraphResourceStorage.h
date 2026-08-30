@@ -10,7 +10,7 @@ namespace Vixen {
     class RenderingDevice;
 
     class FrameGraphResourceStorage final {
-        RenderingDevice* device;
+        RenderingDevice& device;
 
         std::vector<FrameGraphResourceSlot> slots;
 

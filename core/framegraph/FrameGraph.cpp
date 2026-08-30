@@ -22,10 +22,14 @@ namespace Vixen {
     FrameGraph::FrameGraph(
         std::vector<ResourceNode>&& nodes,
         DependencyPlan&& dependencyPlan,
+        TransitionPlan&& transitionPlan,
+        BarrierPlan&& barrierPlan,
         FrameGraphResourceStorage&& storage,
         std::vector<RenderPass>&& renderPasses
     ) : nodes(std::move(nodes)),
         dependencyPlan(std::move(dependencyPlan)),
+        transitionPlan(std::move(transitionPlan)),
+        barrierPlan(std::move(barrierPlan)),
         storage(std::move(storage)),
         renderPasses(std::move(renderPasses)) {}
 
@@ -1492,125 +1496,9 @@ namespace Vixen {
         return plan;
     }
 
-    ImageHandle FrameGraph::Builder::createImage(
-        std::string name,
-        ImageResourceDescription description,
-        const ResourceLifetime lifetime
-    ) {
-        if (lifetime == ResourceLifetime::Imported)
-            throw std::invalid_argument{
-                "Cannot create image resource '" + name +
-                "' with imported lifetime; use importImage to provide the external image and its initial and final states"
-            };
-
-        if (description.format.width == 0 || description.format.height == 0 || description.format.depth == 0 ||
-            description.format.layerCount == 0 || description.format.mipmapCount == 0)
-            throw std::invalid_argument{
-                "Image resource '" + name + "' has invalid dimensions or subresource counts: width=" +
-                std::to_string(description.format.width) + ", height=" +
-                std::to_string(description.format.height) + ", depth=" +
-                std::to_string(description.format.depth) + ", layers=" +
-                std::to_string(description.format.layerCount) + ", mip levels=" +
-                std::to_string(description.format.mipmapCount) + "; every value must be greater than zero"
-            };
-
-        if (description.format.usage.empty())
-            throw std::invalid_argument{
-                "Image resource '" + name + "' has an empty usage mask; declare at least one permitted image usage"
-            };
-
-        return ImageHandle{
-            .id = addResource(
-                std::move(name),
-                ResourceType::Image,
-                lifetime,
-                description
-            )
-        };
-    }
-
-    BufferHandle FrameGraph::Builder::createBuffer(
-        std::string name,
-        BufferFormat description,
-        const ResourceLifetime lifetime
-    ) {
-        if (lifetime == ResourceLifetime::Imported)
-            throw std::invalid_argument{
-                "Cannot create buffer resource '" + name +
-                "' with imported lifetime; use importBuffer to provide the external buffer and its initial and final states"
-            };
-
-        if (description.size == 0)
-            throw std::invalid_argument{
-                "Buffer resource '" + name + "' has invalid element dimensions: size=" +
-                std::to_string(description.size) + "; size must be greater than zero"
-            };
-
-        if (description.usage.empty())
-            throw std::invalid_argument{
-                "Buffer resource '" + name + "' has an empty usage mask; declare at least one permitted buffer usage"
-            };
-
-        return BufferHandle{
-            .id = addResource(
-                std::move(name),
-                ResourceType::Buffer,
-                lifetime,
-                description
-            )
-        };
-    }
-
-    ImageHandle FrameGraph::Builder::importImage(
-        std::string name,
-        Image& image,
-        ImageState initialState,
-        ImageState finalState
-    ) {
-        return ImageHandle{
-            .id = addResource(
-                std::move(name),
-                ResourceType::Image,
-                ResourceLifetime::Imported,
-                ImageResourceDescription{
-                    .format = image.format,
-                    .view = image.view
-                },
-                &image,
-                initialState,
-                finalState
-            )
-        };
-    }
-
-    BufferHandle FrameGraph::Builder::importBuffer(
-        std::string name,
-        Buffer& buffer,
-        BufferState initialState,
-        BufferState finalState
-    ) {
-        return BufferHandle{
-            .id = addResource(
-                std::move(name),
-                ResourceType::Buffer,
-                ResourceLifetime::Imported,
-                BufferFormat{
-                    .size = buffer.getSize(),
-                    .usage = buffer.getUsage()
-                },
-                &buffer,
-                initialState,
-                finalState
-            )
-        };
-    }
-
-    auto FrameGraph::Builder::build(RenderingDevice& device) && -> std::expected<FrameGraph, FrameGraphError> {
-        auto plan = compile();
-
-        if (!plan)
-            return std::unexpected{std::move(plan).error()};
-
+    auto FrameGraph::Builder::allocateResources(
+        RenderingDevice& device
+    ) const -> std::expected<FrameGraphResourceStorage, FrameGraphError> {
         FrameGraphResourceStorage localStorage{device, std::span(nodes)};
 
         for (size_t resourceIndex = 0; resourceIndex < nodes.size(); resourceIndex++) {
@@ -1759,10 +1647,138 @@ namespace Vixen {
             }
         }
 
+        return std::move(localStorage);
+    }
+
+    ImageHandle FrameGraph::Builder::createImage(
+        std::string name,
+        ImageResourceDescription description,
+        const ResourceLifetime lifetime
+    ) {
+        if (lifetime == ResourceLifetime::Imported)
+            throw std::invalid_argument{
+                "Cannot create image resource '" + name +
+                "' with imported lifetime; use importImage to provide the external image and its initial and final states"
+            };
+
+        if (description.format.width == 0 || description.format.height == 0 || description.format.depth == 0 ||
+            description.format.layerCount == 0 || description.format.mipmapCount == 0)
+            throw std::invalid_argument{
+                "Image resource '" + name + "' has invalid dimensions or subresource counts: width=" +
+                std::to_string(description.format.width) + ", height=" +
+                std::to_string(description.format.height) + ", depth=" +
+                std::to_string(description.format.depth) + ", layers=" +
+                std::to_string(description.format.layerCount) + ", mip levels=" +
+                std::to_string(description.format.mipmapCount) + "; every value must be greater than zero"
+            };
+
+        if (description.format.usage.empty())
+            throw std::invalid_argument{
+                "Image resource '" + name + "' has an empty usage mask; declare at least one permitted image usage"
+            };
+
+        return ImageHandle{
+            .id = addResource(
+                std::move(name),
+                ResourceType::Image,
+                lifetime,
+                description
+            )
+        };
+    }
+
+    BufferHandle FrameGraph::Builder::createBuffer(
+        std::string name,
+        BufferFormat description,
+        const ResourceLifetime lifetime
+    ) {
+        if (lifetime == ResourceLifetime::Imported)
+            throw std::invalid_argument{
+                "Cannot create buffer resource '" + name +
+                "' with imported lifetime; use importBuffer to provide the external buffer and its initial and final states"
+            };
+
+        if (description.size == 0)
+            throw std::invalid_argument{
+                "Buffer resource '" + name + "' has invalid element dimensions: size=" +
+                std::to_string(description.size) + "; size must be greater than zero"
+            };
+
+        if (description.usage.empty())
+            throw std::invalid_argument{
+                "Buffer resource '" + name + "' has an empty usage mask; declare at least one permitted buffer usage"
+            };
+
+        return BufferHandle{
+            .id = addResource(
+                std::move(name),
+                ResourceType::Buffer,
+                lifetime,
+                description
+            )
+        };
+    }
+
+    ImageHandle FrameGraph::Builder::importImage(
+        std::string name,
+        Image& image,
+        ImageState initialState,
+        ImageState finalState
+    ) {
+        return ImageHandle{
+            .id = addResource(
+                std::move(name),
+                ResourceType::Image,
+                ResourceLifetime::Imported,
+                ImageResourceDescription{
+                    .format = image.format,
+                    .view = image.view
+                },
+                &image,
+                initialState,
+                finalState
+            )
+        };
+    }
+
+    BufferHandle FrameGraph::Builder::importBuffer(
+        std::string name,
+        Buffer& buffer,
+        BufferState initialState,
+        BufferState finalState
+    ) {
+        return BufferHandle{
+            .id = addResource(
+                std::move(name),
+                ResourceType::Buffer,
+                ResourceLifetime::Imported,
+                BufferFormat{
+                    .size = buffer.getSize(),
+                    .usage = buffer.getUsage()
+                },
+                &buffer,
+                initialState,
+                finalState
+            )
+        };
+    }
+
+    auto FrameGraph::Builder::build(RenderingDevice& device) && -> std::expected<FrameGraph, FrameGraphError> {
+        auto plan = compile();
+
+        if (!plan)
+            return std::unexpected{std::move(plan).error()};
+
+        auto localStorage = allocateResources(device);
+        if (!localStorage)
+            return std::unexpected{std::move(localStorage).error()};
+
         return FrameGraph{
             std::move(nodes),
             std::move(*plan),
-            std::move(localStorage),
+            {}, // TODO
+            {}, // TODO
+            std::move(*localStorage),
             std::move(renderPasses)
         };
     }

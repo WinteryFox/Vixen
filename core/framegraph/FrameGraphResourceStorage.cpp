@@ -34,7 +34,7 @@ namespace Vixen {
     FrameGraphResourceStorage::FrameGraphResourceStorage(
         RenderingDevice& device,
         const std::span<const ResourceNode> nodes
-    ) : device(&device) {
+    ) : device(device) {
         slots.reserve(nodes.size());
         for (const auto& node : nodes)
             slots.push_back({
@@ -48,7 +48,7 @@ namespace Vixen {
 
     FrameGraphResourceStorage::FrameGraphResourceStorage(
         FrameGraphResourceStorage&& other
-    ) noexcept : device(std::exchange(other.device, nullptr)),
+    ) noexcept : device(other.device),
                  slots(std::move(other.slots)) {}
 
     FrameGraphResourceStorage::~FrameGraphResourceStorage() {
@@ -104,18 +104,15 @@ namespace Vixen {
     }
 
     void FrameGraphResourceStorage::reset() {
-        if (device == nullptr)
-            return;
-
         for (std::size_t i = slots.size(); i-- > 0;) {
             if (slots[i].ownership != Ownership::Owned)
                 continue;
 
             if (const auto image = std::get_if<Image*>(&slots[i].object))
-                device->deferDestroy(*image);
+                device.deferDestroy(*image);
 
             else if (const auto buffer = std::get_if<Buffer*>(&slots[i].object))
-                device->deferDestroy(*buffer);
+                device.deferDestroy(*buffer);
         }
 
         slots.clear();
