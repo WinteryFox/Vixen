@@ -1825,6 +1825,236 @@ namespace Vixen {
         return {};
     }
 
+    auto FrameGraph::Builder::buildTransitionPlan(DependencyPlan& plan) const -> std::expected<void, FrameGraphError> {
+        if (plan.executionOrder.size() != plan.passes.size() ||
+            plan.passes.size() != renderPasses.size())
+            return std::unexpected{
+                FrameGraphError{
+                    .code = FrameGraphErrorCode::InvalidGraphInvariant,
+                    .message = std::format(
+                        "Transition planning requires one execution-order entry and one compiled pass record per "
+                        "declared render pass, but found {} execution-order entries, {} compiled pass records, "
+                        "and {} render passes",
+                        plan.executionOrder.size(),
+                        plan.passes.size(),
+                        renderPasses.size()
+                    )
+                }
+            };
+
+        std::vector<bool> visitedPasses(renderPasses.size(), false);
+        for (const uint32_t passIndex : plan.executionOrder) {
+            if (passIndex >= plan.passes.size() || passIndex >= renderPasses.size())
+                return std::unexpected{
+                    FrameGraphError{
+                        .code = FrameGraphErrorCode::InvalidGraphInvariant,
+                        .message = std::format(
+                            "Transition planning cannot process execution-order pass index {}: the dependency plan "
+                            "contains {} compiled passes and the builder contains {} render passes",
+                            passIndex,
+                            plan.passes.size(),
+                            renderPasses.size()
+                        ),
+                        .passIndex = passIndex
+                    }
+                };
+
+            if (visitedPasses[passIndex])
+                return std::unexpected{
+                    FrameGraphError{
+                        .code = FrameGraphErrorCode::InvalidGraphInvariant,
+                        .message = std::format(
+                            "Transition planning requires each pass exactly once, but execution order contains pass "
+                            "index {} ('{}') more than once",
+                            passIndex,
+                            renderPasses[passIndex].getName()
+                        ),
+                        .passIndex = passIndex,
+                        .passName = renderPasses[passIndex].getName()
+                    }
+                };
+
+            visitedPasses[passIndex] = true;
+        }
+
+        auto trackers = buildInitialTrackedStates();
+        if (!trackers)
+            return std::unexpected{std::move(trackers).error()};
+
+        if (trackers->size() != nodes.size() || plan.resources.size() != nodes.size())
+            return std::unexpected{
+                FrameGraphError{
+                    .code = FrameGraphErrorCode::InvalidGraphInvariant,
+                    .message = std::format(
+                        "Transition planning requires one tracker and one compiled resource table per logical "
+                        "resource, but found {} trackers, {} compiled resource tables, and {} logical resources",
+                        trackers->size(),
+                        plan.resources.size(),
+                        nodes.size()
+                    )
+                }
+            };
+
+        TransitionPlan transitionPlan{
+            .beforePass = std::vector<std::vector<Transition>>(renderPasses.size()),
+            .finalTransitions = {}
+        };
+
+        for (const uint32_t passIndex : plan.executionOrder) {
+            const auto& pass = renderPasses[passIndex];
+            const auto& compiledPass = plan.passes[passIndex];
+            auto& transitions = transitionPlan.beforePass[passIndex];
+
+            for (std::size_t accessIndex = 0; accessIndex < compiledPass.resourceAccesses.size(); accessIndex++) {
+                const auto& access = compiledPass.resourceAccesses[accessIndex];
+
+                if (!access.handle.isValid())
+                    return std::unexpected{
+                        FrameGraphError{
+                            .code = FrameGraphErrorCode::InvalidGraphInvariant,
+                            .message = std::format(
+                                "Compiled resource access {} in pass '{}' contains an invalid handle "
+                                "(index={}, version={})",
+                                accessIndex,
+                                pass.getName(),
+                                access.handle.index,
+                                access.handle.version
+                            ),
+                            .passIndex = passIndex,
+                            .resourceVersion = access.handle.version,
+                            .passName = pass.getName()
+                        }
+                    };
+
+                if (access.handle.index >= trackers->size())
+                    return std::unexpected{
+                        FrameGraphError{
+                            .code = FrameGraphErrorCode::InvalidGraphInvariant,
+                            .message = std::format(
+                                "Compiled resource access {} in pass '{}' references resource index {} at version "
+                                "{}, but only {} tracked resources exist",
+                                accessIndex,
+                                pass.getName(),
+                                access.handle.index,
+                                access.handle.version,
+                                trackers->size()
+                            ),
+                            .passIndex = passIndex,
+                            .resourceIndex = access.handle.index,
+                            .resourceVersion = access.handle.version,
+                            .passName = pass.getName()
+                        }
+                    };
+
+                auto result = planResourceAccess(
+                    (*trackers)[access.handle.index],
+                    access,
+                    transitions
+                );
+                if (!result) {
+                    auto error = std::move(result).error();
+                    error.passIndex = passIndex;
+                    error.passName = pass.getName();
+                    error.details.push_back(
+                        std::format(
+                            "The failure occurred while planning compiled resource access {} in declaration order",
+                            accessIndex
+                        )
+                    );
+
+                    return std::unexpected{std::move(error)};
+                }
+
+                (*trackers)[access.handle.index].used = true;
+            }
+        }
+
+        for (uint32_t resourceIndex = 0; resourceIndex < nodes.size(); resourceIndex++) {
+            const auto& node = nodes[resourceIndex];
+            auto& tracker = (*trackers)[resourceIndex];
+
+            if (node.lifetime != ResourceLifetime::Imported ||
+                !tracker.used)
+                continue;
+
+            if (!node.finalState.has_value())
+                return std::unexpected{
+                    resourceError(
+                        FrameGraphErrorCode::InvalidGraphInvariant,
+                        "Cannot plan the final transition for imported resource '" + node.name +
+                        "': the validated resource has no declared final state",
+                        resourceIndex,
+                        tracker.lastHandle.version
+                    )
+                };
+
+            if (!tracker.state.has_value())
+                return std::unexpected{
+                    resourceError(
+                        FrameGraphErrorCode::InvalidGraphInvariant,
+                        "Cannot plan the final transition for imported resource '" + node.name +
+                        "': the used resource has no tracked state after pass planning",
+                        resourceIndex,
+                        tracker.lastHandle.version
+                    )
+                };
+
+            if (!tracker.lastHandle.isValid())
+                return std::unexpected{
+                    resourceError(
+                        FrameGraphErrorCode::InvalidGraphInvariant,
+                        std::format(
+                            "Cannot plan the final transition for imported resource '{}': its last tracked handle "
+                            "is invalid (index={}, version={})",
+                            node.name,
+                            tracker.lastHandle.index,
+                            tracker.lastHandle.version
+                        ),
+                        resourceIndex,
+                        tracker.lastHandle.version
+                    )
+                };
+
+            if (tracker.lastHandle.index != resourceIndex)
+                return std::unexpected{
+                    resourceError(
+                        FrameGraphErrorCode::InvalidGraphInvariant,
+                        std::format(
+                            "Cannot plan the final transition for imported resource '{}': its last tracked handle "
+                            "references resource index {} instead of {}",
+                            node.name,
+                            tracker.lastHandle.index,
+                            resourceIndex
+                        ),
+                        resourceIndex,
+                        tracker.lastHandle.version
+                    )
+                };
+
+            const PassDependencies::CompiledResourceAccess finalAccess{
+                .handle = tracker.lastHandle,
+                .state = *node.finalState
+            };
+
+            auto result = planResourceAccess(
+                tracker,
+                finalAccess,
+                transitionPlan.finalTransitions
+            );
+            if (!result) {
+                auto error = std::move(result).error();
+                error.details.emplace_back(
+                    "The failure occurred while planning the imported resource's final boundary transition");
+
+                return std::unexpected{std::move(error)};
+            }
+        }
+
+        plan.transitions = std::move(transitionPlan);
+
+        return {};
+    }
+
     ResourceId FrameGraph::Builder::addResource(
         std::string name,
         const ResourceType type,
@@ -1970,6 +2200,9 @@ namespace Vixen {
             return std::unexpected{std::move(result).error()};
 
         if (auto result = buildExecutionOrder(plan); !result)
+            return std::unexpected{std::move(result).error()};
+
+        if (auto result = buildTransitionPlan(plan); !result)
             return std::unexpected{std::move(result).error()};
 
         return plan;

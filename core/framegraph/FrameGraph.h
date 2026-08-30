@@ -205,6 +205,8 @@ namespace Vixen {
                 std::vector<Transition>& transitions
             ) const -> std::expected<void, FrameGraphError>;
 
+            [[nodiscard]] auto buildTransitionPlan(DependencyPlan& plan) const -> std::expected<void, FrameGraphError>;
+
             template <typename PassData, typename Setup, typename Execute>
             Builder& addPass(
                 std::string name,
