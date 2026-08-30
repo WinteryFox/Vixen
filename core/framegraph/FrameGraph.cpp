@@ -191,6 +191,12 @@ namespace Vixen {
 
     auto FrameGraph::Builder::validateAndInitializeResources(DependencyPlan& plan) const
         -> std::expected<void, FrameGraphError> {
+        constexpr auto hasAccessWithoutStages = [](const ResourceState& state) noexcept -> bool {
+            return std::visit([](const auto& typedState) {
+                return !typedState.access.empty() && typedState.stages.empty();
+            }, state);
+        };
+
         for (std::size_t resourceIndex = 0; resourceIndex < nodes.size(); resourceIndex++) {
             const auto& node = nodes[resourceIndex];
 
@@ -207,8 +213,6 @@ namespace Vixen {
 
             auto& versions = plan.resources.emplace_back(node.latestVersion + 1);
 
-            versions[0].initializedExternally = node.lifetime == ResourceLifetime::Imported;
-
             switch (node.type) {
                 case ResourceType::Image: {
                     if (!std::holds_alternative<ImageResourceDescription>(node.description))
@@ -221,9 +225,8 @@ namespace Vixen {
                             )
                         };
 
-                    const auto& format = std::get<ImageResourceDescription>(node.description).format;
-
-                    if (format.width == 0 ||
+                    if (const auto& format = std::get<ImageResourceDescription>(node.description).format;
+                        format.width == 0 ||
                         format.height == 0 ||
                         format.depth == 0 ||
                         format.layerCount == 0 ||
@@ -244,9 +247,8 @@ namespace Vixen {
                         };
 
                     if (node.lifetime == ResourceLifetime::Imported) {
-                        const auto image = std::get_if<Image*>(&node.importedResource);
-
-                        if (!image || !*image)
+                        if (const auto image = std::get_if<Image*>(&node.importedResource);
+                            !image || !*image)
                             return std::unexpected{
                                 resourceError(
                                     FrameGraphErrorCode::InvalidResourceOwnership,
@@ -268,6 +270,21 @@ namespace Vixen {
                                     resourceIndex
                                 )
                             };
+
+                        if (std::get<ImageState>(*node.finalState).layout == ImageLayout::Undefined)
+                            return std::unexpected{
+                                resourceError(
+                                    FrameGraphErrorCode::InvalidResourceDeclaration,
+                                    std::format(
+                                        "Imported image resource '{}' must not have a final image layout of undefined",
+                                        node.name
+                                    ),
+                                    resourceIndex
+                                )
+                            };
+
+                        versions[0].initializedExternally = node.lifetime == ResourceLifetime::Imported &&
+                            std::get<ImageState>(*node.initialState).layout != ImageLayout::Undefined;
                     }
 
                     break;
@@ -323,6 +340,8 @@ namespace Vixen {
                                     resourceIndex
                                 )
                             };
+
+                        versions[0].initializedExternally = true;
                     }
 
                     break;
@@ -340,6 +359,31 @@ namespace Vixen {
 
             switch (node.lifetime) {
                 case ResourceLifetime::Imported:
+                    if (hasAccessWithoutStages(*node.initialState))
+                        return std::unexpected{
+                            resourceError(
+                                FrameGraphErrorCode::InvalidResourceDeclaration,
+                                std::format(
+                                    "Imported resource '{}' has an invalid initial state: "
+                                    "the access mask is non-empty but the pipeline stage mask is empty",
+                                    node.name
+                                ),
+                                resourceIndex
+                            )
+                        };
+
+                    if (hasAccessWithoutStages(*node.finalState))
+                        return std::unexpected{
+                            resourceError(
+                                FrameGraphErrorCode::InvalidResourceDeclaration,
+                                std::format(
+                                    "Imported resource '{}' has an invalid final state: "
+                                    "the access mask is non-empty but the pipeline stage mask is empty",
+                                    node.name
+                                ),
+                                resourceIndex
+                            )
+                        };
                     break;
 
                 case ResourceLifetime::Persistent:
@@ -653,7 +697,7 @@ namespace Vixen {
                                     !validation)
                                     return std::unexpected(validation.error());
 
-                                const auto mapped = mapImageResourceState(
+                                auto mapped = mapImageResourceState(
                                     typedUsage.access,
                                     typedUsage.usage,
                                     typedUsage.stages
@@ -675,7 +719,7 @@ namespace Vixen {
                                     typedUsage.stages
                                 );
                                 if (!mapped)
-                                    return std::unexpected(mapped.error());
+                                    return std::unexpected(std::move(mapped).error());
 
                                 return ResourceState{*mapped};
                             }
@@ -1721,7 +1765,7 @@ namespace Vixen {
             }
         }
 
-        return std::move(localStorage);
+        return localStorage;
     }
 
     ImageHandle FrameGraph::Builder::createImage(
