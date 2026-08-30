@@ -106,6 +106,12 @@ namespace Vixen {
             std::vector<BarrierBatch> finalBatches;
         };
 
+        struct TrackedResourceState {
+            std::optional<ResourceState> state;
+            ResourceId lastHandle;
+            bool used = false;
+        };
+
         std::vector<ResourceNode> nodes;
 
         DependencyPlan dependencyPlan;
@@ -189,6 +195,9 @@ namespace Vixen {
 
             [[nodiscard]] auto buildExecutionOrder(DependencyPlan& plan) const
                 -> std::expected<void, FrameGraphError>;
+
+            [[nodiscard]] auto buildInitialTrackedStates() const
+                -> std::expected<std::vector<TrackedResourceState>, FrameGraphError>;
 
             template <typename PassData, typename Setup, typename Execute>
             Builder& addPass(

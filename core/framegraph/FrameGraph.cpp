@@ -1464,6 +1464,120 @@ namespace Vixen {
         return {};
     }
 
+    auto FrameGraph::Builder::buildInitialTrackedStates() const ->
+        std::expected<std::vector<TrackedResourceState>, FrameGraphError> {
+        std::vector<TrackedResourceState> states;
+        states.reserve(nodes.size());
+
+        for (std::size_t resourceIndex = 0; resourceIndex < nodes.size(); resourceIndex++) {
+            const auto& node = nodes[resourceIndex];
+            TrackedResourceState trackedState{
+                .state = std::nullopt,
+                .lastHandle = {
+                    .index = static_cast<uint32_t>(resourceIndex),
+                    .version = 0
+                },
+                .used = false
+            };
+
+            switch (node.lifetime) {
+                case ResourceLifetime::Transient:
+                case ResourceLifetime::Persistent: {
+                    switch (node.type) {
+                        case ResourceType::Image:
+                            trackedState.state = ResourceState{
+                                ImageState{
+                                    .stages = {},
+                                    .access = {},
+                                    .layout = ImageLayout::Undefined
+                                }
+                            };
+                            break;
+
+                        case ResourceType::Buffer:
+                            break;
+
+                        default:
+                            return std::unexpected{
+                                resourceError(
+                                    FrameGraphErrorCode::InvalidGraphInvariant,
+                                    "Cannot initialize tracked state for owned resource '" + node.name +
+                                    "': the validated resource has an unrecognized ResourceType value",
+                                    static_cast<uint32_t>(resourceIndex)
+                                )
+                            };
+                    }
+
+                    break;
+                }
+
+                case ResourceLifetime::Imported: {
+                    if (!node.initialState.has_value())
+                        return std::unexpected{
+                            resourceError(
+                                FrameGraphErrorCode::InvalidGraphInvariant,
+                                "Cannot initialize tracked state for imported resource '" + node.name +
+                                "': the validated resource has no initial state",
+                                static_cast<uint32_t>(resourceIndex)
+                            )
+                        };
+
+                    const char* expectedState;
+                    bool stateTypeMatches;
+                    switch (node.type) {
+                        case ResourceType::Image:
+                            expectedState = "image";
+                            stateTypeMatches = std::holds_alternative<ImageState>(*node.initialState);
+                            break;
+
+                        case ResourceType::Buffer:
+                            expectedState = "buffer";
+                            stateTypeMatches = std::holds_alternative<BufferState>(*node.initialState);
+                            break;
+
+                        default:
+                            return std::unexpected{
+                                resourceError(
+                                    FrameGraphErrorCode::InvalidGraphInvariant,
+                                    "Cannot initialize tracked state for imported resource '" + node.name +
+                                    "': the validated resource has an unrecognized ResourceType value",
+                                    static_cast<uint32_t>(resourceIndex)
+                                )
+                            };
+                    }
+
+                    if (!stateTypeMatches)
+                        return std::unexpected{
+                            resourceError(
+                                FrameGraphErrorCode::InvalidGraphInvariant,
+                                "Cannot initialize tracked state for imported resource '" + node.name +
+                                "': expected a valid " + expectedState + " state but found a " +
+                                resourceStateKind(*node.initialState) + " state",
+                                static_cast<uint32_t>(resourceIndex)
+                            )
+                        };
+
+                    trackedState.state = *node.initialState;
+                    break;
+                }
+
+                default:
+                    return std::unexpected{
+                        resourceError(
+                            FrameGraphErrorCode::InvalidGraphInvariant,
+                            "Cannot initialize tracked state for resource '" + node.name +
+                            "': the validated resource has an unrecognized ResourceLifetime value",
+                            static_cast<uint32_t>(resourceIndex)
+                        )
+                    };
+            }
+
+            states.push_back(trackedState);
+        }
+
+        return states;
+    }
+
     ResourceId FrameGraph::Builder::addResource(
         std::string name,
         const ResourceType type,
