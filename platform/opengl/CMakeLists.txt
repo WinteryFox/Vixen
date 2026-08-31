@@ -1,14 +1,22 @@
 add_library(
-        OpenGLVixen
+        VixenOpenGL
         STATIC
         OpenGLRenderingDevice.cpp
-        OpenGLRenderingDevice.h
         OpenGLRenderingContext.cpp
-        OpenGLRenderingContext.h
 )
-vixen_configure_target(OpenGLVixen)
-target_link_libraries(
-        OpenGLVixen
+target_sources(
+        VixenOpenGL
         PUBLIC
-        Vixen
+        FILE_SET public_headers
+        TYPE HEADERS
+        BASE_DIRS ${CMAKE_CURRENT_SOURCE_DIR}
+        FILES
+        OpenGLRenderingContext.h
+        OpenGLRenderingDevice.h
+)
+vixen_configure_target(VixenOpenGL)
+target_link_libraries(
+        VixenOpenGL
+        PUBLIC
+        VixenCore
 )
