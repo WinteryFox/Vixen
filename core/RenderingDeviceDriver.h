@@ -15,7 +15,6 @@
 #include "buffer/BufferUsage.h"
 #include "error/ResourceCreationError.h"
 #include "glm/vec2.hpp"
-#include "glm/vec3.hpp"
 #include "glm/vec4.hpp"
 #include "image/ImageFormat.h"
 #include "image/ImageView.h"
@@ -299,7 +298,7 @@ namespace Vixen {
         virtual void commandBeginLabel(
             CommandBuffer* commandBuffer,
             const std::string& label,
-            const glm::vec3& color
+            const glm::vec4& color
         ) = 0;
 
         virtual void commandEndLabel(
@@ -318,5 +317,7 @@ namespace Vixen {
         virtual uint64_t getMaxBufferSize() const = 0;
 
         virtual uint32_t getMaxTexelBufferElements() const = 0;
+
+        virtual uint32_t getMaxColorAttachments() const = 0;
     };
 }

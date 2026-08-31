@@ -1,7 +1,8 @@
 #pragma once
 
+#include "FrameGraphResourceView.h"
+
 namespace Vixen {
-    class FrameGraphResourceView;
     struct CommandBuffer;
     class RenderingDeviceDriver;
 
@@ -10,6 +11,6 @@ namespace Vixen {
 
         CommandBuffer* commandBuffer;
 
-        const FrameGraphResourceView& resources;
+        FrameGraphResourceView resources;
     };
 }

@@ -16,6 +16,7 @@
 #include "Node.h"
 #include "RenderPassType.h"
 #include "StoreAction.h"
+#include "glm/vec4.hpp"
 
 namespace Vixen {
     struct RenderPassContext;
@@ -47,13 +48,16 @@ namespace Vixen {
 
         ExecuteCallback executeCallback;
 
+        glm::vec4 debugLabelColor;
+
         RenderPass(
             std::string name,
             RenderPassType type,
             std::vector<ResourceUsage> resourceUsages,
             std::vector<RenderAttachment> colorAttachments,
             std::optional<RenderAttachment> depthStencilAttachment,
-            ExecuteCallback executeCallback
+            ExecuteCallback executeCallback,
+            glm::vec4 debugLabelColor
         );
 
     public:
@@ -79,6 +83,8 @@ namespace Vixen {
 
         [[nodiscard]] const std::optional<RenderAttachment>& getDepthStencilAttachment() const noexcept;
 
+        [[nodiscard]] glm::vec4 getDebugLabelColor() const noexcept;
+
         class Builder {
             std::vector<ResourceNode>& resources;
 
@@ -93,6 +99,8 @@ namespace Vixen {
             std::vector<RenderAttachment> colorAttachments;
 
             std::optional<RenderAttachment> depthStencilAttachment;
+
+            glm::vec4 debugLabelColor;
 
             [[nodiscard]]
             static constexpr const char* resourceTypeName(const ResourceType resourceType) noexcept {
@@ -186,10 +194,24 @@ namespace Vixen {
             }
 
         public:
-            Builder(std::vector<ResourceNode>& resources, std::string name, const RenderPassType type)
-                : resources(resources),
-                  name(std::move(name)),
-                  type(type) {}
+            Builder(
+                std::vector<ResourceNode>& resources,
+                std::string name,
+                const RenderPassType type
+            ) : resources(resources),
+                name(std::move(name)),
+                type(type),
+                debugLabelColor({}) {
+                switch (type) {
+                    case RenderPassType::Graphics:
+                        debugLabelColor = {0.31f, 0.56f, 0.97f, 1.0f};
+                        break;
+
+                    case RenderPassType::Compute:
+                        debugLabelColor = {0.61f, 0.36f, 0.9f, 1.0f};
+                        break;
+                }
+            }
 
             Builder(const Builder& other) = delete;
 
@@ -408,6 +430,11 @@ namespace Vixen {
                 return output;
             }
 
+            Builder& setDebugLabelColor(const glm::vec4 color) {
+                debugLabelColor = color;
+                return *this;
+            }
+
             template <typename Data, typename Execute>
             [[nodiscard]]
             RenderPass build(
@@ -443,7 +470,8 @@ namespace Vixen {
                     std::move(resourceUsages),
                     std::move(colorAttachments),
                     depthStencilAttachment,
-                    ExecuteCallback(std::move(callback))
+                    ExecuteCallback(std::move(callback)),
+                    debugLabelColor
                 };
             }
         };

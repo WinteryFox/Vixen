@@ -7,13 +7,15 @@ namespace Vixen {
         std::vector<ResourceUsage> resourceUsages,
         std::vector<RenderAttachment> colorAttachments,
         std::optional<RenderAttachment> depthStencilAttachment,
-        ExecuteCallback executeCallback
+        ExecuteCallback executeCallback,
+        glm::vec4 debugLabelColor
     ) : name(std::move(name)),
         type(type),
         resourceUsages(std::move(resourceUsages)),
         colorAttachments(std::move(colorAttachments)),
         depthStencilAttachment(depthStencilAttachment),
-        executeCallback(std::move(executeCallback)) {}
+        executeCallback(std::move(executeCallback)),
+        debugLabelColor(debugLabelColor) {}
 
     void RenderPass::execute(RenderPassContext& context) {
         executeCallback(context);
@@ -37,5 +39,9 @@ namespace Vixen {
 
     const std::optional<RenderAttachment>& RenderPass::getDepthStencilAttachment() const noexcept {
         return depthStencilAttachment;
+    }
+
+    glm::vec4 RenderPass::getDebugLabelColor() const noexcept {
+        return debugLabelColor;
     }
 }

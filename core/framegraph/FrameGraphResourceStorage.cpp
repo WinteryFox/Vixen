@@ -118,6 +118,45 @@ namespace Vixen {
         slots.clear();
     }
 
+    std::size_t FrameGraphResourceStorage::size() const noexcept {
+        return slots.size();
+    }
+
+    bool FrameGraphResourceStorage::isFullyResolved() const noexcept {
+        for (const auto& slot : slots) {
+            if (slot.ownership == Ownership::Empty)
+                return false;
+
+            if (slot.lifetime == ResourceLifetime::Imported) {
+                if (slot.ownership != Ownership::Imported)
+                    return false;
+            } else if (slot.ownership != Ownership::Owned) {
+                return false;
+            }
+
+            switch (slot.type) {
+                case ResourceType::Image: {
+                    const auto image = std::get_if<Image*>(&slot.object);
+                    if (image == nullptr || *image == nullptr)
+                        return false;
+                    break;
+                }
+
+                case ResourceType::Buffer: {
+                    const auto buffer = std::get_if<Buffer*>(&slot.object);
+                    if (buffer == nullptr || *buffer == nullptr)
+                        return false;
+                    break;
+                }
+
+                default:
+                    return false;
+            }
+        }
+
+        return true;
+    }
+
     FrameGraphResourceView FrameGraphResourceStorage::getResources() const noexcept {
         return FrameGraphResourceView{slots};
     }

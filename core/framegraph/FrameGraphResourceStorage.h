@@ -43,6 +43,10 @@ namespace Vixen {
 
         void reset();
 
+        [[nodiscard]] std::size_t size() const noexcept;
+
+        [[nodiscard]] bool isFullyResolved() const noexcept;
+
         [[nodiscard]] FrameGraphResourceView getResources() const noexcept;
     };
 }

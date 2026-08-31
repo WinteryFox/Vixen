@@ -10,7 +10,9 @@
 #include <utility>
 #include <vector>
 
+#include "AttachmentInfo.h"
 #include "BarrierBatch.h"
+#include "FrameGraphExecutionError.h"
 #include "FrameGraphResourceStorage.h"
 #include "Node.h"
 #include "RenderPass.h"
@@ -23,6 +25,14 @@ namespace Vixen {
     class Buffer;
     struct Image;
 
+    /**
+     * @brief A compiled, move-only frame graph whose resources and execution records are ready for recording.
+     *
+     * Imported resources are non-owning bindings to the exact objects supplied to Builder::build(). Those objects
+     * and their descriptions must remain alive and unchanged whenever this graph is executed. Rebuild the graph when
+     * an imported object changes, including after swapchain recreation. Applications may instead cache one compiled
+     * graph for each stable swapchain image and execute the graph associated with the currently acquired image.
+     */
     class FrameGraph final {
         struct VersionAccess {
             uint32_t pass;
@@ -113,6 +123,18 @@ namespace Vixen {
             bool used = false;
         };
 
+        struct PassExecutionRecord {
+            uint32_t passIndex;
+            std::optional<RenderingInfo> renderingInfo;
+            glm::vec4 debugLabelColor;
+        };
+
+        struct ExecutionPlan {
+            std::vector<PassExecutionRecord> passes;
+        };
+
+        RenderingDevice& device;
+
         std::vector<ResourceNode> nodes;
 
         DependencyPlan dependencyPlan;
@@ -123,12 +145,18 @@ namespace Vixen {
 
         std::vector<RenderPass> renderPasses;
 
+        ExecutionPlan executionPlan;
+
+        bool valid;
+
         FrameGraph(
+            RenderingDevice& device,
             std::vector<ResourceNode>&& nodes,
             DependencyPlan&& dependencyPlan,
             BarrierPlan&& barrierPlan,
             FrameGraphResourceStorage&& storage,
-            std::vector<RenderPass>&& renderPasses
+            std::vector<RenderPass>&& renderPasses,
+            ExecutionPlan&& executionPlan
         );
 
     public:
@@ -140,7 +168,10 @@ namespace Vixen {
 
         ~FrameGraph() = default;
 
-        void execute(RenderPassContext& context);
+        [[nodiscard]]
+        auto execute(
+            CommandBuffer* commandBuffer
+        ) -> std::expected<void, FrameGraphExecutionError>;
 
         class Builder {
             std::vector<ResourceNode> nodes;
@@ -218,6 +249,23 @@ namespace Vixen {
                 const FrameGraphResourceView& resources,
                 const TransitionPlan& transitionPlan
             ) const -> std::expected<BarrierPlan, FrameGraphError>;
+
+            [[nodiscard]] auto validateExecutionPlan(
+                const DependencyPlan& dependencyPlan,
+                const BarrierPlan& barrierPlan,
+                const FrameGraphResourceStorage& storage
+            ) const -> std::expected<void, FrameGraphError>;
+
+            [[nodiscard]] auto validateDeviceLimits(
+                uint32_t maxColorAttachments
+            ) const -> std::expected<void, FrameGraphError>;
+
+            static auto buildExecutionPlan(
+                const DependencyPlan& dependencyPlan,
+                const std::vector<ResourceNode>& nodes,
+                const std::vector<RenderPass>& renderPasses,
+                const FrameGraphResourceStorage& storage
+            ) -> std::expected<ExecutionPlan, FrameGraphError>;
 
             template <typename PassData, typename Setup, typename Execute>
             Builder& addPass(
@@ -358,6 +406,8 @@ namespace Vixen {
              * Compiles the frame graph and allocates and creates resources required for the compiled graph.
              * @param device The Vixen::RenderingDevice to allocate and create the resources required for the compiled render graph.
              * @return Returns the compiled Vixen::FrameGraph with its required resources allocated.
+             * @note Imported resources are bound by non-owning pointer. Rebuild the graph if an imported object or its
+             * description changes; this includes swapchain images replaced during swapchain recreation.
              * @see Vixen::FrameGraph::Builder::compile
              */
             [[nodiscard]] auto build(RenderingDevice& device) && -> std::expected<FrameGraph, FrameGraphError>;

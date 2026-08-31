@@ -1,5 +1,6 @@
 #pragma once
 
+#include <cstdint>
 #include <optional>
 #include <vector>
 
@@ -28,6 +29,8 @@ namespace Vixen {
 
     struct RenderingInfo {
         glm::uvec2 extent;
+
+        uint32_t layerCount;
 
         std::vector<AttachmentInfo> colorAttachments;
 

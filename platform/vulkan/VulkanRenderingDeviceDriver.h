@@ -337,7 +337,7 @@ namespace Vixen {
         void commandBeginLabel(
             CommandBuffer* commandBuffer,
             const std::string& label,
-            const glm::vec3& color
+            const glm::vec4& color
         ) override;
 
         void commandEndLabel(
@@ -356,5 +356,7 @@ namespace Vixen {
         [[nodiscard]] uint64_t getMaxBufferSize() const override;
 
         [[nodiscard]] uint32_t getMaxTexelBufferElements() const override;
+
+        [[nodiscard]] uint32_t getMaxColorAttachments() const override;
     };
 }

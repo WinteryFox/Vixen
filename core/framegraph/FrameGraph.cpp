@@ -1,5 +1,6 @@
 #include "FrameGraph.h"
 
+#include <algorithm>
 #include <cassert>
 #include <format>
 #include <functional>
@@ -10,10 +11,13 @@
 #include <unordered_map>
 #include <unordered_set>
 #include <utility>
+#include <experimental/scope>
 
+#include "AttachmentInfo.h"
 #include "FrameGraphError.h"
 #include "RenderingDevice.h"
 #include "RenderingDeviceDriver.h"
+#include "RenderPassContext.h"
 #include "ResourceStateMapping.h"
 #include "buffer/Buffer.h"
 #include "image/Image.h"
@@ -42,6 +46,80 @@ namespace Vixen {
                 return "buffer";
 
             return "valueless";
+        }
+
+        [[nodiscard]]
+        constexpr const char* imageLayoutName(const ImageLayout layout) noexcept {
+            switch (layout) {
+                case ImageLayout::Undefined:
+                    return "Undefined";
+                case ImageLayout::General:
+                    return "General";
+                case ImageLayout::StorageOptimal:
+                    return "StorageOptimal";
+                case ImageLayout::ColorAttachmentOptimal:
+                    return "ColorAttachmentOptimal";
+                case ImageLayout::DepthStencilAttachmentOptimal:
+                    return "DepthStencilAttachmentOptimal";
+                case ImageLayout::DepthStencilReadOnlyOptimal:
+                    return "DepthStencilReadOnlyOptimal";
+                case ImageLayout::ShaderReadOnlyOptimal:
+                    return "ShaderReadOnlyOptimal";
+                case ImageLayout::CopySourceOptimal:
+                    return "CopySourceOptimal";
+                case ImageLayout::CopyDestinationOptimal:
+                    return "CopyDestinationOptimal";
+                case ImageLayout::ResolveSourceOptimal:
+                    return "ResolveSourceOptimal";
+                case ImageLayout::ResolveDestinationOptimal:
+                    return "ResolveDestinationOptimal";
+            }
+
+            return "Unrecognized";
+        }
+
+        [[nodiscard]]
+        std::string describeResourceState(const ResourceState& state) {
+            if (state.valueless_by_exception())
+                return "valueless resource state";
+
+            return std::visit(
+                []<typename State>(const State& typedState) {
+                    if constexpr (std::is_same_v<State, ImageState>)
+                        return std::format(
+                            "image state (stages=0x{:08X}, access=0x{:08X}, layout={} [{}])",
+                            typedState.stages.value(),
+                            typedState.access.value(),
+                            imageLayoutName(typedState.layout),
+                            static_cast<std::underlying_type_t<ImageLayout>>(typedState.layout)
+                        );
+                    else {
+                        static_assert(std::is_same_v<State, BufferState>);
+
+                        return std::format(
+                            "buffer state (stages=0x{:08X}, access=0x{:08X})",
+                            typedState.stages.value(),
+                            typedState.access.value()
+                        );
+                    }
+                },
+                state
+            );
+        }
+
+        void appendStateDetails(
+            FrameGraphError& error,
+            const std::optional<ResourceState>& previous,
+            const ResourceState& requested
+        ) {
+            error.details.emplace_back(
+                previous.has_value()
+                    ? "Previous/source " + describeResourceState(*previous)
+                    : "Previous/source state: none"
+            );
+            error.details.emplace_back(
+                "Requested/destination " + describeResourceState(requested)
+            );
         }
 
         [[nodiscard]]
@@ -80,7 +158,8 @@ namespace Vixen {
             const ResourceState& source,
             const ResourceState& destination
         ) -> std::expected<bool, FrameGraphError> {
-            if (source.valueless_by_exception() || destination.valueless_by_exception() ||
+            if (source.valueless_by_exception() ||
+                destination.valueless_by_exception() ||
                 source.index() != destination.index())
                 return invalidStateComparison(source, destination);
 
@@ -104,33 +183,119 @@ namespace Vixen {
             const ResourceState& right
         ) -> std::expected<bool, FrameGraphError> {
             auto barrierRequired = needsBarrier(left, right);
-            if (!barrierRequired)
-                return std::unexpected{std::move(barrierRequired).error()};
+            if (!barrierRequired) {
+                auto error = std::move(barrierRequired).error();
+                appendStateDetails(error, left, right);
+                return std::unexpected{std::move(error)};
+            }
 
             return !*barrierRequired;
         }
     }
 
     FrameGraph::FrameGraph(
+        RenderingDevice& device,
         std::vector<ResourceNode>&& nodes,
         DependencyPlan&& dependencyPlan,
         BarrierPlan&& barrierPlan,
         FrameGraphResourceStorage&& storage,
-        std::vector<RenderPass>&& renderPasses
-    ) : nodes(std::move(nodes)),
+        std::vector<RenderPass>&& renderPasses,
+        ExecutionPlan&& executionPlan
+    ) : device(device),
+        nodes(std::move(nodes)),
         dependencyPlan(std::move(dependencyPlan)),
         barrierPlan(std::move(barrierPlan)),
         storage(std::move(storage)),
-        renderPasses(std::move(renderPasses)) {}
+        renderPasses(std::move(renderPasses)),
+        executionPlan(std::move(executionPlan)),
+        valid(true) {}
 
-    FrameGraph::FrameGraph(FrameGraph&& other) noexcept = default;
+    FrameGraph::FrameGraph(FrameGraph&& other) noexcept
+        : device(other.device),
+          nodes(std::move(other.nodes)),
+          dependencyPlan(std::move(other.dependencyPlan)),
+          barrierPlan(std::move(other.barrierPlan)),
+          storage(std::move(other.storage)),
+          renderPasses(std::move(other.renderPasses)),
+          executionPlan(std::move(other.executionPlan)),
+          valid(std::exchange(other.valid, false)) {}
 
-    void FrameGraph::execute(RenderPassContext& context) {
-        const auto resourceView = storage.getResources();
+    auto FrameGraph::execute(
+        CommandBuffer* commandBuffer
+    ) -> std::expected<void, FrameGraphExecutionError> {
+        if (!valid)
+            return std::unexpected{
+                FrameGraphExecutionError{
+                    .code = FrameGraphExecutionErrorCode::MovedFromGraph,
+                    .message = "Cannot execute a moved-from frame graph"
+                }
+            };
 
-        for (const auto& pass : renderPasses) {
-            // TODO: Execute pass
+        if (!commandBuffer)
+            return std::unexpected{
+                FrameGraphExecutionError{
+                    .code = FrameGraphExecutionErrorCode::InvalidCommandBuffer,
+                    .message = "Given command buffer is a null pointer",
+                }
+            };
+
+        const auto driver = device.getRenderingDeviceDriver();
+        auto context = RenderPassContext{
+            .driver = *driver,
+            .commandBuffer = commandBuffer,
+            .resources = storage.getResources()
+        };
+
+        for (const auto& record : executionPlan.passes) {
+            const uint32_t passIndex = record.passIndex;
+            auto& pass = renderPasses[passIndex];
+
+            const bool shouldUseRenderPass = record.renderingInfo.has_value();
+
+            driver->commandBeginLabel(commandBuffer, pass.getName(), record.debugLabelColor);
+
+            auto labelGuard = std::experimental::scope_exit([
+                &driver,
+                commandBuffer
+            ] {
+                driver->commandEndLabel(commandBuffer);
+            });
+
+            emitBarrierBatches(*driver, commandBuffer, barrierPlan.beforePass[passIndex]);
+
+            auto endRendering = [&driver, commandBuffer] {
+                driver->commandEndRenderPass(commandBuffer);
+            };
+            using RenderingGuard = std::experimental::scope_exit<decltype(endRendering)>;
+            std::optional<RenderingGuard> renderingGuard;
+            if (shouldUseRenderPass) {
+                driver->commandBeginRenderPass(commandBuffer, *record.renderingInfo);
+                renderingGuard.emplace(endRendering);
+            }
+
+            try {
+                pass.execute(context);
+            } catch (...) {
+                return std::unexpected{
+                    FrameGraphExecutionError{
+                        .code = FrameGraphExecutionErrorCode::CallbackFailed,
+                        .message = std::format(
+                            "An error occurred during frame-graph pass '{}' with index {} execution callback",
+                            pass.getName(),
+                            passIndex
+                        ),
+                        .passIndex = passIndex,
+                        .passName = pass.getName(),
+                        .cause = std::current_exception(),
+                        .commandBufferMustBeDiscarded = true
+                    }
+                };
+            }
         }
+
+        emitBarrierBatches(*driver, commandBuffer, barrierPlan.finalBatches);
+
+        return {};
     }
 
     FrameGraphError FrameGraph::Builder::allocationError(
@@ -1955,6 +2120,11 @@ namespace Vixen {
                     auto error = std::move(result).error();
                     error.passIndex = passIndex;
                     error.passName = pass.getName();
+                    appendStateDetails(
+                        error,
+                        (*trackers)[access.handle.index].state,
+                        access.state
+                    );
                     error.details.push_back(
                         std::format(
                             "The failure occurred while planning compiled resource access {} in declaration order",
@@ -2043,6 +2213,7 @@ namespace Vixen {
             );
             if (!result) {
                 auto error = std::move(result).error();
+                appendStateDetails(error, tracker.state, finalAccess.state);
                 error.details.emplace_back(
                     "The failure occurred while planning the imported resource's final boundary transition");
 
@@ -2182,6 +2353,16 @@ namespace Vixen {
                         transitionIndex
                     )
                 );
+                std::visit(
+                    [&error](const auto& typedTransition) {
+                        appendStateDetails(
+                            error,
+                            ResourceState{typedTransition.source},
+                            ResourceState{typedTransition.destination}
+                        );
+                    },
+                    transition
+                );
 
                 return std::unexpected{std::move(error)};
             }
@@ -2237,6 +2418,318 @@ namespace Vixen {
 
         resolvedPlan.finalBatches = std::move(*finalBatcher).takeBatches();
         return resolvedPlan;
+    }
+
+    auto FrameGraph::Builder::validateExecutionPlan(
+        const DependencyPlan& dependencyPlan,
+        const BarrierPlan& barrierPlan,
+        const FrameGraphResourceStorage& storage
+    ) const -> std::expected<void, FrameGraphError> {
+        const auto passCount = renderPasses.size();
+        if (dependencyPlan.passes.size() != passCount ||
+            dependencyPlan.executionOrder.size() != passCount ||
+            dependencyPlan.transitions.beforePass.size() != passCount ||
+            barrierPlan.beforePass.size() != passCount)
+            return std::unexpected{
+                FrameGraphError{
+                    .code = FrameGraphErrorCode::InvalidGraphInvariant,
+                    .message = std::format(
+                        "Cannot build an executable frame graph: expected one compiled pass, execution-order "
+                        "entry, logical transition list, and resolved barrier list for each of {} declared "
+                        "passes, but found {}, {}, {}, and {}, respectively",
+                        passCount,
+                        dependencyPlan.passes.size(),
+                        dependencyPlan.executionOrder.size(),
+                        dependencyPlan.transitions.beforePass.size(),
+                        barrierPlan.beforePass.size()
+                    )
+                }
+            };
+
+        if (dependencyPlan.resources.size() != nodes.size() || storage.size() != nodes.size())
+            return std::unexpected{
+                FrameGraphError{
+                    .code = FrameGraphErrorCode::InvalidGraphInvariant,
+                    .message = std::format(
+                        "Cannot build an executable frame graph: expected one compiled resource table and one "
+                        "physical slot for each of {} logical resources, but found {} and {}, respectively",
+                        nodes.size(),
+                        dependencyPlan.resources.size(),
+                        storage.size()
+                    )
+                }
+            };
+
+        if (!storage.isFullyResolved())
+            return std::unexpected{
+                FrameGraphError{
+                    .code = FrameGraphErrorCode::UnresolvedResource,
+                    .message =
+                    "Cannot build an executable frame graph because one or more physical resource slots are unresolved"
+                }
+            };
+
+        std::vector scheduledPasses(passCount, false);
+        for (std::size_t orderIndex = 0; orderIndex < dependencyPlan.executionOrder.size(); orderIndex++) {
+            const auto passIndex = dependencyPlan.executionOrder[orderIndex];
+
+            if (passIndex >= passCount)
+                return std::unexpected{
+                    FrameGraphError{
+                        .code = FrameGraphErrorCode::InvalidGraphInvariant,
+                        .message = std::format(
+                            "Cannot build an executable frame graph: execution-order entry {} references pass "
+                            "index {}, but the graph contains {} passes",
+                            orderIndex,
+                            passIndex,
+                            passCount
+                        ),
+                        .passIndex = passIndex
+                    }
+                };
+
+            if (scheduledPasses[passIndex])
+                return std::unexpected{
+                    FrameGraphError{
+                        .code = FrameGraphErrorCode::InvalidGraphInvariant,
+                        .message = std::format(
+                            "Cannot build an executable frame graph: pass index {} ('{}') appears more than once "
+                            "in the execution order",
+                            passIndex,
+                            renderPasses[passIndex].getName()
+                        ),
+                        .passIndex = passIndex,
+                        .passName = renderPasses[passIndex].getName()
+                    }
+                };
+
+            scheduledPasses[passIndex] = true;
+        }
+
+        return {};
+    }
+
+    auto FrameGraph::Builder::validateDeviceLimits(
+        const uint32_t maxColorAttachments
+    ) const -> std::expected<void, FrameGraphError> {
+        for (uint32_t passIndex = 0; passIndex < renderPasses.size(); passIndex++) {
+            const auto attachmentCount = renderPasses[passIndex].getColorAttachments().size();
+            if (attachmentCount > maxColorAttachments)
+                return std::unexpected{
+                    passError(
+                        FrameGraphErrorCode::InvalidAttachment,
+                        std::format(
+                            "Pass '{}' declares {} color attachments, but the rendering device supports at most {}",
+                            renderPasses[passIndex].getName(),
+                            attachmentCount,
+                            maxColorAttachments
+                        ),
+                        passIndex
+                    )
+                };
+        }
+
+        return {};
+    }
+
+    auto FrameGraph::Builder::buildExecutionPlan(
+        const DependencyPlan& dependencyPlan,
+        const std::vector<ResourceNode>& nodes,
+        const std::vector<RenderPass>& renderPasses,
+        const FrameGraphResourceStorage& storage
+    ) -> std::expected<ExecutionPlan, FrameGraphError> {
+        ExecutionPlan executionPlan{};
+        executionPlan.passes.reserve(dependencyPlan.passes.size());
+
+        auto resourceView = FrameGraphResourceView{storage.getResources()};
+        for (const auto& passIndex : dependencyPlan.executionOrder) {
+            const auto& pass = renderPasses[passIndex];
+            const auto& compiledPass = dependencyPlan.passes[passIndex];
+
+            const auto attachmentLookupError = [&nodes, &pass, passIndex](
+                FrameGraphError error,
+                const RenderAttachment& attachment,
+                const std::string& attachmentName
+            ) {
+                const auto lookupMessage = std::move(error.message);
+                error.message = std::format(
+                    "Cannot resolve {} for pass '{}' (index {}), resource index {}, version {}: {}",
+                    attachmentName,
+                    pass.getName(),
+                    passIndex,
+                    attachment.handle.id.index,
+                    attachment.handle.id.version,
+                    lookupMessage
+                );
+                error.passIndex = passIndex;
+                error.passName = pass.getName();
+                error.resourceIndex = attachment.handle.id.index;
+                error.resourceVersion = attachment.handle.id.version;
+                if (attachment.handle.id.index < nodes.size())
+                    error.resourceName = nodes[attachment.handle.id.index].name;
+
+                return error;
+            };
+
+            const auto getAttachmentLayout = [&](
+                const RenderAttachment& attachment,
+                const std::string& attachmentName
+            ) -> std::expected<ImageLayout, FrameGraphError> {
+                const auto compiledAccess = std::ranges::find_if(
+                    compiledPass.resourceAccesses,
+                    [&attachment](const PassDependencies::CompiledResourceAccess& access) {
+                        // A read-write declaration stores its input handle in the compiled
+                        // access and its output handle in RenderAttachment. Both versions
+                        // identify the same logical resource.
+                        return access.handle.index == attachment.handle.id.index;
+                    }
+                );
+
+                if (compiledAccess == compiledPass.resourceAccesses.end())
+                    return std::unexpected{
+                        FrameGraphError{
+                            .code = FrameGraphErrorCode::InvalidGraphInvariant,
+                            .message = std::format(
+                                "Cannot build {} for pass '{}' (index {}): resource '{}' (index {}, attachment "
+                                "version {}) has no compiled access in the pass dependency plan",
+                                attachmentName,
+                                pass.getName(),
+                                passIndex,
+                                nodes[attachment.handle.id.index].name,
+                                attachment.handle.id.index,
+                                attachment.handle.id.version
+                            ),
+                            .passIndex = passIndex,
+                            .resourceIndex = attachment.handle.id.index,
+                            .resourceVersion = attachment.handle.id.version,
+                            .passName = pass.getName(),
+                            .resourceName = nodes[attachment.handle.id.index].name
+                        }
+                    };
+
+                const auto* imageState = std::get_if<ImageState>(&compiledAccess->state);
+                if (!imageState)
+                    return std::unexpected{
+                        FrameGraphError{
+                            .code = FrameGraphErrorCode::InvalidGraphInvariant,
+                            .message = std::format(
+                                "Cannot build {} for pass '{}' (index {}): the compiled access for resource '{}' "
+                                "(index {}, attachment version {}, compiled version {}) contains a {} state; "
+                                "render attachments require an image state",
+                                attachmentName,
+                                pass.getName(),
+                                passIndex,
+                                nodes[attachment.handle.id.index].name,
+                                attachment.handle.id.index,
+                                attachment.handle.id.version,
+                                compiledAccess->handle.version,
+                                resourceStateKind(compiledAccess->state)
+                            ),
+                            .passIndex = passIndex,
+                            .resourceIndex = attachment.handle.id.index,
+                            .resourceVersion = attachment.handle.id.version,
+                            .passName = pass.getName(),
+                            .resourceName = nodes[attachment.handle.id.index].name
+                        }
+                    };
+
+                return imageState->layout;
+            };
+
+            PassExecutionRecord record{
+                .passIndex = passIndex,
+                .renderingInfo = std::nullopt,
+                .debugLabelColor = pass.getDebugLabelColor()
+            };
+
+            std::vector<AttachmentInfo> colorAttachments{};
+            colorAttachments.reserve(pass.getColorAttachments().size());
+            for (std::size_t attachmentIndex = 0;
+                 attachmentIndex < pass.getColorAttachments().size();
+                 attachmentIndex++) {
+                const auto& colorAttachment = pass.getColorAttachments()[attachmentIndex];
+                auto image = resourceView.get(colorAttachment.handle);
+
+                if (!image)
+                    return std::unexpected{
+                        attachmentLookupError(
+                            std::move(image).error(),
+                            colorAttachment,
+                            std::format("color attachment {}", attachmentIndex)
+                        )
+                    };
+
+                auto layout = getAttachmentLayout(
+                    colorAttachment,
+                    std::format("color attachment {}", attachmentIndex)
+                );
+                if (!layout)
+                    return std::unexpected{std::move(layout).error()};
+
+                colorAttachments.push_back(AttachmentInfo{
+                    .image = *image,
+                    .layout = *layout,
+                    .loadAction = colorAttachment.loadAction,
+                    .storeAction = colorAttachment.storeAction,
+                    .resolveImage = nullptr,
+                    .clearValue = colorAttachment.clearValue
+                });
+            }
+
+            std::optional<AttachmentInfo> depthStencilAttachment = std::nullopt;
+            if (const auto& depthStencil = pass.getDepthStencilAttachment();
+                depthStencil.has_value()) {
+                auto image = resourceView.get(depthStencil->handle);
+
+                if (!image)
+                    return std::unexpected{
+                        attachmentLookupError(
+                            std::move(image).error(),
+                            *depthStencil,
+                            "depth-stencil attachment"
+                        )
+                    };
+
+                auto layout = getAttachmentLayout(
+                    *depthStencil,
+                    "depth-stencil attachment"
+                );
+                if (!layout)
+                    return std::unexpected{std::move(layout).error()};
+
+                depthStencilAttachment = AttachmentInfo{
+                    .image = *image,
+                    .layout = *layout,
+                    .loadAction = depthStencil->loadAction,
+                    .storeAction = depthStencil->storeAction,
+                    .resolveImage = nullptr,
+                    .clearValue = depthStencil->clearValue
+                };
+            }
+
+            if (!colorAttachments.empty() ||
+                depthStencilAttachment.has_value()) {
+                const auto& referenceAttachment = !colorAttachments.empty()
+                                                      ? pass.getColorAttachments().front()
+                                                      : *pass.getDepthStencilAttachment();
+                const auto& description = std::get<ImageResourceDescription>(
+                    nodes[referenceAttachment.handle.id.index].description);
+
+                record.renderingInfo = {
+                    .extent = {
+                        description.format.width,
+                        description.format.height,
+                    },
+                    .layerCount = description.format.layerCount,
+                    .colorAttachments = std::move(colorAttachments),
+                    .depthStencilAttachment = depthStencilAttachment
+                };
+            }
+
+            executionPlan.passes.push_back(std::move(record));
+        }
+
+        return executionPlan;
     }
 
     ResourceId FrameGraph::Builder::addResource(
@@ -2659,11 +3152,18 @@ namespace Vixen {
         };
     }
 
-    auto FrameGraph::Builder::build(RenderingDevice& device) && -> std::expected<FrameGraph, FrameGraphError> {
+    auto FrameGraph::Builder::build(
+        RenderingDevice& device
+    ) && -> std::expected<FrameGraph, FrameGraphError> {
         auto plan = compile();
 
         if (!plan)
             return std::unexpected{std::move(plan).error()};
+
+        if (auto result = validateDeviceLimits(
+                device.getRenderingDeviceDriver()->getMaxColorAttachments()
+            ); !result)
+            return std::unexpected{std::move(result).error()};
 
         auto localStorage = allocateResources(device);
         if (!localStorage)
@@ -2676,12 +3176,26 @@ namespace Vixen {
         if (!resolvedPlan)
             return std::unexpected{std::move(resolvedPlan).error()};
 
+        if (auto result = validateExecutionPlan(*plan, *resolvedPlan, *localStorage); !result)
+            return std::unexpected{std::move(result).error()};
+
+        auto execPlan = buildExecutionPlan(
+            *plan,
+            nodes,
+            renderPasses,
+            *localStorage
+        );
+        if (!execPlan)
+            return std::unexpected{std::move(execPlan).error()};
+
         return FrameGraph{
+            device,
             std::move(nodes),
             std::move(*plan),
             std::move(*resolvedPlan),
             std::move(*localStorage),
-            std::move(renderPasses)
+            std::move(renderPasses),
+            std::move(*execPlan)
         };
     }
 }

@@ -1320,6 +1320,7 @@ namespace Vixen {
 
         const auto o = new VulkanCommandBuffer();
         o->commandBuffer = commandBuffer;
+        o->renderingAttachmentScratch.reserve(physicalDeviceProperties.limits.maxColorAttachments);
 
         return o;
     }
@@ -2697,14 +2698,15 @@ namespace Vixen {
         CommandBuffer* commandBuffer,
         const RenderingInfo& renderingInfo
     ) {
-        const auto* vkCommandBuffer = dynamic_cast<VulkanCommandBuffer*>(commandBuffer);
+        auto* vkCommandBuffer = dynamic_cast<VulkanCommandBuffer*>(commandBuffer);
 
         DEBUG_ASSERT(vkCommandBuffer != nullptr);
         DEBUG_ASSERT(renderingInfo.extent.x > 0);
         DEBUG_ASSERT(renderingInfo.extent.y > 0);
+        DEBUG_ASSERT(renderingInfo.colorAttachments.size() <= physicalDeviceProperties.limits.maxColorAttachments);
 
-        std::vector<VkRenderingAttachmentInfo> colorAttachments;
-        colorAttachments.reserve(renderingInfo.colorAttachments.size());
+        auto& colorAttachments = vkCommandBuffer->renderingAttachmentScratch;
+        colorAttachments.clear();
 
         for (const auto& attachment : renderingInfo.colorAttachments) {
             DEBUG_ASSERT(attachment.image != nullptr);
@@ -2799,7 +2801,7 @@ namespace Vixen {
                     .height = renderingInfo.extent.y
                 }
             },
-            .layerCount = 1,
+            .layerCount = renderingInfo.layerCount,
             .viewMask = 0,
             .colorAttachmentCount = static_cast<uint32_t>(colorAttachments.size()),
             .pColorAttachments = colorAttachments.data(),
@@ -3213,7 +3215,7 @@ namespace Vixen {
     void VulkanRenderingDeviceDriver::commandBeginLabel(
         CommandBuffer* commandBuffer,
         const std::string& label,
-        const glm::vec3& color
+        const glm::vec4& color
     ) {
         const VkDebugUtilsLabelEXT info{
             .sType = VK_STRUCTURE_TYPE_DEBUG_UTILS_LABEL_EXT,
@@ -3222,7 +3224,8 @@ namespace Vixen {
             .color = {
                 color.r,
                 color.g,
-                color.b
+                color.b,
+                color.a
             }
         };
 
@@ -3308,5 +3311,9 @@ namespace Vixen {
 
     uint32_t VulkanRenderingDeviceDriver::getMaxTexelBufferElements() const {
         return physicalDeviceProperties.limits.maxTexelBufferElements;
+    }
+
+    uint32_t VulkanRenderingDeviceDriver::getMaxColorAttachments() const {
+        return physicalDeviceProperties.limits.maxColorAttachments;
     }
 }
