@@ -2055,6 +2055,141 @@ namespace Vixen {
         return {};
     }
 
+    auto FrameGraph::Builder::resolveTransitions(
+        const FrameGraphResourceView& resources,
+        const std::span<const Transition> transitions,
+        const std::optional<uint32_t> passIndex
+    ) const -> std::expected<BarrierBatcher, FrameGraphError> {
+        if (passIndex.has_value() && *passIndex >= renderPasses.size())
+            return std::unexpected{
+                FrameGraphError{
+                    .code = FrameGraphErrorCode::InvalidGraphInvariant,
+                    .message = std::format(
+                        "Cannot resolve pre-pass transitions for pass index {}: the builder contains {} render passes",
+                        *passIndex,
+                        renderPasses.size()
+                    ),
+                    .passIndex = *passIndex
+                }
+            };
+
+        BarrierBatcher batcher;
+
+        for (std::size_t transitionIndex = 0; transitionIndex < transitions.size(); transitionIndex++) {
+            const auto& transition = transitions[transitionIndex];
+
+            if (transition.valueless_by_exception()) {
+                FrameGraphError error{
+                    .code = FrameGraphErrorCode::InvalidGraphInvariant,
+                    .message = std::format(
+                        "Cannot resolve planned transition {} because its variant is valueless",
+                        transitionIndex
+                    )
+                };
+
+                if (passIndex.has_value()) {
+                    error.passIndex = *passIndex;
+                    error.passName = renderPasses[*passIndex].getName();
+                }
+
+                return std::unexpected{std::move(error)};
+            }
+
+            auto result = std::visit(
+                [&resources, &batcher]<typename T>(const T& typedTransition)
+                -> std::expected<void, FrameGraphError> {
+                    using PlannedTransition = std::remove_cvref_t<T>;
+
+                    if constexpr (std::is_same_v<PlannedTransition, ImageTransition>) {
+                        auto image = resources.get(typedTransition.handle);
+                        if (!image)
+                            return std::unexpected{std::move(image).error()};
+
+                        batcher.addImageBarrier(
+                            typedTransition.source,
+                            typedTransition.destination,
+                            ImageBarrier{
+                                .image = *image,
+                                .sourceAccess = typedTransition.source.access,
+                                .destinationAccess = typedTransition.destination.access,
+                                .oldLayout = typedTransition.source.layout,
+                                .newLayout = typedTransition.destination.layout,
+                                .subresources = typedTransition.subresources
+                            }
+                        );
+                    } else {
+                        static_assert(std::is_same_v<PlannedTransition, BufferTransition>);
+
+                        auto buffer = resources.get(typedTransition.handle);
+                        if (!buffer)
+                            return std::unexpected{std::move(buffer).error()};
+
+                        batcher.addBufferBarrier(
+                            typedTransition.source,
+                            typedTransition.destination,
+                            BufferBarrier{
+                                .buffer = *buffer,
+                                .sourceAccess = typedTransition.source.access,
+                                .destinationAccess = typedTransition.destination.access,
+                                .offset = typedTransition.offset,
+                                .size = typedTransition.size
+                            }
+                        );
+                    }
+
+                    return {};
+                },
+                transition
+            );
+
+            if (!result) {
+                auto error = std::move(result).error();
+                const auto handle = std::visit(
+                    [](const auto& typedTransition) {
+                        return typedTransition.handle.id;
+                    },
+                    transition
+                );
+                const auto transitionType = std::holds_alternative<ImageTransition>(transition)
+                                                ? "image"
+                                                : "buffer";
+
+                error.message = std::format(
+                    "Failed to resolve planned {} transition {} for resource index {} at version {}: {}",
+                    transitionType,
+                    transitionIndex,
+                    handle.index,
+                    handle.version,
+                    error.message
+                );
+                error.resourceVersion = handle.version;
+
+                if (handle.isValid())
+                    error.resourceIndex = handle.index;
+
+                if (handle.isValid() && handle.index < nodes.size())
+                    error.resourceName = nodes[handle.index].name;
+
+                if (passIndex.has_value()) {
+                    error.passIndex = *passIndex;
+                    error.passName = renderPasses[*passIndex].getName();
+                }
+
+                error.details.emplace_back(
+                    std::format(
+                        "The lookup failure occurred while resolving declaration-order {} transition {}",
+                        transitionType,
+                        transitionIndex
+                    )
+                );
+
+                return std::unexpected{std::move(error)};
+            }
+        }
+
+        return batcher;
+    }
+
     ResourceId FrameGraph::Builder::addResource(
         std::string name,
         const ResourceType type,

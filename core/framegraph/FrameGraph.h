@@ -4,6 +4,7 @@
 #include <expected>
 #include <functional>
 #include <optional>
+#include <span>
 #include <string>
 #include <unordered_set>
 #include <utility>
@@ -206,6 +207,12 @@ namespace Vixen {
             ) const -> std::expected<void, FrameGraphError>;
 
             [[nodiscard]] auto buildTransitionPlan(DependencyPlan& plan) const -> std::expected<void, FrameGraphError>;
+
+            [[nodiscard]] auto resolveTransitions(
+                const FrameGraphResourceView& resources,
+                std::span<const Transition> transitions,
+                std::optional<uint32_t> passIndex
+            ) const -> std::expected<BarrierBatcher, FrameGraphError>;
 
             template <typename PassData, typename Setup, typename Execute>
             Builder& addPass(
