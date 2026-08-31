@@ -1,50 +1,61 @@
 find_package(Vulkan 1.3 REQUIRED)
 
 add_library(
-        VkVixen
+        VixenVulkan
         STATIC
-        image/VulkanImage.h
         VulkanRenderingContextDriver.cpp
-        VulkanRenderingContextDriver.h
         VulkanRenderingDeviceDriver.cpp
-        VulkanRenderingDeviceDriver.h
-        image/VulkanSampler.h
+)
+target_sources(
+        VixenVulkan
+        PUBLIC
+        FILE_SET public_headers
+        TYPE HEADERS
+        BASE_DIRS ${CMAKE_CURRENT_SOURCE_DIR}
+        FILES
         buffer/VulkanBuffer.h
-        VulkanSwapchain.h
-        command/VulkanCommandPool.h
+        command/CommandBufferLevel.h
+        command/CommandBufferUsage.h
         command/VulkanCommandBuffer.h
-        shader/VulkanShader.h
+        command/VulkanCommandPool.h
+        command/VulkanCommandQueue.h
         command/VulkanFence.h
         command/VulkanSemaphore.h
-        command/VulkanCommandQueue.h
-        VulkanSurface.h
-        VulkanFramebuffer.h
         DeviceFeatureSupport.h
+        image/VulkanImage.h
+        image/VulkanSampler.h
+        shader/VulkanShader.h
+        Vulkan.h
+        VulkanFramebuffer.h
+        VulkanRenderingContextDriver.h
+        VulkanRenderingDeviceDriver.h
+        VulkanSurface.h
+        VulkanSwapchain.h
 )
-vixen_configure_target(VkVixen)
+vixen_configure_target(VixenVulkan)
 target_link_libraries(
-        VkVixen
+        VixenVulkan
         PUBLIC
-        Vixen
+        VixenCore
         Vulkan::Headers
         volk::volk
 )
 target_include_directories(
-        VkVixen
+        VixenVulkan
         PUBLIC
         ${CMAKE_CURRENT_SOURCE_DIR}
 )
 
-target_compile_definitions(VkVixen PUBLIC VK_NO_PROTOTYPES)
+target_compile_definitions(VixenVulkan PUBLIC VK_NO_PROTOTYPES)
 
 if (WIN32)
-    target_compile_definitions(VkVixen PUBLIC VK_USE_PLATFORM_WIN32_KHR)
+    target_compile_definitions(VixenVulkan PUBLIC VK_USE_PLATFORM_WIN32_KHR)
 elseif (APPLE)
-    target_compile_definitions(VkVixen PUBLIC VK_USE_PLATFORM_METAL_EXT)
+    target_compile_definitions(VixenVulkan PUBLIC VK_USE_PLATFORM_METAL_EXT)
 endif ()
 
 target_link_libraries(
-        VkVixen
+        VixenVulkan
         PUBLIC
         GPUOpen::VulkanMemoryAllocator
 )

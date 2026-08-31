@@ -1,108 +1,122 @@
 add_library(
-        Vixen
+        VixenCore
         STATIC
         ${IMGUI_SOURCES}
-        DisplayServer.cpp
-        IndexFormat.h
-        PrimitiveTopology.h
-        VertexAttribute.h
-        AttachmentInfo.h
-        LoadAction.h
-        StoreAction.h
-        buffer/BufferUsage.h
         Application.cpp
-        Application.h
-        RenderingContextDriver.h
-        RenderingDeviceDriver.cpp
-        RenderingDeviceDriver.h
-        error/Macros.h
-        error/CantCreateError.h
-        buffer/Buffer.h
-        MemoryAllocationType.h
-        ImageDataFormat.h
-        image/ImageSwizzle.h
-        image/ImageLayout.h
-        image/ImageAspectFlags.h
-        image/ImageFormat.h
-        image/ImageSamples.h
-        image/ImageType.h
-        image/Image.h
-        image/ImageUsage.h
-        image/Sampler.h
-        image/SamplerState.h
-        image/SamplerFilter.h
-        image/SamplerRepeatMode.h
-        image/CompareOperator.h
-        image/SamplerBorderColor.h
-        Bitmask.h
         buffer/Buffer.cpp
-        command/CommandPool.h
-        command/CommandBuffer.h
-        command/Semaphore.h
-        command/Fence.h
-        shader/Shader.h
-        shader/ShaderUniform.h
-        shader/ShaderUniformType.h
-        shader/ShaderStage.h
-        WindowFlags.h
-        WindowMode.h
-        VSyncMode.h
-        RenderingDriver.h
-        WindowMouseMode.h
-        WindowCursor.h
-        shader/ShaderSource.h
-        shader/ShaderLanguage.h
-        command/CommandQueue.h
-        shader/ShaderStageData.h
-        Swapchain.h
-        Surface.h
-        QueueFamilyFlags.h
-        Window.h
-        command/CommandBufferType.h
-        buffer/BufferCopyRegion.h
-        image/ImageCopyRegion.h
-        image/ImageSubresourceLayers.h
-        buffer/BufferImageCopyRegion.h
-        image/ImageSubresourceRange.h
-        PipelineStageFlags.h
-        MemoryBarrier.h
-        BufferBarrier.h
-        ImageBarrier.h
-        BarrierAccessFlags.h
-        Framebuffer.h
-        error/Error.h
-        Frame.h
-        DeferredRelease.h
-        RenderingDevice.cpp
-        RenderingDevice.h
-        DriverDevice.h
-        framegraph/RenderPass.h
-        ClearValue.h
-        error/SwapchainError.h
+        DisplayServer.cpp
+        framegraph/BarrierBatch.cpp
         framegraph/FrameGraph.cpp
-        framegraph/FrameGraph.h
-        RenderingContextDriver.cpp
+        framegraph/FrameGraphResourceStorage.cpp
         framegraph/RenderPass.cpp
+        framegraph/ResourceStateMapping.cpp
+        RenderingContextDriver.cpp
+        RenderingDevice.cpp
+        RenderingDeviceDriver.cpp
+)
+target_sources(
+        VixenCore
+        PUBLIC
+        FILE_SET public_headers
+        TYPE HEADERS
+        BASE_DIRS ${CMAKE_CURRENT_SOURCE_DIR}
+        FILES
+        Application.h
+        AttachmentInfo.h
+        BarrierAccessFlags.h
+        Bitmask.h
+        Blending.h
+        buffer/Buffer.h
+        buffer/BufferCopyRegion.h
+        buffer/BufferFormat.h
+        buffer/BufferImageCopyRegion.h
+        buffer/BufferUsage.h
+        BufferBarrier.h
+        ClearValue.h
+        command/CommandBuffer.h
+        command/CommandBufferType.h
+        command/CommandPool.h
+        command/CommandQueue.h
+        command/Fence.h
+        command/Semaphore.h
+        DeferredRelease.h
+        DisplayServer.h
+        DriverDevice.h
+        error/CantCreateError.h
+        error/Error.h
+        error/Macros.h
+        error/ResourceCreationError.h
+        error/Shader.h
+        error/SwapchainError.h
+        Frame.h
+        Framebuffer.h
+        framegraph/BarrierBatch.h
+        framegraph/FrameGraph.h
+        framegraph/FrameGraphError.h
+        framegraph/FrameGraphExecutionError.h
+        framegraph/FrameGraphResourceStorage.h
+        framegraph/FrameGraphResourceView.h
+        framegraph/Node.h
+        framegraph/RenderPass.h
+        framegraph/RenderPassContext.h
         framegraph/RenderPassType.h
         framegraph/Resource.h
-        framegraph/FrameGraphError.h
-        framegraph/ResourceStateMapping.h
-        framegraph/ResourceStateMapping.cpp
-        framegraph/BarrierBatch.h
-        framegraph/BarrierBatch.cpp
-        framegraph/Node.h
-        buffer/BufferFormat.h
-        framegraph/FrameGraphResourceView.h
-        framegraph/FrameGraphResourceStorage.h
-        framegraph/FrameGraphResourceStorage.cpp
-        framegraph/RenderPassContext.h
-        error/Shader.h
         framegraph/ResourceSlot.h
-        error/ResourceCreationError.h
+        framegraph/ResourceStateMapping.h
+        image/CompareOperator.h
+        image/Image.h
+        image/ImageAspectFlags.h
+        image/ImageCopyRegion.h
+        image/ImageFormat.h
+        image/ImageLayout.h
+        image/ImageSamples.h
+        image/ImageSubresourceLayers.h
+        image/ImageSubresourceRange.h
+        image/ImageSwizzle.h
+        image/ImageType.h
+        image/ImageUsage.h
+        image/ImageView.h
+        image/Sampler.h
+        image/SamplerBorderColor.h
+        image/SamplerFilter.h
+        image/SamplerRepeatMode.h
+        image/SamplerState.h
+        ImageBarrier.h
+        ImageDataFormat.h
+        IndexFormat.h
+        LoadAction.h
+        MemoryAllocationType.h
+        MemoryBarrier.h
+        Monitor.h
+        PipelineStageFlags.h
+        PrimitiveTopology.h
+        QueueFamilyFlags.h
+        Rectangle.h
+        RenderingContextDriver.h
+        RenderingDevice.h
+        RenderingDeviceDriver.h
+        RenderingDriver.h
+        shader/Shader.h
+        shader/ShaderLanguage.h
+        shader/ShaderSource.h
+        shader/ShaderStage.h
+        shader/ShaderStageData.h
+        shader/ShaderUniform.h
+        shader/ShaderUniformType.h
+        StoreAction.h
+        Surface.h
+        Swapchain.h
+        VertexAttribute.h
+        VSyncMode.h
+        Window.h
+        WindowCursor.h
+        WindowFlags.h
+        WindowMode.h
+        WindowMouseMode.h
 )
-vixen_configure_target(Vixen)
+vixen_configure_target(VixenCore)
 target_compile_definitions(
-        Vixen
+        VixenCore
         PUBLIC
         ENGINE_NAME="${ENGINE_NAME}"
         ENGINE_VERSION_MAJOR=${ENGINE_VERSION_MAJOR}
@@ -113,22 +127,22 @@ target_compile_definitions(
 )
 
 if (ENABLE_VULKAN)
-    target_compile_definitions(Vixen PRIVATE VULKAN_ENABLED)
+    target_compile_definitions(VixenCore PRIVATE VULKAN_ENABLED)
 endif ()
 if (ENABLE_D3D12)
-    target_compile_definitions(Vixen PRIVATE D3D12_ENABLED)
+    target_compile_definitions(VixenCore PRIVATE D3D12_ENABLED)
 endif ()
 if (ENABLE_OPENGL)
-    target_compile_definitions(Vixen PRIVATE OPENGL_ENABLED)
+    target_compile_definitions(VixenCore PRIVATE OPENGL_ENABLED)
 endif ()
 if (CMAKE_SYSTEM_NAME STREQUAL "Darwin")
-    target_compile_definitions(Vixen PRIVATE MACOS_ENABLED)
+    target_compile_definitions(VixenCore PRIVATE MACOS_ENABLED)
 elseif (CMAKE_SYSTEM_NAME STREQUAL "iOS")
-    target_compile_definitions(Vixen PRIVATE IOS_ENABLED)
+    target_compile_definitions(VixenCore PRIVATE IOS_ENABLED)
 endif ()
 
 target_link_libraries(
-        Vixen
+        VixenCore
         PUBLIC
         glfw
         assimp::assimp
@@ -142,13 +156,13 @@ target_link_libraries(
         Threads::Threads
 )
 target_include_directories(
-        Vixen
+        VixenCore
         PUBLIC
         ${CMAKE_SOURCE_DIR}
         ${CMAKE_CURRENT_SOURCE_DIR}
 )
 target_include_directories(
-        Vixen
+        VixenCore
         SYSTEM PUBLIC
         ${CMAKE_SOURCE_DIR}/thirdparty/imgui
         ${CMAKE_SOURCE_DIR}/thirdparty/glslang/SPIRV
@@ -160,7 +174,7 @@ target_include_directories(
 
 if (ENABLE_VULKAN)
     target_link_libraries(
-            Vixen
+            VixenCore
             PUBLIC
             volk::volk
     )

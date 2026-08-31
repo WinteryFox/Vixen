@@ -6,6 +6,7 @@
 #include "buffer/BufferUsage.h"
 #include "core/buffer/Buffer.h"
 
+struct VmaAllocation_T;
 typedef VmaAllocation_T *VmaAllocation;
 
 namespace Vixen {

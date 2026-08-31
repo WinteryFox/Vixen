@@ -20,6 +20,7 @@ function(vixen_configure_target target)
             CXX_STANDARD_REQUIRED YES
             CXX_EXTENSIONS NO
             FOLDER "Vixen"
+            VERIFY_INTERFACE_HEADER_SETS ON
     )
     target_compile_options(
             ${target}
@@ -27,6 +28,7 @@ function(vixen_configure_target target)
             $<$<COMPILE_LANG_AND_ID:CXX,GNU,Clang,AppleClang>:-Wall;-Wextra;-Wpedantic;-Wswitch;-Wswitch-enum;-Wreturn-type;-Werror=switch;-Werror=switch-enum;-Werror=return-type>
             $<$<COMPILE_LANG_AND_ID:CXX,MSVC>:/W4;/permissive-;/w14061;/we4061;/we4062;/we4715>
     )
+    target_compile_features(${target} PUBLIC cxx_std_23)
     target_compile_definitions(${target} PRIVATE $<$<CONFIG:Debug>:DEBUG_ENABLED>)
 endfunction()
 
