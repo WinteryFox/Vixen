@@ -214,6 +214,11 @@ namespace Vixen {
                 std::optional<uint32_t> passIndex
             ) const -> std::expected<BarrierBatcher, FrameGraphError>;
 
+            [[nodiscard]] auto resolveTransitionPlan(
+                const FrameGraphResourceView& resources,
+                const TransitionPlan& transitionPlan
+            ) const -> std::expected<BarrierPlan, FrameGraphError>;
+
             template <typename PassData, typename Setup, typename Execute>
             Builder& addPass(
                 std::string name,

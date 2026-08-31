@@ -49,6 +49,8 @@ namespace Vixen {
 
         [[nodiscard]] std::span<const BarrierBatch> getBatches() const noexcept;
 
+        [[nodiscard]] std::vector<BarrierBatch> takeBatches() && noexcept;
+
         void clear() noexcept;
     };
 

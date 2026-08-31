@@ -1,5 +1,7 @@
 #include "BarrierBatch.h"
 
+#include <utility>
+
 #include "../RenderingDeviceDriver.h"
 
 namespace Vixen {
@@ -53,6 +55,10 @@ namespace Vixen {
 
     std::span<const BarrierBatch> BarrierBatcher::getBatches() const noexcept {
         return batches;
+    }
+
+    std::vector<BarrierBatch> BarrierBatcher::takeBatches() && noexcept {
+        return std::move(batches);
     }
 
     void BarrierBatcher::clear() noexcept {

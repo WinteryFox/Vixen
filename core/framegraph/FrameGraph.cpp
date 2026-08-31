@@ -2190,6 +2190,55 @@ namespace Vixen {
         return batcher;
     }
 
+    auto FrameGraph::Builder::resolveTransitionPlan(
+        const FrameGraphResourceView& resources,
+        const TransitionPlan& transitionPlan
+    ) const -> std::expected<BarrierPlan, FrameGraphError> {
+        if (transitionPlan.beforePass.size() != renderPasses.size())
+            return std::unexpected{
+                FrameGraphError{
+                    .code = FrameGraphErrorCode::InvalidGraphInvariant,
+                    .message = std::format(
+                        "Cannot resolve the transition plan: it contains pre-pass transitions for {} passes, "
+                        "but the builder contains {} render passes",
+                        transitionPlan.beforePass.size(),
+                        renderPasses.size()
+                    ),
+                    .details = {
+                        "The logical transition plan must contain exactly one pre-pass transition list for every render pass"
+                    }
+                }
+            };
+
+        BarrierPlan resolvedPlan{
+            .beforePass = std::vector<std::vector<BarrierBatch>>(renderPasses.size()),
+            .finalBatches = {}
+        };
+
+        for (uint32_t passIndex = 0; passIndex < transitionPlan.beforePass.size(); passIndex++) {
+            auto batcher = resolveTransitions(
+                resources,
+                transitionPlan.beforePass[passIndex],
+                passIndex
+            );
+            if (!batcher)
+                return std::unexpected{std::move(batcher).error()};
+
+            resolvedPlan.beforePass[passIndex] = std::move(*batcher).takeBatches();
+        }
+
+        auto finalBatcher = resolveTransitions(
+            resources,
+            transitionPlan.finalTransitions,
+            std::nullopt
+        );
+        if (!finalBatcher)
+            return std::unexpected{std::move(finalBatcher).error()};
+
+        resolvedPlan.finalBatches = std::move(*finalBatcher).takeBatches();
+        return resolvedPlan;
+    }
+
     ResourceId FrameGraph::Builder::addResource(
         std::string name,
         const ResourceType type,
@@ -2620,10 +2669,17 @@ namespace Vixen {
         if (!localStorage)
             return std::unexpected{std::move(localStorage).error()};
 
+        auto resolvedPlan = resolveTransitionPlan(
+            localStorage->getResources(),
+            plan->transitions
+        );
+        if (!resolvedPlan)
+            return std::unexpected{std::move(resolvedPlan).error()};
+
         return FrameGraph{
             std::move(nodes),
             std::move(*plan),
-            {}, // TODO
+            std::move(*resolvedPlan),
             std::move(*localStorage),
             std::move(renderPasses)
         };
