@@ -13,6 +13,7 @@
 #include "AttachmentInfo.h"
 #include "BarrierBatch.h"
 #include "FrameGraphExecutionError.h"
+#include "FrameGraphResourcePermission.h"
 #include "FrameGraphResourceStorage.h"
 #include "Node.h"
 #include "RenderPass.h"
@@ -75,6 +76,7 @@ namespace Vixen {
             std::vector<PassEdge> predecessors;
             std::vector<PassEdge> successors;
             std::vector<CompiledResourceAccess> resourceAccesses;
+            std::vector<FrameGraphResourcePermission> permissions;
         };
 
         struct ImageTransition {
@@ -127,6 +129,9 @@ namespace Vixen {
             uint32_t passIndex;
             std::optional<RenderingInfo> renderingInfo;
             glm::vec4 debugLabelColor;
+            std::vector<FrameGraphResourcePermission> permissions;
+            bool sideEffecting;
+            bool usesExternallySynchronizedResources;
         };
 
         struct ExecutionPlan {

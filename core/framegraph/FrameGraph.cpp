@@ -15,6 +15,8 @@
 
 #include "AttachmentInfo.h"
 #include "FrameGraphError.h"
+#include "FrameGraphPassResources.h"
+#include "FrameGraphResourceAccess.h"
 #include "RenderingDevice.h"
 #include "RenderingDeviceDriver.h"
 #include "RenderPassContext.h"
@@ -240,15 +242,25 @@ namespace Vixen {
             };
 
         const auto driver = device.getRenderingDeviceDriver();
-        auto context = RenderPassContext{
-            .driver = *driver,
-            .commandBuffer = commandBuffer,
-            .resources = storage.getResources()
-        };
 
         for (const auto& record : executionPlan.passes) {
             const uint32_t passIndex = record.passIndex;
             auto& pass = renderPasses[passIndex];
+
+            FrameGraphPassResources passResources{
+                storage.getResources(),
+                record.permissions,
+                nodes,
+                passIndex,
+                pass.getName(),
+                record.sideEffecting,
+                record.usesExternallySynchronizedResources
+            };
+            RenderPassContext context{
+                *driver,
+                commandBuffer,
+                passResources
+            };
 
             const bool shouldUseRenderPass = record.renderingInfo.has_value();
 
@@ -589,6 +601,7 @@ namespace Vixen {
         for (uint32_t passIndex = 0; passIndex < renderPasses.size(); passIndex++) {
             const auto& pass = renderPasses[passIndex];
             plan.passes[passIndex].resourceAccesses.reserve(pass.getResourceUsages().size());
+            plan.passes[passIndex].permissions.reserve(pass.getResourceUsages().size());
 
             for (const auto& usage : pass.getResourceUsages()) {
                 auto result = std::visit(
@@ -909,6 +922,52 @@ namespace Vixen {
                             .state = *state
                         });
 
+                        auto attachmentRole = FrameGraphAttachmentRole::None;
+                        if constexpr (isImageUsage) {
+                            const auto colorAttachment = std::ranges::find_if(
+                                pass.getColorAttachments(),
+                                [&typedUsage](const RenderAttachment& attachment) {
+                                    return typedUsage.output.isValid() &&
+                                        attachment.handle == typedUsage.output;
+                                }
+                            );
+                            if (colorAttachment != pass.getColorAttachments().end())
+                                attachmentRole = FrameGraphAttachmentRole::Color;
+
+                            if (const auto& depthStencil = pass.getDepthStencilAttachment();
+                                depthStencil.has_value() &&
+                                typedUsage.output.isValid() &&
+                                depthStencil->handle == typedUsage.output) {
+                                if (attachmentRole != FrameGraphAttachmentRole::None)
+                                    return std::unexpected{
+                                        passError(
+                                            FrameGraphErrorCode::InvalidGraphInvariant,
+                                            std::format(
+                                                "Pass '{}' declares resource '{}' version {} as both a color and depth-stencil attachment",
+                                                pass.getName(),
+                                                node.name,
+                                                typedUsage.output.id.version
+                                            ),
+                                            passIndex,
+                                            typedUsage.output.id.index,
+                                            typedUsage.output.id.version
+                                        )
+                                    };
+
+                                attachmentRole = FrameGraphAttachmentRole::DepthStencil;
+                            }
+                        }
+
+                        plan.passes[passIndex].permissions.push_back({
+                            .input = hasInput ? typedUsage.input.id : ResourceId{},
+                            .output = hasOutput ? typedUsage.output.id : ResourceId{},
+                            .type = expectedType,
+                            .access = typedUsage.access,
+                            .usage = FrameGraphResourceUsageKind{typedUsage.usage},
+                            .stages = typedUsage.stages,
+                            .attachmentRole = attachmentRole
+                        });
+
                         const VersionAccess access{
                             .pass = passIndex,
                             .state = std::move(*state)
@@ -947,6 +1006,43 @@ namespace Vixen {
 
                 if (!result)
                     return std::unexpected{result.error()};
+            }
+
+            auto& permissions = plan.passes[passIndex].permissions;
+            std::ranges::sort(
+                permissions,
+                {},
+                [](const FrameGraphResourcePermission& permission) {
+                    return permission.input.isValid()
+                               ? permission.input.index
+                               : permission.output.index;
+                }
+            );
+
+            for (std::size_t permissionIndex = 1;
+                 permissionIndex < permissions.size();
+                 permissionIndex++) {
+                const auto previousResourceIndex = permissions[permissionIndex - 1].input.isValid()
+                                                       ? permissions[permissionIndex - 1].input.index
+                                                       : permissions[permissionIndex - 1].output.index;
+                const auto resourceIndex = permissions[permissionIndex].input.isValid()
+                                               ? permissions[permissionIndex].input.index
+                                               : permissions[permissionIndex].output.index;
+
+                if (previousResourceIndex == resourceIndex)
+                    return std::unexpected{
+                        passError(
+                            FrameGraphErrorCode::InvalidGraphInvariant,
+                            std::format(
+                                "Pass '{}' compiled more than one permission for resource '{}' (index {}); each pass may declare a logical resource only once",
+                                pass.getName(),
+                                nodes[resourceIndex].name,
+                                resourceIndex
+                            ),
+                            passIndex,
+                            resourceIndex
+                        )
+                    };
             }
         }
 
@@ -1062,23 +1158,15 @@ namespace Vixen {
 
         for (uint32_t passIndex = 0; passIndex < renderPasses.size(); passIndex++) {
             const auto& pass = renderPasses[passIndex];
-            const auto& usages = pass.getResourceUsages();
             std::optional<AttachmentShape> referenceShape;
 
             const auto validateAttachment = [&](
                 const RenderAttachment& attachment,
                 const std::string& attachmentName,
                 const ImageUsageBits expectedUsage,
-                const char* expectedUsageName
+                const char* expectedUsageName,
+                const FrameGraphAttachmentRole expectedRole
             ) -> std::expected<void, FrameGraphError> {
-                const auto usage = std::ranges::find_if(
-                    usages,
-                    [&attachment](const ResourceUsage& resourceUsage) {
-                        const auto* imageUsage = std::get_if<ImageResourceUsage>(&resourceUsage);
-                        return imageUsage != nullptr && imageUsage->output == attachment.handle;
-                    }
-                );
-
                 const auto handle = attachment.handle;
                 const auto hasKnownResource = handle.isValid() && handle.id.index < nodes.size();
                 const auto resourceIndex = hasKnownResource
@@ -1095,41 +1183,6 @@ namespace Vixen {
                                                    ", version " + std::to_string(handle.id.version) + ")"
                                                    : "resource index " + std::to_string(handle.id.index) +
                                                    " version " + std::to_string(handle.id.version);
-
-                if (usage == usages.end())
-                    return std::unexpected{
-                        passError(
-                            FrameGraphErrorCode::InvalidAttachment,
-                            std::format(
-                                "{} in pass '{}' references {}, but the pass does not declare that exact handle as an image output",
-                                attachmentName,
-                                pass.getName(),
-                                handleDescription
-                            ),
-                            passIndex,
-                            resourceIndex,
-                            resourceVersion
-                        )
-                    };
-
-                const auto& imageUsage = std::get<ImageResourceUsage>(*usage);
-
-                if (imageUsage.usage != expectedUsage)
-                    return std::unexpected{
-                        passError(
-                            FrameGraphErrorCode::InvalidAttachment,
-                            std::format(
-                                "{} in pass '{}' references {}, but its image usage is not declared as {}",
-                                attachmentName,
-                                pass.getName(),
-                                handleDescription,
-                                expectedUsageName
-                            ),
-                            passIndex,
-                            resourceIndex,
-                            resourceVersion
-                        )
-                    };
 
                 ResourceAccess expectedAccess;
                 const char* expectedAccessName;
@@ -1162,22 +1215,48 @@ namespace Vixen {
                         };
                 }
 
-                if (imageUsage.access != expectedAccess)
+                const auto authorization = authorizeFrameGraphResourceAccess(
+                    plan.passes[passIndex].permissions,
+                    FrameGraphResourceAccessRequest{
+                        .handle = handle.id,
+                        .type = ResourceType::Image,
+                        .access = expectedAccess,
+                        .usage = FrameGraphResourceUsageKind{expectedUsage},
+                        .attachmentRole = expectedRole
+                    },
+                    FrameGraphResourceAccessContext{
+                        .passIndex = passIndex,
+                        .passName = pass.getName(),
+                        .resourceName = hasKnownResource
+                                            ? std::string_view{nodes[handle.id.index].name}
+                                            : std::string_view{},
+                        .sideEffecting = pass.isSideEffecting(),
+                        .usesExternallySynchronizedResources = pass.usesExternalResources()
+                    }
+                );
+                if (!authorization) {
+                    auto accessError = std::move(authorization).error();
+                    auto error = passError(
+                        FrameGraphErrorCode::InvalidAttachment,
+                        std::format(
+                            "{} in pass '{}' cannot authorize {} as {} with {}: {}",
+                            attachmentName,
+                            pass.getName(),
+                            handleDescription,
+                            expectedUsageName,
+                            expectedAccessName,
+                            accessError.message
+                        ),
+                        passIndex,
+                        resourceIndex,
+                        resourceVersion
+                    );
+                    error.details = std::move(accessError.details);
+
                     return std::unexpected{
-                        passError(
-                            FrameGraphErrorCode::InvalidAttachment,
-                            std::format(
-                                "{} in pass '{}' references {}, but its image usage is not declared with {} as required by its load action",
-                                attachmentName,
-                                pass.getName(),
-                                handleDescription,
-                                expectedAccessName
-                            ),
-                            passIndex,
-                            resourceIndex,
-                            resourceVersion
-                        )
+                        std::move(error)
                     };
+                }
 
                 const auto& description = std::get<ImageResourceDescription>(nodes[handle.id.index].description);
                 const auto aspects = getImageAspects(description.view.format);
@@ -1315,7 +1394,8 @@ namespace Vixen {
                         pass.getColorAttachments()[attachmentIndex],
                         "Color attachment " + std::to_string(attachmentIndex),
                         ImageUsageBits::ColorAttachment,
-                        "ImageUsageBits::ColorAttachment"
+                        "ImageUsageBits::ColorAttachment",
+                        FrameGraphAttachmentRole::Color
                     );
                     !result)
                     return std::unexpected{std::move(result).error()};
@@ -1326,7 +1406,8 @@ namespace Vixen {
                         *attachment,
                         "Depth-stencil attachment",
                         ImageUsageBits::DepthStencilAttachment,
-                        "ImageUsageBits::DepthStencilAttachment"
+                        "ImageUsageBits::DepthStencilAttachment",
+                        FrameGraphAttachmentRole::DepthStencil
                     );
                     !result)
                     return std::unexpected{std::move(result).error()};
@@ -2573,14 +2654,61 @@ namespace Vixen {
 
             const auto getAttachmentLayout = [&](
                 const RenderAttachment& attachment,
-                const std::string& attachmentName
+                const std::string& attachmentName,
+                const ImageUsageBits expectedUsage,
+                const FrameGraphAttachmentRole expectedRole
             ) -> std::expected<ImageLayout, FrameGraphError> {
+                const auto expectedAccess = attachment.loadAction == LoadAction::Load
+                                                ? ResourceAccess::ReadWrite
+                                                : ResourceAccess::Write;
+                const auto authorization = authorizeFrameGraphResourceAccess(
+                    compiledPass.permissions,
+                    FrameGraphResourceAccessRequest{
+                        .handle = attachment.handle.id,
+                        .type = ResourceType::Image,
+                        .access = expectedAccess,
+                        .usage = FrameGraphResourceUsageKind{expectedUsage},
+                        .attachmentRole = expectedRole
+                    },
+                    FrameGraphResourceAccessContext{
+                        .passIndex = passIndex,
+                        .passName = pass.getName(),
+                        .resourceName = attachment.handle.id.index < nodes.size()
+                                            ? std::string_view{nodes[attachment.handle.id.index].name}
+                                            : std::string_view{},
+                        .sideEffecting = pass.isSideEffecting(),
+                        .usesExternallySynchronizedResources = pass.usesExternalResources()
+                    }
+                );
+                if (!authorization) {
+                    auto accessError = std::move(authorization).error();
+                    FrameGraphError error{
+                        .code = FrameGraphErrorCode::InvalidGraphInvariant,
+                        .message = std::format(
+                            "Cannot build {} for pass '{}' (index {}): compiled attachment authorization failed: {}",
+                            attachmentName,
+                            pass.getName(),
+                            passIndex,
+                            accessError.message
+                        ),
+                        .passIndex = passIndex,
+                        .resourceIndex = attachment.handle.id.index,
+                        .resourceVersion = attachment.handle.id.version,
+                        .passName = pass.getName(),
+                        .details = std::move(accessError.details)
+                    };
+                    if (attachment.handle.id.index < nodes.size())
+                        error.resourceName = nodes[attachment.handle.id.index].name;
+
+                    return std::unexpected{std::move(error)};
+                }
+
                 const auto compiledAccess = std::ranges::find_if(
                     compiledPass.resourceAccesses,
                     [&attachment](const PassDependencies::CompiledResourceAccess& access) {
-                        // A read-write declaration stores its input handle in the compiled
-                        // access and its output handle in RenderAttachment. Both versions
-                        // identify the same logical resource.
+                        // Exact output-version authority was established above.
+                        // Each pass may declare a logical resource only once, so
+                        // its one compiled state record is uniquely identified by index.
                         return access.handle.index == attachment.handle.id.index;
                     }
                 );
@@ -2639,7 +2767,10 @@ namespace Vixen {
             PassExecutionRecord record{
                 .passIndex = passIndex,
                 .renderingInfo = std::nullopt,
-                .debugLabelColor = pass.getDebugLabelColor()
+                .debugLabelColor = pass.getDebugLabelColor(),
+                .permissions = compiledPass.permissions,
+                .sideEffecting = pass.isSideEffecting(),
+                .usesExternallySynchronizedResources = pass.usesExternalResources()
             };
 
             std::vector<AttachmentInfo> colorAttachments{};
@@ -2661,7 +2792,9 @@ namespace Vixen {
 
                 auto layout = getAttachmentLayout(
                     colorAttachment,
-                    std::format("color attachment {}", attachmentIndex)
+                    std::format("color attachment {}", attachmentIndex),
+                    ImageUsageBits::ColorAttachment,
+                    FrameGraphAttachmentRole::Color
                 );
                 if (!layout)
                     return std::unexpected{std::move(layout).error()};
@@ -2692,7 +2825,9 @@ namespace Vixen {
 
                 auto layout = getAttachmentLayout(
                     *depthStencil,
-                    "depth-stencil attachment"
+                    "depth-stencil attachment",
+                    ImageUsageBits::DepthStencilAttachment,
+                    FrameGraphAttachmentRole::DepthStencil
                 );
                 if (!layout)
                     return std::unexpected{std::move(layout).error()};

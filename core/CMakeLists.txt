@@ -7,6 +7,8 @@ add_library(
         DisplayServer.cpp
         framegraph/BarrierBatch.cpp
         framegraph/FrameGraph.cpp
+        framegraph/FrameGraphPassResources.cpp
+        framegraph/FrameGraphResourceAccess.cpp
         framegraph/FrameGraphResourceStorage.cpp
         framegraph/RenderPass.cpp
         framegraph/ResourceStateMapping.cpp
@@ -54,6 +56,10 @@ target_sources(
         framegraph/FrameGraph.h
         framegraph/FrameGraphError.h
         framegraph/FrameGraphExecutionError.h
+        framegraph/FrameGraphPassResources.h
+        framegraph/FrameGraphResourceAccess.h
+        framegraph/FrameGraphResourceAccessError.h
+        framegraph/FrameGraphResourcePermission.h
         framegraph/FrameGraphResourceStorage.h
         framegraph/FrameGraphResourceView.h
         framegraph/Node.h

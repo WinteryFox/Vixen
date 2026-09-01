@@ -8,14 +8,18 @@ namespace Vixen {
         std::vector<RenderAttachment> colorAttachments,
         std::optional<RenderAttachment> depthStencilAttachment,
         ExecuteCallback executeCallback,
-        glm::vec4 debugLabelColor
+        glm::vec4 debugLabelColor,
+        const bool sideEffecting,
+        const bool usesExternallySynchronizedResources
     ) : name(std::move(name)),
         type(type),
         resourceUsages(std::move(resourceUsages)),
         colorAttachments(std::move(colorAttachments)),
         depthStencilAttachment(depthStencilAttachment),
         executeCallback(std::move(executeCallback)),
-        debugLabelColor(debugLabelColor) {}
+        debugLabelColor(debugLabelColor),
+        sideEffecting(sideEffecting),
+        usesExternallySynchronizedResources(usesExternallySynchronizedResources) {}
 
     void RenderPass::execute(RenderPassContext& context) {
         executeCallback(context);
@@ -43,5 +47,13 @@ namespace Vixen {
 
     glm::vec4 RenderPass::getDebugLabelColor() const noexcept {
         return debugLabelColor;
+    }
+
+    bool RenderPass::isSideEffecting() const noexcept {
+        return sideEffecting;
+    }
+
+    bool RenderPass::usesExternalResources() const noexcept {
+        return usesExternallySynchronizedResources;
     }
 }

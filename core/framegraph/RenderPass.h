@@ -50,6 +50,10 @@ namespace Vixen {
 
         glm::vec4 debugLabelColor;
 
+        bool sideEffecting;
+
+        bool usesExternallySynchronizedResources;
+
         RenderPass(
             std::string name,
             RenderPassType type,
@@ -57,7 +61,9 @@ namespace Vixen {
             std::vector<RenderAttachment> colorAttachments,
             std::optional<RenderAttachment> depthStencilAttachment,
             ExecuteCallback executeCallback,
-            glm::vec4 debugLabelColor
+            glm::vec4 debugLabelColor,
+            bool sideEffecting,
+            bool usesExternallySynchronizedResources
         );
 
     public:
@@ -85,6 +91,23 @@ namespace Vixen {
 
         [[nodiscard]] glm::vec4 getDebugLabelColor() const noexcept;
 
+        /**
+         * @brief Returns whether this pass performs an observable side effect.
+         *
+         * Side-effecting passes remain uncullable when pass culling is added.
+         * Every frame-graph resource they touch must still be declared normally.
+         */
+        [[nodiscard]] bool isSideEffecting() const noexcept;
+
+        /**
+         * @brief Returns whether the callback captures externally synchronized resources.
+         *
+         * This is a diagnostic escape-hatch marker, not permission to bypass
+         * frame-graph declarations. Captured external resources are outside the
+         * graph's hazard tracking contract and must be synchronized by the caller.
+         */
+        [[nodiscard]] bool usesExternalResources() const noexcept;
+
         class Builder {
             std::vector<ResourceNode>& resources;
 
@@ -101,6 +124,10 @@ namespace Vixen {
             std::optional<RenderAttachment> depthStencilAttachment;
 
             glm::vec4 debugLabelColor;
+
+            bool sideEffecting = false;
+
+            bool usesExternallySynchronizedResources = false;
 
             [[nodiscard]]
             static constexpr const char* resourceTypeName(const ResourceType resourceType) noexcept {
@@ -435,6 +462,21 @@ namespace Vixen {
                 return *this;
             }
 
+            /** Marks the pass as an uncullable producer of observable side effects. */
+            Builder& setSideEffecting(const bool value = true) noexcept {
+                sideEffecting = value;
+                return *this;
+            }
+
+            /**
+             * Marks captured non-frame-graph resources as externally synchronized.
+             * This does not authorize access to undeclared frame-graph resources.
+             */
+            Builder& setUsesExternallySynchronizedResources(const bool value = true) noexcept {
+                usesExternallySynchronizedResources = value;
+                return *this;
+            }
+
             template <typename Data, typename Execute>
             [[nodiscard]]
             RenderPass build(
@@ -471,7 +513,9 @@ namespace Vixen {
                     std::move(colorAttachments),
                     depthStencilAttachment,
                     ExecuteCallback(std::move(callback)),
-                    debugLabelColor
+                    debugLabelColor,
+                    sideEffecting,
+                    usesExternallySynchronizedResources
                 };
             }
         };
