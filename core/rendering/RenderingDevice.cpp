@@ -10,9 +10,9 @@
 
 #include "RenderingContextDriver.h"
 #include "RenderingDeviceDriver.h"
-#include "error/CantCreateError.h"
-#include "error/Macros.h"
-#include "error/SwapchainError.h"
+#include "core/error/CantCreateError.h"
+#include "core/error/Macros.h"
+#include "core/error/SwapchainError.h"
 
 namespace Vixen {
     void RenderingDevice::waitForFrame(

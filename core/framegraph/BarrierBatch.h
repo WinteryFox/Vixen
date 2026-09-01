@@ -4,9 +4,9 @@
 #include <vector>
 
 #include "Resource.h"
-#include "../BufferBarrier.h"
-#include "../ImageBarrier.h"
-#include "../MemoryBarrier.h"
+#include "core/synchronization/BufferBarrier.h"
+#include "core/synchronization/ImageBarrier.h"
+#include "core/synchronization/MemoryBarrier.h"
 
 namespace Vixen {
     class RenderingDeviceDriver;

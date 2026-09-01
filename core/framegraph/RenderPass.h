@@ -11,11 +11,11 @@
 #include <utility>
 #include <vector>
 
-#include "ClearValue.h"
-#include "LoadAction.h"
+#include "core/rendering/ClearValue.h"
+#include "core/rendering/LoadAction.h"
 #include "Node.h"
 #include "RenderPassType.h"
-#include "StoreAction.h"
+#include "core/rendering/StoreAction.h"
 #include "glm/vec4.hpp"
 
 namespace Vixen {

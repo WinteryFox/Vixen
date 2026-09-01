@@ -2,9 +2,9 @@ add_library(
         VixenCore
         STATIC
         ${IMGUI_SOURCES}
-        Application.cpp
+        application/Application.cpp
         buffer/Buffer.cpp
-        DisplayServer.cpp
+        display/DisplayServer.cpp
         framegraph/BarrierBatch.cpp
         framegraph/FrameGraph.cpp
         framegraph/FrameGraphPassResources.cpp
@@ -12,9 +12,9 @@ add_library(
         framegraph/FrameGraphResourceStorage.cpp
         framegraph/RenderPass.cpp
         framegraph/ResourceStateMapping.cpp
-        RenderingContextDriver.cpp
-        RenderingDevice.cpp
-        RenderingDeviceDriver.cpp
+        rendering/RenderingContextDriver.cpp
+        rendering/RenderingDevice.cpp
+        rendering/RenderingDeviceDriver.cpp
 )
 target_sources(
         VixenCore
@@ -23,35 +23,33 @@ target_sources(
         TYPE HEADERS
         BASE_DIRS ${CMAKE_CURRENT_SOURCE_DIR}
         FILES
-        Application.h
-        AttachmentInfo.h
-        BarrierAccessFlags.h
-        Bitmask.h
-        Blending.h
+        application/Application.h
         buffer/Buffer.h
         buffer/BufferCopyRegion.h
         buffer/BufferFormat.h
         buffer/BufferImageCopyRegion.h
         buffer/BufferUsage.h
-        BufferBarrier.h
-        ClearValue.h
         command/CommandBuffer.h
         command/CommandBufferType.h
         command/CommandPool.h
         command/CommandQueue.h
         command/Fence.h
+        command/QueueFamilyFlags.h
         command/Semaphore.h
-        DeferredRelease.h
-        DisplayServer.h
-        DriverDevice.h
+        display/DisplayServer.h
+        display/Monitor.h
+        display/VSyncMode.h
+        display/Window.h
+        display/WindowCursor.h
+        display/WindowFlags.h
+        display/WindowMode.h
+        display/WindowMouseMode.h
         error/CantCreateError.h
         error/Error.h
         error/Macros.h
         error/ResourceCreationError.h
         error/Shader.h
         error/SwapchainError.h
-        Frame.h
-        Framebuffer.h
         framegraph/BarrierBatch.h
         framegraph/FrameGraph.h
         framegraph/FrameGraphError.h
@@ -73,6 +71,7 @@ target_sources(
         image/Image.h
         image/ImageAspectFlags.h
         image/ImageCopyRegion.h
+        image/ImageDataFormat.h
         image/ImageFormat.h
         image/ImageLayout.h
         image/ImageSamples.h
@@ -87,21 +86,26 @@ target_sources(
         image/SamplerFilter.h
         image/SamplerRepeatMode.h
         image/SamplerState.h
-        ImageBarrier.h
-        ImageDataFormat.h
-        IndexFormat.h
-        LoadAction.h
-        MemoryAllocationType.h
-        MemoryBarrier.h
-        Monitor.h
-        PipelineStageFlags.h
-        PrimitiveTopology.h
-        QueueFamilyFlags.h
-        Rectangle.h
-        RenderingContextDriver.h
-        RenderingDevice.h
-        RenderingDeviceDriver.h
-        RenderingDriver.h
+        memory/DeferredRelease.h
+        memory/MemoryAllocationType.h
+        rendering/AttachmentInfo.h
+        rendering/Blending.h
+        rendering/ClearValue.h
+        rendering/DriverDevice.h
+        rendering/Frame.h
+        rendering/Framebuffer.h
+        rendering/IndexFormat.h
+        rendering/LoadAction.h
+        rendering/PrimitiveTopology.h
+        rendering/Rectangle.h
+        rendering/RenderingContextDriver.h
+        rendering/RenderingDevice.h
+        rendering/RenderingDeviceDriver.h
+        rendering/RenderingDriver.h
+        rendering/StoreAction.h
+        rendering/Surface.h
+        rendering/Swapchain.h
+        rendering/VertexAttribute.h
         shader/Shader.h
         shader/ShaderLanguage.h
         shader/ShaderSource.h
@@ -109,16 +113,12 @@ target_sources(
         shader/ShaderStageData.h
         shader/ShaderUniform.h
         shader/ShaderUniformType.h
-        StoreAction.h
-        Surface.h
-        Swapchain.h
-        VertexAttribute.h
-        VSyncMode.h
-        Window.h
-        WindowCursor.h
-        WindowFlags.h
-        WindowMode.h
-        WindowMouseMode.h
+        synchronization/BarrierAccessFlags.h
+        synchronization/BufferBarrier.h
+        synchronization/ImageBarrier.h
+        synchronization/MemoryBarrier.h
+        synchronization/PipelineStageFlags.h
+        utility/Bitmask.h
 )
 vixen_configure_target(VixenCore)
 target_compile_definitions(

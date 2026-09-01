@@ -4,12 +4,12 @@
 #include <Windows.h>
 #endif
 
-#include <DisplayServer.h>
+#include "core/display/DisplayServer.h"
 #include <utility>
 
-#include "RenderingDevice.h"
-#include "error/Macros.h"
-#include "platform/vulkan/VulkanRenderingContextDriver.h"
+#include "core/rendering/RenderingDevice.h"
+#include "core/error/Macros.h"
+#include "platform/vulkan/context/VulkanRenderingContextDriver.h"
 
 namespace Vixen {
     Application::Application(

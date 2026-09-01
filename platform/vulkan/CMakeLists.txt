@@ -3,8 +3,8 @@ find_package(Vulkan 1.3 REQUIRED)
 add_library(
         VixenVulkan
         STATIC
-        VulkanRenderingContextDriver.cpp
-        VulkanRenderingDeviceDriver.cpp
+        context/VulkanRenderingContextDriver.cpp
+        device/VulkanRenderingDeviceDriver.cpp
 )
 target_sources(
         VixenVulkan
@@ -21,16 +21,16 @@ target_sources(
         command/VulkanCommandQueue.h
         command/VulkanFence.h
         command/VulkanSemaphore.h
-        DeviceFeatureSupport.h
+        context/VulkanRenderingContextDriver.h
+        device/DeviceFeatureSupport.h
+        device/VulkanRenderingDeviceDriver.h
         image/VulkanImage.h
         image/VulkanSampler.h
+        presentation/VulkanFramebuffer.h
+        presentation/VulkanSurface.h
+        presentation/VulkanSwapchain.h
         shader/VulkanShader.h
         Vulkan.h
-        VulkanFramebuffer.h
-        VulkanRenderingContextDriver.h
-        VulkanRenderingDeviceDriver.h
-        VulkanSurface.h
-        VulkanSwapchain.h
 )
 vixen_configure_target(VixenVulkan)
 target_link_libraries(

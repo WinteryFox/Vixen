@@ -3,12 +3,12 @@
 #include <algorithm>
 #include <map>
 #include <ranges>
-#include "Vulkan.h"
+#include "platform/vulkan/Vulkan.h"
 #include <GLFW/glfw3.h>
 
-#include "VulkanRenderingDeviceDriver.h"
-#include "VulkanSurface.h"
-#include "core/Window.h"
+#include "platform/vulkan/device/VulkanRenderingDeviceDriver.h"
+#include "platform/vulkan/presentation/VulkanSurface.h"
+#include "core/display/Window.h"
 #include "core/error/CantCreateError.h"
 #include "core/error/Macros.h"
 

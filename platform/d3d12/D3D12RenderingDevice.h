@@ -2,7 +2,7 @@
 
 #include <memory>
 
-#include "core/RenderingDevice.h"
+#include "core/rendering/RenderingDevice.h"
 
 namespace Vixen {
     class D3D12RenderingContext;

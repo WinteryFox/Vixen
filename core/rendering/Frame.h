@@ -2,12 +2,12 @@
 
 #include <vector>
 
-#include "DeferredRelease.h"
+#include "core/memory/DeferredRelease.h"
 #include "Swapchain.h"
-#include "command/CommandBuffer.h"
-#include "command/CommandPool.h"
-#include "command/Fence.h"
-#include "command/Semaphore.h"
+#include "core/command/CommandBuffer.h"
+#include "core/command/CommandPool.h"
+#include "core/command/Fence.h"
+#include "core/command/Semaphore.h"
 
 namespace Vixen {
     struct Frame {

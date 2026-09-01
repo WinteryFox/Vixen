@@ -3,14 +3,14 @@
 
 #include "DisplayServer.h"
 
-#include "RenderingDevice.h"
+#include "core/rendering/RenderingDevice.h"
 #include "Window.h"
-#include "error/CantCreateError.h"
-#include "error/Macros.h"
-#include "platform/vulkan/VulkanSurface.h"
+#include "core/error/CantCreateError.h"
+#include "core/error/Macros.h"
+#include "platform/vulkan/presentation/VulkanSurface.h"
 
 #ifdef VULKAN_ENABLED
-#include "platform/vulkan/VulkanRenderingContextDriver.h"
+#include "platform/vulkan/context/VulkanRenderingContextDriver.h"
 #endif
 
 #ifdef D3D12_ENABLED

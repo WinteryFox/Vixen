@@ -2,7 +2,7 @@
 
 #include <volk.h>
 
-#include "core/Surface.h"
+#include "core/rendering/Surface.h"
 
 namespace Vixen {
     struct VulkanSurface : Surface {

@@ -5,7 +5,7 @@
 #include <vector>
 #include <volk.h>
 
-#include "command/CommandQueue.h"
+#include "core/command/CommandQueue.h"
 
 namespace Vixen {
     class Swapchain;

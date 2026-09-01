@@ -1,6 +1,6 @@
 #pragma once
 
-#include "core/RenderingDevice.h"
+#include "core/rendering/RenderingDevice.h"
 
 namespace Vixen {
     class OpenGLRenderingDevice final : public RenderingDevice {

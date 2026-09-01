@@ -6,9 +6,9 @@
 #include <vector>
 
 #include "DriverDevice.h"
-#include "VSyncMode.h"
-#include "WindowMode.h"
-#include "error/Error.h"
+#include "core/display/VSyncMode.h"
+#include "core/display/WindowMode.h"
+#include "core/error/Error.h"
 
 namespace Vixen {
     struct Window;

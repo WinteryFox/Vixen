@@ -10,7 +10,7 @@
 #include <utility>
 #include <vector>
 
-#include "AttachmentInfo.h"
+#include "core/rendering/AttachmentInfo.h"
 #include "BarrierBatch.h"
 #include "FrameGraphExecutionError.h"
 #include "FrameGraphResourcePermission.h"
@@ -18,7 +18,7 @@
 #include "Node.h"
 #include "RenderPass.h"
 #include "RenderPassType.h"
-#include "image/ImageSubresourceRange.h"
+#include "core/image/ImageSubresourceRange.h"
 
 namespace Vixen {
     enum class FrameGraphErrorCode;

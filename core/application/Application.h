@@ -4,7 +4,7 @@
 #include <string>
 #include <glm/vec3.hpp>
 
-#include "RenderingDriver.h"
+#include "core/rendering/RenderingDriver.h"
 
 namespace Vixen {
     class DisplayServer;

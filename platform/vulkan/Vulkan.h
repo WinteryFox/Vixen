@@ -20,13 +20,13 @@
 #include <spdlog/sinks/stdout_color_sinks.h>
 #endif
 
-#include "core/BarrierAccessFlags.h"
-#include "core/ImageDataFormat.h"
-#include "core/IndexFormat.h"
-#include "core/LoadAction.h"
-#include "core/PipelineStageFlags.h"
-#include "core/QueueFamilyFlags.h"
-#include "core/StoreAction.h"
+#include "core/synchronization/BarrierAccessFlags.h"
+#include "core/image/ImageDataFormat.h"
+#include "core/rendering/IndexFormat.h"
+#include "core/rendering/LoadAction.h"
+#include "core/synchronization/PipelineStageFlags.h"
+#include "core/command/QueueFamilyFlags.h"
+#include "core/rendering/StoreAction.h"
 #include "core/buffer/BufferUsage.h"
 #include "core/error/ResourceCreationError.h"
 

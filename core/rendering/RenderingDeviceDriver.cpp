@@ -15,12 +15,12 @@
 #include <glslang/Public/ShaderLang.h>
 #include <spdlog/spdlog.h>
 
-#include "error/CantCreateError.h"
-#include "error/Macros.h"
-#include "error/Shader.h"
-#include "shader/Shader.h"
-#include "shader/ShaderUniform.h"
-#include "shader/ShaderUniformType.h"
+#include "core/error/CantCreateError.h"
+#include "core/error/Macros.h"
+#include "core/error/Shader.h"
+#include "core/shader/Shader.h"
+#include "core/shader/ShaderUniform.h"
+#include "core/shader/ShaderUniformType.h"
 
 namespace Vixen {
     auto RenderingDeviceDriver::reflectShader(

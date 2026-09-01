@@ -8,7 +8,7 @@
 #include "LoadAction.h"
 #include "StoreAction.h"
 #include "glm/vec2.hpp"
-#include "image/ImageLayout.h"
+#include "core/image/ImageLayout.h"
 
 namespace Vixen {
     struct Image;

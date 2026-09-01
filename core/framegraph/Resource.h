@@ -5,11 +5,11 @@
 #include <limits>
 #include <variant>
 
-#include "../BarrierAccessFlags.h"
-#include "../PipelineStageFlags.h"
-#include "../buffer/BufferUsage.h"
-#include "../image/ImageLayout.h"
-#include "../image/ImageUsage.h"
+#include "core/synchronization/BarrierAccessFlags.h"
+#include "core/synchronization/PipelineStageFlags.h"
+#include "core/buffer/BufferUsage.h"
+#include "core/image/ImageLayout.h"
+#include "core/image/ImageUsage.h"
 
 namespace Vixen {
     enum class ResourceType {

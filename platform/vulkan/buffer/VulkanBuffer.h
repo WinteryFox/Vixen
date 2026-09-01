@@ -3,7 +3,7 @@
 #include <cstdint>
 #include <volk.h>
 
-#include "buffer/BufferUsage.h"
+#include "core/buffer/BufferUsage.h"
 #include "core/buffer/Buffer.h"
 
 struct VmaAllocation_T;

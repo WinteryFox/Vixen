@@ -1,4 +1,4 @@
-#include "core/Application.h"
+#include "core/application/Application.h"
 #include "spdlog/spdlog.h"
 
 int main() {

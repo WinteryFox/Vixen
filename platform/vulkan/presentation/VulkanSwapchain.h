@@ -5,9 +5,9 @@
 
 #include "VulkanFramebuffer.h"
 #include "VulkanSurface.h"
-#include "command/VulkanCommandQueue.h"
-#include "core/Swapchain.h"
-#include "image/VulkanImage.h"
+#include "platform/vulkan/command/VulkanCommandQueue.h"
+#include "core/rendering/Swapchain.h"
+#include "platform/vulkan/image/VulkanImage.h"
 
 namespace Vixen {
     struct VulkanSwapchain final : Swapchain {

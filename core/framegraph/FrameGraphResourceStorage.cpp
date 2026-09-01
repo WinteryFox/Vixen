@@ -5,7 +5,7 @@
 
 #include "Node.h"
 #include "ResourceSlot.h"
-#include "../RenderingDevice.h"
+#include "core/rendering/RenderingDevice.h"
 
 namespace Vixen {
     void FrameGraphResourceStorage::requireEmpty(const std::size_t index) const {

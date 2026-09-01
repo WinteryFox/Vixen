@@ -2,8 +2,8 @@
 
 #include <glm/vec2.hpp>
 
-#include "VSyncMode.h"
-#include "WindowMode.h"
+#include "core/display/VSyncMode.h"
+#include "core/display/WindowMode.h"
 
 namespace Vixen {
     struct Surface {

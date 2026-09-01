@@ -6,20 +6,20 @@
 #include <string>
 #include <vector>
 
-#include "BufferBarrier.h"
-#include "ImageBarrier.h"
-#include "MemoryAllocationType.h"
-#include "MemoryBarrier.h"
-#include "PipelineStageFlags.h"
-#include "QueueFamilyFlags.h"
-#include "buffer/BufferUsage.h"
-#include "error/ResourceCreationError.h"
+#include "core/synchronization/BufferBarrier.h"
+#include "core/synchronization/ImageBarrier.h"
+#include "core/memory/MemoryAllocationType.h"
+#include "core/synchronization/MemoryBarrier.h"
+#include "core/synchronization/PipelineStageFlags.h"
+#include "core/command/QueueFamilyFlags.h"
+#include "core/buffer/BufferUsage.h"
+#include "core/error/ResourceCreationError.h"
 #include "glm/vec2.hpp"
 #include "glm/vec4.hpp"
-#include "image/ImageFormat.h"
-#include "image/ImageView.h"
-#include "image/SamplerState.h"
-#include "shader/ShaderStageData.h"
+#include "core/image/ImageFormat.h"
+#include "core/image/ImageView.h"
+#include "core/image/SamplerState.h"
+#include "core/shader/ShaderStageData.h"
 
 namespace Vixen {
     struct ShaderReflectionError;

@@ -6,7 +6,7 @@
 #include <volk.h>
 #include <glm/vec3.hpp>
 
-#include "core/RenderingContextDriver.h"
+#include "core/rendering/RenderingContextDriver.h"
 
 namespace Vixen {
     struct VulkanSurface;

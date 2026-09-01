@@ -7,13 +7,13 @@
 
 #include "DriverDevice.h"
 #include "Frame.h"
-#include "ImageDataFormat.h"
-#include "MemoryAllocationType.h"
-#include "buffer/BufferUsage.h"
-#include "error/Error.h"
-#include "error/ResourceCreationError.h"
-#include "image/ImageFormat.h"
-#include "image/ImageView.h"
+#include "core/image/ImageDataFormat.h"
+#include "core/memory/MemoryAllocationType.h"
+#include "core/buffer/BufferUsage.h"
+#include "core/error/Error.h"
+#include "core/error/ResourceCreationError.h"
+#include "core/image/ImageFormat.h"
+#include "core/image/ImageView.h"
 
 namespace Vixen {
     struct Framebuffer;

@@ -2,7 +2,7 @@
 
 #include <volk.h>
 
-#include "core/Framebuffer.h"
+#include "core/rendering/Framebuffer.h"
 
 namespace Vixen {
     struct VulkanFramebuffer final : Framebuffer {

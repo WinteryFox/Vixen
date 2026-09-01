@@ -13,16 +13,16 @@
 #include <utility>
 #include <experimental/scope>
 
-#include "AttachmentInfo.h"
+#include "core/rendering/AttachmentInfo.h"
 #include "FrameGraphError.h"
 #include "FrameGraphPassResources.h"
 #include "FrameGraphResourceAccess.h"
-#include "RenderingDevice.h"
-#include "RenderingDeviceDriver.h"
+#include "core/rendering/RenderingDevice.h"
+#include "core/rendering/RenderingDeviceDriver.h"
 #include "RenderPassContext.h"
 #include "ResourceStateMapping.h"
-#include "buffer/Buffer.h"
-#include "image/Image.h"
+#include "core/buffer/Buffer.h"
+#include "core/image/Image.h"
 
 namespace Vixen {
     namespace {

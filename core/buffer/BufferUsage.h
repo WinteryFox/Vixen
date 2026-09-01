@@ -2,7 +2,7 @@
 
 #include <cstdint>
 
-#include "core/Bitmask.h"
+#include "core/utility/Bitmask.h"
 
 namespace Vixen {
     enum class BufferUsageBits : uint32_t {

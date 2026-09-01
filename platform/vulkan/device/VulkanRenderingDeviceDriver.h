@@ -9,8 +9,8 @@
 #include <volk.h>
 
 #include "DeviceFeatureSupport.h"
-#include "core/RenderingDeviceDriver.h"
-#include "image/ImageSamples.h"
+#include "core/rendering/RenderingDeviceDriver.h"
+#include "core/image/ImageSamples.h"
 
 typedef struct VmaAllocator_T* VmaAllocator;
 

@@ -1,8 +1,8 @@
 #pragma once
 
 #include "BarrierAccessFlags.h"
-#include "image/ImageLayout.h"
-#include "image/ImageSubresourceRange.h"
+#include "core/image/ImageLayout.h"
+#include "core/image/ImageSubresourceRange.h"
 
 namespace Vixen {
     struct Image;

@@ -2,7 +2,7 @@
 
 #include <utility>
 
-#include "../RenderingDeviceDriver.h"
+#include "core/rendering/RenderingDeviceDriver.h"
 
 namespace Vixen {
     BarrierBatch& BarrierBatcher::getBatch(

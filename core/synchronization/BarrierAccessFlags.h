@@ -2,7 +2,7 @@
 
 #include <cstdint>
 
-#include "Bitmask.h"
+#include "core/utility/Bitmask.h"
 
 namespace Vixen {
     enum class BarrierAccessBits : uint32_t {

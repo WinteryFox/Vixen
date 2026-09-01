@@ -8,11 +8,11 @@
 #include <glm/vec3.hpp>
 
 #include "Monitor.h"
-#include "RenderingDriver.h"
+#include "core/rendering/RenderingDriver.h"
 #include "VSyncMode.h"
 #include "WindowFlags.h"
 #include "WindowMode.h"
-#include "error/Error.h"
+#include "core/error/Error.h"
 
 struct GLFWwindow;
 
