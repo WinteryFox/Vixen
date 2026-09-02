@@ -5,6 +5,7 @@
 #include <algorithm>
 #include <array>
 #include <format>
+#include <experimental/scope>
 #include <map>
 #include <new>
 #include <ranges>
@@ -32,6 +33,9 @@
 #include "platform/vulkan/image/VulkanImage.h"
 #include "platform/vulkan/image/VulkanSampler.h"
 #include "core/image/ImageCopyRegion.h"
+#include "pipeline/VulkanComputePipeline.h"
+#include "pipeline/VulkanGraphicsPipeline.h"
+#include "pipeline/VulkanPipelineLayout.h"
 #include "platform/vulkan/shader/VulkanShader.h"
 
 namespace Vixen {
@@ -2324,10 +2328,16 @@ namespace Vixen {
         const std::vector<ShaderStageData>& stages
     ) {
         const auto o = new VulkanShader();
+        auto shaderCleanup = std::experimental::scope_exit([&] noexcept {
+            for (const auto& shaderModule : o->shaderModules)
+                vkDestroyShaderModule(device, shaderModule.module, nullptr);
+
+            delete o;
+        });
+
         const auto reflection = reflectShader(stages, o);
         if (!reflection) {
             const auto& reflectionError = reflection.error();
-            delete o;
             error<CantCreateError>(
                 std::format("Shader '{}' reflection failed: {}", name, reflectionError.detail)
             );
@@ -2375,11 +2385,10 @@ namespace Vixen {
             };
 
             auto addDescriptor = [](DescriptorCounts& counts, const ShaderUniform& uniform) {
-                counts.resources += uniform.count;
                 switch (uniform.type) {
                     case ShaderUniformType::Sampler:
                         counts.samplers += uniform.count;
-                        break;
+                        return;
 
                     case ShaderUniformType::SampledImage:
                     case ShaderUniformType::UniformTexelBuffer:
@@ -2408,6 +2417,8 @@ namespace Vixen {
                         counts.inputAttachments += uniform.count;
                         break;
                 }
+
+                counts.resources += uniform.count;
             };
 
             DescriptorCounts totalCounts{};
@@ -2424,9 +2435,11 @@ namespace Vixen {
                 addDescriptor(totalCounts, uniform);
             }
 
-            auto validateCounts = [&](const DescriptorCounts& counts, const bool perStage,
-                                      const std::optional<ShaderStageBits> stage = std::nullopt)
-                -> std::expected<void, ShaderReflectionError> {
+            auto validateCounts = [&](
+                const DescriptorCounts& counts,
+                const bool perStage,
+                const std::optional<ShaderStageBits> stage = std::nullopt
+            ) -> std::expected<void, ShaderReflectionError> {
                 const auto validate = [&](const uint64_t actual, const uint64_t limit, const char* name)
                     -> std::expected<void, ShaderReflectionError> {
                     if (actual <= limit)
@@ -2441,53 +2454,74 @@ namespace Vixen {
                     );
                 };
 
-                if (auto result = validate(counts.samplers,
-                                           perStage
-                                               ? limits.maxPerStageDescriptorSamplers
-                                               : limits.maxDescriptorSetSamplers,
-                                           "Sampler"); !result)
+                if (auto result = validate(
+                        counts.samplers,
+                        perStage
+                            ? limits.maxPerStageDescriptorSamplers
+                            : limits.maxDescriptorSetSamplers,
+                        "Sampler"
+                    );
+                    !result)
                     return result;
 
-                if (auto result = validate(counts.uniformBuffers,
-                                           perStage
-                                               ? limits.maxPerStageDescriptorUniformBuffers
-                                               : limits.maxDescriptorSetUniformBuffers,
-                                           "Uniform-buffer"); !result)
+                if (auto result = validate(
+                        counts.uniformBuffers,
+                        perStage
+                            ? limits.maxPerStageDescriptorUniformBuffers
+                            : limits.maxDescriptorSetUniformBuffers,
+                        "Uniform-buffer"
+                    );
+                    !result)
                     return result;
 
-                if (auto result = validate(counts.storageBuffers,
-                                           perStage
-                                               ? limits.maxPerStageDescriptorStorageBuffers
-                                               : limits.maxDescriptorSetStorageBuffers,
-                                           "Storage-buffer"); !result)
+                if (auto result = validate(
+                        counts.storageBuffers,
+                        perStage
+                            ? limits.maxPerStageDescriptorStorageBuffers
+                            : limits.maxDescriptorSetStorageBuffers,
+                        "Storage-buffer"
+                    );
+                    !result)
                     return result;
 
-                if (auto result = validate(counts.sampledImages,
-                                           perStage
-                                               ? limits.maxPerStageDescriptorSampledImages
-                                               : limits.maxDescriptorSetSampledImages,
-                                           "Sampled-image"); !result)
+                if (auto result = validate(
+                        counts.sampledImages,
+                        perStage
+                            ? limits.maxPerStageDescriptorSampledImages
+                            : limits.maxDescriptorSetSampledImages,
+                        "Sampled-image"
+                    );
+                    !result)
                     return result;
 
-                if (auto result = validate(counts.storageImages,
-                                           perStage
-                                               ? limits.maxPerStageDescriptorStorageImages
-                                               : limits.maxDescriptorSetStorageImages,
-                                           "Storage-image"); !result)
+                if (auto result = validate(
+                        counts.storageImages,
+                        perStage
+                            ? limits.maxPerStageDescriptorStorageImages
+                            : limits.maxDescriptorSetStorageImages,
+                        "Storage-image"
+                    );
+                    !result)
                     return result;
 
-                if (auto result = validate(counts.inputAttachments,
-                                           perStage
-                                               ? limits.maxPerStageDescriptorInputAttachments
-                                               : limits.maxDescriptorSetInputAttachments,
-                                           "Input-attachment"); !result)
+                if (auto result = validate(
+                        counts.inputAttachments,
+                        perStage
+                            ? limits.maxPerStageDescriptorInputAttachments
+                            : limits.maxDescriptorSetInputAttachments,
+                        "Input-attachment"
+                    );
+                    !result)
                     return result;
 
-                if (perStage) {
-                    if (auto result = validate(counts.resources, limits.maxPerStageResources, "Per-stage resource");
+                if (perStage)
+                    if (auto result = validate(
+                            counts.resources,
+                            limits.maxPerStageResources,
+                            "Per-stage resource"
+                        );
                         !result)
                         return result;
-                }
 
                 return {};
             };
@@ -2522,121 +2556,37 @@ namespace Vixen {
 
         if (const auto limitsValidation = validateDeviceLimits(); !limitsValidation) {
             const auto& validationError = limitsValidation.error();
-            delete o;
             error<CantCreateError>(
                 std::format("Shader '{}' exceeds Vulkan device limits: {}", name, validationError.detail)
             );
         }
 
         o->name = name;
-        o->pushConstantStageFlags |= toVkShaderStageFlags(o->pushConstantStages);
 
-        const auto deletePartiallyCreatedShader = [&] {
-            for (const auto& stageInfo : o->shaderStageInfos)
-                vkDestroyShaderModule(device, stageInfo.module, nullptr);
-
-            for (const auto descriptorSetLayout : o->descriptorSetLayouts) {
-                if (descriptorSetLayout != VK_NULL_HANDLE)
-                    vkDestroyDescriptorSetLayout(device, descriptorSetLayout, nullptr);
-            }
-
-            delete o;
-        };
-
-        for (const auto& [stage, spirv] : stages) {
-            const auto stageFlag = toVkShaderStageFlags(stage);
+        o->shaderModules.reserve(stages.size());
+        for (const auto& stageData : stages) {
+            VulkanShaderModule shaderModule{
+                .stage = static_cast<VkShaderStageFlagBits>(toVkShaderStageFlags(stageData.stage)),
+                .module = VK_NULL_HANDLE,
+                .entryPoint = stageData.entryPoint
+            };
 
             const VkShaderModuleCreateInfo shaderModuleInfo{
                 .sType = VK_STRUCTURE_TYPE_SHADER_MODULE_CREATE_INFO,
                 .pNext = nullptr,
                 .flags = 0,
-                .codeSize = spirv.size(),
-                .pCode = std::bit_cast<const uint32_t*>(spirv.data())
+                .codeSize = stageData.spirv.size(),
+                .pCode = std::bit_cast<const uint32_t*>(stageData.spirv.data())
             };
 
-            VkShaderModule module = VK_NULL_HANDLE;
-            if (vkCreateShaderModule(device, &shaderModuleInfo, nullptr, &module) != VK_SUCCESS) {
-                deletePartiallyCreatedShader();
+            if (vkCreateShaderModule(device, &shaderModuleInfo, nullptr, &shaderModule.module) != VK_SUCCESS) {
                 error<CantCreateError>("Call to vkCreateShaderModule failed.");
             }
 
-            o->shaderStageInfos.push_back(
-                {
-                    .sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO,
-                    .pNext = nullptr,
-                    .flags = 0,
-                    .stage = static_cast<VkShaderStageFlagBits>(stageFlag),
-                    .module = module,
-                    .pName = "main",
-                    .pSpecializationInfo = nullptr
-                }
-            );
+            o->shaderModules.push_back(std::move(shaderModule));
         }
 
-        uint32_t maxSet = 0;
-        for (const ShaderUniform& uniform : o->uniformSets)
-            maxSet = std::max(maxSet, uniform.set);
-
-        std::vector<std::vector<VkDescriptorSetLayoutBinding>> layoutBindings(maxSet + 1);
-        for (const auto& uniformSet : o->uniformSets) {
-            layoutBindings[uniformSet.set].push_back({
-                .binding = uniformSet.binding,
-                .descriptorType = requireVkConversion(toVkDescriptorType(uniformSet.type)),
-                .descriptorCount = uniformSet.count,
-                .stageFlags = toVkShaderStageFlags(uniformSet.stages),
-                .pImmutableSamplers = nullptr
-            });
-        }
-
-        for (auto& bindings : layoutBindings)
-            std::ranges::sort(bindings, {}, &VkDescriptorSetLayoutBinding::binding);
-
-        o->descriptorSetLayouts.resize(maxSet + 1);
-
-        for (uint32_t set = 0; set <= maxSet; ++set) {
-            const auto& bindings = layoutBindings[set];
-
-            const VkDescriptorSetLayoutCreateInfo descriptorSetLayoutInfo{
-                .sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO,
-                .pNext = nullptr,
-                .flags = 0,
-                .bindingCount = static_cast<uint32_t>(bindings.size()),
-                .pBindings = bindings.data()
-            };
-
-            VkDescriptorSetLayout descriptorSetLayout = VK_NULL_HANDLE;
-            if (vkCreateDescriptorSetLayout(device, &descriptorSetLayoutInfo, nullptr, &descriptorSetLayout) !=
-                VK_SUCCESS) {
-                deletePartiallyCreatedShader();
-                error<CantCreateError>("Call to vkCreateDescriptorSetLayout failed.");
-            }
-
-            o->descriptorSetLayouts[set] = descriptorSetLayout;
-        }
-
-        const VkPushConstantRange pushConstantRange{
-            .stageFlags = o->pushConstantStageFlags,
-            .offset = 0,
-            .size = o->pushConstantSize
-        };
-
-        const VkPipelineLayoutCreateInfo pipelineLayoutInfo{
-            .sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO,
-            .pNext = nullptr,
-            .flags = 0,
-            .setLayoutCount = static_cast<uint32_t>(o->descriptorSetLayouts.size()),
-            .pSetLayouts = o->descriptorSetLayouts.data(),
-            .pushConstantRangeCount = o->pushConstantSize > 0 ? 1u : 0u,
-            .pPushConstantRanges = pushConstantRange.size > 0 ? &pushConstantRange : nullptr
-        };
-
-        VkPipelineLayout pipelineLayout = VK_NULL_HANDLE;
-        if (vkCreatePipelineLayout(device, &pipelineLayoutInfo, nullptr, &pipelineLayout) != VK_SUCCESS) {
-            deletePartiallyCreatedShader();
-            error<CantCreateError>("Call to vkCreatePipelineLayout failed.");
-        }
-        o->pipelineLayout = pipelineLayout;
-
+        shaderCleanup.release();
         return o;
     }
 
@@ -2644,9 +2594,9 @@ namespace Vixen {
         Shader* shader
     ) {
         const auto o = dynamic_cast<VulkanShader*>(shader);
-        for (const auto& stageInfo : o->shaderStageInfos)
-            vkDestroyShaderModule(device, stageInfo.module, nullptr);
-        o->shaderStageInfos.clear();
+        for (const auto& shaderModule : o->shaderModules)
+            vkDestroyShaderModule(device, shaderModule.module, nullptr);
+        o->shaderModules.clear();
     }
 
     void VulkanRenderingDeviceDriver::destroyShader(
@@ -2655,11 +2605,621 @@ namespace Vixen {
         const auto o = dynamic_cast<VulkanShader*>(shader);
 
         destroyShaderModules(o);
-        for (const auto& descriptorSetLayout : o->descriptorSetLayouts)
-            vkDestroyDescriptorSetLayout(device, descriptorSetLayout, nullptr);
-        vkDestroyPipelineLayout(device, o->pipelineLayout, nullptr);
 
         delete o;
+    }
+
+    auto VulkanRenderingDeviceDriver::createPipelineLayout(
+        const PipelineLayoutDescription& description
+    ) -> std::expected<PipelineLayout*, ResourceCreationError> {
+        for (size_t rangeIndex = 0; rangeIndex < description.pushConstantRanges.size(); ++rangeIndex) {
+            const auto& range = description.pushConstantRanges[rangeIndex];
+            const auto context = std::format("Push-constant range {}", rangeIndex);
+
+            const uint64_t rangeEnd = static_cast<uint64_t>(range.offset) + range.size;
+            if (rangeEnd > physicalDeviceProperties.limits.maxPushConstantsSize)
+                return std::unexpected{
+                    ResourceCreationError{
+                        .code = ResourceCreationErrorCode::ExceedsDeviceLimits,
+                        .message = "Pipeline layout push-constant range exceeds the device size limit",
+                        .limitViolation = ResourceCreationLimitViolation{
+                            .limit = "maxPushConstantsSize",
+                            .requested = rangeEnd,
+                            .supported = physicalDeviceProperties.limits.maxPushConstantsSize
+                        },
+                        .details = {
+                            context,
+                            std::format("Byte range: [{}, {})", range.offset, rangeEnd)
+                        }
+                    }
+                };
+        }
+
+        PipelineLayoutDescription storedDescription{};
+        try {
+            storedDescription = description;
+        } catch (const std::bad_alloc&) {
+            return std::unexpected{
+                ResourceCreationError{
+                    .code = ResourceCreationErrorCode::OutOfHostMemory,
+                    .message = "Failed to allocate storage for the pipeline-layout description"
+                }
+            };
+        }
+
+        std::vector<VkDescriptorSetLayout> descriptorSetLayouts{};
+        try {
+            descriptorSetLayouts.reserve(description.descriptorSets.size());
+        } catch (const std::bad_alloc&) {
+            return std::unexpected{
+                ResourceCreationError{
+                    .code = ResourceCreationErrorCode::OutOfHostMemory,
+                    .message = "Failed to allocate storage for native descriptor-set layouts"
+                }
+            };
+        }
+
+        auto descriptorSetLayoutCleanup = std::experimental::scope_exit([&] noexcept {
+            for (const auto descriptorSetLayout : descriptorSetLayouts)
+                vkDestroyDescriptorSetLayout(device, descriptorSetLayout, nullptr);
+        });
+
+        for (const auto& descriptorSet : description.descriptorSets) {
+            std::vector<VkDescriptorSetLayoutBinding> bindings{};
+            bindings.reserve(descriptorSet.bindings.size());
+            for (const auto& binding : descriptorSet.bindings) {
+                std::vector<VkSampler> samplers{};
+                samplers.reserve(binding.immutableSamplers.size());
+                for (const auto sampler : binding.immutableSamplers) {
+                    const auto vkSampler = dynamic_cast<const VulkanSampler*>(sampler);
+                    if (vkSampler == nullptr) {
+                        return std::unexpected{
+                            ResourceCreationError{
+                                .code = ResourceCreationErrorCode::InvalidDescription,
+                                .message =
+                                "Pipeline layout contains an immutable sampler from an incompatible rendering backend",
+                                .details = {
+                                    std::format(
+                                        "Descriptor set {}, binding {}",
+                                        descriptorSet.set,
+                                        binding.binding
+                                    )
+                                }
+                            }
+                        };
+                    }
+
+                    samplers.push_back(vkSampler->sampler);
+                }
+
+                auto type = toVkDescriptorType(binding.type);
+                if (!type) {
+                    auto error = std::move(type).error();
+                    error.details.push_back(
+                        std::format(
+                            "While converting descriptor set {}, binding {}",
+                            descriptorSet.set,
+                            binding.binding
+                        )
+                    );
+                    return std::unexpected{std::move(error)};
+                }
+
+                bindings.push_back(VkDescriptorSetLayoutBinding{
+                    .binding = binding.binding,
+                    .descriptorType = *type,
+                    .descriptorCount = binding.count,
+                    .stageFlags = toVkShaderStageFlags(binding.stages),
+                    .pImmutableSamplers = samplers.data()
+                });
+            }
+
+            VkDescriptorSetLayoutCreateInfo info{
+                .sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO,
+                .pNext = nullptr,
+                .flags = 0,
+                .bindingCount = static_cast<uint32_t>(bindings.size()),
+                .pBindings = bindings.data()
+            };
+
+            VkDescriptorSetLayout layout = VK_NULL_HANDLE;
+            const auto result = vkCreateDescriptorSetLayout(device, &info, nullptr, &layout);
+            if (result != VK_SUCCESS) {
+                auto error = makeResourceCreationError(result, "vkCreateDescriptorSetLayout");
+                error.details.push_back(
+                    std::format(
+                        "Descriptor set {} contains {} bindings",
+                        descriptorSet.set,
+                        descriptorSet.bindings.size()
+                    )
+                );
+                return std::unexpected{std::move(error)};
+            }
+
+            descriptorSetLayouts.push_back(layout);
+        }
+
+        std::vector<VkPushConstantRange> pushConstantRanges{};
+        pushConstantRanges.reserve(description.pushConstantRanges.size());
+        for (const auto& pushConstantRange : description.pushConstantRanges) {
+            pushConstantRanges.push_back(VkPushConstantRange{
+                .stageFlags = toVkShaderStageFlags(pushConstantRange.stages),
+                .offset = pushConstantRange.offset,
+                .size = pushConstantRange.size
+            });
+        }
+
+        const VkPipelineLayoutCreateInfo info{
+            .sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO,
+            .pNext = nullptr,
+            .flags = 0,
+            .setLayoutCount = static_cast<uint32_t>(descriptorSetLayouts.size()),
+            .pSetLayouts = descriptorSetLayouts.data(),
+            .pushConstantRangeCount = static_cast<uint32_t>(pushConstantRanges.size()),
+            .pPushConstantRanges = pushConstantRanges.data()
+        };
+
+        VkPipelineLayout layout = VK_NULL_HANDLE;
+        const auto result = vkCreatePipelineLayout(device, &info, nullptr, &layout);
+        if (result != VK_SUCCESS) {
+            auto error = makeResourceCreationError(result, "vkCreatePipelineLayout");
+            error.details.push_back(
+                std::format(
+                    "Pipeline layout contains {} descriptor-set layouts and {} push-constant ranges",
+                    descriptorSetLayouts.size(),
+                    description.pushConstantRanges.size()
+                )
+            );
+            return std::unexpected{std::move(error)};
+        }
+
+        auto pipelineLayoutCleanup = std::experimental::scope_exit([&] noexcept {
+            vkDestroyPipelineLayout(device, layout, nullptr);
+        });
+
+        auto pipelineLayout = new(std::nothrow) VulkanPipelineLayout{
+            std::move(storedDescription),
+            layout,
+            std::move(descriptorSetLayouts)
+        };
+        if (pipelineLayout == nullptr) {
+            return std::unexpected{
+                ResourceCreationError{
+                    .code = ResourceCreationErrorCode::OutOfHostMemory,
+                    .message = "Failed to allocate a pipeline-layout wrapper"
+                }
+            };
+        }
+
+        pipelineLayoutCleanup.release();
+        descriptorSetLayoutCleanup.release();
+
+        return pipelineLayout;
+    }
+
+    void VulkanRenderingDeviceDriver::destroyPipelineLayout(PipelineLayout* pipelineLayout) {
+        const auto o = dynamic_cast<VulkanPipelineLayout*>(pipelineLayout);
+
+        for (const auto& descriptorSetLayout : o->descriptorSetLayouts)
+            vkDestroyDescriptorSetLayout(device, descriptorSetLayout, nullptr);
+
+        vkDestroyPipelineLayout(device, o->layout, nullptr);
+        delete o;
+    }
+
+    auto VulkanRenderingDeviceDriver::createGraphicsPipeline(
+        const GraphicsPipelineDescription& description
+    ) -> std::expected<GraphicsPipeline*, ResourceCreationError> {
+        const auto vkLayout = dynamic_cast<const VulkanPipelineLayout*>(description.layout);
+        if (!description.layout || !vkLayout)
+            return std::unexpected{
+                ResourceCreationError{
+                    .code = ResourceCreationErrorCode::InvalidDescription,
+                    .message = description.layout == nullptr
+                                   ? "Graphics pipeline description does not specify a pipeline layout"
+                                   : "Graphics pipeline layout belongs to an incompatible rendering backend"
+                }
+            };
+
+        const auto shader = dynamic_cast<const VulkanShader*>(description.shader);
+        if (!description.shader || !shader)
+            return std::unexpected{
+                ResourceCreationError{
+                    .code = ResourceCreationErrorCode::InvalidDescription,
+                    .message = description.shader == nullptr
+                                   ? "Graphics pipeline description does not specify a shader"
+                                   : "Graphics pipeline shader belongs to an incompatible rendering background"
+                }
+            };
+
+        std::vector<VkPipelineShaderStageCreateInfo> shaderStages{};
+        shaderStages.reserve(shader->shaderModules.size());
+        bool hasVertexStage = false;
+        for (const auto& shaderModule : shader->shaderModules) {
+            const VkPipelineShaderStageCreateInfo stage{
+                .sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO,
+                .pNext = nullptr,
+                .flags = 0,
+                .stage = shaderModule.stage,
+                .module = shaderModule.module,
+                .pName = shaderModule.entryPoint.c_str(),
+                .pSpecializationInfo = nullptr
+            };
+
+            if (shaderModule.stage == VK_SHADER_STAGE_VERTEX_BIT) {
+                hasVertexStage = true;
+                shaderStages.push_back(stage);
+                continue;
+            }
+
+            if (shaderModule.stage == VK_SHADER_STAGE_FRAGMENT_BIT) {
+                shaderStages.push_back(stage);
+                continue;
+            }
+
+            if (shaderModule.stage == VK_SHADER_STAGE_COMPUTE_BIT)
+                return std::unexpected{
+                    ResourceCreationError{
+                        .code = ResourceCreationErrorCode::InvalidDescription,
+                        .message = "Graphics pipeline shader contains a compute stage"
+                    }
+                };
+
+            if (shaderModule.stage == VK_SHADER_STAGE_GEOMETRY_BIT ||
+                shaderModule.stage == VK_SHADER_STAGE_TESSELLATION_CONTROL_BIT ||
+                shaderModule.stage == VK_SHADER_STAGE_TESSELLATION_EVALUATION_BIT)
+                return std::unexpected{
+                    ResourceCreationError{
+                        .code = ResourceCreationErrorCode::UnsupportedUsage,
+                        .message = "Graphics pipeline uses shader stages that are not currently supported"
+                    }
+                };
+
+            return std::unexpected{
+                ResourceCreationError{
+                    .code = ResourceCreationErrorCode::InvalidDescription,
+                    .message = "Graphics pipeline contains an unrecognized native shader stage"
+                }
+            };
+        }
+
+        if (!hasVertexStage)
+            return std::unexpected{
+                ResourceCreationError{
+                    .code = ResourceCreationErrorCode::InvalidDescription,
+                    .message = "Graphics pipeline shader has no live vertex shader module"
+                }
+            };
+
+        std::vector<VkVertexInputBindingDescription> vertexBindings{};
+        vertexBindings.reserve(description.vertexBindings.size());
+        for (const auto& binding : description.vertexBindings) {
+            vertexBindings.push_back(VkVertexInputBindingDescription{
+                .binding = binding.binding,
+                .stride = binding.stride,
+                .inputRate = toVkInputRate(binding.rate)
+            });
+        }
+
+        std::vector<VkVertexInputAttributeDescription> vertexAttributes{};
+        vertexAttributes.reserve(description.vertexAttributes.size());
+        for (const auto& attribute : description.vertexAttributes) {
+            auto format = toVkDataFormat(attribute.format);
+            if (!format) {
+                auto error = std::move(format).error();
+                error.details.push_back(
+                    std::format(
+                        "While converting vertex attribute location {}, binding {}",
+                        attribute.location,
+                        attribute.binding
+                    )
+                );
+
+                return std::unexpected{std::move(error)};
+            }
+
+            vertexAttributes.push_back(VkVertexInputAttributeDescription{
+                .location = attribute.location,
+                .binding = attribute.binding,
+                .format = *format,
+                .offset = attribute.offset
+            });
+        }
+
+        VkPipelineVertexInputStateCreateInfo vertexInputState{
+            .sType = VK_STRUCTURE_TYPE_PIPELINE_VERTEX_INPUT_STATE_CREATE_INFO,
+            .pNext = nullptr,
+            .flags = 0,
+            .vertexBindingDescriptionCount = static_cast<uint32_t>(vertexBindings.size()),
+            .pVertexBindingDescriptions = vertexBindings.data(),
+            .vertexAttributeDescriptionCount = static_cast<uint32_t>(vertexAttributes.size()),
+            .pVertexAttributeDescriptions = vertexAttributes.data()
+        };
+
+        VkPipelineRasterizationStateCreateInfo rasterizationState{
+            .sType = VK_STRUCTURE_TYPE_PIPELINE_RASTERIZATION_STATE_CREATE_INFO,
+            .pNext = nullptr,
+            .flags = 0,
+            .depthClampEnable = description.rasterization.isDepthClampEnabled,
+            .rasterizerDiscardEnable = description.rasterization.isRasterizerDiscardEnabled,
+            .polygonMode = toVkPolygonMode(description.rasterization.polygonMode),
+            .cullMode = toVkCullMode(description.rasterization.cullMode),
+            .frontFace = toVkFrontFace(description.rasterization.frontFace),
+            .depthBiasEnable = description.rasterization.isDepthBiasEnabled,
+            .depthBiasConstantFactor = description.rasterization.depthBiasConstantFactor,
+            .depthBiasClamp = description.rasterization.depthBiasClamp,
+            .depthBiasSlopeFactor = description.rasterization.depthBiasSlopeFactor,
+            .lineWidth = description.rasterization.lineWidth
+        };
+
+        auto rasterizationSamples = toVkSampleCountFlagBits(description.multisampling.samples);
+        if (!rasterizationSamples) {
+            auto error = std::move(rasterizationSamples).error();
+            error.details.emplace_back("While converting the graphics pipeline multisample state");
+
+            return std::unexpected{std::move(error)};
+        }
+
+        VkPipelineMultisampleStateCreateInfo multisampleState{
+            .sType = VK_STRUCTURE_TYPE_PIPELINE_MULTISAMPLE_STATE_CREATE_INFO,
+            .pNext = nullptr,
+            .flags = 0,
+            .rasterizationSamples = *rasterizationSamples,
+            .sampleShadingEnable = description.multisampling.isSampleShadingEnabled,
+            .minSampleShading = description.multisampling.minSampleShading,
+            .pSampleMask = nullptr,
+            .alphaToCoverageEnable = description.multisampling.isAlphaToCoverageEnabled,
+            .alphaToOneEnable = description.multisampling.isAlphaToOneEnabled
+        };
+
+        VkPipelineDepthStencilStateCreateInfo depthStencilState{
+            .sType = VK_STRUCTURE_TYPE_PIPELINE_DEPTH_STENCIL_STATE_CREATE_INFO,
+            .pNext = nullptr,
+            .flags = 0,
+            .depthTestEnable = description.depthStencil.isDepthTestEnabled,
+            .depthWriteEnable = description.depthStencil.isDepthWriteEnabled,
+            .depthCompareOp = toVkCompareOperator(description.depthStencil.compareOperator),
+            .depthBoundsTestEnable = description.depthStencil.isDepthBoundsTestEnabled,
+            .stencilTestEnable = description.depthStencil.isStencilTestEnabled,
+            .front = {
+                .failOp = toVkStencilOperator(description.depthStencil.front.failOperator),
+                .passOp = toVkStencilOperator(description.depthStencil.front.passOperator),
+                .depthFailOp = toVkStencilOperator(description.depthStencil.front.depthFailOperator),
+                .compareOp = toVkCompareOperator(description.depthStencil.front.compareOperator),
+                .compareMask = description.depthStencil.front.compareMask,
+                .writeMask = description.depthStencil.front.writeMask,
+                .reference = description.depthStencil.front.reference
+            },
+            .back = {
+                .failOp = toVkStencilOperator(description.depthStencil.back.failOperator),
+                .passOp = toVkStencilOperator(description.depthStencil.back.passOperator),
+                .depthFailOp = toVkStencilOperator(description.depthStencil.back.depthFailOperator),
+                .compareOp = toVkCompareOperator(description.depthStencil.back.compareOperator),
+                .compareMask = description.depthStencil.back.compareMask,
+                .writeMask = description.depthStencil.back.writeMask,
+                .reference = description.depthStencil.back.reference
+            },
+            .minDepthBounds = description.depthStencil.minDepthBounds,
+            .maxDepthBounds = description.depthStencil.maxDepthBounds
+        };
+
+        std::vector<VkPipelineColorBlendAttachmentState> colorBlendAttachments{};
+        colorBlendAttachments.reserve(description.colorBlending.size());
+        for (const auto& attachment : description.colorBlending) {
+            colorBlendAttachments.push_back(VkPipelineColorBlendAttachmentState{
+                .blendEnable = attachment.isEnabled,
+                .srcColorBlendFactor = toVkBlendFactor(attachment.sourceColorBlendFactor),
+                .dstColorBlendFactor = toVkBlendFactor(attachment.destinationColorBlendFactor),
+                .colorBlendOp = toVkBlendOperation(attachment.colorBlendOperation),
+                .srcAlphaBlendFactor = toVkBlendFactor(attachment.sourceAlphaBlendFactor),
+                .dstAlphaBlendFactor = toVkBlendFactor(attachment.destinationAlphaBlendFactor),
+                .alphaBlendOp = toVkBlendOperation(attachment.alphaBlendOperation),
+                .colorWriteMask = toVkColorComponentFlags(attachment.colorWriteMask)
+            });
+        }
+
+        VkPipelineColorBlendStateCreateInfo colorBlendState{
+            .sType = VK_STRUCTURE_TYPE_PIPELINE_COLOR_BLEND_STATE_CREATE_INFO,
+            .pNext = nullptr,
+            .flags = 0,
+            .logicOpEnable = VK_FALSE,
+            .logicOp = VK_LOGIC_OP_CLEAR,
+            .attachmentCount = static_cast<uint32_t>(colorBlendAttachments.size()),
+            .pAttachments = colorBlendAttachments.data(),
+            .blendConstants = {
+                description.blendConstants[0],
+                description.blendConstants[1],
+                description.blendConstants[2],
+                description.blendConstants[3]
+            }
+        };
+
+        const auto dynamicStates = toVkDynamicStates(description.dynamicStates);
+        const VkPipelineDynamicStateCreateInfo dynamicState{
+            .sType = VK_STRUCTURE_TYPE_PIPELINE_DYNAMIC_STATE_CREATE_INFO,
+            .pNext = nullptr,
+            .flags = 0,
+            .dynamicStateCount = static_cast<uint32_t>(dynamicStates.size()),
+            .pDynamicStates = dynamicStates.data()
+        };
+
+        const VkGraphicsPipelineCreateInfo info{
+            .sType = VK_STRUCTURE_TYPE_GRAPHICS_PIPELINE_CREATE_INFO,
+            .pNext = nullptr,
+            .flags = 0,
+            .stageCount = static_cast<uint32_t>(shaderStages.size()),
+            .pStages = shaderStages.data(),
+            .pVertexInputState = &vertexInputState,
+            .pInputAssemblyState = nullptr,
+            .pTessellationState = nullptr,
+            .pViewportState = nullptr,
+            .pRasterizationState = &rasterizationState,
+            .pMultisampleState = &multisampleState,
+            .pDepthStencilState = &depthStencilState,
+            .pColorBlendState = &colorBlendState,
+            .pDynamicState = &dynamicState,
+            .layout = vkLayout->layout,
+            .renderPass = VK_NULL_HANDLE,
+            .subpass = 0,
+            .basePipelineHandle = VK_NULL_HANDLE,
+            .basePipelineIndex = 0
+        };
+
+        VkPipeline pipeline = VK_NULL_HANDLE;
+        const auto result = vkCreateGraphicsPipelines(
+            device,
+            nullptr,
+            1,
+            &info,
+            nullptr,
+            &pipeline
+        );
+        if (result != VK_SUCCESS) {
+            auto error = makeResourceCreationError(result, "vkCreateGraphicsPipelines");
+            error.details.push_back(
+                std::format(
+                    "Graphics pipeline contains {} vertex bindings, {} vertex attributes, and {} color attachments",
+                    description.vertexBindings.size(),
+                    description.vertexAttributes.size(),
+                    description.colorFormats.size()
+                )
+            );
+
+            return std::unexpected{std::move(error)};
+        }
+
+        auto graphicsPipeline = new(std::nothrow) VulkanGraphicsPipeline{*vkLayout, pipeline};
+        if (graphicsPipeline == nullptr) {
+            vkDestroyPipeline(device, pipeline, nullptr);
+
+            return std::unexpected{
+                ResourceCreationError{
+                    .code = ResourceCreationErrorCode::OutOfHostMemory,
+                    .message = "Failed to allocate a graphics-pipeline wrapper"
+                }
+            };
+        }
+
+        return graphicsPipeline;
+    }
+
+    auto VulkanRenderingDeviceDriver::createComputePipeline(
+        const ComputePipelineDescription& description
+    ) -> std::expected<ComputePipeline*, ResourceCreationError> {
+        const auto vkLayout = dynamic_cast<const VulkanPipelineLayout*>(description.layout);
+        if (!description.layout || !vkLayout)
+            return std::unexpected{
+                ResourceCreationError{
+                    .code = ResourceCreationErrorCode::InvalidDescription,
+                    .message = vkLayout == nullptr
+                                   ? "Compute pipeline creation requires a pipeline layout"
+                                   : "Compute pipeline layout belongs to an incompatible rendering backend"
+                }
+            };
+
+        const auto shader = dynamic_cast<const VulkanShader*>(description.shader);
+        if (!shader)
+            return std::unexpected{
+                ResourceCreationError{
+                    .code = ResourceCreationErrorCode::InvalidDescription,
+                    .message = shader == nullptr
+                                   ? "Compute pipeline creation required a shader"
+                                   : "Compute pipeline shader belongs to an incompatible rendering background"
+                }
+            };
+
+        if (shader->stages != ShaderStageFlags{ShaderStageBits::Compute})
+            return std::unexpected{
+                ResourceCreationError{
+                    .code = ResourceCreationErrorCode::InvalidDescription,
+                    .message = "Compute pipeline shader must contain exactly one compute stage and no graphics stages"
+                }
+            };
+
+        const auto computeStage = std::ranges::find_if(
+            shader->shaderModules,
+            [](const VulkanShaderModule& shaderModule) {
+                return shaderModule.stage == VK_SHADER_STAGE_COMPUTE_BIT;
+            }
+        );
+        if (computeStage == shader->shaderModules.end())
+            return std::unexpected{
+                ResourceCreationError{
+                    .code = ResourceCreationErrorCode::InvalidDescription,
+                    .message = "Compute pipeline shader has no live compute shader module"
+                }
+            };
+
+        const VkPipelineShaderStageCreateInfo computeStageInfo{
+            .sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO,
+            .pNext = nullptr,
+            .flags = 0,
+            .stage = computeStage->stage,
+            .module = computeStage->module,
+            .pName = computeStage->entryPoint.c_str(),
+            .pSpecializationInfo = nullptr
+        };
+
+        VkComputePipelineCreateInfo info{
+            .sType = VK_STRUCTURE_TYPE_COMPUTE_PIPELINE_CREATE_INFO,
+            .pNext = nullptr,
+            .flags = 0,
+            .stage = computeStageInfo,
+            .layout = vkLayout->layout,
+            .basePipelineHandle = VK_NULL_HANDLE,
+            .basePipelineIndex = 0
+        };
+
+        VkPipeline pipeline = VK_NULL_HANDLE;
+        const auto result = vkCreateComputePipelines(
+            device,
+            nullptr,
+            1,
+            &info,
+            nullptr,
+            &pipeline
+        );
+        if (result != VK_SUCCESS) {
+            auto error = makeResourceCreationError(result, "vkCreateComputePipelines");
+            error.details.push_back(
+                std::format(
+                    "Compute pipeline layout contains {} descriptor sets and {} push-constant ranges",
+                    vkLayout->getDescription().descriptorSets.size(),
+                    vkLayout->getDescription().pushConstantRanges.size()
+                )
+            );
+
+            return std::unexpected{std::move(error)};
+        }
+
+        auto computePipeline = new(std::nothrow) VulkanComputePipeline{*vkLayout, pipeline};
+        if (computePipeline == nullptr) {
+            vkDestroyPipeline(device, pipeline, nullptr);
+
+            return std::unexpected{
+                ResourceCreationError{
+                    .code = ResourceCreationErrorCode::OutOfHostMemory,
+                    .message = "Failed to allocate a compute-pipeline wrapper"
+                }
+            };
+        }
+
+        return computePipeline;
+    }
+
+    void VulkanRenderingDeviceDriver::destroyPipeline(Pipeline* pipeline) {
+        if (const auto graphics = dynamic_cast<VulkanGraphicsPipeline*>(pipeline)) {
+            vkDestroyPipeline(device, graphics->pipeline, nullptr);
+            delete graphics;
+        } else if (const auto compute = dynamic_cast<VulkanComputePipeline*>(pipeline)) {
+            vkDestroyPipeline(device, compute->pipeline, nullptr);
+            delete compute;
+        } else {
+            DEBUG_ASSERT(false);
+            return;
+        }
+
+        delete pipeline;
     }
 
     VkImageSubresourceLayers VulkanRenderingDeviceDriver::_imageSubresourceLayers(
@@ -2869,6 +3429,23 @@ namespace Vixen {
             0,
             vkScissors.size(),
             vkScissors.data()
+        );
+    }
+
+    void VulkanRenderingDeviceDriver::commandSetBlendConstants(
+        CommandBuffer* commandBuffer,
+        const glm::vec4 blendConstants
+    ) {
+        const float constants[4] = {
+            blendConstants.r,
+            blendConstants.g,
+            blendConstants.b,
+            blendConstants.a
+        };
+
+        vkCmdSetBlendConstants(
+            dynamic_cast<VulkanCommandBuffer*>(commandBuffer)->commandBuffer,
+            constants
         );
     }
 
@@ -3305,6 +3882,104 @@ namespace Vixen {
         return usages;
     }
 
+    auto VulkanRenderingDeviceDriver::validateAttachmentFormatSupport(
+        const ImageDataFormat format,
+        const ImageUsageBits usage,
+        const ImageSamples samples
+    ) const -> std::expected<void, ResourceCreationError> {
+        const auto vkFormat = toVkDataFormat(format);
+        if (!vkFormat)
+            return std::unexpected{std::move(vkFormat).error()};
+
+        const auto vkSamples = toVkSampleCountFlagBits(samples);
+        if (!vkSamples)
+            return std::unexpected{std::move(vkSamples).error()};
+
+        VkImageUsageFlags vkUsage = 0;
+        std::string_view attachmentType;
+        if (usage == ImageUsageBits::ColorAttachment) {
+            vkUsage = VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT;
+            attachmentType = "color";
+        } else if (usage == ImageUsageBits::DepthStencilAttachment) {
+            vkUsage = VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT;
+            attachmentType = "depth/stencil";
+        } else {
+            return std::unexpected{
+                ResourceCreationError{
+                    .code = ResourceCreationErrorCode::InvalidDescription,
+                    .message = "Attachment format validation requires a color or depth/stencil usage"
+                }
+            };
+        }
+
+        const VkImageCreateInfo imageInfo{
+            .sType = VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO,
+            .pNext = nullptr,
+            .flags = 0,
+            .imageType = VK_IMAGE_TYPE_2D,
+            .format = *vkFormat,
+            .extent = {
+                .width = 1,
+                .height = 1,
+                .depth = 1
+            },
+            .mipLevels = 1,
+            .arrayLayers = 1,
+            .samples = *vkSamples,
+            .tiling = VK_IMAGE_TILING_OPTIMAL,
+            .usage = vkUsage,
+            .sharingMode = VK_SHARING_MODE_EXCLUSIVE,
+            .queueFamilyIndexCount = 0,
+            .pQueueFamilyIndices = nullptr,
+            .initialLayout = VK_IMAGE_LAYOUT_UNDEFINED
+        };
+
+        auto support = validateImageFormatSupport(imageInfo);
+        if (!support) {
+            auto error = std::move(support).error();
+            if (error.code == ResourceCreationErrorCode::UnsupportedFormat)
+                error.message = std::format(
+                    "Image format does not support use as a {} attachment",
+                    attachmentType
+                );
+            else if (error.code == ResourceCreationErrorCode::UnsupportedSampleCount)
+                error.message = std::format(
+                    "The rendering device does not support {}x sampling for this {} attachment format",
+                    static_cast<uint32_t>(*vkSamples),
+                    attachmentType
+                );
+
+            error.details.push_back(std::format("Format value: {}", static_cast<uint32_t>(format)));
+            return std::unexpected{std::move(error)};
+        }
+
+        return {};
+    }
+
+    PipelineLayoutLimits VulkanRenderingDeviceDriver::getPipelineLayoutLimits() const {
+        const auto& limits = physicalDeviceProperties.limits;
+        return PipelineLayoutLimits{
+            .maxBoundDescriptorSets = limits.maxBoundDescriptorSets,
+            .maxDescriptors = {
+                .samplers = limits.maxDescriptorSetSamplers,
+                .uniformBuffers = limits.maxDescriptorSetUniformBuffers,
+                .storageBuffers = limits.maxDescriptorSetStorageBuffers,
+                .sampledImages = limits.maxDescriptorSetSampledImages,
+                .storageImages = limits.maxDescriptorSetStorageImages,
+                .inputAttachments = limits.maxDescriptorSetInputAttachments
+            },
+            .maxPerStageDescriptors = {
+                .samplers = limits.maxPerStageDescriptorSamplers,
+                .uniformBuffers = limits.maxPerStageDescriptorUniformBuffers,
+                .storageBuffers = limits.maxPerStageDescriptorStorageBuffers,
+                .sampledImages = limits.maxPerStageDescriptorSampledImages,
+                .storageImages = limits.maxPerStageDescriptorStorageImages,
+                .inputAttachments = limits.maxPerStageDescriptorInputAttachments
+            },
+            .maxPerStageResources = limits.maxPerStageResources
+        };
+    }
+
     uint64_t VulkanRenderingDeviceDriver::getMaxBufferSize() const {
         return maxBufferSize;
     }
@@ -3315,5 +3990,33 @@ namespace Vixen {
 
     uint32_t VulkanRenderingDeviceDriver::getMaxColorAttachments() const {
         return physicalDeviceProperties.limits.maxColorAttachments;
+    }
+
+    uint32_t VulkanRenderingDeviceDriver::getMaxVertexInputBindings() const {
+        return physicalDeviceProperties.limits.maxVertexInputBindings;
+    }
+
+    uint32_t VulkanRenderingDeviceDriver::getMaxVertexInputAttributes() const {
+        return physicalDeviceProperties.limits.maxVertexInputAttributes;
+    }
+
+    uint32_t VulkanRenderingDeviceDriver::getMaxVertexInputBindingStride() const {
+        return physicalDeviceProperties.limits.maxVertexInputBindingStride;
+    }
+
+    uint32_t VulkanRenderingDeviceDriver::getMaxVertexInputAttributeOffset() const {
+        return physicalDeviceProperties.limits.maxVertexInputAttributeOffset;
+    }
+
+    bool VulkanRenderingDeviceDriver::isVertexInputFormatSupported(
+        const ImageDataFormat format
+    ) const {
+        const auto vkFormat = toVkDataFormat(format);
+        if (!vkFormat)
+            return false;
+
+        VkFormatProperties properties{};
+        vkGetPhysicalDeviceFormatProperties(physicalDevice, *vkFormat, &properties);
+        return (properties.bufferFeatures & VK_FORMAT_FEATURE_VERTEX_BUFFER_BIT) != 0;
     }
 }

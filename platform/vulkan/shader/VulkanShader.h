@@ -1,15 +1,19 @@
 #pragma once
 
+#include <string>
 #include <vector>
 #include <volk.h>
 
 #include "core/shader/Shader.h"
 
 namespace Vixen {
+    struct VulkanShaderModule {
+        VkShaderStageFlagBits stage{};
+        VkShaderModule module = VK_NULL_HANDLE;
+        std::string entryPoint;
+    };
+
     struct VulkanShader : Shader {
-        VkShaderStageFlags pushConstantStageFlags = 0;
-        std::vector<VkPipelineShaderStageCreateInfo> shaderStageInfos;
-        std::vector<VkDescriptorSetLayout> descriptorSetLayouts;
-        VkPipelineLayout pipelineLayout = VK_NULL_HANDLE;
+        std::vector<VulkanShaderModule> shaderModules;
     };
 }

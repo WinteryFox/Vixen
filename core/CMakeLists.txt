@@ -15,6 +15,10 @@ add_library(
         rendering/RenderingContextDriver.cpp
         rendering/RenderingDevice.cpp
         rendering/RenderingDeviceDriver.cpp
+        pipeline/PipelineLayout.cpp
+        pipeline/Pipeline.cpp
+        pipeline/GraphicsPipeline.cpp
+        pipeline/ComputePipeline.cpp
 )
 target_sources(
         VixenCore
@@ -89,7 +93,7 @@ target_sources(
         memory/DeferredRelease.h
         memory/MemoryAllocationType.h
         rendering/AttachmentInfo.h
-        rendering/Blending.h
+        rendering/ColorComponent.h
         rendering/ClearValue.h
         rendering/DriverDevice.h
         rendering/Frame.h
@@ -119,6 +123,13 @@ target_sources(
         synchronization/MemoryBarrier.h
         synchronization/PipelineStageFlags.h
         utility/Bitmask.h
+        pipeline/PipelineLayout.h
+        pipeline/Pipeline.h
+        pipeline/GraphicsPipeline.h
+        pipeline/ComputePipeline.h
+        pipeline/GraphicsPipelineDescription.h
+        pipeline/ComputePipelineDescription.h
+        pipeline/DynamicStateFlags.h
 )
 vixen_configure_target(VixenCore)
 target_compile_definitions(

@@ -20,8 +20,31 @@
 #include "core/image/ImageView.h"
 #include "core/image/SamplerState.h"
 #include "core/shader/ShaderStageData.h"
+#include "pipeline/ComputePipelineDescription.h"
 
 namespace Vixen {
+    struct DescriptorCountLimits {
+        uint32_t samplers;
+        uint32_t uniformBuffers;
+        uint32_t storageBuffers;
+        uint32_t sampledImages;
+        uint32_t storageImages;
+        uint32_t inputAttachments;
+    };
+
+    struct PipelineLayoutLimits {
+        uint32_t maxBoundDescriptorSets;
+        DescriptorCountLimits maxDescriptors;
+        DescriptorCountLimits maxPerStageDescriptors;
+        uint32_t maxPerStageResources;
+    };
+
+    struct GraphicsPipelineDescription;
+    struct ComputePipeline;
+    struct GraphicsPipeline;
+    struct PipelineLayoutDescription;
+    struct Pipeline;
+    struct PipelineLayout;
     struct ShaderReflectionError;
     struct BufferImageCopyRegion;
     struct ImageSubresourceRange;
@@ -194,6 +217,24 @@ namespace Vixen {
             Shader* shader
         ) = 0;
 
+        virtual auto createPipelineLayout(
+            const PipelineLayoutDescription& description
+        ) -> std::expected<PipelineLayout*, ResourceCreationError> = 0;
+
+        virtual void destroyPipelineLayout(
+            PipelineLayout* pipelineLayout
+        ) = 0;
+
+        virtual auto createGraphicsPipeline(
+            const GraphicsPipelineDescription& description
+        ) -> std::expected<GraphicsPipeline*, ResourceCreationError> = 0;
+
+        virtual auto createComputePipeline(
+            const ComputePipelineDescription& description
+        ) -> std::expected<ComputePipeline*, ResourceCreationError> = 0;
+
+        virtual void destroyPipeline(Pipeline* pipeline) = 0;
+
         virtual void commandBeginRenderPass(
             CommandBuffer* commandBuffer,
             const RenderingInfo& renderingInfo
@@ -211,6 +252,11 @@ namespace Vixen {
         virtual void commandSetScissor(
             CommandBuffer* commandBuffer,
             const std::vector<glm::uvec2>& scissors
+        ) = 0;
+
+        virtual void commandSetBlendConstants(
+            CommandBuffer* commandBuffer,
+            glm::vec4 blendConstants
         ) = 0;
 
         virtual void commandBindVertexBuffers(
@@ -305,19 +351,39 @@ namespace Vixen {
             CommandBuffer* commandBuffer
         ) = 0;
 
-        virtual auto getImageUsageSupportedByFormat(
+        [[nodiscard]] virtual auto getImageUsageSupportedByFormat(
             ImageDataFormat format,
             bool isCpuReadable
         ) const -> std::expected<ImageUsageFlags, ResourceCreationError> = 0;
 
-        virtual auto getTexelBufferUsageSupportedByFormat(
+        [[nodiscard]] virtual auto getTexelBufferUsageSupportedByFormat(
             ImageDataFormat format
         ) const -> std::expected<BufferUsageFlags, ResourceCreationError> = 0;
 
-        virtual uint64_t getMaxBufferSize() const = 0;
+        [[nodiscard]] virtual auto validateAttachmentFormatSupport(
+            ImageDataFormat format,
+            ImageUsageBits usage,
+            ImageSamples samples
+        ) const -> std::expected<void, ResourceCreationError> = 0;
 
-        virtual uint32_t getMaxTexelBufferElements() const = 0;
+        [[nodiscard]] virtual PipelineLayoutLimits getPipelineLayoutLimits() const = 0;
 
-        virtual uint32_t getMaxColorAttachments() const = 0;
+        [[nodiscard]] virtual uint64_t getMaxBufferSize() const = 0;
+
+        [[nodiscard]] virtual uint32_t getMaxTexelBufferElements() const = 0;
+
+        [[nodiscard]] virtual uint32_t getMaxColorAttachments() const = 0;
+
+        [[nodiscard]] virtual uint32_t getMaxVertexInputBindings() const = 0;
+
+        [[nodiscard]] virtual uint32_t getMaxVertexInputAttributes() const = 0;
+
+        [[nodiscard]] virtual uint32_t getMaxVertexInputBindingStride() const = 0;
+
+        [[nodiscard]] virtual uint32_t getMaxVertexInputAttributeOffset() const = 0;
+
+        [[nodiscard]] virtual bool isVertexInputFormatSupported(
+            ImageDataFormat format
+        ) const = 0;
     };
 }

@@ -4,6 +4,7 @@
 #include <format>
 #include <limits>
 #include <optional>
+#include <ranges>
 
 #ifdef DEBUG_ENABLED
 #include <GlslangToSpv.h>
@@ -78,6 +79,13 @@ namespace Vixen {
                     );
             }
 
+            if (stageData.entryPoint.empty())
+                return fail(
+                    ShaderReflectionErrorCode::EmptyEntryPointName,
+                    "Shader stage specifies an empty entry-point name",
+                    stageData.stage
+                );
+
             if (suppliedStages.contains(stageData.stage))
                 return fail(
                     ShaderReflectionErrorCode::DuplicateShaderStage,
@@ -134,7 +142,11 @@ namespace Vixen {
 
         std::optional<PushConstantLayout> reflectedPushConstantLayout;
 
-        for (const auto& [stage, spirv] : stages) {
+        for (const auto& stageData : stages) {
+            const auto stage = stageData.stage;
+            const auto& spirv = stageData.spirv;
+            const auto& entryPoint = stageData.entryPoint;
+
             if (spirv.empty())
                 return fail(ShaderReflectionErrorCode::EmptySpirv, "SPIR-V module is empty", stage);
 
@@ -167,31 +179,11 @@ namespace Vixen {
                 );
 
             try {
-                const auto compiler = spirv_cross::Compiler(words);
-                const auto resources = compiler.get_shader_resources();
+                auto compiler = spirv_cross::Compiler(words);
 
                 const auto entryPoints = compiler.get_entry_points_and_stages();
                 if (entryPoints.empty())
                     return fail(ShaderReflectionErrorCode::NoEntryPoint, "SPIR-V module has no entry point", stage);
-
-                if (entryPoints.size() > 1)
-                    return fail(
-                        ShaderReflectionErrorCode::MultipleEntryPoints,
-                        "SPIR-V module has more than one entry point",
-                        stage,
-                        {},
-                        std::nullopt,
-                        std::nullopt,
-                        1,
-                        entryPoints.size()
-                    );
-
-                if (entryPoints.front().name != "main")
-                    return fail(
-                        ShaderReflectionErrorCode::InvalidEntryPointName,
-                        std::format("SPIR-V entry point is '{}', expected 'main'", entryPoints.front().name),
-                        stage
-                    );
 
                 const auto expectedExecutionModel = [&]() -> std::optional<spv::ExecutionModel> {
                     switch (stage) {
@@ -212,19 +204,58 @@ namespace Vixen {
                     }
                 }();
 
-                if (!expectedExecutionModel || entryPoints.front().execution_model != *expectedExecutionModel)
+                if (!expectedExecutionModel)
                     return fail(
                         ShaderReflectionErrorCode::EntryPointStageMismatch,
-                        "SPIR-V entry-point execution model does not match its supplied shader stage",
+                        "Cannot determine an SPIR-V execution model for the supplied shader stage",
                         stage,
-                        entryPoints.front().name,
-                        std::nullopt,
-                        std::nullopt,
-                        expectedExecutionModel
-                            ? std::optional<uint64_t>(static_cast<uint64_t>(*expectedExecutionModel))
-                            : std::nullopt,
-                        static_cast<uint64_t>(entryPoints.front().execution_model)
+                        entryPoint
                     );
+
+                const auto selectedEntryPoint = std::ranges::find_if(
+                    entryPoints,
+                    [&](const spirv_cross::EntryPoint& candidate) {
+                        return candidate.name == entryPoint &&
+                               candidate.execution_model == *expectedExecutionModel;
+                    }
+                );
+
+                if (selectedEntryPoint == entryPoints.end()) {
+                    const auto namedEntryPoint = std::ranges::find_if(
+                        entryPoints,
+                        [&](const spirv_cross::EntryPoint& candidate) {
+                            return candidate.name == entryPoint;
+                        }
+                    );
+
+                    if (namedEntryPoint == entryPoints.end())
+                        return fail(
+                            ShaderReflectionErrorCode::EntryPointNotFound,
+                            std::format(
+                                "SPIR-V module does not contain the requested entry point '{}'",
+                                entryPoint
+                            ),
+                            stage,
+                            entryPoint
+                        );
+
+                    return fail(
+                        ShaderReflectionErrorCode::EntryPointStageMismatch,
+                        std::format(
+                            "SPIR-V entry point '{}' does not match its supplied shader stage",
+                            entryPoint
+                        ),
+                        stage,
+                        entryPoint,
+                        std::nullopt,
+                        std::nullopt,
+                        static_cast<uint64_t>(*expectedExecutionModel),
+                        static_cast<uint64_t>(namedEntryPoint->execution_model)
+                    );
+                }
+
+                compiler.set_entry_point(entryPoint, *expectedExecutionModel);
+                const auto resources = compiler.get_shader_resources();
 
                 auto getDescriptorCount = [&](
                     const spirv_cross::Resource& resource

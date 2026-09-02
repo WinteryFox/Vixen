@@ -1,10 +1,14 @@
 #include "RenderingDevice.h"
 
 #include <algorithm>
+#include <array>
 #include <bit>
 #include <format>
 #include <ranges>
 #include <stdexcept>
+#include <string_view>
+#include <unordered_map>
+#include <unordered_set>
 #include <utility>
 #include <spdlog/spdlog.h>
 
@@ -13,8 +17,431 @@
 #include "core/error/CantCreateError.h"
 #include "core/error/Macros.h"
 #include "core/error/SwapchainError.h"
+#include "pipeline/GraphicsPipelineDescription.h"
+#include "pipeline/PipelineLayout.h"
+#include "shader/Shader.h"
 
 namespace Vixen {
+    namespace {
+        struct DescriptorCounts {
+            uint64_t samplers = 0;
+            uint64_t uniformBuffers = 0;
+            uint64_t storageBuffers = 0;
+            uint64_t sampledImages = 0;
+            uint64_t storageImages = 0;
+            uint64_t inputAttachments = 0;
+            uint64_t resources = 0;
+        };
+
+        constexpr std::array shaderStages{
+            ShaderStageBits::Vertex,
+            ShaderStageBits::Fragment,
+            ShaderStageBits::TesselationControl,
+            ShaderStageBits::TesselationEvaluation,
+            ShaderStageBits::Compute,
+            ShaderStageBits::Geometry
+        };
+
+        [[nodiscard]] constexpr std::string_view shaderStageName(const ShaderStageBits stage) noexcept {
+            switch (stage) {
+                case ShaderStageBits::Vertex:
+                    return "vertex";
+                case ShaderStageBits::Fragment:
+                    return "fragment";
+                case ShaderStageBits::TesselationControl:
+                    return "tessellation-control";
+                case ShaderStageBits::TesselationEvaluation:
+                    return "tessellation-evaluation";
+                case ShaderStageBits::Compute:
+                    return "compute";
+                case ShaderStageBits::Geometry:
+                    return "geometry";
+            }
+
+            return "unrecognized";
+        }
+
+        void addDescriptorCount(
+            DescriptorCounts& counts,
+            const ShaderUniformType type,
+            const uint32_t count
+        ) noexcept {
+            switch (type) {
+                case ShaderUniformType::Sampler:
+                    counts.samplers += count;
+                    return;
+
+                case ShaderUniformType::SampledImage:
+                case ShaderUniformType::UniformTexelBuffer:
+                    counts.sampledImages += count;
+                    break;
+
+                case ShaderUniformType::CombinedImageSampler:
+                    counts.samplers += count;
+                    counts.sampledImages += count;
+                    break;
+
+                case ShaderUniformType::StorageImage:
+                case ShaderUniformType::StorageTexelBuffer:
+                    counts.storageImages += count;
+                    break;
+
+                case ShaderUniformType::UniformBuffer:
+                    counts.uniformBuffers += count;
+                    break;
+
+                case ShaderUniformType::StorageBuffer:
+                    counts.storageBuffers += count;
+                    break;
+
+                case ShaderUniformType::InputAttachment:
+                    counts.inputAttachments += count;
+                    break;
+            }
+
+            // Vulkan excludes standalone sampler descriptors from maxPerStageResources.
+            counts.resources += count;
+        }
+
+        [[nodiscard]] auto validateDescriptorCounts(
+            const DescriptorCounts& counts,
+            const DescriptorCountLimits& limits,
+            const bool perStage,
+            const std::string_view stageName = {}
+        ) -> std::expected<void, ResourceCreationError> {
+            const auto validate = [perStage, stageName](
+                const uint64_t requested,
+                const uint64_t supported,
+                const std::string_view descriptorType,
+                const std::string_view totalLimit,
+                const std::string_view perStageLimit
+            ) -> std::expected<void, ResourceCreationError> {
+                if (requested <= supported)
+                    return {};
+
+                ResourceCreationError error{
+                    .code = ResourceCreationErrorCode::ExceedsDeviceLimits,
+                    .message = std::format(
+                        "Pipeline layout exceeds the {}{} descriptor limit",
+                        perStage ? "per-stage " : "",
+                        descriptorType
+                    ),
+                    .limitViolation = ResourceCreationLimitViolation{
+                        .limit = std::string{perStage ? perStageLimit : totalLimit},
+                        .requested = requested,
+                        .supported = supported
+                    }
+                };
+                if (perStage)
+                    error.details.push_back(std::format("Shader stage: {}", stageName));
+
+                return std::unexpected{std::move(error)};
+            };
+
+            if (auto result = validate(
+                counts.samplers,
+                limits.samplers,
+                "sampler",
+                "maxDescriptorSetSamplers",
+                "maxPerStageDescriptorSamplers"
+            ); !result)
+                return result;
+
+            if (auto result = validate(
+                counts.uniformBuffers,
+                limits.uniformBuffers,
+                "uniform-buffer",
+                "maxDescriptorSetUniformBuffers",
+                "maxPerStageDescriptorUniformBuffers"
+            ); !result)
+                return result;
+
+            if (auto result = validate(
+                counts.storageBuffers,
+                limits.storageBuffers,
+                "storage-buffer",
+                "maxDescriptorSetStorageBuffers",
+                "maxPerStageDescriptorStorageBuffers"
+            ); !result)
+                return result;
+
+            if (auto result = validate(
+                counts.sampledImages,
+                limits.sampledImages,
+                "sampled-image",
+                "maxDescriptorSetSampledImages",
+                "maxPerStageDescriptorSampledImages"
+            ); !result)
+                return result;
+
+            if (auto result = validate(
+                counts.storageImages,
+                limits.storageImages,
+                "storage-image",
+                "maxDescriptorSetStorageImages",
+                "maxPerStageDescriptorStorageImages"
+            ); !result)
+                return result;
+
+            return validate(
+                counts.inputAttachments,
+                limits.inputAttachments,
+                "input-attachment",
+                "maxDescriptorSetInputAttachments",
+                "maxPerStageDescriptorInputAttachments"
+            );
+        }
+
+        [[nodiscard]] auto validatePipelineLayoutDescription(
+            const PipelineLayoutDescription& description,
+            const PipelineLayoutLimits& limits
+        ) -> std::expected<void, ResourceCreationError> {
+            constexpr uint32_t supportedShaderStageMask =
+                static_cast<uint32_t>(ShaderStageBits::Vertex) |
+                static_cast<uint32_t>(ShaderStageBits::Fragment) |
+                static_cast<uint32_t>(ShaderStageBits::TesselationControl) |
+                static_cast<uint32_t>(ShaderStageBits::TesselationEvaluation) |
+                static_cast<uint32_t>(ShaderStageBits::Compute) |
+                static_cast<uint32_t>(ShaderStageBits::Geometry);
+
+            const auto validateStageMask = [](
+                const ShaderStageFlags stages,
+                std::string context
+            ) -> std::expected<void, ResourceCreationError> {
+                if (stages.empty())
+                    return std::unexpected{
+                        ResourceCreationError{
+                            .code = ResourceCreationErrorCode::InvalidDescription,
+                            .message = "Pipeline layout contains an empty shader-stage mask",
+                            .details = {std::move(context)}
+                        }
+                    };
+
+                const uint32_t unsupportedStages = stages.value() & ~supportedShaderStageMask;
+                if (unsupportedStages != 0)
+                    return std::unexpected{
+                        ResourceCreationError{
+                            .code = ResourceCreationErrorCode::InvalidDescription,
+                            .message = "Pipeline layout contains unsupported shader-stage bits",
+                            .details = {
+                                std::move(context),
+                                std::format("Unsupported stage mask: 0x{:X}", unsupportedStages)
+                            }
+                        }
+                    };
+
+                return {};
+            };
+
+            std::unordered_set<uint32_t> descriptorSetNumbers{};
+            descriptorSetNumbers.reserve(description.descriptorSets.size());
+
+            if (description.descriptorSets.size() > limits.maxBoundDescriptorSets)
+                return std::unexpected{
+                    ResourceCreationError{
+                        .code = ResourceCreationErrorCode::ExceedsDeviceLimits,
+                        .message = "Pipeline layout contains too many descriptor sets",
+                        .limitViolation = ResourceCreationLimitViolation{
+                            .limit = "maxBoundDescriptorSets",
+                            .requested = description.descriptorSets.size(),
+                            .supported = limits.maxBoundDescriptorSets
+                        }
+                    }
+                };
+
+            DescriptorCounts totalDescriptorCounts{};
+            std::array<DescriptorCounts, shaderStages.size()> perStageDescriptorCounts{};
+
+            for (const auto& descriptorSet : description.descriptorSets) {
+                if (descriptorSet.set >= limits.maxBoundDescriptorSets)
+                    return std::unexpected{
+                        ResourceCreationError{
+                            .code = ResourceCreationErrorCode::ExceedsDeviceLimits,
+                            .message = "Pipeline layout descriptor-set index exceeds the device limit",
+                            .limitViolation = ResourceCreationLimitViolation{
+                                .limit = "maxBoundDescriptorSets",
+                                .requested = static_cast<uint64_t>(descriptorSet.set) + 1,
+                                .supported = limits.maxBoundDescriptorSets
+                            },
+                            .details = {std::format("Descriptor set {}", descriptorSet.set)}
+                        }
+                    };
+
+                if (!descriptorSetNumbers.insert(descriptorSet.set).second)
+                    return std::unexpected{
+                        ResourceCreationError{
+                            .code = ResourceCreationErrorCode::InvalidDescription,
+                            .message = "Pipeline layout contains a duplicate descriptor-set number",
+                            .details = {std::format("Descriptor set {}", descriptorSet.set)}
+                        }
+                    };
+
+                std::unordered_set<uint32_t> bindingNumbers{};
+                bindingNumbers.reserve(descriptorSet.bindings.size());
+
+                for (const auto& binding : descriptorSet.bindings) {
+                    const auto context = std::format(
+                        "Descriptor set {}, binding {}",
+                        descriptorSet.set,
+                        binding.binding
+                    );
+
+                    if (!bindingNumbers.insert(binding.binding).second)
+                        return std::unexpected{
+                            ResourceCreationError{
+                                .code = ResourceCreationErrorCode::InvalidDescription,
+                                .message = "Pipeline layout descriptor set contains a duplicate binding number",
+                                .details = {context}
+                            }
+                        };
+
+                    if (binding.count == 0)
+                        return std::unexpected{
+                            ResourceCreationError{
+                                .code = ResourceCreationErrorCode::InvalidDescription,
+                                .message = "Pipeline layout descriptor binding has a descriptor count of zero",
+                                .details = {context}
+                            }
+                        };
+
+                    if (auto stages = validateStageMask(binding.stages, context); !stages)
+                        return std::unexpected{std::move(stages).error()};
+
+                    if (!binding.immutableSamplers.empty()) {
+                        if (binding.type != ShaderUniformType::Sampler &&
+                            binding.type != ShaderUniformType::CombinedImageSampler)
+                            return std::unexpected{
+                                ResourceCreationError{
+                                    .code = ResourceCreationErrorCode::InvalidDescription,
+                                    .message =
+                                    "Pipeline layout immutable samplers require a sampler or combined-image-sampler descriptor",
+                                    .details = {context}
+                                }
+                            };
+
+                        if (binding.immutableSamplers.size() != binding.count)
+                            return std::unexpected{
+                                ResourceCreationError{
+                                    .code = ResourceCreationErrorCode::InvalidDescription,
+                                    .message =
+                                    "Pipeline layout immutable-sampler count does not match the descriptor count",
+                                    .details = {
+                                        context,
+                                        std::format(
+                                            "Descriptor count: {}; immutable-sampler count: {}",
+                                            binding.count,
+                                            binding.immutableSamplers.size()
+                                        )
+                                    }
+                                }
+                            };
+                    }
+
+                    addDescriptorCount(totalDescriptorCounts, binding.type, binding.count);
+                    for (size_t stageIndex = 0; stageIndex < shaderStages.size(); ++stageIndex)
+                        if (binding.stages.contains(shaderStages[stageIndex]))
+                            addDescriptorCount(
+                                perStageDescriptorCounts[stageIndex],
+                                binding.type,
+                                binding.count
+                            );
+                }
+            }
+
+            if (auto validation = validateDescriptorCounts(
+                totalDescriptorCounts,
+                limits.maxDescriptors,
+                false
+            ); !validation)
+                return validation;
+
+            for (size_t stageIndex = 0; stageIndex < shaderStages.size(); ++stageIndex) {
+                const auto& counts = perStageDescriptorCounts[stageIndex];
+                if (auto validation = validateDescriptorCounts(
+                    counts,
+                    limits.maxPerStageDescriptors,
+                    true,
+                    shaderStageName(shaderStages[stageIndex])
+                ); !validation)
+                    return validation;
+
+                if (counts.resources > limits.maxPerStageResources)
+                    return std::unexpected{
+                        ResourceCreationError{
+                            .code = ResourceCreationErrorCode::ExceedsDeviceLimits,
+                            .message = "Pipeline layout exceeds the per-stage resource limit",
+                            .limitViolation = ResourceCreationLimitViolation{
+                                .limit = "maxPerStageResources",
+                                .requested = counts.resources,
+                                .supported = limits.maxPerStageResources
+                            },
+                            .details = {
+                                std::format("Shader stage: {}", shaderStageName(shaderStages[stageIndex]))
+                            }
+                        }
+                    };
+            }
+
+            for (size_t rangeIndex = 0; rangeIndex < description.pushConstantRanges.size(); ++rangeIndex) {
+                const auto& range = description.pushConstantRanges[rangeIndex];
+                const auto context = std::format("Push-constant range {}", rangeIndex);
+
+                if (range.offset % 4 != 0)
+                    return std::unexpected{
+                        ResourceCreationError{
+                            .code = ResourceCreationErrorCode::InvalidDescription,
+                            .message = "Pipeline layout push-constant range offset is not four-byte aligned",
+                            .details = {
+                                context,
+                                std::format("Offset: {}", range.offset)
+                            }
+                        }
+                    };
+
+                if (range.size == 0 || range.size % 4 != 0)
+                    return std::unexpected{
+                        ResourceCreationError{
+                            .code = ResourceCreationErrorCode::InvalidDescription,
+                            .message = range.size == 0
+                                           ? "Pipeline layout push-constant range has a size of zero"
+                                           : "Pipeline layout push-constant range size is not a multiple of four",
+                            .details = {
+                                context,
+                                std::format("Size: {}", range.size)
+                            }
+                        }
+                    };
+
+                if (auto stages = validateStageMask(range.stages, context); !stages)
+                    return std::unexpected{std::move(stages).error()};
+
+                for (size_t otherIndex = 0; otherIndex < rangeIndex; ++otherIndex) {
+                    const auto& other = description.pushConstantRanges[otherIndex];
+                    if (!(range.stages & other.stages).empty())
+                        return std::unexpected{
+                            ResourceCreationError{
+                                .code = ResourceCreationErrorCode::InvalidDescription,
+                                .message =
+                                "Pipeline layout assigns a shader stage to more than one push-constant range",
+                                .details = {
+                                    std::format("Push-constant ranges {} and {}", otherIndex, rangeIndex),
+                                    std::format(
+                                        "Byte ranges: [{}, {}) and [{}, {})",
+                                        other.offset,
+                                        static_cast<uint64_t>(other.offset) + other.size,
+                                        range.offset,
+                                        static_cast<uint64_t>(range.offset) + range.size
+                                    )
+                                }
+                            }
+                        };
+                }
+            }
+
+            return {};
+        }
+    }
+
     void RenderingDevice::waitForFrame(
         const uint32_t frameIndex
     ) {
@@ -752,11 +1179,358 @@ namespace Vixen {
             return std::unexpected{
                 ResourceCreationError{
                     .code = ResourceCreationErrorCode::NativeObjectCreationFailed,
-                    .message = "The rendering backend reported successful image creation but returned a null image"
+                    .message = "The rendering backend reported successful image creation but returned a null pointer"
                 }
             };
 
         return *image;
+    }
+
+    auto RenderingDevice::createPipelineLayout(
+        const PipelineLayoutDescription& description
+    ) const -> std::expected<PipelineLayout*, ResourceCreationError> {
+        if (auto validation = validatePipelineLayoutDescription(
+            description,
+            renderingDeviceDriver->getPipelineLayoutLimits()
+        ); !validation)
+            return std::unexpected{std::move(validation).error()};
+
+        const auto layout = renderingDeviceDriver->createPipelineLayout(description);
+        if (!layout)
+            return std::unexpected{std::move(layout).error()};
+
+        if (!*layout)
+            return std::unexpected{
+                ResourceCreationError{
+                    .code = ResourceCreationErrorCode::NativeObjectCreationFailed,
+                    .message =
+                    "The rendering backend reported successful pipeline layout creation but returned a null pointer"
+                }
+            };
+
+        return *layout;
+    }
+
+    auto RenderingDevice::createGraphicsPipeline(
+        const GraphicsPipelineDescription& description
+    ) const -> std::expected<GraphicsPipeline*, ResourceCreationError> {
+        if (description.shader == nullptr)
+            return std::unexpected{
+                ResourceCreationError{
+                    .code = ResourceCreationErrorCode::InvalidDescription,
+                    .message = "Graphics pipeline description does not specify a shader"
+                }
+            };
+
+        if (description.layout == nullptr)
+            return std::unexpected{
+                ResourceCreationError{
+                    .code = ResourceCreationErrorCode::InvalidDescription,
+                    .message = "Graphics pipeline description does not specify a pipeline layout"
+                }
+            };
+
+        if (description.shader->stages.contains(ShaderStageBits::Compute))
+            return std::unexpected{
+                ResourceCreationError{
+                    .code = ResourceCreationErrorCode::InvalidDescription,
+                    .message = "Graphics pipeline shader contains a compute stage"
+                }
+            };
+
+        if (!description.shader->stages.contains(ShaderStageBits::Vertex))
+            return std::unexpected{
+                ResourceCreationError{
+                    .code = ResourceCreationErrorCode::InvalidDescription,
+                    .message = "Graphics pipeline shader does not contain a vertex stage"
+                }
+            };
+
+        if (description.shader->stages.contains(ShaderStageBits::Geometry) ||
+            description.shader->stages.contains(ShaderStageBits::TesselationControl) ||
+            description.shader->stages.contains(ShaderStageBits::TesselationEvaluation))
+            return std::unexpected{
+                ResourceCreationError{
+                    .code = ResourceCreationErrorCode::UnsupportedUsage,
+                    .message = "Graphics pipeline uses shader stages that are not currently supported",
+                    .details = {
+                        "Geometry and tessellation shader stages are not currently supported"
+                    }
+                }
+            };
+
+        if (description.colorBlending.size() != description.colorFormats.size())
+            return std::unexpected{
+                ResourceCreationError{
+                    .code = ResourceCreationErrorCode::InvalidDescription,
+                    .message = std::format(
+                        "Color blending size {} must match color formats size {}",
+                        description.colorBlending.size(),
+                        description.colorFormats.size()
+                    )
+                }
+            };
+
+        if (description.colorFormats.size() > renderingDeviceDriver->getMaxColorAttachments())
+            return std::unexpected{
+                ResourceCreationError{
+                    .code = ResourceCreationErrorCode::ExceedsDeviceLimits,
+                    .message = std::format(
+                        "Color format count of {} exceeds device limits of {}",
+                        description.colorFormats.size(),
+                        renderingDeviceDriver->getMaxColorAttachments()
+                    )
+                }
+            };
+
+        for (size_t attachmentIndex = 0; attachmentIndex < description.colorFormats.size(); ++attachmentIndex) {
+            const ImageDataFormat format = description.colorFormats[attachmentIndex];
+            if (hasDepthAspect(format) || hasStencilAspect(format))
+                return std::unexpected{
+                    ResourceCreationError{
+                        .code = ResourceCreationErrorCode::UnsupportedFormat,
+                        .message = "Graphics pipeline color attachment uses a depth/stencil format",
+                        .details = {
+                            std::format("Color attachment: {}", attachmentIndex),
+                            std::format("Format value: {}", static_cast<uint32_t>(format))
+                        }
+                    }
+                };
+
+            auto support = renderingDeviceDriver->validateAttachmentFormatSupport(
+                format,
+                ImageUsageBits::ColorAttachment,
+                description.multisampling.samples
+            );
+            if (!support) {
+                auto error = std::move(support).error();
+                error.details.insert(
+                    error.details.begin(),
+                    std::format("Color attachment: {}", attachmentIndex)
+                );
+                return std::unexpected{std::move(error)};
+            }
+        }
+
+        if (description.depthStencilFormat) {
+            const ImageDataFormat format = *description.depthStencilFormat;
+            if (!hasDepthAspect(format) && !hasStencilAspect(format))
+                return std::unexpected{
+                    ResourceCreationError{
+                        .code = ResourceCreationErrorCode::UnsupportedFormat,
+                        .message = "Graphics pipeline depth/stencil attachment uses a color-only format",
+                        .details = {
+                            std::format("Format value: {}", static_cast<uint32_t>(format))
+                        }
+                    }
+                };
+
+            auto support = renderingDeviceDriver->validateAttachmentFormatSupport(
+                format,
+                ImageUsageBits::DepthStencilAttachment,
+                description.multisampling.samples
+            );
+            if (!support) {
+                auto error = std::move(support).error();
+                error.details.insert(error.details.begin(), "Depth/stencil attachment");
+                return std::unexpected{std::move(error)};
+            }
+        }
+
+        const auto makeLimitError = [](
+            std::string message,
+            std::string limit,
+            const uint64_t requested,
+            const uint64_t supported
+        ) {
+            return ResourceCreationError{
+                .code = ResourceCreationErrorCode::ExceedsDeviceLimits,
+                .message = std::move(message),
+                .limitViolation = ResourceCreationLimitViolation{
+                    .limit = std::move(limit),
+                    .requested = requested,
+                    .supported = supported
+                }
+            };
+        };
+
+        const uint32_t maxBindings = renderingDeviceDriver->getMaxVertexInputBindings();
+        if (description.vertexBindings.size() > maxBindings)
+            return std::unexpected{
+                makeLimitError(
+                    "Graphics pipeline contains too many vertex-input bindings",
+                    "maxVertexInputBindings",
+                    description.vertexBindings.size(),
+                    maxBindings
+                )
+            };
+
+        const uint32_t maxAttributes = renderingDeviceDriver->getMaxVertexInputAttributes();
+        if (description.vertexAttributes.size() > maxAttributes)
+            return std::unexpected{
+                makeLimitError(
+                    "Graphics pipeline contains too many vertex-input attributes",
+                    "maxVertexInputAttributes",
+                    description.vertexAttributes.size(),
+                    maxAttributes
+                )
+            };
+
+        const uint32_t maxStride = renderingDeviceDriver->getMaxVertexInputBindingStride();
+        std::unordered_map<uint32_t, uint32_t> bindingStrides{};
+        bindingStrides.reserve(description.vertexBindings.size());
+        for (const auto& binding : description.vertexBindings) {
+            if (binding.binding >= maxBindings)
+                return std::unexpected{
+                    makeLimitError(
+                        std::format("Vertex-input binding {} exceeds the device limit", binding.binding),
+                        "maxVertexInputBindings",
+                        static_cast<uint64_t>(binding.binding) + 1,
+                        maxBindings
+                    )
+                };
+
+            if (binding.stride > maxStride)
+                return std::unexpected{
+                    makeLimitError(
+                        std::format(
+                            "Vertex-input binding {} has a stride that exceeds the device limit",
+                            binding.binding
+                        ),
+                        "maxVertexInputBindingStride",
+                        binding.stride,
+                        maxStride
+                    )
+                };
+
+            if (!bindingStrides.emplace(binding.binding, binding.stride).second)
+                return std::unexpected{
+                    ResourceCreationError{
+                        .code = ResourceCreationErrorCode::InvalidDescription,
+                        .message = "Graphics pipeline contains a duplicate vertex-input binding",
+                        .details = {std::format("Binding: {}", binding.binding)}
+                    }
+                };
+        }
+
+        const uint32_t maxAttributeOffset = renderingDeviceDriver->getMaxVertexInputAttributeOffset();
+        std::unordered_set<uint32_t> attributeLocations{};
+        attributeLocations.reserve(description.vertexAttributes.size());
+        for (const auto& attribute : description.vertexAttributes) {
+            if (attribute.location >= maxAttributes)
+                return std::unexpected{
+                    makeLimitError(
+                        std::format("Vertex-input attribute location {} exceeds the device limit", attribute.location),
+                        "maxVertexInputAttributes",
+                        static_cast<uint64_t>(attribute.location) + 1,
+                        maxAttributes
+                    )
+                };
+
+            if (!attributeLocations.insert(attribute.location).second)
+                return std::unexpected{
+                    ResourceCreationError{
+                        .code = ResourceCreationErrorCode::InvalidDescription,
+                        .message = "Graphics pipeline contains a duplicate vertex-input attribute location",
+                        .details = {std::format("Location: {}", attribute.location)}
+                    }
+                };
+
+            const auto binding = bindingStrides.find(attribute.binding);
+            if (binding == bindingStrides.end())
+                return std::unexpected{
+                    ResourceCreationError{
+                        .code = ResourceCreationErrorCode::InvalidDescription,
+                        .message = "Vertex-input attribute references an undeclared binding",
+                        .details = {
+                            std::format("Location: {}; binding: {}", attribute.location, attribute.binding)
+                        }
+                    }
+                };
+
+            const uint32_t formatSize = getTexelSize(attribute.format);
+            if (formatSize == 0 || hasDepthAspect(attribute.format) || hasStencilAspect(attribute.format))
+                return std::unexpected{
+                    ResourceCreationError{
+                        .code = ResourceCreationErrorCode::UnsupportedFormat,
+                        .message = "Vertex-input attribute uses a format that is not suitable for vertex data",
+                        .details = {std::format("Location: {}", attribute.location)}
+                    }
+                };
+
+            if (!renderingDeviceDriver->isVertexInputFormatSupported(attribute.format))
+                return std::unexpected{
+                    ResourceCreationError{
+                        .code = ResourceCreationErrorCode::UnsupportedFormat,
+                        .message = "Vertex-input attribute format is not supported by the rendering device",
+                        .details = {std::format("Location: {}", attribute.location)}
+                    }
+                };
+
+            if (attribute.offset > maxAttributeOffset)
+                return std::unexpected{
+                    makeLimitError(
+                        std::format(
+                            "Vertex-input attribute location {} has an offset that exceeds the device limit",
+                            attribute.location
+                        ),
+                        "maxVertexInputAttributeOffset",
+                        attribute.offset,
+                        maxAttributeOffset
+                    )
+                };
+
+            const uint64_t attributeEnd = static_cast<uint64_t>(attribute.offset) + formatSize;
+            if (binding->second != 0 && attributeEnd > binding->second)
+                return std::unexpected{
+                    ResourceCreationError{
+                        .code = ResourceCreationErrorCode::InvalidDescription,
+                        .message = "Vertex-input attribute extends beyond its binding stride",
+                        .details = {
+                            std::format(
+                                "Location: {}; binding: {}; attribute byte range: [{}, {}); stride: {}",
+                                attribute.location,
+                                attribute.binding,
+                                attribute.offset,
+                                attributeEnd,
+                                binding->second
+                            )
+                        }
+                    }
+                };
+        }
+
+        const auto pipeline = renderingDeviceDriver->createGraphicsPipeline(description);
+        if (!pipeline)
+            return std::unexpected{std::move(pipeline).error()};
+
+        if (!*pipeline)
+            return std::unexpected{
+                ResourceCreationError{
+                    .code = ResourceCreationErrorCode::NativeObjectCreationFailed,
+                    .message = "The rendering backend reported successful pipeline creation but returned a null pointer"
+                }
+            };
+
+        return *pipeline;
+    }
+
+    auto RenderingDevice::createComputePipeline(
+        const ComputePipelineDescription& description
+    ) const -> std::expected<ComputePipeline*, ResourceCreationError> {
+        const auto pipeline = renderingDeviceDriver->createComputePipeline(description);
+        if (!pipeline)
+            return std::unexpected{std::move(pipeline).error()};
+
+        if (!*pipeline)
+            return std::unexpected{
+                ResourceCreationError{
+                    .code = ResourceCreationErrorCode::NativeObjectCreationFailed,
+                    .message = "The rendering backend reported successful pipeline creation but returned a null pointer"
+                }
+            };
+
+        return *pipeline;
     }
 
     RenderingContextDriver* RenderingDevice::getRenderingContextDriver() const {

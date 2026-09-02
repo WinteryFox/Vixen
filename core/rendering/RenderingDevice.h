@@ -16,6 +16,12 @@
 #include "core/image/ImageView.h"
 
 namespace Vixen {
+    struct ComputePipelineDescription;
+    class PipelineLayout;
+    struct PipelineLayoutDescription;
+    struct GraphicsPipelineDescription;
+    struct ComputePipeline;
+    struct GraphicsPipeline;
     struct Framebuffer;
     class RenderingContextDriver;
     class RenderingDeviceDriver;
@@ -133,6 +139,21 @@ namespace Vixen {
             const ImageFormat& format,
             const ImageView& view
         ) const -> std::expected<Image*, ResourceCreationError>;
+
+        [[nodiscard]]
+        auto createPipelineLayout(
+            const PipelineLayoutDescription& description
+        ) const -> std::expected<PipelineLayout*, ResourceCreationError>;
+
+        [[nodiscard]]
+        auto createGraphicsPipeline(
+            const GraphicsPipelineDescription& description
+        ) const -> std::expected<GraphicsPipeline*, ResourceCreationError>;
+
+        [[nodiscard]]
+        auto createComputePipeline(
+            const ComputePipelineDescription& description
+        ) const -> std::expected<ComputePipeline*, ResourceCreationError>;
 
         [[nodiscard]] RenderingContextDriver* getRenderingContextDriver() const;
 

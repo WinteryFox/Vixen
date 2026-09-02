@@ -5,6 +5,9 @@ add_library(
         STATIC
         context/VulkanRenderingContextDriver.cpp
         device/VulkanRenderingDeviceDriver.cpp
+        pipeline/VulkanGraphicsPipeline.cpp
+        pipeline/VulkanComputePipeline.cpp
+        pipeline/VulkanPipelineLayout.cpp
 )
 target_sources(
         VixenVulkan
@@ -31,6 +34,9 @@ target_sources(
         presentation/VulkanSwapchain.h
         shader/VulkanShader.h
         Vulkan.h
+        pipeline/VulkanGraphicsPipeline.h
+        pipeline/VulkanPipelineLayout.h
+        pipeline/VulkanComputePipeline.h
 )
 vixen_configure_target(VixenVulkan)
 target_link_libraries(

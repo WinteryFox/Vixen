@@ -24,8 +24,8 @@ namespace Vixen {
         SpirvReflectionFailed,
 
         NoEntryPoint,
-        MultipleEntryPoints,
-        InvalidEntryPointName,
+        EmptyEntryPointName,
+        EntryPointNotFound,
         EntryPointStageMismatch,
 
         MissingDescriptorSet,

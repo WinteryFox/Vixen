@@ -109,7 +109,6 @@ namespace Vixen {
             Swapchain* swapchain
         ) -> std::expected<Framebuffer*, SwapchainError> override;
 
-    public:
         void destroySwapchain(
             Swapchain* swapchain
         ) override;
@@ -225,6 +224,22 @@ namespace Vixen {
             Shader* shader
         ) override;
 
+        auto createPipelineLayout(
+            const PipelineLayoutDescription& description
+        ) -> std::expected<PipelineLayout*, ResourceCreationError> override;
+
+        void destroyPipelineLayout(PipelineLayout* pipelineLayout) override;
+
+        auto createGraphicsPipeline(
+            const GraphicsPipelineDescription& description
+        ) -> std::expected<GraphicsPipeline*, ResourceCreationError> override;
+
+        auto createComputePipeline(
+            const ComputePipelineDescription& description
+        ) -> std::expected<ComputePipeline*, ResourceCreationError> override;
+
+        void destroyPipeline(Pipeline* pipeline) override;
+
         static VkImageSubresourceLayers _imageSubresourceLayers(
             const ImageSubresourceLayers& layers
         );
@@ -250,6 +265,11 @@ namespace Vixen {
         void commandSetScissor(
             CommandBuffer* commandBuffer,
             const std::vector<glm::uvec2>& scissors
+        ) override;
+
+        void commandSetBlendConstants(
+            CommandBuffer* commandBuffer,
+            glm::vec4 blendConstants
         ) override;
 
         void commandBindVertexBuffers(
@@ -353,10 +373,30 @@ namespace Vixen {
             ImageDataFormat format
         ) const -> std::expected<BufferUsageFlags, ResourceCreationError> override;
 
+        [[nodiscard]] auto validateAttachmentFormatSupport(
+            ImageDataFormat format,
+            ImageUsageBits usage,
+            ImageSamples samples
+        ) const -> std::expected<void, ResourceCreationError> override;
+
+        [[nodiscard]] PipelineLayoutLimits getPipelineLayoutLimits() const override;
+
         [[nodiscard]] uint64_t getMaxBufferSize() const override;
 
         [[nodiscard]] uint32_t getMaxTexelBufferElements() const override;
 
         [[nodiscard]] uint32_t getMaxColorAttachments() const override;
+
+        [[nodiscard]] uint32_t getMaxVertexInputBindings() const override;
+
+        [[nodiscard]] uint32_t getMaxVertexInputAttributes() const override;
+
+        [[nodiscard]] uint32_t getMaxVertexInputBindingStride() const override;
+
+        [[nodiscard]] uint32_t getMaxVertexInputAttributeOffset() const override;
+
+        [[nodiscard]] bool isVertexInputFormatSupported(
+            ImageDataFormat format
+        ) const override;
     };
 }

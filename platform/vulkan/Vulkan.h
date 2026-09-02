@@ -42,6 +42,7 @@
 
 #include "core/shader/ShaderStage.h"
 #include "core/shader/ShaderUniformType.h"
+#include "pipeline/GraphicsPipelineDescription.h"
 
 namespace Vixen {
     constexpr auto toVkComponentSwizzle(
@@ -1281,6 +1282,228 @@ namespace Vixen {
             vkFlags |= VK_BUFFER_USAGE_INDIRECT_BUFFER_BIT;
 
         return vkFlags;
+    }
+
+    static constexpr VkVertexInputRate toVkInputRate(const InputRate rate) {
+        switch (rate) {
+            case InputRate::Vertex:
+                return VK_VERTEX_INPUT_RATE_VERTEX;
+
+            case InputRate::Instance:
+                return VK_VERTEX_INPUT_RATE_INSTANCE;
+        }
+
+        std::unreachable();
+    }
+
+    static constexpr VkPolygonMode toVkPolygonMode(const PolygonMode mode) {
+        switch (mode) {
+            case PolygonMode::Fill:
+                return VK_POLYGON_MODE_FILL;
+
+            case PolygonMode::Line:
+                return VK_POLYGON_MODE_LINE;
+
+            case PolygonMode::Point:
+                return VK_POLYGON_MODE_POINT;
+        }
+
+        std::unreachable();
+    }
+
+    static constexpr VkCullModeFlags toVkCullMode(const CullMode mode) {
+        switch (mode) {
+            case CullMode::None:
+                return VK_CULL_MODE_NONE;
+
+            case CullMode::Front:
+                return VK_CULL_MODE_FRONT_BIT;
+
+            case CullMode::Back:
+                return VK_CULL_MODE_BACK_BIT;
+
+            case CullMode::FrontAndBack:
+                return VK_CULL_MODE_FRONT_AND_BACK;
+        }
+
+        std::unreachable();
+    }
+
+    static constexpr VkFrontFace toVkFrontFace(const FrontFace face) {
+        switch (face) {
+            case FrontFace::CounterClockwise:
+                return VK_FRONT_FACE_COUNTER_CLOCKWISE;
+
+            case FrontFace::Clockwise:
+                return VK_FRONT_FACE_CLOCKWISE;
+        }
+
+        std::unreachable();
+    }
+
+    static constexpr VkStencilOp toVkStencilOperator(const StencilOperator op) {
+        switch (op) {
+            case StencilOperator::Keep:
+                return VK_STENCIL_OP_KEEP;
+
+            case StencilOperator::Zero:
+                return VK_STENCIL_OP_ZERO;
+
+            case StencilOperator::Replace:
+                return VK_STENCIL_OP_REPLACE;
+
+            case StencilOperator::IncrementAndClamp:
+                return VK_STENCIL_OP_INCREMENT_AND_CLAMP;
+
+            case StencilOperator::DecrementAndClamp:
+                return VK_STENCIL_OP_DECREMENT_AND_CLAMP;
+
+            case StencilOperator::Invert:
+                return VK_STENCIL_OP_INVERT;
+
+            case StencilOperator::IncrementAndWrap:
+                return VK_STENCIL_OP_INCREMENT_AND_WRAP;
+
+            case StencilOperator::DecrementAndWrap:
+                return VK_STENCIL_OP_DECREMENT_AND_WRAP;
+        }
+
+        std::unreachable();
+    }
+
+    static constexpr VkCompareOp toVkCompareOperator(const CompareOperator op) {
+        switch (op) {
+            case CompareOperator::Never:
+                return VK_COMPARE_OP_NEVER;
+
+            case CompareOperator::Less:
+                return VK_COMPARE_OP_LESS;
+
+            case CompareOperator::Equal:
+                return VK_COMPARE_OP_EQUAL;
+
+            case CompareOperator::LessOrEqual:
+                return VK_COMPARE_OP_LESS_OR_EQUAL;
+
+            case CompareOperator::Greater:
+                return VK_COMPARE_OP_GREATER;
+
+            case CompareOperator::NotEqual:
+                return VK_COMPARE_OP_NOT_EQUAL;
+
+            case CompareOperator::GreaterOrEqual:
+                return VK_COMPARE_OP_GREATER_OR_EQUAL;
+
+            case CompareOperator::Always:
+                return VK_COMPARE_OP_ALWAYS;
+        }
+
+        std::unreachable();
+    }
+
+    static constexpr VkBlendFactor toVkBlendFactor(const BlendFactor blendFactor) {
+        switch (blendFactor) {
+            case BlendFactor::Zero:
+                return VK_BLEND_FACTOR_ZERO;
+
+            case BlendFactor::One:
+                return VK_BLEND_FACTOR_ONE;
+
+            case BlendFactor::SrcColor:
+                return VK_BLEND_FACTOR_SRC_COLOR;
+
+            case BlendFactor::OneMinusSrcColor:
+                return VK_BLEND_FACTOR_ONE_MINUS_SRC_COLOR;
+
+            case BlendFactor::DstColor:
+                return VK_BLEND_FACTOR_DST_COLOR;
+
+            case BlendFactor::OneMinusDstColor:
+                return VK_BLEND_FACTOR_ONE_MINUS_DST_COLOR;
+
+            case BlendFactor::SrcAlpha:
+                return VK_BLEND_FACTOR_SRC_ALPHA;
+
+            case BlendFactor::OneMinusSrcAlpha:
+                return VK_BLEND_FACTOR_ONE_MINUS_SRC_ALPHA;
+
+            case BlendFactor::DstAlpha:
+                return VK_BLEND_FACTOR_DST_ALPHA;
+
+            case BlendFactor::OneMinusDstAlpha:
+                return VK_BLEND_FACTOR_ONE_MINUS_DST_ALPHA;
+
+            case BlendFactor::ConstantColor:
+                return VK_BLEND_FACTOR_CONSTANT_COLOR;
+
+            case BlendFactor::OneMinusConstantColor:
+                return VK_BLEND_FACTOR_ONE_MINUS_CONSTANT_COLOR;
+
+            case BlendFactor::ConstantAlpha:
+                return VK_BLEND_FACTOR_CONSTANT_ALPHA;
+
+            case BlendFactor::OneMinusConstantAlpha:
+                return VK_BLEND_FACTOR_ONE_MINUS_CONSTANT_ALPHA;
+
+            case BlendFactor::SrcAlphaSaturate:
+                return VK_BLEND_FACTOR_SRC_ALPHA_SATURATE;
+        }
+
+        std::unreachable();
+    }
+
+    static constexpr VkBlendOp toVkBlendOperation(const BlendOperation op) {
+        switch (op) {
+            case BlendOperation::Add:
+                return VK_BLEND_OP_ADD;
+
+            case BlendOperation::Subtract:
+                return VK_BLEND_OP_SUBTRACT;
+
+            case BlendOperation::ReverseSubtract:
+                return VK_BLEND_OP_REVERSE_SUBTRACT;
+
+            case BlendOperation::Min:
+                return VK_BLEND_OP_MIN;
+
+            case BlendOperation::Max:
+                return VK_BLEND_OP_MAX;
+        }
+
+        std::unreachable();
+    }
+
+    static constexpr VkColorComponentFlags toVkColorComponentFlags(const ColorComponentFlags flags) {
+        VkColorComponentFlags vkFlags{};
+
+        if (flags.contains(ColorComponentBits::Red))
+            vkFlags |= VK_COLOR_COMPONENT_R_BIT;
+
+        if (flags.contains(ColorComponentBits::Green))
+            vkFlags |= VK_COLOR_COMPONENT_G_BIT;
+
+        if (flags.contains(ColorComponentBits::Blue))
+            vkFlags |= VK_COLOR_COMPONENT_B_BIT;
+
+        if (flags.contains(ColorComponentBits::Alpha))
+            vkFlags |= VK_COLOR_COMPONENT_A_BIT;
+
+        return vkFlags;
+    }
+
+    static constexpr std::vector<VkDynamicState> toVkDynamicStates(const DynamicStateFlags flags) {
+        std::vector<VkDynamicState> vkDynamicStates{};
+
+        if (flags.contains(DynamicStateBits::Viewport))
+            vkDynamicStates.push_back(VK_DYNAMIC_STATE_VIEWPORT);
+
+        if (flags.contains(DynamicStateBits::Scissor))
+            vkDynamicStates.push_back(VK_DYNAMIC_STATE_SCISSOR);
+
+        if (flags.contains(DynamicStateBits::BlendConstants))
+            vkDynamicStates.push_back(VK_DYNAMIC_STATE_BLEND_CONSTANTS);
+
+        return vkDynamicStates;
     }
 
     [[maybe_unused]] static constexpr std::string getVersionString(const glm::uvec3 version) {
