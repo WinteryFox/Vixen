@@ -3210,10 +3210,8 @@ namespace Vixen {
     void VulkanRenderingDeviceDriver::destroyPipeline(Pipeline* pipeline) {
         if (const auto graphics = dynamic_cast<VulkanGraphicsPipeline*>(pipeline)) {
             vkDestroyPipeline(device, graphics->pipeline, nullptr);
-            delete graphics;
         } else if (const auto compute = dynamic_cast<VulkanComputePipeline*>(pipeline)) {
             vkDestroyPipeline(device, compute->pipeline, nullptr);
-            delete compute;
         } else {
             DEBUG_ASSERT(false);
             return;
