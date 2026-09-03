@@ -150,8 +150,8 @@ namespace Vixen {
     };
 
     struct GraphicsPipelineDescription {
-        const Shader* shader;
-        const PipelineLayout* layout;
+        const Shader* shader = nullptr;
+        const PipelineLayout* layout = nullptr;
 
         PrimitiveTopology topology = PrimitiveTopology::TriangleList;
         bool isPrimitiveRestartEnabled = false;
@@ -168,6 +168,6 @@ namespace Vixen {
         std::vector<ColorBlendAttachmentState> colorBlending;
         std::array<float, 4> blendConstants{};
 
-        DynamicStateFlags dynamicStates;
+        DynamicStateFlags dynamicStates = DynamicStateBits::Viewport | DynamicStateBits::Scissor;
     };
 }

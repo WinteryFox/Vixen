@@ -2611,7 +2611,7 @@ namespace Vixen {
 
     auto VulkanRenderingDeviceDriver::createPipelineLayout(
         const PipelineLayoutDescription& description
-    ) -> std::expected<PipelineLayout*, ResourceCreationError> {
+    ) -> std::expected<PipelineLayout*, ResourceCreationError> try {
         for (size_t rangeIndex = 0; rangeIndex < description.pushConstantRanges.size(); ++rangeIndex) {
             const auto& range = description.pushConstantRanges[rangeIndex];
             const auto context = std::format("Push-constant range {}", rangeIndex);
@@ -2635,42 +2635,69 @@ namespace Vixen {
                 };
         }
 
-        PipelineLayoutDescription storedDescription{};
-        try {
-            storedDescription = description;
-        } catch (const std::bad_alloc&) {
-            return std::unexpected{
-                ResourceCreationError{
-                    .code = ResourceCreationErrorCode::OutOfHostMemory,
-                    .message = "Failed to allocate storage for the pipeline-layout description"
-                }
-            };
-        }
+        PipelineLayoutDescription storedDescription = description;
+        std::ranges::sort(
+            storedDescription.descriptorSets,
+            {},
+            &DescriptorSetLayoutDescription::set
+        );
+        for (auto& descriptorSet : storedDescription.descriptorSets)
+            std::ranges::sort(
+                descriptorSet.bindings,
+                {},
+                &DescriptorBindingLayout::binding
+            );
 
-        std::vector<VkDescriptorSetLayout> descriptorSetLayouts{};
-        try {
-            descriptorSetLayouts.reserve(description.descriptorSets.size());
-        } catch (const std::bad_alloc&) {
-            return std::unexpected{
-                ResourceCreationError{
-                    .code = ResourceCreationErrorCode::OutOfHostMemory,
-                    .message = "Failed to allocate storage for native descriptor-set layouts"
-                }
-            };
-        }
+        const size_t nativeSetLayoutCount = storedDescription.descriptorSets.empty()
+                                                ? 0
+                                                : static_cast<size_t>(storedDescription.descriptorSets.back().set) + 1;
+        std::vector<VkDescriptorSetLayout> descriptorSetLayouts(nativeSetLayoutCount, VK_NULL_HANDLE);
 
         auto descriptorSetLayoutCleanup = std::experimental::scope_exit([&] noexcept {
             for (const auto descriptorSetLayout : descriptorSetLayouts)
-                vkDestroyDescriptorSetLayout(device, descriptorSetLayout, nullptr);
+                if (descriptorSetLayout != VK_NULL_HANDLE)
+                    vkDestroyDescriptorSetLayout(device, descriptorSetLayout, nullptr);
         });
 
-        for (const auto& descriptorSet : description.descriptorSets) {
+        size_t describedSetIndex = 0;
+        for (size_t setIndex = 0; setIndex < nativeSetLayoutCount; ++setIndex) {
+            const auto setNumber = static_cast<uint32_t>(setIndex);
+            const DescriptorSetLayoutDescription* descriptorSet = nullptr;
+            if (describedSetIndex < storedDescription.descriptorSets.size() &&
+                storedDescription.descriptorSets[describedSetIndex].set == setNumber) {
+                descriptorSet = &storedDescription.descriptorSets[describedSetIndex];
+                ++describedSetIndex;
+            }
+
             std::vector<VkDescriptorSetLayoutBinding> bindings{};
-            bindings.reserve(descriptorSet.bindings.size());
-            for (const auto& binding : descriptorSet.bindings) {
-                std::vector<VkSampler> samplers{};
+            std::vector<std::vector<VkSampler>> immutableSamplerStorage{};
+            if (descriptorSet != nullptr) {
+                bindings.reserve(descriptorSet->bindings.size());
+                immutableSamplerStorage.resize(descriptorSet->bindings.size());
+            }
+
+            for (size_t bindingIndex = 0;
+                 descriptorSet != nullptr && bindingIndex < descriptorSet->bindings.size();
+                 ++bindingIndex) {
+                const auto& binding = descriptorSet->bindings[bindingIndex];
+                auto& samplers = immutableSamplerStorage[bindingIndex];
                 samplers.reserve(binding.immutableSamplers.size());
                 for (const auto sampler : binding.immutableSamplers) {
+                    if (sampler == nullptr)
+                        return std::unexpected{
+                            ResourceCreationError{
+                                .code = ResourceCreationErrorCode::InvalidDescription,
+                                .message = "Pipeline layout contains a null immutable sampler",
+                                .details = {
+                                    std::format(
+                                        "Descriptor set {}, binding {}",
+                                        descriptorSet->set,
+                                        binding.binding
+                                    )
+                                }
+                            }
+                        };
+
                     const auto vkSampler = dynamic_cast<const VulkanSampler*>(sampler);
                     if (vkSampler == nullptr) {
                         return std::unexpected{
@@ -2681,7 +2708,7 @@ namespace Vixen {
                                 .details = {
                                     std::format(
                                         "Descriptor set {}, binding {}",
-                                        descriptorSet.set,
+                                        descriptorSet->set,
                                         binding.binding
                                     )
                                 }
@@ -2698,7 +2725,7 @@ namespace Vixen {
                     error.details.push_back(
                         std::format(
                             "While converting descriptor set {}, binding {}",
-                            descriptorSet.set,
+                            descriptorSet->set,
                             binding.binding
                         )
                     );
@@ -2710,16 +2737,16 @@ namespace Vixen {
                     .descriptorType = *type,
                     .descriptorCount = binding.count,
                     .stageFlags = toVkShaderStageFlags(binding.stages),
-                    .pImmutableSamplers = samplers.data()
+                    .pImmutableSamplers = samplers.empty() ? nullptr : samplers.data()
                 });
             }
 
-            VkDescriptorSetLayoutCreateInfo info{
+            const VkDescriptorSetLayoutCreateInfo info{
                 .sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO,
                 .pNext = nullptr,
                 .flags = 0,
                 .bindingCount = static_cast<uint32_t>(bindings.size()),
-                .pBindings = bindings.data()
+                .pBindings = bindings.empty() ? nullptr : bindings.data()
             };
 
             VkDescriptorSetLayout layout = VK_NULL_HANDLE;
@@ -2727,16 +2754,18 @@ namespace Vixen {
             if (result != VK_SUCCESS) {
                 auto error = makeResourceCreationError(result, "vkCreateDescriptorSetLayout");
                 error.details.push_back(
-                    std::format(
-                        "Descriptor set {} contains {} bindings",
-                        descriptorSet.set,
-                        descriptorSet.bindings.size()
-                    )
+                    descriptorSet != nullptr
+                        ? std::format(
+                            "Descriptor set {} contains {} bindings",
+                            descriptorSet->set,
+                            descriptorSet->bindings.size()
+                        )
+                        : std::format("Descriptor set {} is an implicit empty layout", setNumber)
                 );
                 return std::unexpected{std::move(error)};
             }
 
-            descriptorSetLayouts.push_back(layout);
+            descriptorSetLayouts[setIndex] = layout;
         }
 
         std::vector<VkPushConstantRange> pushConstantRanges{};
@@ -2754,9 +2783,9 @@ namespace Vixen {
             .pNext = nullptr,
             .flags = 0,
             .setLayoutCount = static_cast<uint32_t>(descriptorSetLayouts.size()),
-            .pSetLayouts = descriptorSetLayouts.data(),
+            .pSetLayouts = descriptorSetLayouts.empty() ? nullptr : descriptorSetLayouts.data(),
             .pushConstantRangeCount = static_cast<uint32_t>(pushConstantRanges.size()),
-            .pPushConstantRanges = pushConstantRanges.data()
+            .pPushConstantRanges = pushConstantRanges.empty() ? nullptr : pushConstantRanges.data()
         };
 
         VkPipelineLayout layout = VK_NULL_HANDLE;
@@ -2795,6 +2824,13 @@ namespace Vixen {
         descriptorSetLayoutCleanup.release();
 
         return pipelineLayout;
+    } catch (const std::bad_alloc&) {
+        return std::unexpected{
+            ResourceCreationError{
+                .code = ResourceCreationErrorCode::OutOfHostMemory,
+                .message = "Failed to allocate temporary storage while creating a Vulkan pipeline layout"
+            }
+        };
     }
 
     void VulkanRenderingDeviceDriver::destroyPipelineLayout(PipelineLayout* pipelineLayout) {
@@ -2809,7 +2845,7 @@ namespace Vixen {
 
     auto VulkanRenderingDeviceDriver::createGraphicsPipeline(
         const GraphicsPipelineDescription& description
-    ) -> std::expected<GraphicsPipeline*, ResourceCreationError> {
+    ) -> std::expected<GraphicsPipeline*, ResourceCreationError> try {
         const auto vkLayout = dynamic_cast<const VulkanPipelineLayout*>(description.layout);
         if (!description.layout || !vkLayout)
             return std::unexpected{
@@ -2828,7 +2864,7 @@ namespace Vixen {
                     .code = ResourceCreationErrorCode::InvalidDescription,
                     .message = description.shader == nullptr
                                    ? "Graphics pipeline description does not specify a shader"
-                                   : "Graphics pipeline shader belongs to an incompatible rendering background"
+                                   : "Graphics pipeline shader belongs to an incompatible rendering backend"
                 }
             };
 
@@ -3043,6 +3079,16 @@ namespace Vixen {
             .pDynamicStates = dynamicStates.data()
         };
 
+        const VkPipelineViewportStateCreateInfo viewportState{
+            .sType = VK_STRUCTURE_TYPE_PIPELINE_VIEWPORT_STATE_CREATE_INFO,
+            .pNext = nullptr,
+            .flags = 0,
+            .viewportCount = 1,
+            .pViewports = nullptr,
+            .scissorCount = 1,
+            .pScissors = nullptr
+        };
+
         const VkPipelineInputAssemblyStateCreateInfo inputAssemblyState{
             .sType = VK_STRUCTURE_TYPE_PIPELINE_INPUT_ASSEMBLY_STATE_CREATE_INFO,
             .pNext = nullptr,
@@ -3051,16 +3097,55 @@ namespace Vixen {
             .primitiveRestartEnable = description.isPrimitiveRestartEnabled
         };
 
+        std::vector<VkFormat> colorAttachmentFormats{};
+        colorAttachmentFormats.reserve(description.colorFormats.size());
+        for (size_t attachmentIndex = 0; attachmentIndex < description.colorFormats.size(); ++attachmentIndex) {
+            auto format = toVkDataFormat(description.colorFormats[attachmentIndex]);
+            if (!format) {
+                auto error = std::move(format).error();
+                error.details.push_back(std::format("While converting color attachment {}", attachmentIndex));
+                return std::unexpected{std::move(error)};
+            }
+
+            colorAttachmentFormats.push_back(*format);
+        }
+
+        VkFormat depthAttachmentFormat = VK_FORMAT_UNDEFINED;
+        VkFormat stencilAttachmentFormat = VK_FORMAT_UNDEFINED;
+        if (description.depthStencilFormat) {
+            auto format = toVkDataFormat(*description.depthStencilFormat);
+            if (!format) {
+                auto error = std::move(format).error();
+                error.details.emplace_back("While converting the depth/stencil attachment format");
+                return std::unexpected{std::move(error)};
+            }
+
+            if (hasDepthAspect(*description.depthStencilFormat))
+                depthAttachmentFormat = *format;
+            if (hasStencilAspect(*description.depthStencilFormat))
+                stencilAttachmentFormat = *format;
+        }
+
+        const VkPipelineRenderingCreateInfo renderingInfo{
+            .sType = VK_STRUCTURE_TYPE_PIPELINE_RENDERING_CREATE_INFO,
+            .pNext = nullptr,
+            .viewMask = 0,
+            .colorAttachmentCount = static_cast<uint32_t>(colorAttachmentFormats.size()),
+            .pColorAttachmentFormats = colorAttachmentFormats.empty() ? nullptr : colorAttachmentFormats.data(),
+            .depthAttachmentFormat = depthAttachmentFormat,
+            .stencilAttachmentFormat = stencilAttachmentFormat
+        };
+
         const VkGraphicsPipelineCreateInfo info{
             .sType = VK_STRUCTURE_TYPE_GRAPHICS_PIPELINE_CREATE_INFO,
-            .pNext = nullptr,
+            .pNext = &renderingInfo,
             .flags = 0,
             .stageCount = static_cast<uint32_t>(shaderStages.size()),
             .pStages = shaderStages.data(),
             .pVertexInputState = &vertexInputState,
             .pInputAssemblyState = &inputAssemblyState,
             .pTessellationState = nullptr,
-            .pViewportState = nullptr,
+            .pViewportState = &viewportState,
             .pRasterizationState = &rasterizationState,
             .pMultisampleState = &multisampleState,
             .pDepthStencilState = &depthStencilState,
@@ -3109,17 +3194,24 @@ namespace Vixen {
         }
 
         return graphicsPipeline;
+    } catch (const std::bad_alloc&) {
+        return std::unexpected{
+            ResourceCreationError{
+                .code = ResourceCreationErrorCode::OutOfHostMemory,
+                .message = "Failed to allocate temporary storage while creating a Vulkan graphics pipeline"
+            }
+        };
     }
 
     auto VulkanRenderingDeviceDriver::createComputePipeline(
         const ComputePipelineDescription& description
-    ) -> std::expected<ComputePipeline*, ResourceCreationError> {
+    ) -> std::expected<ComputePipeline*, ResourceCreationError> try {
         const auto vkLayout = dynamic_cast<const VulkanPipelineLayout*>(description.layout);
         if (!description.layout || !vkLayout)
             return std::unexpected{
                 ResourceCreationError{
                     .code = ResourceCreationErrorCode::InvalidDescription,
-                    .message = vkLayout == nullptr
+                    .message = description.layout == nullptr
                                    ? "Compute pipeline creation requires a pipeline layout"
                                    : "Compute pipeline layout belongs to an incompatible rendering backend"
                 }
@@ -3130,9 +3222,9 @@ namespace Vixen {
             return std::unexpected{
                 ResourceCreationError{
                     .code = ResourceCreationErrorCode::InvalidDescription,
-                    .message = shader == nullptr
-                                   ? "Compute pipeline creation required a shader"
-                                   : "Compute pipeline shader belongs to an incompatible rendering background"
+                    .message = description.shader == nullptr
+                                   ? "Compute pipeline creation requires a shader"
+                                   : "Compute pipeline shader belongs to an incompatible rendering backend"
                 }
             };
 
@@ -3144,27 +3236,24 @@ namespace Vixen {
                 }
             };
 
-        const auto computeStage = std::ranges::find_if(
-            shader->shaderModules,
-            [](const VulkanShaderModule& shaderModule) {
-                return shaderModule.stage == VK_SHADER_STAGE_COMPUTE_BIT;
-            }
-        );
-        if (computeStage == shader->shaderModules.end())
+        if (shader->shaderModules.size() != 1 ||
+            shader->shaderModules.front().stage != VK_SHADER_STAGE_COMPUTE_BIT)
             return std::unexpected{
                 ResourceCreationError{
                     .code = ResourceCreationErrorCode::InvalidDescription,
-                    .message = "Compute pipeline shader has no live compute shader module"
+                    .message = "Compute pipeline shader must have exactly one live compute shader module"
                 }
             };
+
+        const auto& computeStage = shader->shaderModules.front();
 
         const VkPipelineShaderStageCreateInfo computeStageInfo{
             .sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO,
             .pNext = nullptr,
             .flags = 0,
-            .stage = computeStage->stage,
-            .module = computeStage->module,
-            .pName = computeStage->entryPoint.c_str(),
+            .stage = computeStage.stage,
+            .module = computeStage.module,
+            .pName = computeStage.entryPoint.c_str(),
             .pSpecializationInfo = nullptr
         };
 
@@ -3213,6 +3302,13 @@ namespace Vixen {
         }
 
         return computePipeline;
+    } catch (const std::bad_alloc&) {
+        return std::unexpected{
+            ResourceCreationError{
+                .code = ResourceCreationErrorCode::OutOfHostMemory,
+                .message = "Failed to allocate temporary storage while creating a Vulkan compute pipeline"
+            }
+        };
     }
 
     void VulkanRenderingDeviceDriver::destroyPipeline(Pipeline* pipeline) {

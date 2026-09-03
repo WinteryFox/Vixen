@@ -3,7 +3,9 @@
 #include <algorithm>
 #include <array>
 #include <bit>
+#include <cmath>
 #include <format>
+#include <new>
 #include <ranges>
 #include <stdexcept>
 #include <string_view>
@@ -59,6 +61,457 @@ namespace Vixen {
             }
 
             return "unrecognized";
+        }
+
+        template <typename Enum>
+        [[nodiscard]] constexpr bool isRecognizedEnumValue(
+            const Enum value,
+            const Enum last
+        ) noexcept {
+            const auto rawValue = static_cast<int64_t>(value);
+            return rawValue >= 0 && rawValue <= static_cast<int64_t>(last);
+        }
+
+        [[nodiscard]] auto validateShaderLayoutCompatibility(
+            const Shader& shader,
+            const PipelineLayout& layout
+        ) -> std::expected<void, ResourceCreationError> {
+            const auto& layoutDescription = layout.getDescription();
+
+            for (const auto& uniform : shader.uniformSets) {
+                const auto descriptorSet = std::ranges::find_if(
+                    layoutDescription.descriptorSets,
+                    [&](const DescriptorSetLayoutDescription& candidate) {
+                        return candidate.set == uniform.set;
+                    }
+                );
+                if (descriptorSet == layoutDescription.descriptorSets.end())
+                    return std::unexpected{
+                        ResourceCreationError{
+                            .code = ResourceCreationErrorCode::CompatibilityError,
+                            .message = "Pipeline layout is missing a descriptor set required by the shader",
+                            .details = {std::format("Descriptor set: {}", uniform.set)}
+                        }
+                    };
+
+                const auto binding = std::ranges::find_if(
+                    descriptorSet->bindings,
+                    [&](const DescriptorBindingLayout& candidate) {
+                        return candidate.binding == uniform.binding;
+                    }
+                );
+                const auto context = std::format(
+                    "Descriptor set {}, binding {}",
+                    uniform.set,
+                    uniform.binding
+                );
+                if (binding == descriptorSet->bindings.end())
+                    return std::unexpected{
+                        ResourceCreationError{
+                            .code = ResourceCreationErrorCode::CompatibilityError,
+                            .message = "Pipeline layout is missing a descriptor binding required by the shader",
+                            .details = {context}
+                        }
+                    };
+
+                if (binding->type != uniform.type)
+                    return std::unexpected{
+                        ResourceCreationError{
+                            .code = ResourceCreationErrorCode::CompatibilityError,
+                            .message = "Pipeline layout descriptor type does not match the shader",
+                            .details = {
+                                context,
+                                std::format(
+                                    "Layout type: {}; shader type: {}",
+                                    static_cast<uint32_t>(binding->type),
+                                    static_cast<uint32_t>(uniform.type)
+                                )
+                            }
+                        }
+                    };
+
+                if (binding->count < uniform.count)
+                    return std::unexpected{
+                        ResourceCreationError{
+                            .code = ResourceCreationErrorCode::CompatibilityError,
+                            .message = "Pipeline layout descriptor count is smaller than the shader requires",
+                            .details = {
+                                context,
+                                std::format(
+                                    "Layout count: {}; shader-required count: {}",
+                                    binding->count,
+                                    uniform.count
+                                )
+                            }
+                        }
+                    };
+
+                const uint32_t missingStages = uniform.stages.value() & ~binding->stages.value();
+                if (missingStages != 0)
+                    return std::unexpected{
+                        ResourceCreationError{
+                            .code = ResourceCreationErrorCode::CompatibilityError,
+                            .message = "Pipeline layout descriptor is not visible to every shader stage that uses it",
+                            .details = {
+                                context,
+                                std::format("Missing shader-stage mask: 0x{:X}", missingStages)
+                            }
+                        }
+                    };
+            }
+
+            if ((shader.pushConstantSize == 0) != shader.pushConstantStages.empty())
+                return std::unexpected{
+                    ResourceCreationError{
+                        .code = ResourceCreationErrorCode::InvalidDescription,
+                        .message = "Shader contains inconsistent push-constant reflection metadata"
+                    }
+                };
+
+            if (shader.pushConstantSize == 0)
+                return {};
+
+            uint32_t recognizedPushConstantStages = 0;
+            for (const ShaderStageBits stage : shaderStages) {
+                if (!shader.pushConstantStages.contains(stage))
+                    continue;
+
+                recognizedPushConstantStages |= static_cast<uint32_t>(stage);
+                const auto range = std::ranges::find_if(
+                    layoutDescription.pushConstantRanges,
+                    [stage](const PushConstantRange& candidate) {
+                        return candidate.stages.contains(stage);
+                    }
+                );
+                if (range == layoutDescription.pushConstantRanges.end())
+                    return std::unexpected{
+                        ResourceCreationError{
+                            .code = ResourceCreationErrorCode::CompatibilityError,
+                            .message = "Pipeline layout has no push-constant range for a shader stage",
+                            .details = {std::format("Shader stage: {}", shaderStageName(stage))}
+                        }
+                    };
+
+                const uint64_t rangeEnd = static_cast<uint64_t>(range->offset) + range->size;
+                if (range->offset != 0 || rangeEnd < shader.pushConstantSize)
+                    return std::unexpected{
+                        ResourceCreationError{
+                            .code = ResourceCreationErrorCode::CompatibilityError,
+                            .message = "Pipeline layout push-constant range does not cover the shader block",
+                            .details = {
+                                std::format("Shader stage: {}", shaderStageName(stage)),
+                                std::format("Shader byte range: [0, {})", shader.pushConstantSize),
+                                std::format("Layout byte range: [{}, {})", range->offset, rangeEnd)
+                            }
+                        }
+                    };
+            }
+
+            const uint32_t unknownStages = shader.pushConstantStages.value() & ~recognizedPushConstantStages;
+            if (unknownStages != 0)
+                return std::unexpected{
+                    ResourceCreationError{
+                        .code = ResourceCreationErrorCode::InvalidDescription,
+                        .message = "Shader push-constant metadata contains unrecognized shader-stage bits",
+                        .details = {std::format("Unrecognized stage mask: 0x{:X}", unknownStages)}
+                    }
+                };
+
+            return {};
+        }
+
+        [[nodiscard]] auto validateGraphicsPipelineState(
+            const GraphicsPipelineDescription& description
+        ) -> std::expected<void, ResourceCreationError> {
+            const auto validateEnum = []<typename Enum>(
+                const Enum value,
+                const Enum last,
+                const std::string_view field
+            ) -> std::expected<void, ResourceCreationError> {
+                if (isRecognizedEnumValue(value, last))
+                    return {};
+
+                return std::unexpected{
+                    ResourceCreationError{
+                        .code = ResourceCreationErrorCode::InvalidDescription,
+                        .message = std::format("Graphics pipeline contains an unrecognized {} value", field),
+                        .details = {std::format("Numeric value: {}", static_cast<int64_t>(value))}
+                    }
+                };
+            };
+
+            if (auto result = validateEnum(
+                description.topology,
+                PrimitiveTopology::TriangleFan,
+                "primitive topology"
+            ); !result)
+                return result;
+
+            if (description.isPrimitiveRestartEnabled &&
+                description.topology != PrimitiveTopology::LineStrip &&
+                description.topology != PrimitiveTopology::TriangleStrip &&
+                description.topology != PrimitiveTopology::TriangleFan)
+                return std::unexpected{
+                    ResourceCreationError{
+                        .code = ResourceCreationErrorCode::UnsupportedUsage,
+                        .message = "Primitive restart is only supported for strip and fan topologies"
+                    }
+                };
+
+            constexpr uint32_t supportedDynamicStateMask =
+                static_cast<uint32_t>(DynamicStateBits::Viewport) |
+                static_cast<uint32_t>(DynamicStateBits::Scissor) |
+                static_cast<uint32_t>(DynamicStateBits::BlendConstants);
+            const uint32_t unsupportedDynamicStates = description.dynamicStates.value() & ~supportedDynamicStateMask;
+            if (unsupportedDynamicStates != 0)
+                return std::unexpected{
+                    ResourceCreationError{
+                        .code = ResourceCreationErrorCode::InvalidDescription,
+                        .message = "Graphics pipeline contains unsupported dynamic-state bits",
+                        .details = {std::format("Unsupported dynamic-state mask: 0x{:X}", unsupportedDynamicStates)}
+                    }
+                };
+
+            if (!description.dynamicStates.contains(DynamicStateBits::Viewport) ||
+                !description.dynamicStates.contains(DynamicStateBits::Scissor))
+                return std::unexpected{
+                    ResourceCreationError{
+                        .code = ResourceCreationErrorCode::InvalidDescription,
+                        .message = "Graphics pipelines must use dynamic viewport and scissor state",
+                        .details = {"Static viewport and scissor descriptions are not currently representable"}
+                    }
+                };
+
+            for (size_t bindingIndex = 0; bindingIndex < description.vertexBindings.size(); ++bindingIndex)
+                if (auto result = validateEnum(
+                    description.vertexBindings[bindingIndex].rate,
+                    InputRate::Instance,
+                    "vertex-input rate"
+                ); !result) {
+                    auto error = std::move(result).error();
+                    error.details.push_back(std::format("Vertex binding: {}", bindingIndex));
+                    return std::unexpected{std::move(error)};
+                }
+
+            if (auto result = validateEnum(
+                description.rasterization.polygonMode,
+                PolygonMode::Point,
+                "polygon mode"
+            ); !result)
+                return result;
+            if (auto result = validateEnum(
+                description.rasterization.cullMode,
+                CullMode::FrontAndBack,
+                "cull mode"
+            ); !result)
+                return result;
+            if (auto result = validateEnum(
+                description.rasterization.frontFace,
+                FrontFace::Clockwise,
+                "front-face winding"
+            ); !result)
+                return result;
+            if (auto result = validateEnum(
+                description.multisampling.samples,
+                ImageSamples::SixtyFour,
+                "sample count"
+            ); !result)
+                return result;
+
+            if (!std::isfinite(description.rasterization.depthBiasConstantFactor) ||
+                !std::isfinite(description.rasterization.depthBiasClamp) ||
+                !std::isfinite(description.rasterization.depthBiasSlopeFactor))
+                return std::unexpected{
+                    ResourceCreationError{
+                        .code = ResourceCreationErrorCode::InvalidDescription,
+                        .message = "Graphics pipeline depth-bias values must be finite"
+                    }
+                };
+
+            if (!std::isfinite(description.rasterization.lineWidth) ||
+                description.rasterization.lineWidth <= 0.0f)
+                return std::unexpected{
+                    ResourceCreationError{
+                        .code = ResourceCreationErrorCode::InvalidDescription,
+                        .message = "Graphics pipeline line width must be finite and greater than zero",
+                        .details = {std::format("Line width: {}", description.rasterization.lineWidth)}
+                    }
+                };
+
+            if (!std::isfinite(description.multisampling.minSampleShading) ||
+                description.multisampling.minSampleShading < 0.0f ||
+                description.multisampling.minSampleShading > 1.0f)
+                return std::unexpected{
+                    ResourceCreationError{
+                        .code = ResourceCreationErrorCode::InvalidDescription,
+                        .message = "Graphics pipeline minimum sample shading must be between zero and one",
+                        .details = {
+                            std::format("Minimum sample shading: {}", description.multisampling.minSampleShading)
+                        }
+                    }
+                };
+
+            if (description.rasterization.isDepthClampEnabled)
+                return std::unexpected{
+                    ResourceCreationError{
+                        .code = ResourceCreationErrorCode::UnsupportedUsage,
+                        .message = "Depth clamping is not enabled by the rendering backend"
+                    }
+                };
+            if (description.rasterization.polygonMode != PolygonMode::Fill)
+                return std::unexpected{
+                    ResourceCreationError{
+                        .code = ResourceCreationErrorCode::UnsupportedUsage,
+                        .message = "Non-solid polygon modes are not enabled by the rendering backend"
+                    }
+                };
+            if (description.rasterization.depthBiasClamp != 0.0f)
+                return std::unexpected{
+                    ResourceCreationError{
+                        .code = ResourceCreationErrorCode::UnsupportedUsage,
+                        .message = "Depth-bias clamping is not enabled by the rendering backend"
+                    }
+                };
+            if (description.rasterization.lineWidth != 1.0f)
+                return std::unexpected{
+                    ResourceCreationError{
+                        .code = ResourceCreationErrorCode::UnsupportedUsage,
+                        .message = "Wide lines are not enabled by the rendering backend",
+                        .details = {std::format("Requested line width: {}", description.rasterization.lineWidth)}
+                    }
+                };
+            if (description.multisampling.isSampleShadingEnabled)
+                return std::unexpected{
+                    ResourceCreationError{
+                        .code = ResourceCreationErrorCode::UnsupportedUsage,
+                        .message = "Sample-rate shading is not enabled by the rendering backend"
+                    }
+                };
+            if (description.multisampling.isAlphaToOneEnabled)
+                return std::unexpected{
+                    ResourceCreationError{
+                        .code = ResourceCreationErrorCode::UnsupportedUsage,
+                        .message = "Alpha-to-one multisampling is not enabled by the rendering backend"
+                    }
+                };
+            if (description.depthStencil.isDepthBoundsTestEnabled)
+                return std::unexpected{
+                    ResourceCreationError{
+                        .code = ResourceCreationErrorCode::UnsupportedUsage,
+                        .message = "Depth-bounds testing is not enabled by the rendering backend"
+                    }
+                };
+
+            if (!std::isfinite(description.depthStencil.minDepthBounds) ||
+                !std::isfinite(description.depthStencil.maxDepthBounds) ||
+                description.depthStencil.minDepthBounds < 0.0f ||
+                description.depthStencil.maxDepthBounds > 1.0f ||
+                description.depthStencil.minDepthBounds > description.depthStencil.maxDepthBounds)
+                return std::unexpected{
+                    ResourceCreationError{
+                        .code = ResourceCreationErrorCode::InvalidDescription,
+                        .message = "Graphics pipeline depth bounds must be ordered values between zero and one",
+                        .details = {
+                            std::format(
+                                "Depth bounds: [{}, {}]",
+                                description.depthStencil.minDepthBounds,
+                                description.depthStencil.maxDepthBounds
+                            )
+                        }
+                    }
+                };
+
+            if (auto result = validateEnum(
+                description.depthStencil.compareOperator,
+                CompareOperator::Always,
+                "depth compare operator"
+            ); !result)
+                return result;
+
+            const auto validateStencilState = [&](
+                const StencilOperatorState& state,
+                const std::string_view face
+            ) -> std::expected<void, ResourceCreationError> {
+                const std::array results{
+                    validateEnum(state.failOperator, StencilOperator::DecrementAndWrap, "stencil fail operator"),
+                    validateEnum(state.passOperator, StencilOperator::DecrementAndWrap, "stencil pass operator"),
+                    validateEnum(
+                        state.depthFailOperator,
+                        StencilOperator::DecrementAndWrap,
+                        "stencil depth-fail operator"
+                    ),
+                    validateEnum(state.compareOperator, CompareOperator::Always, "stencil compare operator")
+                };
+                for (const auto& result : results)
+                    if (!result) {
+                        auto error = result.error();
+                        error.details.push_back(std::format("Stencil face: {}", face));
+                        return std::unexpected{std::move(error)};
+                    }
+
+                return {};
+            };
+
+            if (auto result = validateStencilState(description.depthStencil.front, "front"); !result)
+                return result;
+            if (auto result = validateStencilState(description.depthStencil.back, "back"); !result)
+                return result;
+
+            const bool hasDepth = description.depthStencilFormat && hasDepthAspect(*description.depthStencilFormat);
+            const bool hasStencil = description.depthStencilFormat && hasStencilAspect(*description.depthStencilFormat);
+            if ((description.depthStencil.isDepthTestEnabled || description.depthStencil.isDepthWriteEnabled ||
+                 description.depthStencil.isDepthBoundsTestEnabled) && !hasDepth)
+                return std::unexpected{
+                    ResourceCreationError{
+                        .code = ResourceCreationErrorCode::CompatibilityError,
+                        .message = "Graphics pipeline enables depth operations without a depth attachment format"
+                    }
+                };
+            if (description.depthStencil.isStencilTestEnabled && !hasStencil)
+                return std::unexpected{
+                    ResourceCreationError{
+                        .code = ResourceCreationErrorCode::CompatibilityError,
+                        .message = "Graphics pipeline enables stencil testing without a stencil attachment format"
+                    }
+                };
+
+            constexpr uint32_t supportedColorWriteMask =
+                static_cast<uint32_t>(ColorComponentBits::Red) |
+                static_cast<uint32_t>(ColorComponentBits::Green) |
+                static_cast<uint32_t>(ColorComponentBits::Blue) |
+                static_cast<uint32_t>(ColorComponentBits::Alpha);
+            for (size_t attachmentIndex = 0; attachmentIndex < description.colorBlending.size(); ++attachmentIndex) {
+                const auto& attachment = description.colorBlending[attachmentIndex];
+                const uint32_t unsupportedColorComponents = attachment.colorWriteMask.value() & ~supportedColorWriteMask;
+                if (unsupportedColorComponents != 0)
+                    return std::unexpected{
+                        ResourceCreationError{
+                            .code = ResourceCreationErrorCode::InvalidDescription,
+                            .message = "Graphics pipeline color-write mask contains unsupported bits",
+                            .details = {
+                                std::format("Color attachment: {}", attachmentIndex),
+                                std::format("Unsupported color-component mask: 0x{:X}", unsupportedColorComponents)
+                            }
+                        }
+                    };
+
+                const std::array results{
+                    validateEnum(attachment.sourceColorBlendFactor, BlendFactor::SrcAlphaSaturate, "source color blend factor"),
+                    validateEnum(attachment.destinationColorBlendFactor, BlendFactor::SrcAlphaSaturate, "destination color blend factor"),
+                    validateEnum(attachment.colorBlendOperation, BlendOperation::Max, "color blend operation"),
+                    validateEnum(attachment.sourceAlphaBlendFactor, BlendFactor::SrcAlphaSaturate, "source alpha blend factor"),
+                    validateEnum(attachment.destinationAlphaBlendFactor, BlendFactor::SrcAlphaSaturate, "destination alpha blend factor"),
+                    validateEnum(attachment.alphaBlendOperation, BlendOperation::Max, "alpha blend operation")
+                };
+                for (const auto& result : results)
+                    if (!result) {
+                        auto error = result.error();
+                        error.details.push_back(std::format("Color attachment: {}", attachmentIndex));
+                        return std::unexpected{std::move(error)};
+                    }
+            }
+
+            return {};
         }
 
         void addDescriptorCount(
@@ -1188,7 +1641,7 @@ namespace Vixen {
 
     auto RenderingDevice::createPipelineLayout(
         const PipelineLayoutDescription& description
-    ) const -> std::expected<PipelineLayout*, ResourceCreationError> {
+    ) const -> std::expected<PipelineLayout*, ResourceCreationError> try {
         if (auto validation = validatePipelineLayoutDescription(
             description,
             renderingDeviceDriver->getPipelineLayoutLimits()
@@ -1209,11 +1662,18 @@ namespace Vixen {
             };
 
         return *layout;
+    } catch (const std::bad_alloc&) {
+        return std::unexpected{
+            ResourceCreationError{
+                .code = ResourceCreationErrorCode::OutOfHostMemory,
+                .message = "Failed to allocate temporary storage while creating a pipeline layout"
+            }
+        };
     }
 
     auto RenderingDevice::createGraphicsPipeline(
         const GraphicsPipelineDescription& description
-    ) const -> std::expected<GraphicsPipeline*, ResourceCreationError> {
+    ) const -> std::expected<GraphicsPipeline*, ResourceCreationError> try {
         if (description.shader == nullptr)
             return std::unexpected{
                 ResourceCreationError{
@@ -1258,6 +1718,13 @@ namespace Vixen {
                     }
                 }
             };
+
+        if (auto compatibility = validateShaderLayoutCompatibility(*description.shader, *description.layout);
+            !compatibility)
+            return std::unexpected{std::move(compatibility).error()};
+
+        if (auto state = validateGraphicsPipelineState(description); !state)
+            return std::unexpected{std::move(state).error()};
 
         if (description.colorBlending.size() != description.colorFormats.size())
             return std::unexpected{
@@ -1513,11 +1980,46 @@ namespace Vixen {
             };
 
         return *pipeline;
+    } catch (const std::bad_alloc&) {
+        return std::unexpected{
+            ResourceCreationError{
+                .code = ResourceCreationErrorCode::OutOfHostMemory,
+                .message = "Failed to allocate temporary storage while creating a graphics pipeline"
+            }
+        };
     }
 
     auto RenderingDevice::createComputePipeline(
         const ComputePipelineDescription& description
-    ) const -> std::expected<ComputePipeline*, ResourceCreationError> {
+    ) const -> std::expected<ComputePipeline*, ResourceCreationError> try {
+        if (description.shader == nullptr)
+            return std::unexpected{
+                ResourceCreationError{
+                    .code = ResourceCreationErrorCode::InvalidDescription,
+                    .message = "Compute pipeline description does not specify a shader"
+                }
+            };
+
+        if (description.layout == nullptr)
+            return std::unexpected{
+                ResourceCreationError{
+                    .code = ResourceCreationErrorCode::InvalidDescription,
+                    .message = "Compute pipeline description does not specify a pipeline layout"
+                }
+            };
+
+        if (description.shader->stages != ShaderStageFlags{ShaderStageBits::Compute})
+            return std::unexpected{
+                ResourceCreationError{
+                    .code = ResourceCreationErrorCode::InvalidDescription,
+                    .message = "Compute pipeline shader must contain exactly one compute stage and no graphics stages"
+                }
+            };
+
+        if (auto compatibility = validateShaderLayoutCompatibility(*description.shader, *description.layout);
+            !compatibility)
+            return std::unexpected{std::move(compatibility).error()};
+
         const auto pipeline = renderingDeviceDriver->createComputePipeline(description);
         if (!pipeline)
             return std::unexpected{std::move(pipeline).error()};
@@ -1531,6 +2033,13 @@ namespace Vixen {
             };
 
         return *pipeline;
+    } catch (const std::bad_alloc&) {
+        return std::unexpected{
+            ResourceCreationError{
+                .code = ResourceCreationErrorCode::OutOfHostMemory,
+                .message = "Failed to allocate temporary storage while creating a compute pipeline"
+            }
+        };
     }
 
     RenderingContextDriver* RenderingDevice::getRenderingContextDriver() const {

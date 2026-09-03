@@ -255,7 +255,8 @@ namespace Vixen {
                 }
 
                 compiler.set_entry_point(entryPoint, *expectedExecutionModel);
-                const auto resources = compiler.get_shader_resources();
+                const auto activeVariables = compiler.get_active_interface_variables();
+                const auto resources = compiler.get_shader_resources(activeVariables);
 
                 auto getDescriptorCount = [&](
                     const spirv_cross::Resource& resource

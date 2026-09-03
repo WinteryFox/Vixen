@@ -5,7 +5,7 @@ namespace Vixen {
     class PipelineLayout;
 
     struct ComputePipelineDescription {
-        const Shader* shader;
-        const PipelineLayout* layout;
+        const Shader* shader = nullptr;
+        const PipelineLayout* layout = nullptr;
     };
 }
