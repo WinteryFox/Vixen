@@ -1506,6 +1506,30 @@ namespace Vixen {
         return vkDynamicStates;
     }
 
+    static constexpr VkPrimitiveTopology toVkPrimitiveTopology(const PrimitiveTopology topology) {
+        switch (topology) {
+            case PrimitiveTopology::PointList:
+                return VK_PRIMITIVE_TOPOLOGY_POINT_LIST;
+
+            case PrimitiveTopology::LineList:
+                return VK_PRIMITIVE_TOPOLOGY_LINE_LIST;
+
+            case PrimitiveTopology::LineStrip:
+                return VK_PRIMITIVE_TOPOLOGY_LINE_STRIP;
+
+            case PrimitiveTopology::TriangleList:
+                return VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST;
+
+            case PrimitiveTopology::TriangleStrip:
+                return VK_PRIMITIVE_TOPOLOGY_TRIANGLE_STRIP;
+
+            case PrimitiveTopology::TriangleFan:
+                return VK_PRIMITIVE_TOPOLOGY_TRIANGLE_FAN;
+        }
+
+        return VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST;
+    }
+
     [[maybe_unused]] static constexpr std::string getVersionString(const glm::uvec3 version) {
         return std::to_string(version.x) + "." + std::to_string(version.y) + "." + std::to_string(version.z);
     }

@@ -3043,6 +3043,14 @@ namespace Vixen {
             .pDynamicStates = dynamicStates.data()
         };
 
+        VkPipelineInputAssemblyStateCreateInfo inputAssemblyState{
+            .sType = VK_STRUCTURE_TYPE_PIPELINE_INPUT_ASSEMBLY_STATE_CREATE_INFO,
+            .pNext = nullptr,
+            .flags = 0,
+            .topology = toVkPrimitiveTopology(description.topology),
+            .primitiveRestartEnable = description.isPrimitiveRestartEnabled
+        };
+
         const VkGraphicsPipelineCreateInfo info{
             .sType = VK_STRUCTURE_TYPE_GRAPHICS_PIPELINE_CREATE_INFO,
             .pNext = nullptr,
@@ -3050,7 +3058,7 @@ namespace Vixen {
             .stageCount = static_cast<uint32_t>(shaderStages.size()),
             .pStages = shaderStages.data(),
             .pVertexInputState = &vertexInputState,
-            .pInputAssemblyState = nullptr,
+            .pInputAssemblyState = &inputAssemblyState,
             .pTessellationState = nullptr,
             .pViewportState = nullptr,
             .pRasterizationState = &rasterizationState,
