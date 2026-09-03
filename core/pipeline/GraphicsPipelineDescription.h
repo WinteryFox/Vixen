@@ -144,9 +144,9 @@ namespace Vixen {
         BlendOperation alphaBlendOperation = BlendOperation::Add;
 
         ColorComponentFlags colorWriteMask = ColorComponentBits::Red |
-                                                 ColorComponentBits::Green |
-                                                 ColorComponentBits::Blue |
-                                                 ColorComponentBits::Alpha;
+            ColorComponentBits::Green |
+            ColorComponentBits::Blue |
+            ColorComponentBits::Alpha;
     };
 
     struct GraphicsPipelineDescription {
@@ -154,6 +154,8 @@ namespace Vixen {
         const PipelineLayout* layout;
 
         PrimitiveTopology topology = PrimitiveTopology::TriangleList;
+        bool isPrimitiveRestartEnabled = false;
+
         std::vector<VertexBindingDescription> vertexBindings;
         std::vector<VertexAttributeDescription> vertexAttributes;
 
