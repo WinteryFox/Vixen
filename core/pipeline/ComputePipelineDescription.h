@@ -1,7 +1,7 @@
 #pragma once
 
 namespace Vixen {
-    struct Shader;
+    class Shader;
     class PipelineLayout;
 
     struct ComputePipelineDescription {

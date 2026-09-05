@@ -2,6 +2,8 @@
 
 namespace Vixen {
     GraphicsPipeline::GraphicsPipeline(
-        const PipelineLayout& layout
-    ) : Pipeline(layout) {}
+        const PipelineLayout& layout,
+        GraphicsPipelineState state
+    ) : Pipeline(layout),
+        state(std::move(state)) {}
 }

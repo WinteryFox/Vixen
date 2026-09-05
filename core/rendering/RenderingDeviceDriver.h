@@ -65,7 +65,7 @@ namespace Vixen {
     class Fence;
     enum class SwapchainError;
     enum class Error;
-    struct Shader;
+    class Shader;
     struct Surface;
     class Swapchain;
     struct CommandQueue;
@@ -260,14 +260,14 @@ namespace Vixen {
         ) = 0;
 
         virtual void commandBindVertexBuffers(
-            CommandBuffer* commandBuffer,
+            const CommandBuffer* commandBuffer,
             uint32_t count,
             const std::vector<Buffer*>& buffers,
             const std::vector<uint64_t>& offsets
         ) = 0;
 
         virtual void commandBindIndexBuffers(
-            CommandBuffer* commandBuffer,
+            const CommandBuffer* commandBuffer,
             Buffer* buffer,
             IndexFormat format,
             uint64_t offset

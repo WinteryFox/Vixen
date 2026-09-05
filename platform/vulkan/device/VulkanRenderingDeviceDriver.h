@@ -273,14 +273,14 @@ namespace Vixen {
         ) override;
 
         void commandBindVertexBuffers(
-            CommandBuffer* commandBuffer,
+            const CommandBuffer* commandBuffer,
             uint32_t count,
             const std::vector<Buffer*>& buffers,
             const std::vector<uint64_t>& offsets
         ) override;
 
         void commandBindIndexBuffers(
-            CommandBuffer* commandBuffer,
+            const CommandBuffer* commandBuffer,
             Buffer* buffer,
             IndexFormat format,
             uint64_t offset

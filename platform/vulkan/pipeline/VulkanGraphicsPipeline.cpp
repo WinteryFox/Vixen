@@ -5,7 +5,8 @@
 namespace Vixen {
     VulkanGraphicsPipeline::VulkanGraphicsPipeline(
         const VulkanPipelineLayout& layout,
+        GraphicsPipelineState state,
         VkPipeline pipeline
-    ) : GraphicsPipeline(layout),
+    ) : GraphicsPipeline(layout, std::move(state)),
         pipeline(pipeline) {}
 }

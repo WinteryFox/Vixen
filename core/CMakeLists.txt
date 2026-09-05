@@ -130,6 +130,7 @@ target_sources(
         pipeline/GraphicsPipelineDescription.h
         pipeline/ComputePipelineDescription.h
         pipeline/DynamicStateFlags.h
+        pipeline/GraphicsPipelineState.h
 )
 vixen_configure_target(VixenCore)
 target_compile_definitions(

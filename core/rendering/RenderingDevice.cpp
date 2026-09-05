@@ -78,7 +78,7 @@ namespace Vixen {
         ) -> std::expected<void, ResourceCreationError> {
             const auto& layoutDescription = layout.getDescription();
 
-            for (const auto& uniform : shader.uniformSets) {
+            for (const auto& uniform : shader.getUniformSets()) {
                 const auto descriptorSet = std::ranges::find_if(
                     layoutDescription.descriptorSets,
                     [&](const DescriptorSetLayoutDescription& candidate) {
@@ -160,7 +160,7 @@ namespace Vixen {
                     };
             }
 
-            if ((shader.pushConstantSize == 0) != shader.pushConstantStages.empty())
+            if ((shader.getPushConstantSize() == 0) != shader.getPushConstantStages().empty())
                 return std::unexpected{
                     ResourceCreationError{
                         .code = ResourceCreationErrorCode::InvalidDescription,
@@ -168,12 +168,12 @@ namespace Vixen {
                     }
                 };
 
-            if (shader.pushConstantSize == 0)
+            if (shader.getPushConstantSize() == 0)
                 return {};
 
             uint32_t recognizedPushConstantStages = 0;
             for (const ShaderStageBits stage : shaderStages) {
-                if (!shader.pushConstantStages.contains(stage))
+                if (!shader.getPushConstantStages().contains(stage))
                     continue;
 
                 recognizedPushConstantStages |= static_cast<uint32_t>(stage);
@@ -193,21 +193,21 @@ namespace Vixen {
                     };
 
                 const uint64_t rangeEnd = static_cast<uint64_t>(range->offset) + range->size;
-                if (range->offset != 0 || rangeEnd < shader.pushConstantSize)
+                if (range->offset != 0 || rangeEnd < shader.getPushConstantSize())
                     return std::unexpected{
                         ResourceCreationError{
                             .code = ResourceCreationErrorCode::CompatibilityError,
                             .message = "Pipeline layout push-constant range does not cover the shader block",
                             .details = {
                                 std::format("Shader stage: {}", shaderStageName(stage)),
-                                std::format("Shader byte range: [0, {})", shader.pushConstantSize),
+                                std::format("Shader byte range: [0, {})", shader.getPushConstantSize()),
                                 std::format("Layout byte range: [{}, {})", range->offset, rangeEnd)
                             }
                         }
                     };
             }
 
-            const uint32_t unknownStages = shader.pushConstantStages.value() & ~recognizedPushConstantStages;
+            const uint32_t unknownStages = shader.getPushConstantStages().value() & ~recognizedPushConstantStages;
             if (unknownStages != 0)
                 return std::unexpected{
                     ResourceCreationError{
@@ -240,17 +240,19 @@ namespace Vixen {
                 };
             };
 
+            const auto& state = description.state;
+
             if (auto result = validateEnum(
-                description.topology,
+                state.topology,
                 PrimitiveTopology::TriangleFan,
                 "primitive topology"
             ); !result)
                 return result;
 
-            if (description.isPrimitiveRestartEnabled &&
-                description.topology != PrimitiveTopology::LineStrip &&
-                description.topology != PrimitiveTopology::TriangleStrip &&
-                description.topology != PrimitiveTopology::TriangleFan)
+            if (state.isPrimitiveRestartEnabled &&
+                state.topology != PrimitiveTopology::LineStrip &&
+                state.topology != PrimitiveTopology::TriangleStrip &&
+                state.topology != PrimitiveTopology::TriangleFan)
                 return std::unexpected{
                     ResourceCreationError{
                         .code = ResourceCreationErrorCode::UnsupportedUsage,
@@ -262,7 +264,7 @@ namespace Vixen {
                 static_cast<uint32_t>(DynamicStateBits::Viewport) |
                 static_cast<uint32_t>(DynamicStateBits::Scissor) |
                 static_cast<uint32_t>(DynamicStateBits::BlendConstants);
-            const uint32_t unsupportedDynamicStates = description.dynamicStates.value() & ~supportedDynamicStateMask;
+            const uint32_t unsupportedDynamicStates = state.dynamicStates.value() & ~supportedDynamicStateMask;
             if (unsupportedDynamicStates != 0)
                 return std::unexpected{
                     ResourceCreationError{
@@ -272,8 +274,8 @@ namespace Vixen {
                     }
                 };
 
-            if (!description.dynamicStates.contains(DynamicStateBits::Viewport) ||
-                !description.dynamicStates.contains(DynamicStateBits::Scissor))
+            if (!state.dynamicStates.contains(DynamicStateBits::Viewport) ||
+                !state.dynamicStates.contains(DynamicStateBits::Scissor))
                 return std::unexpected{
                     ResourceCreationError{
                         .code = ResourceCreationErrorCode::InvalidDescription,
@@ -282,9 +284,9 @@ namespace Vixen {
                     }
                 };
 
-            for (size_t bindingIndex = 0; bindingIndex < description.vertexBindings.size(); ++bindingIndex)
+            for (size_t bindingIndex = 0; bindingIndex < state.vertexBindings.size(); ++bindingIndex)
                 if (auto result = validateEnum(
-                    description.vertexBindings[bindingIndex].rate,
+                    state.vertexBindings[bindingIndex].rate,
                     InputRate::Instance,
                     "vertex-input rate"
                 ); !result) {
@@ -294,33 +296,33 @@ namespace Vixen {
                 }
 
             if (auto result = validateEnum(
-                description.rasterization.polygonMode,
+                state.rasterization.polygonMode,
                 PolygonMode::Point,
                 "polygon mode"
             ); !result)
                 return result;
             if (auto result = validateEnum(
-                description.rasterization.cullMode,
+                state.rasterization.cullMode,
                 CullMode::FrontAndBack,
                 "cull mode"
             ); !result)
                 return result;
             if (auto result = validateEnum(
-                description.rasterization.frontFace,
+                state.rasterization.frontFace,
                 FrontFace::Clockwise,
                 "front-face winding"
             ); !result)
                 return result;
             if (auto result = validateEnum(
-                description.multisampling.samples,
+                state.multisampling.samples,
                 ImageSamples::SixtyFour,
                 "sample count"
             ); !result)
                 return result;
 
-            if (!std::isfinite(description.rasterization.depthBiasConstantFactor) ||
-                !std::isfinite(description.rasterization.depthBiasClamp) ||
-                !std::isfinite(description.rasterization.depthBiasSlopeFactor))
+            if (!std::isfinite(state.rasterization.depthBiasConstantFactor) ||
+                !std::isfinite(state.rasterization.depthBiasClamp) ||
+                !std::isfinite(state.rasterization.depthBiasSlopeFactor))
                 return std::unexpected{
                     ResourceCreationError{
                         .code = ResourceCreationErrorCode::InvalidDescription,
@@ -328,73 +330,73 @@ namespace Vixen {
                     }
                 };
 
-            if (!std::isfinite(description.rasterization.lineWidth) ||
-                description.rasterization.lineWidth <= 0.0f)
+            if (!std::isfinite(state.rasterization.lineWidth) ||
+                state.rasterization.lineWidth <= 0.0f)
                 return std::unexpected{
                     ResourceCreationError{
                         .code = ResourceCreationErrorCode::InvalidDescription,
                         .message = "Graphics pipeline line width must be finite and greater than zero",
-                        .details = {std::format("Line width: {}", description.rasterization.lineWidth)}
+                        .details = {std::format("Line width: {}", state.rasterization.lineWidth)}
                     }
                 };
 
-            if (!std::isfinite(description.multisampling.minSampleShading) ||
-                description.multisampling.minSampleShading < 0.0f ||
-                description.multisampling.minSampleShading > 1.0f)
+            if (!std::isfinite(state.multisampling.minSampleShading) ||
+                state.multisampling.minSampleShading < 0.0f ||
+                state.multisampling.minSampleShading > 1.0f)
                 return std::unexpected{
                     ResourceCreationError{
                         .code = ResourceCreationErrorCode::InvalidDescription,
                         .message = "Graphics pipeline minimum sample shading must be between zero and one",
                         .details = {
-                            std::format("Minimum sample shading: {}", description.multisampling.minSampleShading)
+                            std::format("Minimum sample shading: {}", state.multisampling.minSampleShading)
                         }
                     }
                 };
 
-            if (description.rasterization.isDepthClampEnabled)
+            if (state.rasterization.isDepthClampEnabled)
                 return std::unexpected{
                     ResourceCreationError{
                         .code = ResourceCreationErrorCode::UnsupportedUsage,
                         .message = "Depth clamping is not enabled by the rendering backend"
                     }
                 };
-            if (description.rasterization.polygonMode != PolygonMode::Fill)
+            if (state.rasterization.polygonMode != PolygonMode::Fill)
                 return std::unexpected{
                     ResourceCreationError{
                         .code = ResourceCreationErrorCode::UnsupportedUsage,
                         .message = "Non-solid polygon modes are not enabled by the rendering backend"
                     }
                 };
-            if (description.rasterization.depthBiasClamp != 0.0f)
+            if (state.rasterization.depthBiasClamp != 0.0f)
                 return std::unexpected{
                     ResourceCreationError{
                         .code = ResourceCreationErrorCode::UnsupportedUsage,
                         .message = "Depth-bias clamping is not enabled by the rendering backend"
                     }
                 };
-            if (description.rasterization.lineWidth != 1.0f)
+            if (state.rasterization.lineWidth != 1.0f)
                 return std::unexpected{
                     ResourceCreationError{
                         .code = ResourceCreationErrorCode::UnsupportedUsage,
                         .message = "Wide lines are not enabled by the rendering backend",
-                        .details = {std::format("Requested line width: {}", description.rasterization.lineWidth)}
+                        .details = {std::format("Requested line width: {}", state.rasterization.lineWidth)}
                     }
                 };
-            if (description.multisampling.isSampleShadingEnabled)
+            if (state.multisampling.isSampleShadingEnabled)
                 return std::unexpected{
                     ResourceCreationError{
                         .code = ResourceCreationErrorCode::UnsupportedUsage,
                         .message = "Sample-rate shading is not enabled by the rendering backend"
                     }
                 };
-            if (description.multisampling.isAlphaToOneEnabled)
+            if (state.multisampling.isAlphaToOneEnabled)
                 return std::unexpected{
                     ResourceCreationError{
                         .code = ResourceCreationErrorCode::UnsupportedUsage,
                         .message = "Alpha-to-one multisampling is not enabled by the rendering backend"
                     }
                 };
-            if (description.depthStencil.isDepthBoundsTestEnabled)
+            if (state.depthStencil.isDepthBoundsTestEnabled)
                 return std::unexpected{
                     ResourceCreationError{
                         .code = ResourceCreationErrorCode::UnsupportedUsage,
@@ -402,11 +404,11 @@ namespace Vixen {
                     }
                 };
 
-            if (!std::isfinite(description.depthStencil.minDepthBounds) ||
-                !std::isfinite(description.depthStencil.maxDepthBounds) ||
-                description.depthStencil.minDepthBounds < 0.0f ||
-                description.depthStencil.maxDepthBounds > 1.0f ||
-                description.depthStencil.minDepthBounds > description.depthStencil.maxDepthBounds)
+            if (!std::isfinite(state.depthStencil.minDepthBounds) ||
+                !std::isfinite(state.depthStencil.maxDepthBounds) ||
+                state.depthStencil.minDepthBounds < 0.0f ||
+                state.depthStencil.maxDepthBounds > 1.0f ||
+                state.depthStencil.minDepthBounds > state.depthStencil.maxDepthBounds)
                 return std::unexpected{
                     ResourceCreationError{
                         .code = ResourceCreationErrorCode::InvalidDescription,
@@ -414,15 +416,15 @@ namespace Vixen {
                         .details = {
                             std::format(
                                 "Depth bounds: [{}, {}]",
-                                description.depthStencil.minDepthBounds,
-                                description.depthStencil.maxDepthBounds
+                                state.depthStencil.minDepthBounds,
+                                state.depthStencil.maxDepthBounds
                             )
                         }
                     }
                 };
 
             if (auto result = validateEnum(
-                description.depthStencil.compareOperator,
+                state.depthStencil.compareOperator,
                 CompareOperator::Always,
                 "depth compare operator"
             ); !result)
@@ -452,22 +454,22 @@ namespace Vixen {
                 return {};
             };
 
-            if (auto result = validateStencilState(description.depthStencil.front, "front"); !result)
+            if (auto result = validateStencilState(state.depthStencil.front, "front"); !result)
                 return result;
-            if (auto result = validateStencilState(description.depthStencil.back, "back"); !result)
+            if (auto result = validateStencilState(state.depthStencil.back, "back"); !result)
                 return result;
 
-            const bool hasDepth = description.depthStencilFormat && hasDepthAspect(*description.depthStencilFormat);
-            const bool hasStencil = description.depthStencilFormat && hasStencilAspect(*description.depthStencilFormat);
-            if ((description.depthStencil.isDepthTestEnabled || description.depthStencil.isDepthWriteEnabled ||
-                description.depthStencil.isDepthBoundsTestEnabled) && !hasDepth)
+            const bool hasDepth = state.depthStencilFormat && hasDepthAspect(*state.depthStencilFormat);
+            const bool hasStencil = state.depthStencilFormat && hasStencilAspect(*state.depthStencilFormat);
+            if ((state.depthStencil.isDepthTestEnabled || state.depthStencil.isDepthWriteEnabled ||
+                state.depthStencil.isDepthBoundsTestEnabled) && !hasDepth)
                 return std::unexpected{
                     ResourceCreationError{
                         .code = ResourceCreationErrorCode::CompatibilityError,
                         .message = "Graphics pipeline enables depth operations without a depth attachment format"
                     }
                 };
-            if (description.depthStencil.isStencilTestEnabled && !hasStencil)
+            if (state.depthStencil.isStencilTestEnabled && !hasStencil)
                 return std::unexpected{
                     ResourceCreationError{
                         .code = ResourceCreationErrorCode::CompatibilityError,
@@ -480,8 +482,8 @@ namespace Vixen {
                 static_cast<uint32_t>(ColorComponentBits::Green) |
                 static_cast<uint32_t>(ColorComponentBits::Blue) |
                 static_cast<uint32_t>(ColorComponentBits::Alpha);
-            for (size_t attachmentIndex = 0; attachmentIndex < description.colorBlending.size(); ++attachmentIndex) {
-                const auto& attachment = description.colorBlending[attachmentIndex];
+            for (size_t attachmentIndex = 0; attachmentIndex < state.colorBlending.size(); ++attachmentIndex) {
+                const auto& attachment = state.colorBlending[attachmentIndex];
                 const uint32_t unsupportedColorComponents = attachment.colorWriteMask.value() & ~
                     supportedColorWriteMask;
                 if (unsupportedColorComponents != 0)
@@ -793,6 +795,21 @@ namespace Vixen {
                                     }
                                 }
                             };
+
+                        for (size_t samplerIndex = 0;
+                             samplerIndex < binding.immutableSamplers.size();
+                             ++samplerIndex)
+                            if (binding.immutableSamplers[samplerIndex] == nullptr)
+                                return std::unexpected{
+                                    ResourceCreationError{
+                                        .code = ResourceCreationErrorCode::InvalidDescription,
+                                        .message = "Pipeline layout contains a null immutable sampler",
+                                        .details = {
+                                            context,
+                                            std::format("Immutable-sampler array index: {}", samplerIndex)
+                                        }
+                                    }
+                                };
                     }
 
                     addDescriptorCount(totalDescriptorCounts, binding.type, binding.count);
@@ -935,10 +952,12 @@ namespace Vixen {
         const bool presented
     ) {
         waitForFrame(frameIndex);
-        drainDeferredReleases(frames[frameIndex]);
 
         if (!renderingDeviceDriver->resetCommandPool(frames[frameIndex].commandPool))
             throw std::runtime_error("Failed to reset command pool");
+
+        drainDeferredReleases(frames[frameIndex]);
+
         if (!renderingDeviceDriver->beginCommandBuffer(frames[frameIndex].commandBuffer))
             throw std::runtime_error("Failed to begin command buffer");
     }
@@ -1094,14 +1113,16 @@ namespace Vixen {
         if (!frames.empty())
             flushAndWaitForFrames();
 
+        for (const auto& frame : frames) {
+            renderingDeviceDriver->destroyCommandPool(frame.commandPool);
+            delete frame.commandBuffer;
+        }
+
         for (auto& frame : frames)
             drainDeferredReleases(frame);
 
-        for (const auto& frame : frames) {
-            renderingDeviceDriver->destroyCommandPool(frame.commandPool);
+        for (const auto& frame : frames)
             renderingDeviceDriver->destroyFence(frame.fence);
-            delete frame.commandBuffer;
-        }
         frames.clear();
 
         if (transferQueue)
@@ -1671,7 +1692,7 @@ namespace Vixen {
         return std::unexpected{
             ResourceCreationError{
                 .code = ResourceCreationErrorCode::OutOfHostMemory,
-                .message = "Failed to allocate temporary storage while creating a pipeline layout"
+                .message = "Failed to allocate temporary storage while validating a pipeline layout"
             }
         };
     }
@@ -1695,7 +1716,7 @@ namespace Vixen {
                 }
             };
 
-        if (description.shader->stages.contains(ShaderStageBits::Compute))
+        if (description.shader->getStageFlags().contains(ShaderStageBits::Compute))
             return std::unexpected{
                 ResourceCreationError{
                     .code = ResourceCreationErrorCode::InvalidDescription,
@@ -1703,7 +1724,7 @@ namespace Vixen {
                 }
             };
 
-        if (!description.shader->stages.contains(ShaderStageBits::Vertex))
+        if (!description.shader->getStageFlags().contains(ShaderStageBits::Vertex))
             return std::unexpected{
                 ResourceCreationError{
                     .code = ResourceCreationErrorCode::InvalidDescription,
@@ -1711,9 +1732,9 @@ namespace Vixen {
                 }
             };
 
-        if (description.shader->stages.contains(ShaderStageBits::Geometry) ||
-            description.shader->stages.contains(ShaderStageBits::TesselationControl) ||
-            description.shader->stages.contains(ShaderStageBits::TesselationEvaluation))
+        if (description.shader->getStageFlags().contains(ShaderStageBits::Geometry) ||
+            description.shader->getStageFlags().contains(ShaderStageBits::TesselationControl) ||
+            description.shader->getStageFlags().contains(ShaderStageBits::TesselationEvaluation))
             return std::unexpected{
                 ResourceCreationError{
                     .code = ResourceCreationErrorCode::UnsupportedUsage,
@@ -1731,32 +1752,34 @@ namespace Vixen {
         if (auto state = validateGraphicsPipelineState(description); !state)
             return std::unexpected{std::move(state).error()};
 
-        if (description.colorBlending.size() != description.colorFormats.size())
+        const auto& state = description.state;
+
+        if (state.colorBlending.size() != state.colorFormats.size())
             return std::unexpected{
                 ResourceCreationError{
                     .code = ResourceCreationErrorCode::InvalidDescription,
                     .message = std::format(
                         "Color blending size {} must match color formats size {}",
-                        description.colorBlending.size(),
-                        description.colorFormats.size()
+                        state.colorBlending.size(),
+                        state.colorFormats.size()
                     )
                 }
             };
 
-        if (description.colorFormats.size() > renderingDeviceDriver->getMaxColorAttachments())
+        if (state.colorFormats.size() > renderingDeviceDriver->getMaxColorAttachments())
             return std::unexpected{
                 ResourceCreationError{
                     .code = ResourceCreationErrorCode::ExceedsDeviceLimits,
                     .message = std::format(
                         "Color format count of {} exceeds device limits of {}",
-                        description.colorFormats.size(),
+                        state.colorFormats.size(),
                         renderingDeviceDriver->getMaxColorAttachments()
                     )
                 }
             };
 
-        for (size_t attachmentIndex = 0; attachmentIndex < description.colorFormats.size(); ++attachmentIndex) {
-            const ImageDataFormat format = description.colorFormats[attachmentIndex];
+        for (size_t attachmentIndex = 0; attachmentIndex < state.colorFormats.size(); ++attachmentIndex) {
+            const ImageDataFormat format = state.colorFormats[attachmentIndex];
             if (hasDepthAspect(format) || hasStencilAspect(format))
                 return std::unexpected{
                     ResourceCreationError{
@@ -1769,7 +1792,7 @@ namespace Vixen {
                     }
                 };
 
-            if (description.colorBlending[attachmentIndex].isEnabled &&
+            if (state.colorBlending[attachmentIndex].isEnabled &&
                 !renderingDeviceDriver->isColorBlendSupported(format))
                 return std::unexpected{
                     ResourceCreationError{
@@ -1792,7 +1815,7 @@ namespace Vixen {
             auto support = renderingDeviceDriver->validateAttachmentFormatSupport(
                 format,
                 ImageUsageBits::ColorAttachment,
-                description.multisampling.samples
+                state.multisampling.samples
             );
             if (!support) {
                 auto error = std::move(support).error();
@@ -1804,8 +1827,8 @@ namespace Vixen {
             }
         }
 
-        if (description.depthStencilFormat) {
-            const ImageDataFormat format = *description.depthStencilFormat;
+        if (state.depthStencilFormat) {
+            const ImageDataFormat format = *state.depthStencilFormat;
             if (!hasDepthAspect(format) && !hasStencilAspect(format))
                 return std::unexpected{
                     ResourceCreationError{
@@ -1820,7 +1843,7 @@ namespace Vixen {
             auto support = renderingDeviceDriver->validateAttachmentFormatSupport(
                 format,
                 ImageUsageBits::DepthStencilAttachment,
-                description.multisampling.samples
+                state.multisampling.samples
             );
             if (!support) {
                 auto error = std::move(support).error();
@@ -1847,31 +1870,31 @@ namespace Vixen {
         };
 
         const uint32_t maxBindings = renderingDeviceDriver->getMaxVertexInputBindings();
-        if (description.vertexBindings.size() > maxBindings)
+        if (state.vertexBindings.size() > maxBindings)
             return std::unexpected{
                 makeLimitError(
                     "Graphics pipeline contains too many vertex-input bindings",
                     "maxVertexInputBindings",
-                    description.vertexBindings.size(),
+                    state.vertexBindings.size(),
                     maxBindings
                 )
             };
 
         const uint32_t maxAttributes = renderingDeviceDriver->getMaxVertexInputAttributes();
-        if (description.vertexAttributes.size() > maxAttributes)
+        if (state.vertexAttributes.size() > maxAttributes)
             return std::unexpected{
                 makeLimitError(
                     "Graphics pipeline contains too many vertex-input attributes",
                     "maxVertexInputAttributes",
-                    description.vertexAttributes.size(),
+                    state.vertexAttributes.size(),
                     maxAttributes
                 )
             };
 
         const uint32_t maxStride = renderingDeviceDriver->getMaxVertexInputBindingStride();
         std::unordered_map<uint32_t, uint32_t> bindingStrides{};
-        bindingStrides.reserve(description.vertexBindings.size());
-        for (const auto& binding : description.vertexBindings) {
+        bindingStrides.reserve(state.vertexBindings.size());
+        for (const auto& binding : state.vertexBindings) {
             if (binding.binding >= maxBindings)
                 return std::unexpected{
                     makeLimitError(
@@ -1907,8 +1930,8 @@ namespace Vixen {
 
         const uint32_t maxAttributeOffset = renderingDeviceDriver->getMaxVertexInputAttributeOffset();
         std::unordered_set<uint32_t> attributeLocations{};
-        attributeLocations.reserve(description.vertexAttributes.size());
-        for (const auto& attribute : description.vertexAttributes) {
+        attributeLocations.reserve(state.vertexAttributes.size());
+        for (const auto& attribute : state.vertexAttributes) {
             if (attribute.location >= maxAttributes)
                 return std::unexpected{
                     makeLimitError(
@@ -2009,7 +2032,7 @@ namespace Vixen {
         return std::unexpected{
             ResourceCreationError{
                 .code = ResourceCreationErrorCode::OutOfHostMemory,
-                .message = "Failed to allocate temporary storage while creating a graphics pipeline"
+                .message = "Failed to allocate temporary storage while validating a graphics pipeline"
             }
         };
     }
@@ -2033,7 +2056,7 @@ namespace Vixen {
                 }
             };
 
-        if (description.shader->stages != ShaderStageFlags{ShaderStageBits::Compute})
+        if (description.shader->getStageFlags() != ShaderStageFlags{ShaderStageBits::Compute})
             return std::unexpected{
                 ResourceCreationError{
                     .code = ResourceCreationErrorCode::InvalidDescription,
@@ -2062,7 +2085,7 @@ namespace Vixen {
         return std::unexpected{
             ResourceCreationError{
                 .code = ResourceCreationErrorCode::OutOfHostMemory,
-                .message = "Failed to allocate temporary storage while creating a compute pipeline"
+                .message = "Failed to allocate temporary storage while validating a compute pipeline"
             }
         };
     }

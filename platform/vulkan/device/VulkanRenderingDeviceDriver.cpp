@@ -2366,12 +2366,12 @@ namespace Vixen {
                 });
             };
 
-            if (o->pushConstantSize > limits.maxPushConstantsSize)
+            if (o->getPushConstantSize() > limits.maxPushConstantsSize)
                 return limitError(
                     ShaderReflectionErrorCode::PushConstantLimitExceeded,
                     "Push-constant block exceeds the device limit",
                     limits.maxPushConstantsSize,
-                    o->pushConstantSize
+                    o->getPushConstantSize()
                 );
 
             struct DescriptorCounts {
@@ -2422,7 +2422,7 @@ namespace Vixen {
             };
 
             DescriptorCounts totalCounts{};
-            for (const ShaderUniform& uniform : o->uniformSets) {
+            for (const ShaderUniform& uniform : o->getUniformSets()) {
                 if (uniform.set >= limits.maxBoundDescriptorSets)
                     return limitError(
                         ShaderReflectionErrorCode::DescriptorSetLimitExceeded,
@@ -2538,11 +2538,11 @@ namespace Vixen {
                 ShaderStageBits::Geometry
             };
             for (const ShaderStageBits stage : shaderStages) {
-                if (!o->stages.contains(stage))
+                if (!o->getStageFlags().contains(stage))
                     continue;
 
                 DescriptorCounts stageCounts{};
-                for (const ShaderUniform& uniform : o->uniformSets) {
+                for (const ShaderUniform& uniform : o->getUniformSets()) {
                     if (uniform.stages.contains(stage))
                         addDescriptor(stageCounts, uniform);
                 }
@@ -2927,9 +2927,11 @@ namespace Vixen {
                 }
             };
 
+        const auto& state = description.state;
+
         std::vector<VkVertexInputBindingDescription> vertexBindings{};
-        vertexBindings.reserve(description.vertexBindings.size());
-        for (const auto& binding : description.vertexBindings) {
+        vertexBindings.reserve(state.vertexBindings.size());
+        for (const auto& binding : state.vertexBindings) {
             vertexBindings.push_back(VkVertexInputBindingDescription{
                 .binding = binding.binding,
                 .stride = binding.stride,
@@ -2938,8 +2940,8 @@ namespace Vixen {
         }
 
         std::vector<VkVertexInputAttributeDescription> vertexAttributes{};
-        vertexAttributes.reserve(description.vertexAttributes.size());
-        for (const auto& attribute : description.vertexAttributes) {
+        vertexAttributes.reserve(state.vertexAttributes.size());
+        for (const auto& attribute : state.vertexAttributes) {
             auto format = toVkDataFormat(attribute.format);
             if (!format) {
                 auto error = std::move(format).error();
@@ -2976,19 +2978,19 @@ namespace Vixen {
             .sType = VK_STRUCTURE_TYPE_PIPELINE_RASTERIZATION_STATE_CREATE_INFO,
             .pNext = nullptr,
             .flags = 0,
-            .depthClampEnable = description.rasterization.isDepthClampEnabled,
-            .rasterizerDiscardEnable = description.rasterization.isRasterizerDiscardEnabled,
-            .polygonMode = toVkPolygonMode(description.rasterization.polygonMode),
-            .cullMode = toVkCullMode(description.rasterization.cullMode),
-            .frontFace = toVkFrontFace(description.rasterization.frontFace),
-            .depthBiasEnable = description.rasterization.isDepthBiasEnabled,
-            .depthBiasConstantFactor = description.rasterization.depthBiasConstantFactor,
-            .depthBiasClamp = description.rasterization.depthBiasClamp,
-            .depthBiasSlopeFactor = description.rasterization.depthBiasSlopeFactor,
-            .lineWidth = description.rasterization.lineWidth
+            .depthClampEnable = state.rasterization.isDepthClampEnabled,
+            .rasterizerDiscardEnable = state.rasterization.isRasterizerDiscardEnabled,
+            .polygonMode = toVkPolygonMode(state.rasterization.polygonMode),
+            .cullMode = toVkCullMode(state.rasterization.cullMode),
+            .frontFace = toVkFrontFace(state.rasterization.frontFace),
+            .depthBiasEnable = state.rasterization.isDepthBiasEnabled,
+            .depthBiasConstantFactor = state.rasterization.depthBiasConstantFactor,
+            .depthBiasClamp = state.rasterization.depthBiasClamp,
+            .depthBiasSlopeFactor = state.rasterization.depthBiasSlopeFactor,
+            .lineWidth = state.rasterization.lineWidth
         };
 
-        auto rasterizationSamples = toVkSampleCountFlagBits(description.multisampling.samples);
+        auto rasterizationSamples = toVkSampleCountFlagBits(state.multisampling.samples);
         if (!rasterizationSamples) {
             auto error = std::move(rasterizationSamples).error();
             error.details.emplace_back("While converting the graphics pipeline multisample state");
@@ -3001,47 +3003,47 @@ namespace Vixen {
             .pNext = nullptr,
             .flags = 0,
             .rasterizationSamples = *rasterizationSamples,
-            .sampleShadingEnable = description.multisampling.isSampleShadingEnabled,
-            .minSampleShading = description.multisampling.minSampleShading,
+            .sampleShadingEnable = state.multisampling.isSampleShadingEnabled,
+            .minSampleShading = state.multisampling.minSampleShading,
             .pSampleMask = nullptr,
-            .alphaToCoverageEnable = description.multisampling.isAlphaToCoverageEnabled,
-            .alphaToOneEnable = description.multisampling.isAlphaToOneEnabled
+            .alphaToCoverageEnable = state.multisampling.isAlphaToCoverageEnabled,
+            .alphaToOneEnable = state.multisampling.isAlphaToOneEnabled
         };
 
         const VkPipelineDepthStencilStateCreateInfo depthStencilState{
             .sType = VK_STRUCTURE_TYPE_PIPELINE_DEPTH_STENCIL_STATE_CREATE_INFO,
             .pNext = nullptr,
             .flags = 0,
-            .depthTestEnable = description.depthStencil.isDepthTestEnabled,
-            .depthWriteEnable = description.depthStencil.isDepthWriteEnabled,
-            .depthCompareOp = toVkCompareOperator(description.depthStencil.compareOperator),
-            .depthBoundsTestEnable = description.depthStencil.isDepthBoundsTestEnabled,
-            .stencilTestEnable = description.depthStencil.isStencilTestEnabled,
+            .depthTestEnable = state.depthStencil.isDepthTestEnabled,
+            .depthWriteEnable = state.depthStencil.isDepthWriteEnabled,
+            .depthCompareOp = toVkCompareOperator(state.depthStencil.compareOperator),
+            .depthBoundsTestEnable = state.depthStencil.isDepthBoundsTestEnabled,
+            .stencilTestEnable = state.depthStencil.isStencilTestEnabled,
             .front = {
-                .failOp = toVkStencilOperator(description.depthStencil.front.failOperator),
-                .passOp = toVkStencilOperator(description.depthStencil.front.passOperator),
-                .depthFailOp = toVkStencilOperator(description.depthStencil.front.depthFailOperator),
-                .compareOp = toVkCompareOperator(description.depthStencil.front.compareOperator),
-                .compareMask = description.depthStencil.front.compareMask,
-                .writeMask = description.depthStencil.front.writeMask,
-                .reference = description.depthStencil.front.reference
+                .failOp = toVkStencilOperator(state.depthStencil.front.failOperator),
+                .passOp = toVkStencilOperator(state.depthStencil.front.passOperator),
+                .depthFailOp = toVkStencilOperator(state.depthStencil.front.depthFailOperator),
+                .compareOp = toVkCompareOperator(state.depthStencil.front.compareOperator),
+                .compareMask = state.depthStencil.front.compareMask,
+                .writeMask = state.depthStencil.front.writeMask,
+                .reference = state.depthStencil.front.reference
             },
             .back = {
-                .failOp = toVkStencilOperator(description.depthStencil.back.failOperator),
-                .passOp = toVkStencilOperator(description.depthStencil.back.passOperator),
-                .depthFailOp = toVkStencilOperator(description.depthStencil.back.depthFailOperator),
-                .compareOp = toVkCompareOperator(description.depthStencil.back.compareOperator),
-                .compareMask = description.depthStencil.back.compareMask,
-                .writeMask = description.depthStencil.back.writeMask,
-                .reference = description.depthStencil.back.reference
+                .failOp = toVkStencilOperator(state.depthStencil.back.failOperator),
+                .passOp = toVkStencilOperator(state.depthStencil.back.passOperator),
+                .depthFailOp = toVkStencilOperator(state.depthStencil.back.depthFailOperator),
+                .compareOp = toVkCompareOperator(state.depthStencil.back.compareOperator),
+                .compareMask = state.depthStencil.back.compareMask,
+                .writeMask = state.depthStencil.back.writeMask,
+                .reference = state.depthStencil.back.reference
             },
-            .minDepthBounds = description.depthStencil.minDepthBounds,
-            .maxDepthBounds = description.depthStencil.maxDepthBounds
+            .minDepthBounds = state.depthStencil.minDepthBounds,
+            .maxDepthBounds = state.depthStencil.maxDepthBounds
         };
 
         std::vector<VkPipelineColorBlendAttachmentState> colorBlendAttachments{};
-        colorBlendAttachments.reserve(description.colorBlending.size());
-        for (const auto& attachment : description.colorBlending) {
+        colorBlendAttachments.reserve(state.colorBlending.size());
+        for (const auto& attachment : state.colorBlending) {
             colorBlendAttachments.push_back(VkPipelineColorBlendAttachmentState{
                 .blendEnable = attachment.isEnabled,
                 .srcColorBlendFactor = toVkBlendFactor(attachment.sourceColorBlendFactor),
@@ -3063,14 +3065,14 @@ namespace Vixen {
             .attachmentCount = static_cast<uint32_t>(colorBlendAttachments.size()),
             .pAttachments = colorBlendAttachments.data(),
             .blendConstants = {
-                description.blendConstants[0],
-                description.blendConstants[1],
-                description.blendConstants[2],
-                description.blendConstants[3]
+                state.blendConstants[0],
+                state.blendConstants[1],
+                state.blendConstants[2],
+                state.blendConstants[3]
             }
         };
 
-        const auto dynamicStates = toVkDynamicStates(description.dynamicStates);
+        const auto dynamicStates = toVkDynamicStates(state.dynamicStates);
         const VkPipelineDynamicStateCreateInfo dynamicState{
             .sType = VK_STRUCTURE_TYPE_PIPELINE_DYNAMIC_STATE_CREATE_INFO,
             .pNext = nullptr,
@@ -3093,14 +3095,14 @@ namespace Vixen {
             .sType = VK_STRUCTURE_TYPE_PIPELINE_INPUT_ASSEMBLY_STATE_CREATE_INFO,
             .pNext = nullptr,
             .flags = 0,
-            .topology = toVkPrimitiveTopology(description.topology),
-            .primitiveRestartEnable = description.isPrimitiveRestartEnabled
+            .topology = toVkPrimitiveTopology(state.topology),
+            .primitiveRestartEnable = state.isPrimitiveRestartEnabled
         };
 
         std::vector<VkFormat> colorAttachmentFormats{};
-        colorAttachmentFormats.reserve(description.colorFormats.size());
-        for (size_t attachmentIndex = 0; attachmentIndex < description.colorFormats.size(); ++attachmentIndex) {
-            auto format = toVkDataFormat(description.colorFormats[attachmentIndex]);
+        colorAttachmentFormats.reserve(state.colorFormats.size());
+        for (size_t attachmentIndex = 0; attachmentIndex < state.colorFormats.size(); ++attachmentIndex) {
+            auto format = toVkDataFormat(state.colorFormats[attachmentIndex]);
             if (!format) {
                 auto error = std::move(format).error();
                 error.details.push_back(std::format("While converting color attachment {}", attachmentIndex));
@@ -3112,17 +3114,17 @@ namespace Vixen {
 
         VkFormat depthAttachmentFormat = VK_FORMAT_UNDEFINED;
         VkFormat stencilAttachmentFormat = VK_FORMAT_UNDEFINED;
-        if (description.depthStencilFormat) {
-            auto format = toVkDataFormat(*description.depthStencilFormat);
+        if (state.depthStencilFormat) {
+            auto format = toVkDataFormat(*state.depthStencilFormat);
             if (!format) {
                 auto error = std::move(format).error();
                 error.details.emplace_back("While converting the depth/stencil attachment format");
                 return std::unexpected{std::move(error)};
             }
 
-            if (hasDepthAspect(*description.depthStencilFormat))
+            if (hasDepthAspect(*state.depthStencilFormat))
                 depthAttachmentFormat = *format;
-            if (hasStencilAspect(*description.depthStencilFormat))
+            if (hasStencilAspect(*state.depthStencilFormat))
                 stencilAttachmentFormat = *format;
         }
 
@@ -3172,16 +3174,20 @@ namespace Vixen {
             error.details.push_back(
                 std::format(
                     "Graphics pipeline contains {} vertex bindings, {} vertex attributes, and {} color attachments",
-                    description.vertexBindings.size(),
-                    description.vertexAttributes.size(),
-                    description.colorFormats.size()
+                    state.vertexBindings.size(),
+                    state.vertexAttributes.size(),
+                    state.colorFormats.size()
                 )
             );
 
             return std::unexpected{std::move(error)};
         }
 
-        auto graphicsPipeline = new(std::nothrow) VulkanGraphicsPipeline{*vkLayout, pipeline};
+        auto graphicsPipeline = new(std::nothrow) VulkanGraphicsPipeline{
+            *vkLayout,
+            state,
+            pipeline
+        };
         if (graphicsPipeline == nullptr) {
             vkDestroyPipeline(device, pipeline, nullptr);
 
@@ -3228,7 +3234,7 @@ namespace Vixen {
                 }
             };
 
-        if (shader->stages != ShaderStageFlags{ShaderStageBits::Compute})
+        if (shader->getStageFlags() != ShaderStageFlags{ShaderStageBits::Compute})
             return std::unexpected{
                 ResourceCreationError{
                     .code = ResourceCreationErrorCode::InvalidDescription,
@@ -3552,8 +3558,8 @@ namespace Vixen {
     }
 
     void VulkanRenderingDeviceDriver::commandBindVertexBuffers(
-        CommandBuffer* commandBuffer,
-        uint32_t count,
+        const CommandBuffer* commandBuffer,
+        const uint32_t count,
         const std::vector<Buffer*>& buffers,
         const std::vector<uint64_t>& offsets
     ) {
@@ -3563,22 +3569,22 @@ namespace Vixen {
             vkBuffers.push_back(dynamic_cast<VulkanBuffer*>(buffer)->buffer);
 
         vkCmdBindVertexBuffers(
-            dynamic_cast<VulkanCommandBuffer*>(commandBuffer)->commandBuffer,
+            dynamic_cast<const VulkanCommandBuffer*>(commandBuffer)->commandBuffer,
             0,
-            vkBuffers.size(),
+            count,
             vkBuffers.data(),
             offsets.data()
         );
     }
 
     void VulkanRenderingDeviceDriver::commandBindIndexBuffers(
-        CommandBuffer* commandBuffer,
+        const CommandBuffer* commandBuffer,
         Buffer* buffer,
         const IndexFormat format,
         const uint64_t offset
     ) {
         vkCmdBindIndexBuffer(
-            dynamic_cast<VulkanCommandBuffer*>(commandBuffer)->commandBuffer,
+            dynamic_cast<const VulkanCommandBuffer*>(commandBuffer)->commandBuffer,
             dynamic_cast<VulkanBuffer*>(buffer)->buffer,
             offset,
             requireVkConversion(toVkIndexType(format))
