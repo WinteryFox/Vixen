@@ -398,5 +398,9 @@ namespace Vixen {
         [[nodiscard]] bool isVertexInputFormatSupported(
             ImageDataFormat format
         ) const override;
+
+        [[nodiscard]] bool isColorBlendSupported(
+            ImageDataFormat format
+        ) const override;
     };
 }

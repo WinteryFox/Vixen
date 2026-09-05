@@ -460,7 +460,7 @@ namespace Vixen {
             const bool hasDepth = description.depthStencilFormat && hasDepthAspect(*description.depthStencilFormat);
             const bool hasStencil = description.depthStencilFormat && hasStencilAspect(*description.depthStencilFormat);
             if ((description.depthStencil.isDepthTestEnabled || description.depthStencil.isDepthWriteEnabled ||
-                 description.depthStencil.isDepthBoundsTestEnabled) && !hasDepth)
+                description.depthStencil.isDepthBoundsTestEnabled) && !hasDepth)
                 return std::unexpected{
                     ResourceCreationError{
                         .code = ResourceCreationErrorCode::CompatibilityError,
@@ -482,7 +482,8 @@ namespace Vixen {
                 static_cast<uint32_t>(ColorComponentBits::Alpha);
             for (size_t attachmentIndex = 0; attachmentIndex < description.colorBlending.size(); ++attachmentIndex) {
                 const auto& attachment = description.colorBlending[attachmentIndex];
-                const uint32_t unsupportedColorComponents = attachment.colorWriteMask.value() & ~supportedColorWriteMask;
+                const uint32_t unsupportedColorComponents = attachment.colorWriteMask.value() & ~
+                    supportedColorWriteMask;
                 if (unsupportedColorComponents != 0)
                     return std::unexpected{
                         ResourceCreationError{
@@ -496,11 +497,15 @@ namespace Vixen {
                     };
 
                 const std::array results{
-                    validateEnum(attachment.sourceColorBlendFactor, BlendFactor::SrcAlphaSaturate, "source color blend factor"),
-                    validateEnum(attachment.destinationColorBlendFactor, BlendFactor::SrcAlphaSaturate, "destination color blend factor"),
+                    validateEnum(attachment.sourceColorBlendFactor, BlendFactor::SrcAlphaSaturate,
+                                 "source color blend factor"),
+                    validateEnum(attachment.destinationColorBlendFactor, BlendFactor::SrcAlphaSaturate,
+                                 "destination color blend factor"),
                     validateEnum(attachment.colorBlendOperation, BlendOperation::Max, "color blend operation"),
-                    validateEnum(attachment.sourceAlphaBlendFactor, BlendFactor::SrcAlphaSaturate, "source alpha blend factor"),
-                    validateEnum(attachment.destinationAlphaBlendFactor, BlendFactor::SrcAlphaSaturate, "destination alpha blend factor"),
+                    validateEnum(attachment.sourceAlphaBlendFactor, BlendFactor::SrcAlphaSaturate,
+                                 "source alpha blend factor"),
+                    validateEnum(attachment.destinationAlphaBlendFactor, BlendFactor::SrcAlphaSaturate,
+                                 "destination alpha blend factor"),
                     validateEnum(attachment.alphaBlendOperation, BlendOperation::Max, "alpha blend operation")
                 };
                 for (const auto& result : results)
@@ -1760,6 +1765,26 @@ namespace Vixen {
                         .details = {
                             std::format("Color attachment: {}", attachmentIndex),
                             std::format("Format value: {}", static_cast<uint32_t>(format))
+                        }
+                    }
+                };
+
+            if (description.colorBlending[attachmentIndex].isEnabled &&
+                !renderingDeviceDriver->isColorBlendSupported(format))
+                return std::unexpected{
+                    ResourceCreationError{
+                        .code = ResourceCreationErrorCode::UnsupportedFormat,
+                        .message =
+                        "Graphics pipeline enables blending for a color attachment format that does not support it",
+                        .details = {
+                            std::format(
+                                "Color attachment: {}",
+                                attachmentIndex
+                            ),
+                            std::format(
+                                "Format value: {}",
+                                static_cast<uint32_t>(format)
+                            )
                         }
                     }
                 };

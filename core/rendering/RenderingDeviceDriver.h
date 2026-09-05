@@ -385,5 +385,9 @@ namespace Vixen {
         [[nodiscard]] virtual bool isVertexInputFormatSupported(
             ImageDataFormat format
         ) const = 0;
+
+        [[nodiscard]] virtual bool isColorBlendSupported(
+            ImageDataFormat format
+        ) const = 0;
     };
 }

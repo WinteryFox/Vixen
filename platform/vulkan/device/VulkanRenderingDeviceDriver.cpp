@@ -2962,7 +2962,7 @@ namespace Vixen {
             });
         }
 
-        VkPipelineVertexInputStateCreateInfo vertexInputState{
+        const VkPipelineVertexInputStateCreateInfo vertexInputState{
             .sType = VK_STRUCTURE_TYPE_PIPELINE_VERTEX_INPUT_STATE_CREATE_INFO,
             .pNext = nullptr,
             .flags = 0,
@@ -2972,7 +2972,7 @@ namespace Vixen {
             .pVertexAttributeDescriptions = vertexAttributes.data()
         };
 
-        VkPipelineRasterizationStateCreateInfo rasterizationState{
+        const VkPipelineRasterizationStateCreateInfo rasterizationState{
             .sType = VK_STRUCTURE_TYPE_PIPELINE_RASTERIZATION_STATE_CREATE_INFO,
             .pNext = nullptr,
             .flags = 0,
@@ -2996,7 +2996,7 @@ namespace Vixen {
             return std::unexpected{std::move(error)};
         }
 
-        VkPipelineMultisampleStateCreateInfo multisampleState{
+        const VkPipelineMultisampleStateCreateInfo multisampleState{
             .sType = VK_STRUCTURE_TYPE_PIPELINE_MULTISAMPLE_STATE_CREATE_INFO,
             .pNext = nullptr,
             .flags = 0,
@@ -3008,7 +3008,7 @@ namespace Vixen {
             .alphaToOneEnable = description.multisampling.isAlphaToOneEnabled
         };
 
-        VkPipelineDepthStencilStateCreateInfo depthStencilState{
+        const VkPipelineDepthStencilStateCreateInfo depthStencilState{
             .sType = VK_STRUCTURE_TYPE_PIPELINE_DEPTH_STENCIL_STATE_CREATE_INFO,
             .pNext = nullptr,
             .flags = 0,
@@ -4120,5 +4120,22 @@ namespace Vixen {
         VkFormatProperties properties{};
         vkGetPhysicalDeviceFormatProperties(physicalDevice, *vkFormat, &properties);
         return (properties.bufferFeatures & VK_FORMAT_FEATURE_VERTEX_BUFFER_BIT) != 0;
+    }
+
+    bool VulkanRenderingDeviceDriver::isColorBlendSupported(
+        const ImageDataFormat format
+    ) const {
+        const auto vkFormat = toVkDataFormat(format);
+        if (!vkFormat)
+            return false;
+
+        VkFormatProperties properties{};
+        vkGetPhysicalDeviceFormatProperties(
+            physicalDevice,
+            *vkFormat,
+            &properties
+        );
+
+        return properties.optimalTilingFeatures & VK_FORMAT_FEATURE_COLOR_ATTACHMENT_BLEND_BIT;
     }
 }
