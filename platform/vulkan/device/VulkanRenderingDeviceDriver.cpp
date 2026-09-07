@@ -46,7 +46,10 @@ namespace Vixen {
                 code = CommandErrorCode::OutOfHostMemory;
             else if (result == VK_ERROR_OUT_OF_DEVICE_MEMORY)
                 code = CommandErrorCode::OutOfDeviceMemory;
-            return {code, std::format("{} failed with {} ({})", operation, string_VkResult(result), static_cast<int32_t>(result))};
+            return {
+                code,
+                std::format("{} failed with {} ({})", operation, string_VkResult(result), static_cast<int32_t>(result))
+            };
         }
 
         [[nodiscard]] auto resourceCreationErrorCode(
@@ -1309,7 +1312,9 @@ namespace Vixen {
             return result;
         auto* vkPool = dynamic_cast<VulkanCommandPool*>(pool);
         if (vkPool == nullptr)
-            return std::unexpected{CommandError{CommandErrorCode::InvalidArgument, "resetCommandPool: pool belongs to a different backend"}};
+            return std::unexpected{
+                CommandError{CommandErrorCode::InvalidArgument, "resetCommandPool: pool belongs to a different backend"}
+            };
         if (const auto result = vkResetCommandPool(device, vkPool->pool, 0); result != VK_SUCCESS)
             return std::unexpected{makeCommandError(result, "vkResetCommandPool")};
         for (auto* commandBuffer : pool->commandBuffers)
@@ -1392,7 +1397,12 @@ namespace Vixen {
         if (auto result = RenderingDeviceDriver::beginCommandBuffer(commandBuffer); !result)
             return result;
         if (dynamic_cast<VulkanCommandBuffer*>(commandBuffer) == nullptr)
-            return std::unexpected{CommandError{CommandErrorCode::InvalidArgument, "beginCommandBuffer: command buffer belongs to a different backend"}};
+            return std::unexpected{
+                CommandError{
+                    .code = CommandErrorCode::InvalidArgument,
+                    .message = "beginCommandBuffer: command buffer belongs to a different backend"
+                }
+            };
 
         const auto o = dynamic_cast<VulkanCommandBuffer*>(commandBuffer);
 
@@ -1431,9 +1441,19 @@ namespace Vixen {
 
         return {};
     } catch (const std::bad_alloc&) {
-        return std::unexpected{CommandError{CommandErrorCode::OutOfHostMemory, "beginCommandBuffer: host allocation failed"}};
+        return std::unexpected{
+            CommandError{
+                .code = CommandErrorCode::OutOfHostMemory,
+                .message = "beginCommandBuffer: host allocation failed"
+            }
+        };
     } catch (const std::invalid_argument& error) {
-        return std::unexpected{CommandError{CommandErrorCode::InvalidArgument, error.what()}};
+        return std::unexpected{
+            CommandError{
+                .code = CommandErrorCode::InvalidArgument,
+                .message = error.what()
+            }
+        };
     }
 
     auto VulkanRenderingDeviceDriver::endCommandBuffer(
@@ -1442,7 +1462,12 @@ namespace Vixen {
         if (auto result = RenderingDeviceDriver::endCommandBuffer(commandBuffer); !result)
             return result;
         if (dynamic_cast<VulkanCommandBuffer*>(commandBuffer) == nullptr)
-            return std::unexpected{CommandError{CommandErrorCode::InvalidArgument, "endCommandBuffer: command buffer belongs to a different backend"}};
+            return std::unexpected{
+                CommandError{
+                    .code = CommandErrorCode::InvalidArgument,
+                    .message = "endCommandBuffer: command buffer belongs to a different backend"
+                }
+            };
 
         const auto o = dynamic_cast<VulkanCommandBuffer*>(commandBuffer);
         const auto result = vkEndCommandBuffer(o->commandBuffer);
@@ -1455,7 +1480,9 @@ namespace Vixen {
 
         return {};
     } catch (const std::bad_alloc&) {
-        return std::unexpected{CommandError{CommandErrorCode::OutOfHostMemory, "endCommandBuffer: host allocation failed"}};
+        return std::unexpected{
+            CommandError{CommandErrorCode::OutOfHostMemory, "endCommandBuffer: host allocation failed"}
+        };
     } catch (const std::invalid_argument& error) {
         return std::unexpected{CommandError{CommandErrorCode::InvalidArgument, error.what()}};
     }
@@ -1492,15 +1519,26 @@ namespace Vixen {
         Fence* fence,
         const std::vector<Swapchain*>& swapchains
     ) -> std::expected<void, CommandError> try {
-        if (auto result = RenderingDeviceDriver::executeCommandQueueAndPresent(commandQueue, waitSemaphores, commandBuffers, signalSemaphores, fence, swapchains); !result)
+        if (auto result = RenderingDeviceDriver::executeCommandQueueAndPresent(
+            commandQueue, waitSemaphores, commandBuffers, signalSemaphores, fence, swapchains); !result)
             return result;
         const auto vkCommandQueue = dynamic_cast<VulkanCommandQueue*>(commandQueue);
         if (vkCommandQueue == nullptr)
-            return std::unexpected{CommandError{CommandErrorCode::NativeOperationFailed, "executeCommandQueueAndPresent: submission or presentation operation failed"}};
+            return std::unexpected{
+                CommandError{
+                    .code = CommandErrorCode::NativeOperationFailed,
+                    .message = "executeCommandQueueAndPresent: submission or presentation operation failed"
+                }
+            };
 
         if (!swapchains.empty() &&
             (queueFamilyProperties[vkCommandQueue->queueFamily].queueFlags & VK_QUEUE_GRAPHICS_BIT) == 0)
-            return std::unexpected{CommandError{CommandErrorCode::NativeOperationFailed, "executeCommandQueueAndPresent: submission or presentation operation failed"}};
+            return std::unexpected{
+                CommandError{
+                    .code = CommandErrorCode::NativeOperationFailed,
+                    .message = "executeCommandQueueAndPresent: submission or presentation operation failed"
+                }
+            };
 
         for (const auto swapchain : swapchains) {
             const auto vkSwapchain = dynamic_cast<VulkanSwapchain*>(swapchain);
@@ -1512,34 +1550,67 @@ namespace Vixen {
                     vkSwapchain->presentQueueFamily,
                     vkSwapchain->surface
                 ))
-                return std::unexpected{CommandError{CommandErrorCode::NativeOperationFailed, "executeCommandQueueAndPresent: submission or presentation operation failed"}};
+                return std::unexpected{
+                    CommandError{
+                        .code = CommandErrorCode::NativeOperationFailed,
+                        .message = "executeCommandQueueAndPresent: submission or presentation operation failed"
+                    }
+                };
         }
 
         Queue& queue = queueFamilies[vkCommandQueue->queueFamily][vkCommandQueue->queueIndex];
         const auto vkFence = dynamic_cast<VulkanFence*>(fence);
         if (fence != nullptr && vkFence == nullptr)
-            return std::unexpected{CommandError{CommandErrorCode::InvalidArgument, "executeCommandQueueAndPresent: fence belongs to a different backend"}};
+            return std::unexpected{
+                CommandError{
+                    .code = CommandErrorCode::InvalidArgument,
+                    .message = "executeCommandQueueAndPresent: fence belongs to a different backend"
+                }
+            };
         if (vkFence && vkFence->submitted)
-            return std::unexpected{CommandError{CommandErrorCode::InvalidState, "executeCommandQueueAndPresent: wait on and reset the submission fence before reusing it"}};
+            return std::unexpected{
+                CommandError{
+                    .code = CommandErrorCode::InvalidState,
+                    .message = "executeCommandQueueAndPresent: wait on and reset the submission fence before reusing it"
+                }
+            };
         for (auto* commandBuffer : commandBuffers)
             if (dynamic_cast<VulkanCommandBuffer*>(commandBuffer) == nullptr ||
                 commandBuffer->pool->queueFamily != vkCommandQueue->queueFamily)
-                return std::unexpected{CommandError{CommandErrorCode::InvalidArgument, "executeCommandQueueAndPresent: command buffer backend or queue family does not match the queue"}};
+                return std::unexpected{
+                    CommandError{
+                        .code = CommandErrorCode::InvalidArgument,
+                        .message =
+                        "executeCommandQueueAndPresent: command buffer backend or queue family does not match the queue"
+                    }
+                };
         for (auto* semaphore : waitSemaphores)
             if (dynamic_cast<VulkanSemaphore*>(semaphore) == nullptr)
-                return std::unexpected{CommandError{CommandErrorCode::InvalidArgument, "executeCommandQueueAndPresent: wait semaphore belongs to a different backend"}};
+                return std::unexpected{
+                    CommandError{
+                        .code = CommandErrorCode::InvalidArgument,
+                        .message = "executeCommandQueueAndPresent: wait semaphore belongs to a different backend"
+                    }
+                };
         for (auto* semaphore : signalSemaphores)
             if (dynamic_cast<VulkanSemaphore*>(semaphore) == nullptr)
-                return std::unexpected{CommandError{CommandErrorCode::InvalidArgument, "executeCommandQueueAndPresent: signal semaphore belongs to a different backend"}};
+                return std::unexpected{
+                    CommandError{
+                        .code = CommandErrorCode::InvalidArgument,
+                        .message = "executeCommandQueueAndPresent: signal semaphore belongs to a different backend"
+                    }
+                };
 
         std::erase_if(vkCommandQueue->commandSubmissions, [](const auto& state) {
             return state->load() != CommandBuffer::State::Pending;
         });
-        auto submissionState = commandBuffers.empty() ? nullptr :
-            std::make_shared<std::atomic<CommandBuffer::State>>(CommandBuffer::State::Pending);
+        auto submissionState = commandBuffers.empty()
+                                   ? nullptr
+                                   : std::make_shared<std::atomic<CommandBuffer::State>>(CommandBuffer::State::Pending);
         // Prepare all completion bookkeeping before submitting any native commands.
-        auto fenceSubmissions = vkFence ? vkCommandQueue->commandSubmissions :
-            decltype(vkCommandQueue->commandSubmissions){};
+        auto fenceSubmissions = vkFence
+                                    ? vkCommandQueue->commandSubmissions
+                                    : decltype(vkCommandQueue->commandSubmissions){};
         if (submissionState) {
             vkCommandQueue->commandSubmissions.reserve(vkCommandQueue->commandSubmissions.size() + 1);
             if (vkFence)
@@ -1660,7 +1731,12 @@ namespace Vixen {
                 CRASH("Vulkan device lost");
             }
             if (submitResult != VK_SUCCESS)
-                return std::unexpected{CommandError{CommandErrorCode::NativeOperationFailed, "executeCommandQueueAndPresent: submission or presentation operation failed"}};
+                return std::unexpected{
+                    CommandError{
+                        CommandErrorCode::NativeOperationFailed,
+                        "executeCommandQueueAndPresent: submission or presentation operation failed"
+                    }
+                };
 
             for (auto* commandBuffer : commandBuffers) {
                 commandBuffer->submissionState = submissionState;
@@ -1699,7 +1775,12 @@ namespace Vixen {
                     };
 
                     if (vkCreateCommandPool(device, &poolInfo, nullptr, &vkSwapchain->blitCommandPool) != VK_SUCCESS)
-                        return std::unexpected{CommandError{CommandErrorCode::NativeOperationFailed, "executeCommandQueueAndPresent: submission or presentation operation failed"}};
+                        return std::unexpected{
+                            CommandError{
+                                CommandErrorCode::NativeOperationFailed,
+                                "executeCommandQueueAndPresent: submission or presentation operation failed"
+                            }
+                        };
 
                     const auto commandBufferCount = static_cast<uint32_t>(vkSwapchain->resolveImages.size());
 
@@ -1715,7 +1796,12 @@ namespace Vixen {
 
                     if (vkAllocateCommandBuffers(device, &commandBufferInfo, vkSwapchain->blitCommandBuffers.data())
                         != VK_SUCCESS)
-                        return std::unexpected{CommandError{CommandErrorCode::NativeOperationFailed, "executeCommandQueueAndPresent: submission or presentation operation failed"}};
+                        return std::unexpected{
+                            CommandError{
+                                .code = CommandErrorCode::NativeOperationFailed,
+                                .message = "executeCommandQueueAndPresent: submission or presentation operation failed"
+                            }
+                        };
                 }
 
                 const uint32_t imageIndex = vkSwapchain->imageIndex;
@@ -1723,7 +1809,12 @@ namespace Vixen {
                 if (imageIndex >= vkSwapchain->blitCommandBuffers.size() ||
                     imageIndex >= vkSwapchain->blitFences.size() ||
                     imageIndex >= vkSwapchain->blitSemaphores.size()) {
-                    return std::unexpected{CommandError{CommandErrorCode::NativeOperationFailed, "executeCommandQueueAndPresent: submission or presentation operation failed"}};
+                    return std::unexpected{
+                        CommandError{
+                            .code = CommandErrorCode::NativeOperationFailed,
+                            .message = "executeCommandQueueAndPresent: submission or presentation operation failed"
+                        }
+                    };
                 }
 
                 const auto blitFence = vkSwapchain->blitFences[imageIndex];
@@ -1731,15 +1822,30 @@ namespace Vixen {
 
                 if (vkWaitForFences(device, 1, &blitFence, VK_TRUE, std::numeric_limits<uint64_t>::max()) !=
                     VK_SUCCESS)
-                    return std::unexpected{CommandError{CommandErrorCode::NativeOperationFailed, "executeCommandQueueAndPresent: submission or presentation operation failed"}};
+                    return std::unexpected{
+                        CommandError{
+                            .code = CommandErrorCode::NativeOperationFailed,
+                            .message = "executeCommandQueueAndPresent: submission or presentation operation failed"
+                        }
+                    };
 
                 if (vkResetFences(device, 1, &blitFence) != VK_SUCCESS)
-                    return std::unexpected{CommandError{CommandErrorCode::NativeOperationFailed, "executeCommandQueueAndPresent: submission or presentation operation failed"}};
+                    return std::unexpected{
+                        CommandError{
+                            .code = CommandErrorCode::NativeOperationFailed,
+                            .message = "executeCommandQueueAndPresent: submission or presentation operation failed"
+                        }
+                    };
 
                 if (vkResetCommandBuffer(commandBuffer, 0) != VK_SUCCESS)
-                    return std::unexpected{CommandError{CommandErrorCode::NativeOperationFailed, "executeCommandQueueAndPresent: submission or presentation operation failed"}};
+                    return std::unexpected{
+                        CommandError{
+                            .code = CommandErrorCode::NativeOperationFailed,
+                            .message = "executeCommandQueueAndPresent: submission or presentation operation failed"
+                        }
+                    };
 
-                const VkCommandBufferBeginInfo beginInfo{
+                constexpr VkCommandBufferBeginInfo beginInfo{
                     .sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO,
                     .pNext = nullptr,
                     .flags = VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT,
@@ -1747,7 +1853,12 @@ namespace Vixen {
                 };
 
                 if (vkBeginCommandBuffer(commandBuffer, &beginInfo) != VK_SUCCESS)
-                    return std::unexpected{CommandError{CommandErrorCode::NativeOperationFailed, "executeCommandQueueAndPresent: submission or presentation operation failed"}};
+                    return std::unexpected{
+                        CommandError{
+                            .code = CommandErrorCode::NativeOperationFailed,
+                            .message = "executeCommandQueueAndPresent: submission or presentation operation failed"
+                        }
+                    };
 
                 VkImageMemoryBarrier transferSrcBarrier{
                     .sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER,
@@ -1890,7 +2001,12 @@ namespace Vixen {
                 );
 
                 if (vkEndCommandBuffer(commandBuffer) != VK_SUCCESS)
-                    return std::unexpected{CommandError{CommandErrorCode::NativeOperationFailed, "executeCommandQueueAndPresent: submission or presentation operation failed"}};
+                    return std::unexpected{
+                        CommandError{
+                            .code = CommandErrorCode::NativeOperationFailed,
+                            .message = "executeCommandQueueAndPresent: submission or presentation operation failed"
+                        }
+                    };
 
                 const VkCommandBufferSubmitInfo commandBufferInfo{
                     .sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_SUBMIT_INFO,
@@ -1946,7 +2062,12 @@ namespace Vixen {
                 }
 
                 if (submitResult != VK_SUCCESS)
-                    return std::unexpected{CommandError{CommandErrorCode::NativeOperationFailed, "executeCommandQueueAndPresent: submission or presentation operation failed"}};
+                    return std::unexpected{
+                        CommandError{
+                            .code = CommandErrorCode::NativeOperationFailed,
+                            .message = "executeCommandQueueAndPresent: submission or presentation operation failed"
+                        }
+                    };
 
                 firstPresentSubmit = false;
 
@@ -1974,7 +2095,12 @@ namespace Vixen {
                     CRASH("Vulkan device lost");
                 }
                 if (fenceSubmitResult != VK_SUCCESS)
-                    return std::unexpected{CommandError{CommandErrorCode::NativeOperationFailed, "executeCommandQueueAndPresent: submission or presentation operation failed"}};
+                    return std::unexpected{
+                        CommandError{
+                            .code = CommandErrorCode::NativeOperationFailed,
+                            .message = "executeCommandQueueAndPresent: submission or presentation operation failed"
+                        }
+                    };
 
                 vkFence->commandSubmissions = std::move(fenceSubmissions);
                 vkFence->submitted = true;
@@ -2054,12 +2180,22 @@ namespace Vixen {
             }
 
             if (resizeRequired || presentationFailed)
-                return std::unexpected{CommandError{CommandErrorCode::NativeOperationFailed, "executeCommandQueueAndPresent: submission or presentation operation failed"}};
+                return std::unexpected{
+                    CommandError{
+                        .code = CommandErrorCode::NativeOperationFailed,
+                        .message = "executeCommandQueueAndPresent: submission or presentation operation failed"
+                    }
+                };
         }
 
         return {};
     } catch (const std::bad_alloc&) {
-        return std::unexpected{CommandError{CommandErrorCode::OutOfHostMemory, "executeCommandQueueAndPresent: host allocation failed"}};
+        return std::unexpected{
+            CommandError{
+                .code = CommandErrorCode::OutOfHostMemory,
+                .message = "executeCommandQueueAndPresent: host allocation failed"
+            }
+        };
     }
 
     void VulkanRenderingDeviceDriver::destroyCommandQueue(
@@ -3538,7 +3674,12 @@ namespace Vixen {
         if (auto result = RenderingDeviceDriver::commandBeginRenderPass(commandBuffer, renderingInfo); !result)
             return result;
         if (dynamic_cast<VulkanCommandBuffer*>(commandBuffer) == nullptr)
-            return std::unexpected{CommandError{CommandErrorCode::InvalidArgument, "commandBeginRenderPass: command buffer belongs to a different backend"}};
+            return std::unexpected{
+                CommandError{
+                    .code = CommandErrorCode::InvalidArgument,
+                    .message = "commandBeginRenderPass: command buffer belongs to a different backend"
+                }
+            };
 
         auto* vkCommandBuffer = dynamic_cast<VulkanCommandBuffer*>(commandBuffer);
 
@@ -3546,11 +3687,15 @@ namespace Vixen {
         colorAttachments.clear();
 
         for (const auto& attachment : renderingInfo.colorAttachments) {
-
             const auto* vkImage = dynamic_cast<VulkanImage*>(attachment.image);
 
             if (vkImage == nullptr)
-                return std::unexpected{CommandError{CommandErrorCode::InvalidArgument, "commandBeginRenderPass: color attachment belongs to a different backend"}};
+                return std::unexpected{
+                    CommandError{
+                        .code = CommandErrorCode::InvalidArgument,
+                        .message = "commandBeginRenderPass: color attachment belongs to a different backend"
+                    }
+                };
 
             // TODO: Handle resolve
 
@@ -3590,7 +3735,12 @@ namespace Vixen {
             const auto* vkImage = dynamic_cast<VulkanImage*>(attachment.image);
 
             if (vkImage == nullptr)
-                return std::unexpected{CommandError{CommandErrorCode::InvalidArgument, "commandBeginRenderPass: depth/stencil attachment belongs to a different backend"}};
+                return std::unexpected{
+                    CommandError{
+                        .code = CommandErrorCode::InvalidArgument,
+                        .message = "commandBeginRenderPass: depth/stencil attachment belongs to a different backend"
+                    }
+                };
 
             const auto format = attachment.image->format.format;
 
@@ -3664,9 +3814,19 @@ namespace Vixen {
 
         return {};
     } catch (const std::bad_alloc&) {
-        return std::unexpected{CommandError{CommandErrorCode::OutOfHostMemory, "commandBeginRenderPass: host allocation failed"}};
+        return std::unexpected{
+            CommandError{
+                .code = CommandErrorCode::OutOfHostMemory,
+                .message = "commandBeginRenderPass: host allocation failed"
+            }
+        };
     } catch (const std::invalid_argument& error) {
-        return std::unexpected{CommandError{CommandErrorCode::InvalidArgument, error.what()}};
+        return std::unexpected{
+            CommandError{
+                .code = CommandErrorCode::InvalidArgument,
+                .message = error.what()
+            }
+        };
     }
 
     auto VulkanRenderingDeviceDriver::commandEndRenderPass(
@@ -3675,14 +3835,24 @@ namespace Vixen {
         if (auto result = RenderingDeviceDriver::commandEndRenderPass(commandBuffer); !result)
             return result;
         if (dynamic_cast<VulkanCommandBuffer*>(commandBuffer) == nullptr)
-            return std::unexpected{CommandError{CommandErrorCode::InvalidArgument, "commandEndRenderPass: command buffer belongs to a different backend"}};
+            return std::unexpected{
+                CommandError{
+                    .code = CommandErrorCode::InvalidArgument,
+                    .message = "commandEndRenderPass: command buffer belongs to a different backend"
+                }
+            };
 
         vkCmdEndRendering(dynamic_cast<VulkanCommandBuffer*>(commandBuffer)->commandBuffer);
         commandBuffer->renderingState.reset();
 
         return {};
     } catch (const std::bad_alloc&) {
-        return std::unexpected{CommandError{CommandErrorCode::OutOfHostMemory, "commandEndRenderPass: host allocation failed"}};
+        return std::unexpected{
+            CommandError{
+                .code = CommandErrorCode::OutOfHostMemory,
+                .message = "commandEndRenderPass: host allocation failed"
+            }
+        };
     } catch (const std::invalid_argument& error) {
         return std::unexpected{CommandError{CommandErrorCode::InvalidArgument, error.what()}};
     }
@@ -3694,16 +3864,31 @@ namespace Vixen {
         if (auto result = RenderingDeviceDriver::commandSetViewport(commandBuffer, viewports); !result)
             return result;
         if (dynamic_cast<VulkanCommandBuffer*>(commandBuffer) == nullptr)
-            return std::unexpected{CommandError{CommandErrorCode::InvalidArgument, "commandSetViewport: command buffer belongs to a different backend"}};
+            return std::unexpected{
+                CommandError{
+                    .code = CommandErrorCode::InvalidArgument,
+                    .message = "commandSetViewport: command buffer belongs to a different backend"
+                }
+            };
 
         if (viewports.size() != 1)
-            return std::unexpected{CommandError{CommandErrorCode::InvalidArgument, "commandSetViewport: this backend currently enables only one viewport"}};
+            return std::unexpected{
+                CommandError{
+                    .code = CommandErrorCode::InvalidArgument,
+                    .message = "commandSetViewport: this backend currently enables only one viewport"
+                }
+            };
         for (const auto& viewport : viewports)
             if (viewport.x > physicalDeviceProperties.limits.maxViewportDimensions[0] ||
                 viewport.y > physicalDeviceProperties.limits.maxViewportDimensions[1] ||
                 static_cast<double>(viewport.x) > physicalDeviceProperties.limits.viewportBoundsRange[1] ||
                 static_cast<double>(viewport.y) > physicalDeviceProperties.limits.viewportBoundsRange[1])
-                return std::unexpected{CommandError{CommandErrorCode::InvalidArgument, "commandSetViewport: viewport exceeds device limits"}};
+                return std::unexpected{
+                    CommandError{
+                        .code = CommandErrorCode::InvalidArgument,
+                        .message = "commandSetViewport: viewport exceeds device limits"
+                    }
+                };
 
         std::vector<VkViewport> vkViewports{};
         vkViewports.reserve(viewports.size());
@@ -3730,9 +3915,19 @@ namespace Vixen {
 
         return {};
     } catch (const std::bad_alloc&) {
-        return std::unexpected{CommandError{CommandErrorCode::OutOfHostMemory, "commandSetViewport: host allocation failed"}};
+        return std::unexpected{
+            CommandError{
+                .code = CommandErrorCode::OutOfHostMemory,
+                .message = "commandSetViewport: host allocation failed"
+            }
+        };
     } catch (const std::invalid_argument& error) {
-        return std::unexpected{CommandError{CommandErrorCode::InvalidArgument, error.what()}};
+        return std::unexpected{
+            CommandError{
+                .code = CommandErrorCode::InvalidArgument,
+                .message = error.what()
+            }
+        };
     }
 
     auto VulkanRenderingDeviceDriver::commandSetScissor(
@@ -3742,10 +3937,20 @@ namespace Vixen {
         if (auto result = RenderingDeviceDriver::commandSetScissor(commandBuffer, scissors); !result)
             return result;
         if (dynamic_cast<VulkanCommandBuffer*>(commandBuffer) == nullptr)
-            return std::unexpected{CommandError{CommandErrorCode::InvalidArgument, "commandSetScissor: command buffer belongs to a different backend"}};
+            return std::unexpected{
+                CommandError{
+                    .code = CommandErrorCode::InvalidArgument,
+                    .message = "commandSetScissor: command buffer belongs to a different backend"
+                }
+            };
 
         if (scissors.size() != 1)
-            return std::unexpected{CommandError{CommandErrorCode::InvalidArgument, "commandSetScissor: this backend currently enables only one scissor"}};
+            return std::unexpected{
+                CommandError{
+                    .code = CommandErrorCode::InvalidArgument,
+                    .message = "commandSetScissor: this backend currently enables only one scissor"
+                }
+            };
 
         std::vector<VkRect2D> vkScissors{};
         vkScissors.reserve(scissors.size());
@@ -3774,19 +3979,34 @@ namespace Vixen {
 
         return {};
     } catch (const std::bad_alloc&) {
-        return std::unexpected{CommandError{CommandErrorCode::OutOfHostMemory, "commandSetScissor: host allocation failed"}};
+        return std::unexpected{
+            CommandError{
+                .code = CommandErrorCode::OutOfHostMemory,
+                .message = "commandSetScissor: host allocation failed"
+            }
+        };
     } catch (const std::invalid_argument& error) {
-        return std::unexpected{CommandError{CommandErrorCode::InvalidArgument, error.what()}};
+        return std::unexpected{
+            CommandError{
+                .code = CommandErrorCode::InvalidArgument,
+                .message = error.what()
+            }
+        };
     }
 
     auto VulkanRenderingDeviceDriver::commandSetBlendConstants(
         CommandBuffer* commandBuffer,
-        glm::vec4 blendConstants
+        const glm::vec4 blendConstants
     ) -> std::expected<void, CommandError> try {
         if (auto result = RenderingDeviceDriver::commandSetBlendConstants(commandBuffer, blendConstants); !result)
             return result;
         if (dynamic_cast<VulkanCommandBuffer*>(commandBuffer) == nullptr)
-            return std::unexpected{CommandError{CommandErrorCode::InvalidArgument, "commandSetBlendConstants: command buffer belongs to a different backend"}};
+            return std::unexpected{
+                CommandError{
+                    .code = CommandErrorCode::InvalidArgument,
+                    .message = "commandSetBlendConstants: command buffer belongs to a different backend"
+                }
+            };
 
         const float constants[4] = {
             blendConstants.r,
@@ -3804,7 +4024,12 @@ namespace Vixen {
 
         return {};
     } catch (const std::bad_alloc&) {
-        return std::unexpected{CommandError{CommandErrorCode::OutOfHostMemory, "commandSetBlendConstants: host allocation failed"}};
+        return std::unexpected{
+            CommandError{
+                .code = CommandErrorCode::OutOfHostMemory,
+                .message = "commandSetBlendConstants: host allocation failed"
+            }
+        };
     } catch (const std::invalid_argument& error) {
         return std::unexpected{CommandError{CommandErrorCode::InvalidArgument, error.what()}};
     }
@@ -3817,7 +4042,12 @@ namespace Vixen {
         if (auto result = RenderingDeviceDriver::commandBindVertexBuffers(commandBuffer, buffers, offsets); !result)
             return result;
         if (dynamic_cast<VulkanCommandBuffer*>(commandBuffer) == nullptr)
-            return std::unexpected{CommandError{CommandErrorCode::InvalidArgument, "commandBindVertexBuffers: command buffer belongs to a different backend"}};
+            return std::unexpected{
+                CommandError{
+                    .code = CommandErrorCode::InvalidArgument,
+                    .message = "commandBindVertexBuffers: command buffer belongs to a different backend"
+                }
+            };
 
         const auto vkCommandBuffer = dynamic_cast<VulkanCommandBuffer*>(commandBuffer);
         if (vkCommandBuffer == nullptr)
@@ -3863,23 +4093,44 @@ namespace Vixen {
 
         return {};
     } catch (const std::bad_alloc&) {
-        return std::unexpected{CommandError{CommandErrorCode::OutOfHostMemory, "commandBindVertexBuffers: host allocation failed"}};
+        return std::unexpected{
+            CommandError{
+                .code = CommandErrorCode::OutOfHostMemory,
+                .message = "commandBindVertexBuffers: host allocation failed"
+            }
+        };
     } catch (const std::invalid_argument& error) {
-        return std::unexpected{CommandError{CommandErrorCode::InvalidArgument, error.what()}};
+        return std::unexpected{
+            CommandError{
+                .code = CommandErrorCode::InvalidArgument,
+                .message = error.what()
+            }
+        };
     }
 
     auto VulkanRenderingDeviceDriver::commandBindIndexBuffers(
         CommandBuffer* commandBuffer,
         const Buffer* buffer,
-        IndexFormat format,
-        uint64_t offset
+        const IndexFormat format,
+        const uint64_t offset
     ) -> std::expected<void, CommandError> try {
-        if (auto result = RenderingDeviceDriver::commandBindIndexBuffers(commandBuffer, buffer, format, offset); !result)
+        if (auto result = RenderingDeviceDriver::commandBindIndexBuffers(commandBuffer, buffer, format, offset); !
+            result)
             return result;
         if (dynamic_cast<VulkanCommandBuffer*>(commandBuffer) == nullptr)
-            return std::unexpected{CommandError{CommandErrorCode::InvalidArgument, "commandBindIndexBuffers: command buffer belongs to a different backend"}};
+            return std::unexpected{
+                CommandError{
+                    .code = CommandErrorCode::InvalidArgument,
+                    .message = "commandBindIndexBuffers: command buffer belongs to a different backend"
+                }
+            };
         if (dynamic_cast<const VulkanBuffer*>(buffer) == nullptr)
-            return std::unexpected{CommandError{CommandErrorCode::InvalidArgument, "commandBindIndexBuffers: buffer belongs to a different backend"}};
+            return std::unexpected{
+                CommandError{
+                    .code = CommandErrorCode::InvalidArgument,
+                    .message = "commandBindIndexBuffers: buffer belongs to a different backend"
+                }
+            };
 
         const auto vkCommandBuffer = dynamic_cast<VulkanCommandBuffer*>(commandBuffer);
         if (vkCommandBuffer == nullptr)
@@ -3914,35 +4165,67 @@ namespace Vixen {
 
         return {};
     } catch (const std::bad_alloc&) {
-        return std::unexpected{CommandError{CommandErrorCode::OutOfHostMemory, "commandBindIndexBuffers: host allocation failed"}};
+        return std::unexpected{
+            CommandError{
+                .code = CommandErrorCode::OutOfHostMemory,
+                .message = "commandBindIndexBuffers: host allocation failed"
+            }
+        };
     } catch (const std::invalid_argument& error) {
-        return std::unexpected{CommandError{CommandErrorCode::InvalidArgument, error.what()}};
+        return std::unexpected{
+            CommandError{
+                .code = CommandErrorCode::InvalidArgument,
+                .message = error.what()
+            }
+        };
     }
 
     auto VulkanRenderingDeviceDriver::commandPipelineBarrier(
         CommandBuffer* commandBuffer,
-        PipelineStageFlags sourceStages,
-        PipelineStageFlags destinationStages,
+        const PipelineStageFlags sourceStages,
+        const PipelineStageFlags destinationStages,
         const std::vector<MemoryBarrier>& memoryBarriers,
         const std::vector<BufferBarrier>& bufferBarriers,
         const std::vector<ImageBarrier>& imageBarriers
     ) -> std::expected<void, CommandError> try {
-        if (auto result = RenderingDeviceDriver::commandPipelineBarrier(commandBuffer, sourceStages, destinationStages, memoryBarriers, bufferBarriers, imageBarriers); !result)
+        if (auto result = RenderingDeviceDriver::commandPipelineBarrier(commandBuffer, sourceStages, destinationStages,
+                                                                        memoryBarriers, bufferBarriers,
+                                                                        imageBarriers); !result)
             return result;
         if (dynamic_cast<VulkanCommandBuffer*>(commandBuffer) == nullptr)
-            return std::unexpected{CommandError{CommandErrorCode::InvalidArgument, "commandPipelineBarrier: command buffer belongs to a different backend"}};
+            return std::unexpected{
+                CommandError{
+                    .code = CommandErrorCode::InvalidArgument,
+                    .message = "commandPipelineBarrier: command buffer belongs to a different backend"
+                }
+            };
 
         const auto stages = sourceStages | destinationStages;
         if (stages.contains(PipelineStageBits::GeometryShader) ||
             stages.contains(PipelineStageBits::TessellationControl) ||
             stages.contains(PipelineStageBits::TessellationEvaluation))
-            return std::unexpected{CommandError{CommandErrorCode::InvalidArgument, "commandPipelineBarrier: geometry and tessellation features are not enabled"}};
+            return std::unexpected{
+                CommandError{
+                    .code = CommandErrorCode::InvalidArgument,
+                    .message = "commandPipelineBarrier: geometry and tessellation features are not enabled"
+                }
+            };
         for (const auto& barrier : bufferBarriers)
             if (dynamic_cast<VulkanBuffer*>(barrier.buffer) == nullptr)
-                return std::unexpected{CommandError{CommandErrorCode::InvalidArgument, "commandPipelineBarrier: buffer belongs to a different backend"}};
+                return std::unexpected{
+                    CommandError{
+                        .code = CommandErrorCode::InvalidArgument,
+                        .message = "commandPipelineBarrier: buffer belongs to a different backend"
+                    }
+                };
         for (const auto& barrier : imageBarriers)
             if (dynamic_cast<VulkanImage*>(barrier.image) == nullptr)
-                return std::unexpected{CommandError{CommandErrorCode::InvalidArgument, "commandPipelineBarrier: image belongs to a different backend"}};
+                return std::unexpected{
+                    CommandError{
+                        .code = CommandErrorCode::InvalidArgument,
+                        .message = "commandPipelineBarrier: image belongs to a different backend"
+                    }
+                };
 
         std::vector<VkMemoryBarrier2> vkMemoryBarriers{};
         vkMemoryBarriers.reserve(memoryBarriers.size());
@@ -4026,23 +4309,43 @@ namespace Vixen {
 
         return {};
     } catch (const std::bad_alloc&) {
-        return std::unexpected{CommandError{CommandErrorCode::OutOfHostMemory, "commandPipelineBarrier: host allocation failed"}};
+        return std::unexpected{
+            CommandError{
+                .code = CommandErrorCode::OutOfHostMemory,
+                .message = "commandPipelineBarrier: host allocation failed"
+            }
+        };
     } catch (const std::invalid_argument& error) {
-        return std::unexpected{CommandError{CommandErrorCode::InvalidArgument, error.what()}};
+        return std::unexpected{
+            CommandError{
+                .code = CommandErrorCode::InvalidArgument,
+                .message = error.what()
+            }
+        };
     }
 
     auto VulkanRenderingDeviceDriver::commandClearBuffer(
         CommandBuffer* commandBuffer,
         Buffer* buffer,
-        uint64_t offset,
-        uint64_t size
+        const uint64_t offset,
+        const uint64_t size
     ) -> std::expected<void, CommandError> try {
         if (auto result = RenderingDeviceDriver::commandClearBuffer(commandBuffer, buffer, offset, size); !result)
             return result;
         if (dynamic_cast<VulkanCommandBuffer*>(commandBuffer) == nullptr)
-            return std::unexpected{CommandError{CommandErrorCode::InvalidArgument, "commandClearBuffer: command buffer belongs to a different backend"}};
+            return std::unexpected{
+                CommandError{
+                    .code = CommandErrorCode::InvalidArgument,
+                    .message = "commandClearBuffer: command buffer belongs to a different backend"
+                }
+            };
         if (dynamic_cast<VulkanBuffer*>(buffer) == nullptr)
-            return std::unexpected{CommandError{CommandErrorCode::InvalidArgument, "commandClearBuffer: buffer belongs to a different backend"}};
+            return std::unexpected{
+                CommandError{
+                    .code = CommandErrorCode::InvalidArgument,
+                    .message = "commandClearBuffer: buffer belongs to a different backend"
+                }
+            };
 
         vkCmdFillBuffer(
             dynamic_cast<VulkanCommandBuffer*>(commandBuffer)->commandBuffer,
@@ -4054,9 +4357,19 @@ namespace Vixen {
 
         return {};
     } catch (const std::bad_alloc&) {
-        return std::unexpected{CommandError{CommandErrorCode::OutOfHostMemory, "commandClearBuffer: host allocation failed"}};
+        return std::unexpected{
+            CommandError{
+                .code = CommandErrorCode::OutOfHostMemory,
+                .message = "commandClearBuffer: host allocation failed"
+            }
+        };
     } catch (const std::invalid_argument& error) {
-        return std::unexpected{CommandError{CommandErrorCode::InvalidArgument, error.what()}};
+        return std::unexpected{
+            CommandError{
+                .code = CommandErrorCode::InvalidArgument,
+                .message = error.what()
+            }
+        };
     }
 
     auto VulkanRenderingDeviceDriver::commandCopyBuffer(
@@ -4065,14 +4378,30 @@ namespace Vixen {
         Buffer* destination,
         const std::vector<BufferCopyRegion>& regions
     ) -> std::expected<void, CommandError> try {
-        if (auto result = RenderingDeviceDriver::commandCopyBuffer(commandBuffer, source, destination, regions); !result)
+        if (auto result = RenderingDeviceDriver::commandCopyBuffer(commandBuffer, source, destination, regions); !
+            result)
             return result;
         if (dynamic_cast<VulkanCommandBuffer*>(commandBuffer) == nullptr)
-            return std::unexpected{CommandError{CommandErrorCode::InvalidArgument, "commandCopyBuffer: command buffer belongs to a different backend"}};
+            return std::unexpected{
+                CommandError{
+                    .code = CommandErrorCode::InvalidArgument,
+                    .message = "commandCopyBuffer: command buffer belongs to a different backend"
+                }
+            };
         if (dynamic_cast<VulkanBuffer*>(source) == nullptr)
-            return std::unexpected{CommandError{CommandErrorCode::InvalidArgument, "commandCopyBuffer: source belongs to a different backend"}};
+            return std::unexpected{
+                CommandError{
+                    .code = CommandErrorCode::InvalidArgument,
+                    .message = "commandCopyBuffer: source belongs to a different backend"
+                }
+            };
         if (dynamic_cast<VulkanBuffer*>(destination) == nullptr)
-            return std::unexpected{CommandError{CommandErrorCode::InvalidArgument, "commandCopyBuffer: destination belongs to a different backend"}};
+            return std::unexpected{
+                CommandError{
+                    .code = CommandErrorCode::InvalidArgument,
+                    .message = "commandCopyBuffer: destination belongs to a different backend"
+                }
+            };
 
         std::vector<VkBufferCopy> vkRegions{};
         vkRegions.reserve(regions.size());
@@ -4096,27 +4425,53 @@ namespace Vixen {
 
         return {};
     } catch (const std::bad_alloc&) {
-        return std::unexpected{CommandError{CommandErrorCode::OutOfHostMemory, "commandCopyBuffer: host allocation failed"}};
+        return std::unexpected{
+            CommandError{
+                .code = CommandErrorCode::OutOfHostMemory,
+                .message = "commandCopyBuffer: host allocation failed"
+            }
+        };
     } catch (const std::invalid_argument& error) {
-        return std::unexpected{CommandError{CommandErrorCode::InvalidArgument, error.what()}};
+        return std::unexpected{
+            CommandError{
+                .code = CommandErrorCode::InvalidArgument,
+                .message = error.what()
+            }
+        };
     }
 
     auto VulkanRenderingDeviceDriver::commandCopyImage(
         CommandBuffer* commandBuffer,
         Image* source,
-        ImageLayout sourceLayout,
+        const ImageLayout sourceLayout,
         Image* destination,
-        ImageLayout destinationLayout,
+        const ImageLayout destinationLayout,
         const std::vector<ImageCopyRegion>& regions
     ) -> std::expected<void, CommandError> try {
-        if (auto result = RenderingDeviceDriver::commandCopyImage(commandBuffer, source, sourceLayout, destination, destinationLayout, regions); !result)
+        if (auto result = RenderingDeviceDriver::commandCopyImage(commandBuffer, source, sourceLayout, destination,
+                                                                  destinationLayout, regions); !result)
             return result;
         if (dynamic_cast<VulkanCommandBuffer*>(commandBuffer) == nullptr)
-            return std::unexpected{CommandError{CommandErrorCode::InvalidArgument, "commandCopyImage: command buffer belongs to a different backend"}};
+            return std::unexpected{
+                CommandError{
+                    .code = CommandErrorCode::InvalidArgument,
+                    .message = "commandCopyImage: command buffer belongs to a different backend"
+                }
+            };
         if (dynamic_cast<VulkanImage*>(source) == nullptr)
-            return std::unexpected{CommandError{CommandErrorCode::InvalidArgument, "commandCopyImage: source belongs to a different backend"}};
+            return std::unexpected{
+                CommandError{
+                    .code = CommandErrorCode::InvalidArgument,
+                    .message = "commandCopyImage: source belongs to a different backend"
+                }
+            };
         if (dynamic_cast<VulkanImage*>(destination) == nullptr)
-            return std::unexpected{CommandError{CommandErrorCode::InvalidArgument, "commandCopyImage: destination belongs to a different backend"}};
+            return std::unexpected{
+                CommandError{
+                    .code = CommandErrorCode::InvalidArgument,
+                    .message = "commandCopyImage: destination belongs to a different backend"
+                }
+            };
 
         std::vector<VkImageCopy> vkRegions{};
         vkRegions.reserve(regions.size());
@@ -4157,30 +4512,57 @@ namespace Vixen {
 
         return {};
     } catch (const std::bad_alloc&) {
-        return std::unexpected{CommandError{CommandErrorCode::OutOfHostMemory, "commandCopyImage: host allocation failed"}};
+        return std::unexpected{
+            CommandError{
+                .code = CommandErrorCode::OutOfHostMemory,
+                .message = "commandCopyImage: host allocation failed"
+            }
+        };
     } catch (const std::invalid_argument& error) {
-        return std::unexpected{CommandError{CommandErrorCode::InvalidArgument, error.what()}};
+        return std::unexpected{
+            CommandError{
+                .code = CommandErrorCode::InvalidArgument,
+                .message = error.what()
+            }
+        };
     }
 
     auto VulkanRenderingDeviceDriver::commandResolveImage(
         CommandBuffer* commandBuffer,
         Image* source,
-        ImageLayout sourceLayout,
-        uint32_t sourceLayer,
-        uint32_t sourceMipmap,
+        const ImageLayout sourceLayout,
+        const uint32_t sourceLayer,
+        const uint32_t sourceMipmap,
         Image* destination,
-        ImageLayout destinationLayout,
-        uint32_t destinationLayer,
-        uint32_t destinationMipmap
+        const ImageLayout destinationLayout,
+        const uint32_t destinationLayer,
+        const uint32_t destinationMipmap
     ) -> std::expected<void, CommandError> try {
-        if (auto result = RenderingDeviceDriver::commandResolveImage(commandBuffer, source, sourceLayout, sourceLayer, sourceMipmap, destination, destinationLayout, destinationLayer, destinationMipmap); !result)
+        if (auto result = RenderingDeviceDriver::commandResolveImage(commandBuffer, source, sourceLayout, sourceLayer,
+                                                                     sourceMipmap, destination, destinationLayout,
+                                                                     destinationLayer, destinationMipmap); !result)
             return result;
         if (dynamic_cast<VulkanCommandBuffer*>(commandBuffer) == nullptr)
-            return std::unexpected{CommandError{CommandErrorCode::InvalidArgument, "commandResolveImage: command buffer belongs to a different backend"}};
+            return std::unexpected{
+                CommandError{
+                    .code = CommandErrorCode::InvalidArgument,
+                    .message = "commandResolveImage: command buffer belongs to a different backend"
+                }
+            };
         if (dynamic_cast<VulkanImage*>(source) == nullptr)
-            return std::unexpected{CommandError{CommandErrorCode::InvalidArgument, "commandResolveImage: source belongs to a different backend"}};
+            return std::unexpected{
+                CommandError{
+                    .code = CommandErrorCode::InvalidArgument,
+                    .message = "commandResolveImage: source belongs to a different backend"
+                }
+            };
         if (dynamic_cast<VulkanImage*>(destination) == nullptr)
-            return std::unexpected{CommandError{CommandErrorCode::InvalidArgument, "commandResolveImage: destination belongs to a different backend"}};
+            return std::unexpected{
+                CommandError{
+                    .code = CommandErrorCode::InvalidArgument,
+                    .message = "commandResolveImage: destination belongs to a different backend"
+                }
+            };
 
         const VkImageResolve region{
             .srcSubresource = {
@@ -4224,24 +4606,45 @@ namespace Vixen {
 
         return {};
     } catch (const std::bad_alloc&) {
-        return std::unexpected{CommandError{CommandErrorCode::OutOfHostMemory, "commandResolveImage: host allocation failed"}};
+        return std::unexpected{
+            CommandError{
+                .code = CommandErrorCode::OutOfHostMemory,
+                .message = "commandResolveImage: host allocation failed"
+            }
+        };
     } catch (const std::invalid_argument& error) {
-        return std::unexpected{CommandError{CommandErrorCode::InvalidArgument, error.what()}};
+        return std::unexpected{
+            CommandError{
+                .code = CommandErrorCode::InvalidArgument,
+                .message = error.what()
+            }
+        };
     }
 
     auto VulkanRenderingDeviceDriver::commandClearColorImage(
         CommandBuffer* commandBuffer,
         Image* image,
-        ImageLayout imageLayout,
+        const ImageLayout imageLayout,
         const glm::vec4& color,
         const ImageSubresourceRange& subresource
     ) -> std::expected<void, CommandError> try {
-        if (auto result = RenderingDeviceDriver::commandClearColorImage(commandBuffer, image, imageLayout, color, subresource); !result)
+        if (auto result = RenderingDeviceDriver::commandClearColorImage(commandBuffer, image, imageLayout, color,
+                                                                        subresource); !result)
             return result;
         if (dynamic_cast<VulkanCommandBuffer*>(commandBuffer) == nullptr)
-            return std::unexpected{CommandError{CommandErrorCode::InvalidArgument, "commandClearColorImage: command buffer belongs to a different backend"}};
+            return std::unexpected{
+                CommandError{
+                    .code = CommandErrorCode::InvalidArgument,
+                    .message = "commandClearColorImage: command buffer belongs to a different backend"
+                }
+            };
         if (dynamic_cast<VulkanImage*>(image) == nullptr)
-            return std::unexpected{CommandError{CommandErrorCode::InvalidArgument, "commandClearColorImage: image belongs to a different backend"}};
+            return std::unexpected{
+                CommandError{
+                    .code = CommandErrorCode::InvalidArgument,
+                    .message = "commandClearColorImage: image belongs to a different backend"
+                }
+            };
 
         const VkClearColorValue vkColor = {
             {
@@ -4270,26 +4673,52 @@ namespace Vixen {
 
         return {};
     } catch (const std::bad_alloc&) {
-        return std::unexpected{CommandError{CommandErrorCode::OutOfHostMemory, "commandClearColorImage: host allocation failed"}};
+        return std::unexpected{
+            CommandError{
+                .code = CommandErrorCode::OutOfHostMemory,
+                .message = "commandClearColorImage: host allocation failed"
+            }
+        };
     } catch (const std::invalid_argument& error) {
-        return std::unexpected{CommandError{CommandErrorCode::InvalidArgument, error.what()}};
+        return std::unexpected{
+            CommandError{
+                .code = CommandErrorCode::InvalidArgument,
+                .message = error.what()
+            }
+        };
     }
 
     auto VulkanRenderingDeviceDriver::commandCopyBufferToImage(
         CommandBuffer* commandBuffer,
         Buffer* buffer,
         Image* image,
-        ImageLayout layout,
+        const ImageLayout layout,
         const std::vector<BufferImageCopyRegion>& regions
     ) -> std::expected<void, CommandError> try {
-        if (auto result = RenderingDeviceDriver::commandCopyBufferToImage(commandBuffer, buffer, image, layout, regions); !result)
+        if (auto result = RenderingDeviceDriver::commandCopyBufferToImage(commandBuffer, buffer, image, layout, regions)
+            ; !result)
             return result;
         if (dynamic_cast<VulkanCommandBuffer*>(commandBuffer) == nullptr)
-            return std::unexpected{CommandError{CommandErrorCode::InvalidArgument, "commandCopyBufferToImage: command buffer belongs to a different backend"}};
+            return std::unexpected{
+                CommandError{
+                    .code = CommandErrorCode::InvalidArgument,
+                    .message = "commandCopyBufferToImage: command buffer belongs to a different backend"
+                }
+            };
         if (dynamic_cast<VulkanBuffer*>(buffer) == nullptr)
-            return std::unexpected{CommandError{CommandErrorCode::InvalidArgument, "commandCopyBufferToImage: buffer belongs to a different backend"}};
+            return std::unexpected{
+                CommandError{
+                    .code = CommandErrorCode::InvalidArgument,
+                    .message = "commandCopyBufferToImage: buffer belongs to a different backend"
+                }
+            };
         if (dynamic_cast<VulkanImage*>(image) == nullptr)
-            return std::unexpected{CommandError{CommandErrorCode::InvalidArgument, "commandCopyBufferToImage: image belongs to a different backend"}};
+            return std::unexpected{
+                CommandError{
+                    .code = CommandErrorCode::InvalidArgument,
+                    .message = "commandCopyBufferToImage: image belongs to a different backend"
+                }
+            };
 
         std::vector<VkBufferImageCopy> vkRegions{};
         vkRegions.reserve(regions.size());
@@ -4307,7 +4736,12 @@ namespace Vixen {
 
         return {};
     } catch (const std::bad_alloc&) {
-        return std::unexpected{CommandError{CommandErrorCode::OutOfHostMemory, "commandCopyBufferToImage: host allocation failed"}};
+        return std::unexpected{
+            CommandError{
+                .code = CommandErrorCode::OutOfHostMemory,
+                .message = "commandCopyBufferToImage: host allocation failed"
+            }
+        };
     } catch (const std::invalid_argument& error) {
         return std::unexpected{CommandError{CommandErrorCode::InvalidArgument, error.what()}};
     }
@@ -4315,18 +4749,34 @@ namespace Vixen {
     auto VulkanRenderingDeviceDriver::commandCopyImageToBuffer(
         CommandBuffer* commandBuffer,
         Image* image,
-        ImageLayout layout,
+        const ImageLayout layout,
         Buffer* buffer,
         const std::vector<BufferImageCopyRegion>& regions
     ) -> std::expected<void, CommandError> try {
-        if (auto result = RenderingDeviceDriver::commandCopyImageToBuffer(commandBuffer, image, layout, buffer, regions); !result)
+        if (auto result = RenderingDeviceDriver::commandCopyImageToBuffer(commandBuffer, image, layout, buffer, regions)
+            ; !result)
             return result;
         if (dynamic_cast<VulkanCommandBuffer*>(commandBuffer) == nullptr)
-            return std::unexpected{CommandError{CommandErrorCode::InvalidArgument, "commandCopyImageToBuffer: command buffer belongs to a different backend"}};
+            return std::unexpected{
+                CommandError{
+                    .code = CommandErrorCode::InvalidArgument,
+                    .message = "commandCopyImageToBuffer: command buffer belongs to a different backend"
+                }
+            };
         if (dynamic_cast<VulkanBuffer*>(buffer) == nullptr)
-            return std::unexpected{CommandError{CommandErrorCode::InvalidArgument, "commandCopyImageToBuffer: buffer belongs to a different backend"}};
+            return std::unexpected{
+                CommandError{
+                    .code = CommandErrorCode::InvalidArgument,
+                    .message = "commandCopyImageToBuffer: buffer belongs to a different backend"
+                }
+            };
         if (dynamic_cast<VulkanImage*>(image) == nullptr)
-            return std::unexpected{CommandError{CommandErrorCode::InvalidArgument, "commandCopyImageToBuffer: image belongs to a different backend"}};
+            return std::unexpected{
+                CommandError{
+                    .code = CommandErrorCode::InvalidArgument,
+                    .message = "commandCopyImageToBuffer: image belongs to a different backend"
+                }
+            };
 
         std::vector<VkBufferImageCopy> vkRegions{};
         vkRegions.reserve(regions.size());
@@ -4344,7 +4794,12 @@ namespace Vixen {
 
         return {};
     } catch (const std::bad_alloc&) {
-        return std::unexpected{CommandError{CommandErrorCode::OutOfHostMemory, "commandCopyImageToBuffer: host allocation failed"}};
+        return std::unexpected{
+            CommandError{
+                .code = CommandErrorCode::OutOfHostMemory,
+                .message = "commandCopyImageToBuffer: host allocation failed"
+            }
+        };
     } catch (const std::invalid_argument& error) {
         return std::unexpected{CommandError{CommandErrorCode::InvalidArgument, error.what()}};
     }
@@ -4357,7 +4812,12 @@ namespace Vixen {
         if (auto result = RenderingDeviceDriver::commandBeginLabel(commandBuffer, label, color); !result)
             return result;
         if (dynamic_cast<VulkanCommandBuffer*>(commandBuffer) == nullptr)
-            return std::unexpected{CommandError{CommandErrorCode::InvalidArgument, "commandBeginLabel: command buffer belongs to a different backend"}};
+            return std::unexpected{
+                CommandError{
+                    .code = CommandErrorCode::InvalidArgument,
+                    .message = "commandBeginLabel: command buffer belongs to a different backend"
+                }
+            };
 
         const VkDebugUtilsLabelEXT info{
             .sType = VK_STRUCTURE_TYPE_DEBUG_UTILS_LABEL_EXT,
@@ -4373,15 +4833,25 @@ namespace Vixen {
 
         if (vkCmdBeginDebugUtilsLabelEXT)
             vkCmdBeginDebugUtilsLabelEXT(
-            dynamic_cast<VulkanCommandBuffer*>(commandBuffer)->commandBuffer,
-            &info
-        );
+                dynamic_cast<VulkanCommandBuffer*>(commandBuffer)->commandBuffer,
+                &info
+            );
 
         return {};
     } catch (const std::bad_alloc&) {
-        return std::unexpected{CommandError{CommandErrorCode::OutOfHostMemory, "commandBeginLabel: host allocation failed"}};
+        return std::unexpected{
+            CommandError{
+                .code = CommandErrorCode::OutOfHostMemory,
+                .message = "commandBeginLabel: host allocation failed"
+            }
+        };
     } catch (const std::invalid_argument& error) {
-        return std::unexpected{CommandError{CommandErrorCode::InvalidArgument, error.what()}};
+        return std::unexpected{
+            CommandError{
+                .code = CommandErrorCode::InvalidArgument,
+                .message = error.what()
+            }
+        };
     }
 
     auto VulkanRenderingDeviceDriver::commandEndLabel(
@@ -4390,14 +4860,24 @@ namespace Vixen {
         if (auto result = RenderingDeviceDriver::commandEndLabel(commandBuffer); !result)
             return result;
         if (dynamic_cast<VulkanCommandBuffer*>(commandBuffer) == nullptr)
-            return std::unexpected{CommandError{CommandErrorCode::InvalidArgument, "commandEndLabel: command buffer belongs to a different backend"}};
+            return std::unexpected{
+                CommandError{
+                    .code = CommandErrorCode::InvalidArgument,
+                    .message = "commandEndLabel: command buffer belongs to a different backend"
+                }
+            };
 
         if (vkCmdEndDebugUtilsLabelEXT)
             vkCmdEndDebugUtilsLabelEXT(dynamic_cast<VulkanCommandBuffer*>(commandBuffer)->commandBuffer);
 
         return {};
     } catch (const std::bad_alloc&) {
-        return std::unexpected{CommandError{CommandErrorCode::OutOfHostMemory, "commandEndLabel: host allocation failed"}};
+        return std::unexpected{
+            CommandError{
+                .code = CommandErrorCode::OutOfHostMemory,
+                .message = "commandEndLabel: host allocation failed"
+            }
+        };
     } catch (const std::invalid_argument& error) {
         return std::unexpected{CommandError{CommandErrorCode::InvalidArgument, error.what()}};
     }
