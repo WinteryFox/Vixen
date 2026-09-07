@@ -5,6 +5,8 @@
 
 namespace Vixen {
     class GraphicsPipeline : public Pipeline {
+        friend class RenderingDeviceDriver;
+
         const GraphicsPipelineState state;
 
     protected:

@@ -1,5 +1,6 @@
 #include "RenderingDeviceDriver.h"
 
+#include <algorithm>
 #include <cstring>
 #include <format>
 #include <limits>
@@ -24,6 +25,7 @@
 #include "buffer/BufferImageCopyRegion.h"
 #include "image/Image.h"
 #include "image/ImageCopyRegion.h"
+#include "pipeline/GraphicsPipeline.h"
 #include "rendering/AttachmentInfo.h"
 #include "core/error/CantCreateError.h"
 #include "core/error/Macros.h"
@@ -797,7 +799,9 @@ namespace Vixen {
         auto checkImageRegion(const Image* image, const ImageSubresourceLayers& layers,
                               glm::ivec3 offset, glm::uvec3 extent, std::string_view operation)
             -> std::expected<void, CommandError> {
-            if (auto result = checkImageRange(image, {layers.aspect, layers.mipmap, 1, layers.baseLayer, layers.layerCount}, operation); !result)
+            if (auto result = checkImageRange(image, {
+                                                  layers.aspect, layers.mipmap, 1, layers.baseLayer, layers.layerCount
+                                              }, operation); !result)
                 return result;
             if (layers.mipmap >= 32)
                 return invalidArgument(operation, "mip level exceeds the supported dimension width");
@@ -807,15 +811,17 @@ namespace Vixen {
                 std::max(1u, image->format.depth >> layers.mipmap)
             };
             for (int axis = 0; axis < 3; ++axis)
-                if (offset[axis] < 0 || !validRange(static_cast<uint32_t>(offset[axis]), extent[axis], dimensions[axis]))
+                if (offset[axis] < 0 || !validRange(static_cast<uint32_t>(offset[axis]), extent[axis],
+                                                    dimensions[axis]))
                     return invalidArgument(operation, "copy region extends outside the image mip");
             return {};
         }
 
         bool isTransferLayout(ImageLayout layout, bool source) {
             return layout == ImageLayout::General || layout == ImageLayout::StorageOptimal ||
-                (source ? (layout == ImageLayout::CopySourceOptimal || layout == ImageLayout::ResolveSourceOptimal)
-                        : (layout == ImageLayout::CopyDestinationOptimal || layout == ImageLayout::ResolveDestinationOptimal));
+            (source
+                 ? (layout == ImageLayout::CopySourceOptimal || layout == ImageLayout::ResolveSourceOptimal)
+                 : (layout == ImageLayout::CopyDestinationOptimal || layout == ImageLayout::ResolveDestinationOptimal));
         }
     }
 
@@ -827,14 +833,21 @@ namespace Vixen {
     ) -> std::expected<void, CommandError> {
         if (commandBuffer == nullptr)
             return invalidArgument(operation, "command buffer is null");
+
         if (commandBuffer->getState() != CommandBuffer::State::Recording)
             return commandError(CommandErrorCode::InvalidState, operation, "command buffer must be Recording");
+
         if (!allowedQueues.empty() && (commandBuffer->queueCapabilities & allowedQueues).empty())
-            return commandError(CommandErrorCode::InvalidState, operation, "command buffer's queue family does not support this operation");
+            return commandError(CommandErrorCode::InvalidState, operation,
+                                "command buffer's queue family does not support this operation");
+
         if (scope == RenderingScope::Outside && commandBuffer->renderingState)
-            return commandError(CommandErrorCode::InvalidState, operation, "command must be recorded outside a rendering scope");
+            return commandError(CommandErrorCode::InvalidState, operation,
+                                "command must be recorded outside a rendering scope");
+
         if (scope == RenderingScope::Inside && !commandBuffer->renderingState)
             return commandError(CommandErrorCode::InvalidState, operation, "no rendering scope is active");
+
         return {};
     }
 
@@ -842,10 +855,13 @@ namespace Vixen {
         CommandBuffer* commandBuffer
     ) -> std::expected<void, CommandError> {
         constexpr std::string_view operation = "beginCommandBuffer";
+
         if (commandBuffer == nullptr)
             return invalidArgument(operation, "command buffer is null");
+
         if (commandBuffer->getState() != CommandBuffer::State::Initial)
-            return commandError(CommandErrorCode::InvalidState, operation, "command buffer must be Initial; reset its pool before recording again");
+            return commandError(CommandErrorCode::InvalidState, operation,
+                                "command buffer must be Initial; reset its pool before recording again");
         return {};
     }
 
@@ -853,6 +869,7 @@ namespace Vixen {
         CommandBuffer* commandBuffer
     ) -> std::expected<void, CommandError> {
         constexpr std::string_view operation = "endCommandBuffer";
+
         return checkRecording(commandBuffer, operation, {}, RenderingScope::Outside);
     }
 
@@ -861,52 +878,77 @@ namespace Vixen {
         const RenderingInfo& renderingInfo
     ) -> std::expected<void, CommandError> {
         constexpr std::string_view operation = "commandBeginRenderPass";
-        if (auto result = checkRecording(commandBuffer, operation, QueueFamilyBits::Graphics, RenderingScope::Outside); !result)
+        if (auto result = checkRecording(commandBuffer, operation, QueueFamilyBits::Graphics, RenderingScope::Outside);
+            !result)
             return result;
+
         if (renderingInfo.extent.x == 0 || renderingInfo.extent.y == 0 || renderingInfo.layerCount == 0)
             return invalidArgument(operation, "rendering extent and layer count must be nonzero");
+
         if (renderingInfo.colorAttachments.size() > getMaxColorAttachments())
             return invalidArgument(operation, "color attachment count exceeds the device limit");
+
         std::optional<ImageSamples> samples;
-        auto checkAttachment = [&](const AttachmentInfo& attachment, bool depthStencil)
-            -> std::expected<void, CommandError> {
+        auto checkAttachment = [&](
+            const AttachmentInfo& attachment,
+            bool depthStencil
+        )-> std::expected<void, CommandError> {
             if (attachment.image == nullptr)
                 return invalidArgument(operation, "attachment image is null");
+
             if (depthStencil && attachment.resolveImage != nullptr)
                 return invalidArgument(operation, "depth/stencil resolve targets are not supported yet");
+
             const auto& format = attachment.image->format;
             const bool hasDepthStencil = hasDepthAspect(format.format) || hasStencilAspect(format.format);
+
             if (hasDepthStencil != depthStencil)
                 return invalidArgument(operation, "attachment format does not match its color or depth/stencil role");
+
             const auto usage = depthStencil ? ImageUsageBits::DepthStencilAttachment : ImageUsageBits::ColorAttachment;
+
             if (!format.usage.contains(usage))
                 return invalidArgument(operation, "attachment image was not created for its attachment usage");
+
             if (renderingInfo.extent.x > format.width || renderingInfo.extent.y > format.height ||
                 renderingInfo.layerCount > format.layerCount)
                 return invalidArgument(operation, "rendering extent or layer count exceeds an attachment");
+
             if (samples && *samples != format.samples)
                 return invalidArgument(operation, "all rendering attachments must have the same sample count");
             samples = format.samples;
+
             if (attachment.layout != ImageLayout::General &&
-                attachment.layout != (depthStencil ? ImageLayout::DepthStencilAttachmentOptimal : ImageLayout::ColorAttachmentOptimal) &&
+                attachment.layout != (depthStencil
+                                          ? ImageLayout::DepthStencilAttachmentOptimal
+                                          : ImageLayout::ColorAttachmentOptimal) &&
                 !(depthStencil && attachment.layout == ImageLayout::DepthStencilReadOnlyOptimal))
                 return invalidArgument(operation, "attachment layout is not valid for its attachment role");
-            if (depthStencil && attachment.layout == ImageLayout::DepthStencilReadOnlyOptimal && attachment.loadAction == LoadAction::Clear)
-                return invalidArgument(operation, "a read-only depth/stencil attachment cannot use a clear load action");
+
+            if (depthStencil && attachment.layout == ImageLayout::DepthStencilReadOnlyOptimal && attachment.loadAction
+                == LoadAction::Clear)
+                return invalidArgument(
+                    operation, "a read-only depth/stencil attachment cannot use a clear load action");
+
             if (attachment.loadAction != LoadAction::Load && attachment.loadAction != LoadAction::Clear &&
                 attachment.loadAction != LoadAction::DontCare)
                 return invalidArgument(operation, "attachment load action contains an unrecognized value");
-            // Resolve-target support remains separate work; do not implement it here.
+
             if (attachment.storeAction != StoreAction::Store && attachment.storeAction != StoreAction::DontCare &&
-                attachment.storeAction != StoreAction::Resolve && attachment.storeAction != StoreAction::StoreAndResolve)
+                attachment.storeAction != StoreAction::Resolve && attachment.storeAction !=
+                StoreAction::StoreAndResolve)
                 return invalidArgument(operation, "attachment store action contains an unrecognized value");
+
             return {};
         };
+
         for (const auto& attachment : renderingInfo.colorAttachments)
             if (auto result = checkAttachment(attachment, false); !result)
                 return result;
+
         if (renderingInfo.depthStencilAttachment)
             return checkAttachment(*renderingInfo.depthStencilAttachment, true);
+
         return {};
     }
 
@@ -914,7 +956,13 @@ namespace Vixen {
         CommandBuffer* commandBuffer
     ) -> std::expected<void, CommandError> {
         constexpr std::string_view operation = "commandEndRenderPass";
-        return checkRecording(commandBuffer, operation, QueueFamilyBits::Graphics, RenderingScope::Inside);
+
+        return checkRecording(
+            commandBuffer,
+            operation,
+            QueueFamilyBits::Graphics,
+            RenderingScope::Inside
+        );
     }
 
     auto RenderingDeviceDriver::commandSetViewport(
@@ -922,13 +970,25 @@ namespace Vixen {
         const std::vector<glm::uvec2>& viewports
     ) -> std::expected<void, CommandError> {
         constexpr std::string_view operation = "commandSetViewport";
-        if (auto result = checkRecording(commandBuffer, operation, QueueFamilyBits::Graphics); !result)
+        if (auto result = checkRecording(
+            commandBuffer,
+            operation,
+            QueueFamilyBits::Graphics
+        ); !result)
             return result;
-        if (viewports.empty() || viewports.size() > std::numeric_limits<uint32_t>::max())
+
+        if (viewports.empty() ||
+            viewports.size() > std::numeric_limits<uint32_t>::max())
             return invalidArgument(operation, "viewport count must be nonzero and representable as uint32_t");
+
         for (const auto& viewport : viewports)
-            if (viewport.x == 0 || viewport.y == 0)
-                return invalidArgument(operation, "viewport dimensions must be nonzero");
+            if (viewport.x == 0 ||
+                viewport.y == 0)
+                return invalidArgument(
+                    operation,
+                    "viewport dimensions must be nonzero"
+                );
+
         return {};
     }
 
@@ -937,14 +997,23 @@ namespace Vixen {
         const std::vector<glm::uvec2>& scissors
     ) -> std::expected<void, CommandError> {
         constexpr std::string_view operation = "commandSetScissor";
-        if (auto result = checkRecording(commandBuffer, operation, QueueFamilyBits::Graphics); !result)
+
+        if (auto result = checkRecording(
+            commandBuffer,
+            operation,
+            QueueFamilyBits::Graphics
+        ); !result)
             return result;
-        if (scissors.empty() || scissors.size() > std::numeric_limits<uint32_t>::max())
+
+        if (scissors.empty() ||
+            scissors.size() > std::numeric_limits<uint32_t>::max())
             return invalidArgument(operation, "scissor count must be nonzero and representable as uint32_t");
+
         for (const auto& scissor : scissors)
             if (scissor.x > static_cast<uint32_t>(std::numeric_limits<int32_t>::max()) ||
                 scissor.y > static_cast<uint32_t>(std::numeric_limits<int32_t>::max()))
                 return invalidArgument(operation, "scissor coordinates must fit in int32_t");
+
         return {};
     }
 
@@ -954,6 +1023,7 @@ namespace Vixen {
     ) -> std::expected<void, CommandError> {
         constexpr std::string_view operation = "commandSetBlendConstants";
         (void)blendConstants;
+
         return checkRecording(commandBuffer, operation, QueueFamilyBits::Graphics);
     }
 
@@ -963,19 +1033,47 @@ namespace Vixen {
         const std::vector<uint64_t>& offsets
     ) -> std::expected<void, CommandError> {
         constexpr std::string_view operation = "commandBindVertexBuffers";
-        if (auto result = checkRecording(commandBuffer, operation, QueueFamilyBits::Graphics); !result)
+        if (auto result = checkRecording(
+            commandBuffer,
+            operation,
+            QueueFamilyBits::Graphics
+        ); !result)
             return result;
+
         if (buffers.empty() || buffers.size() != offsets.size())
             return invalidArgument(operation, "buffer and offset arrays must have the same nonzero length");
+
         if (buffers.size() > getMaxVertexInputBindings())
             return invalidArgument(operation, "binding count exceeds the device's vertex-buffer binding limit");
+
         for (size_t i = 0; i < buffers.size(); ++i) {
             if (buffers[i] == nullptr)
-                return invalidArgument(operation, std::format("vertex buffer at binding {} is null", i));
+                return invalidArgument(
+                    operation,
+                    std::format(
+                        "vertex buffer at binding {} is null",
+                        i
+                    )
+                );
+
             if (!buffers[i]->getUsage().contains(BufferUsageBits::Vertex))
-                return invalidArgument(operation, std::format("buffer at binding {} was not created for Vertex usage", i));
+                return invalidArgument(
+                    operation, std::format(
+                        "buffer at binding {} was not created for Vertex usage",
+                        i
+                    )
+                );
+
             if (offsets[i] >= buffers[i]->getSize())
-                return invalidArgument(operation, std::format("binding {} offset {} must be less than buffer size {}", i, offsets[i], buffers[i]->getSize()));
+                return invalidArgument(
+                    operation,
+                    std::format(
+                        "binding {} offset {} must be less than buffer size {}",
+                        i,
+                        offsets[i],
+                        buffers[i]->getSize()
+                    )
+                );
         }
         return {};
     }
@@ -983,27 +1081,326 @@ namespace Vixen {
     auto RenderingDeviceDriver::commandBindIndexBuffers(
         CommandBuffer* commandBuffer,
         const Buffer* buffer,
-        IndexFormat format,
+        const IndexFormat format,
         uint64_t offset
     ) -> std::expected<void, CommandError> {
         constexpr std::string_view operation = "commandBindIndexBuffers";
-        if (auto result = checkRecording(commandBuffer, operation, QueueFamilyBits::Graphics); !result)
+        if (auto result = checkRecording(
+            commandBuffer,
+            operation,
+            QueueFamilyBits::Graphics
+        ); !result)
             return result;
+
         if (buffer == nullptr)
-            return invalidArgument(operation, "index buffer is null");
+            return invalidArgument(
+                operation,
+                "index buffer is null"
+            );
+
         if (!buffer->getUsage().contains(BufferUsageBits::Index))
-            return invalidArgument(operation, "buffer was not created for Index usage");
+            return invalidArgument(
+                operation,
+                "buffer was not created for Index usage"
+            );
+
         uint64_t indexSize = 0;
         switch (format) {
-            case IndexFormat::UnsignedInt16: indexSize = sizeof(uint16_t); break;
-            case IndexFormat::UnsignedInt32: indexSize = sizeof(uint32_t); break;
+            case IndexFormat::UnsignedInt16:
+                indexSize = sizeof(uint16_t);
+                break;
+
+            case IndexFormat::UnsignedInt32:
+                indexSize = sizeof(uint32_t);
+                break;
         }
+
         if (indexSize == 0)
-            return invalidArgument(operation, "index format contains an unrecognized value");
+            return invalidArgument(
+                operation,
+                "index format contains an unrecognized value"
+            );
+
         if (offset >= buffer->getSize())
-            return invalidArgument(operation, std::format("index-buffer offset {} must be less than buffer size {}", offset, buffer->getSize()));
+            return invalidArgument(
+                operation,
+                std::format(
+                    "index-buffer offset {} must be less than buffer size {}",
+                    offset,
+                    buffer->getSize()
+                )
+            );
+
         if (offset % indexSize != 0)
-            return invalidArgument(operation, std::format("index-buffer offset {} must be aligned to {} bytes", offset, indexSize));
+            return invalidArgument(
+                operation,
+                std::format(
+                    "index-buffer offset {} must be aligned to {} bytes",
+                    offset,
+                    indexSize
+                )
+            );
+
+        return {};
+    }
+
+    auto RenderingDeviceDriver::checkGraphicsDrawState(
+        const CommandBuffer* commandBuffer,
+        const std::string_view operation
+    ) -> std::expected<void, CommandError> {
+        if (auto result = checkRecording(
+            commandBuffer,
+            operation,
+            QueueFamilyBits::Graphics,
+            RenderingScope::Inside
+        ); !result)
+            return result;
+
+        if (commandBuffer->boundGraphicsPipeline == nullptr)
+            return commandError(
+                CommandErrorCode::InvalidState,
+                operation,
+                "no graphics pipeline is bound"
+            );
+
+        const auto& pipeline = commandBuffer->boundGraphicsPipeline->state;
+        const auto& rendering = *commandBuffer->renderingState;
+        if (pipeline.colorFormats.size() != rendering.colorFormats.size())
+            return commandError(
+                CommandErrorCode::InvalidState,
+                operation,
+                std::format(
+                    "graphics pipeline declares {} color attachments, but the active rendering scope has {}",
+                    pipeline.colorFormats.size(),
+                    rendering.colorFormats.size()
+                )
+            );
+
+        for (size_t index = 0; index < pipeline.colorFormats.size(); ++index)
+            if (pipeline.colorFormats[index] != rendering.colorFormats[index])
+                return commandError(
+                    CommandErrorCode::InvalidState,
+                    operation,
+                    std::format(
+                        "graphics pipeline color format at attachment {} does not match the active rendering scope",
+                        index
+                    )
+                );
+
+        if (pipeline.depthStencilFormat != rendering.depthStencilFormat)
+            return commandError(
+                CommandErrorCode::InvalidState,
+                operation,
+                "graphics pipeline depth/stencil format does not match the active rendering scope"
+            );
+
+        if ((!rendering.colorFormats.empty() ||
+                rendering.depthStencilFormat) &&
+            pipeline.multisampling.samples != rendering.samples)
+            return commandError(
+                CommandErrorCode::InvalidState,
+                operation,
+                "graphics pipeline sample count does not match the active rendering attachments"
+            );
+
+        for (const auto state : {DynamicStateBits::Viewport, DynamicStateBits::Scissor})
+            if (pipeline.dynamicStates.contains(state) && !commandBuffer->dynamicStates.contains(state))
+                return commandError(
+                    CommandErrorCode::InvalidState,
+                    operation,
+                    std::format(
+                        "the bound graphics pipeline requires {} to be set before drawing",
+                        state == DynamicStateBits::Viewport ? "a viewport" : "a scissor"
+                    )
+                );
+
+        const auto usesConstant = [](const BlendFactor factor) {
+            return factor == BlendFactor::ConstantColor ||
+                factor == BlendFactor::OneMinusConstantColor ||
+                factor == BlendFactor::ConstantAlpha ||
+                factor == BlendFactor::OneMinusConstantAlpha;
+        };
+
+        if (!pipeline.rasterization.isRasterizerDiscardEnabled &&
+            pipeline.dynamicStates.contains(DynamicStateBits::BlendConstants) &&
+            !commandBuffer->dynamicStates.contains(DynamicStateBits::BlendConstants))
+            for (const auto& blending : pipeline.colorBlending)
+                if (blending.isEnabled &&
+                    (usesConstant(blending.sourceColorBlendFactor) ||
+                        usesConstant(blending.destinationColorBlendFactor) ||
+                        usesConstant(blending.sourceAlphaBlendFactor) ||
+                        usesConstant(blending.destinationAlphaBlendFactor)))
+                    return commandError(
+                        CommandErrorCode::InvalidState,
+                        operation,
+                        "the bound graphics pipeline uses constant blend factors; set blend constants before drawing"
+                    );
+        return {};
+    }
+
+    auto RenderingDeviceDriver::checkVertexBindings(
+        const CommandBuffer* commandBuffer,
+        const std::string_view operation,
+        const uint32_t count,
+        const uint32_t instanceCount,
+        const std::optional<uint32_t> firstVertex,
+        const uint32_t firstInstance
+    ) -> std::expected<void, CommandError> {
+        const auto& pipeline = commandBuffer->boundGraphicsPipeline->state;
+        for (const auto& attribute : pipeline.vertexAttributes) {
+            if (attribute.binding >= commandBuffer->vertexBindings.size() ||
+                commandBuffer->vertexBindings[attribute.binding].buffer == nullptr)
+                return commandError(
+                    CommandErrorCode::InvalidState,
+                    operation,
+                    std::format(
+                        "vertex attribute {} requires a buffer at binding {}",
+                        attribute.location, attribute.binding
+                    )
+                );
+
+            const auto& bound = commandBuffer->vertexBindings[attribute.binding];
+            if (!bound.buffer->getUsage().contains(BufferUsageBits::Vertex) ||
+                bound.offset >= bound.buffer->getSize())
+                return commandError(
+                    CommandErrorCode::InvalidState,
+                    operation,
+                    std::format(
+                        "vertex binding {} requires a Vertex-usage buffer with an in-bounds offset",
+                        attribute.binding
+                    )
+                );
+
+            const auto binding = std::ranges::find(pipeline.vertexBindings, attribute.binding,
+                                                   &VertexBindingDescription::binding);
+            if (binding == pipeline.vertexBindings.end())
+                return commandError(
+                    CommandErrorCode::InvalidState,
+                    operation,
+                    std::format(
+                        "vertex attribute {} references undeclared pipeline binding {}",
+                        attribute.location,
+                        attribute.binding
+                    )
+                );
+
+            if (count == 0 || instanceCount == 0)
+                continue;
+
+            const bool knownElement = binding->rate == InputRate::Instance || firstVertex.has_value();
+            const uint64_t lastElement = binding->rate == InputRate::Instance
+                                             ? static_cast<uint64_t>(firstInstance) + instanceCount - 1
+                                             : (firstVertex ? static_cast<uint64_t>(*firstVertex) + count - 1 : 0);
+            const uint64_t available = bound.buffer->getSize() - bound.offset;
+            const uint64_t attributeEnd = static_cast<uint64_t>(attribute.offset) + getTexelSize(attribute.format);
+
+            if (attributeEnd > available ||
+                (knownElement &&
+                    binding->stride != 0 &&
+                    lastElement > (available - attributeEnd) / binding->stride))
+                return invalidArgument(
+                    operation,
+                    std::format(
+                        "draw range exceeds vertex buffer binding {} for attribute {} (last {} element {}, stride {}, available bytes {})",
+                        attribute.binding,
+                        attribute.location,
+                        binding->rate == InputRate::Instance ? "instance" : "vertex",
+                        knownElement ? std::to_string(lastElement) : "GPU-selected",
+                        binding->stride,
+                        available
+                    )
+                );
+        }
+        return {};
+    }
+
+    auto RenderingDeviceDriver::commandDraw(
+        CommandBuffer* commandBuffer,
+        const uint32_t vertexCount,
+        const uint32_t instanceCount,
+        const uint32_t firstVertex,
+        const uint32_t firstInstance
+    ) -> std::expected<void, CommandError> {
+        constexpr std::string_view operation = "commandDraw";
+        if (auto result = checkGraphicsDrawState(commandBuffer, operation); !result)
+            return result;
+
+        return checkVertexBindings(commandBuffer, operation, vertexCount, instanceCount, firstVertex, firstInstance);
+    }
+
+    auto RenderingDeviceDriver::commandDrawIndexed(
+        CommandBuffer* commandBuffer,
+        const uint32_t indexCount,
+        const uint32_t instanceCount,
+        const uint32_t firstIndex,
+        const int32_t vertexOffset,
+        const uint32_t firstInstance
+    ) -> std::expected<void, CommandError> {
+        constexpr std::string_view operation = "commandDrawIndexed";
+        if (auto result = checkGraphicsDrawState(commandBuffer, operation); !result)
+            return result;
+
+        if (!commandBuffer->indexBinding || commandBuffer->indexBinding->buffer == nullptr)
+            return commandError(CommandErrorCode::InvalidState, operation, "no index buffer is bound");
+
+        const auto& binding = *commandBuffer->indexBinding;
+        uint64_t indexSize = 0;
+        switch (binding.format) {
+            case IndexFormat::UnsignedInt16:
+                indexSize = sizeof(uint16_t);
+                break;
+
+            case IndexFormat::UnsignedInt32:
+                indexSize = sizeof(uint32_t);
+                break;
+        }
+
+        if (indexSize == 0 ||
+            !binding.buffer->getUsage().contains(BufferUsageBits::Index) ||
+            binding.offset >= binding.buffer->getSize() ||
+            binding.offset % indexSize != 0)
+            return commandError(
+                CommandErrorCode::InvalidState,
+                operation,
+                "index binding requires an Index-usage buffer, a supported format, and an aligned in-bounds offset"
+            );
+
+        const uint64_t availableIndices = (binding.buffer->getSize() - binding.offset) / indexSize;
+        const uint64_t endIndex = static_cast<uint64_t>(firstIndex) + indexCount;
+        if (endIndex > availableIndices)
+            return invalidArgument(
+                operation,
+                std::format(
+                    "index range [{}, {}) exceeds the {} indices available after binding offset {}",
+                    firstIndex, endIndex, availableIndices, binding.offset)
+            );
+
+        (void)vertexOffset;
+
+        return checkVertexBindings(commandBuffer, operation, indexCount, instanceCount, std::nullopt, firstInstance);
+    }
+
+    auto RenderingDeviceDriver::commandDispatch(
+        CommandBuffer* commandBuffer,
+        const uint32_t groupCountX,
+        const uint32_t groupCountY,
+        const uint32_t groupCountZ
+    ) -> std::expected<void, CommandError> {
+        if (auto result = checkRecording(
+            commandBuffer,
+            "commandDispatch",
+            QueueFamilyBits::Compute,
+            RenderingScope::Outside
+        ); !result)
+            return result;
+
+        if (commandBuffer->boundComputePipeline == nullptr)
+            return commandError(CommandErrorCode::InvalidState, "commandDispatch", "no compute pipeline is bound");
+
+        (void)groupCountX;
+        (void)groupCountY;
+        (void)groupCountZ;
+
         return {};
     }
 
@@ -1027,14 +1424,22 @@ namespace Vixen {
         for (auto stages : {sourceStages, destinationStages}) {
             if ((stages.value() & ~((1u << 17) - 1)) != 0)
                 return invalidArgument(operation, "pipeline stage mask contains unrecognized bits");
-            if (!(stages & graphicsStages).empty() && !commandBuffer->queueCapabilities.contains(QueueFamilyBits::Graphics))
-                return commandError(CommandErrorCode::InvalidState, operation, "graphics stages require a graphics-capable command buffer");
-            if (stages.contains(PipelineStageBits::ComputeShader) && !commandBuffer->queueCapabilities.contains(QueueFamilyBits::Compute))
-                return commandError(CommandErrorCode::InvalidState, operation, "compute stages require a compute-capable command buffer");
-            if (stages.contains(PipelineStageBits::DrawIndirect) && (commandBuffer->queueCapabilities & shaderQueues).empty())
-                return commandError(CommandErrorCode::InvalidState, operation, "indirect stages require graphics or compute capability");
-            if (stages.contains(PipelineStageBits::Copy) && !commandBuffer->queueCapabilities.contains(QueueFamilyBits::Transfer))
-                return commandError(CommandErrorCode::InvalidState, operation, "copy stages require transfer capability");
+            if (!(stages & graphicsStages).empty() && !commandBuffer->queueCapabilities.contains(
+                QueueFamilyBits::Graphics))
+                return commandError(CommandErrorCode::InvalidState, operation,
+                                    "graphics stages require a graphics-capable command buffer");
+            if (stages.contains(PipelineStageBits::ComputeShader) && !commandBuffer->queueCapabilities.contains(
+                QueueFamilyBits::Compute))
+                return commandError(CommandErrorCode::InvalidState, operation,
+                                    "compute stages require a compute-capable command buffer");
+            if (stages.contains(PipelineStageBits::DrawIndirect) && (commandBuffer->queueCapabilities & shaderQueues).
+                empty())
+                return commandError(CommandErrorCode::InvalidState, operation,
+                                    "indirect stages require graphics or compute capability");
+            if (stages.contains(PipelineStageBits::Copy) && !commandBuffer->queueCapabilities.contains(
+                QueueFamilyBits::Transfer))
+                return commandError(CommandErrorCode::InvalidState, operation,
+                                    "copy stages require transfer capability");
         }
         for (const auto& barrier : bufferBarriers)
             if (barrier.buffer == nullptr || !validRange(barrier.offset, barrier.size, barrier.buffer->getSize()))
@@ -1058,7 +1463,8 @@ namespace Vixen {
         uint64_t size
     ) -> std::expected<void, CommandError> {
         constexpr std::string_view operation = "commandClearBuffer";
-        if (auto result = checkRecording(commandBuffer, operation, QueueFamilyBits::Transfer, RenderingScope::Outside); !result)
+        if (auto result = checkRecording(commandBuffer, operation, QueueFamilyBits::Transfer, RenderingScope::Outside);
+            !result)
             return result;
         if (buffer == nullptr || !buffer->getUsage().contains(BufferUsageBits::CopyDestination))
             return invalidArgument(operation, "destination buffer is null or lacks CopyDestination usage");
@@ -1074,7 +1480,8 @@ namespace Vixen {
         const std::vector<BufferCopyRegion>& regions
     ) -> std::expected<void, CommandError> {
         constexpr std::string_view operation = "commandCopyBuffer";
-        if (auto result = checkRecording(commandBuffer, operation, QueueFamilyBits::Transfer, RenderingScope::Outside); !result)
+        if (auto result = checkRecording(commandBuffer, operation, QueueFamilyBits::Transfer, RenderingScope::Outside);
+            !result)
             return result;
         if (source == nullptr || destination == nullptr)
             return invalidArgument(operation, "source or destination buffer is null");
@@ -1090,7 +1497,8 @@ namespace Vixen {
         if (source == destination)
             for (const auto& src : regions)
                 for (const auto& dst : regions)
-                    if (src.sourceOffset < dst.destinationOffset + dst.size && dst.destinationOffset < src.sourceOffset + src.size)
+                    if (src.sourceOffset < dst.destinationOffset + dst.size && dst.destinationOffset < src.sourceOffset
+                        + src.size)
                         return invalidArgument(operation, "source and destination copy ranges overlap");
         return {};
     }
@@ -1104,7 +1512,8 @@ namespace Vixen {
         const std::vector<ImageCopyRegion>& regions
     ) -> std::expected<void, CommandError> {
         constexpr std::string_view operation = "commandCopyImage";
-        if (auto result = checkRecording(commandBuffer, operation, QueueFamilyBits::Transfer, RenderingScope::Outside); !result)
+        if (auto result = checkRecording(commandBuffer, operation, QueueFamilyBits::Transfer, RenderingScope::Outside);
+            !result)
             return result;
         if (source == nullptr || destination == nullptr)
             return invalidArgument(operation, "source or destination image is null");
@@ -1113,9 +1522,11 @@ namespace Vixen {
         if (regions.empty() || regions.size() > std::numeric_limits<uint32_t>::max())
             return invalidArgument(operation, "copy region count must be nonzero and representable as uint32_t");
         for (const auto& region : regions) {
-            if (auto result = checkImageRegion(source, region.sourceSubresources, region.sourceOffset, region.size, operation); !result)
+            if (auto result = checkImageRegion(source, region.sourceSubresources, region.sourceOffset, region.size,
+                                               operation); !result)
                 return result;
-            if (auto result = checkImageRegion(destination, region.destinationSubresources, region.destinationOffset, region.size, operation); !result)
+            if (auto result = checkImageRegion(destination, region.destinationSubresources, region.destinationOffset,
+                                               region.size, operation); !result)
                 return result;
         }
         return {};
@@ -1133,7 +1544,8 @@ namespace Vixen {
         uint32_t destinationMipmap
     ) -> std::expected<void, CommandError> {
         constexpr std::string_view operation = "commandResolveImage";
-        if (auto result = checkRecording(commandBuffer, operation, QueueFamilyBits::Graphics, RenderingScope::Outside); !result)
+        if (auto result = checkRecording(commandBuffer, operation, QueueFamilyBits::Graphics, RenderingScope::Outside);
+            !result)
             return result;
         if (source == nullptr || destination == nullptr)
             return invalidArgument(operation, "source or destination image is null");
@@ -1142,14 +1554,20 @@ namespace Vixen {
         if (source->format.samples == ImageSamples::One || destination->format.samples != ImageSamples::One ||
             source->format.format != destination->format.format ||
             getImageAspects(source->format.format) != ImageAspectFlags{ImageAspectBits::Color})
-            return invalidArgument(operation, "resolve requires matching color formats, a multisampled source, and a single-sampled destination");
+            return invalidArgument(
+                operation,
+                "resolve requires matching color formats, a multisampled source, and a single-sampled destination");
         if (sourceMipmap >= 32 || sourceMipmap >= source->format.mipmapCount || destinationMipmap >= 32)
             return invalidArgument(operation, "resolve mip level is outside the supported range");
-        const glm::uvec3 extent{std::max(1u, source->format.width >> sourceMipmap),
-            std::max(1u, source->format.height >> sourceMipmap), std::max(1u, source->format.depth >> sourceMipmap)};
-        if (auto result = checkImageRegion(source, {ImageAspectBits::Color, sourceMipmap, sourceLayer, 1}, {}, extent, operation); !result)
+        const glm::uvec3 extent{
+            std::max(1u, source->format.width >> sourceMipmap),
+            std::max(1u, source->format.height >> sourceMipmap), std::max(1u, source->format.depth >> sourceMipmap)
+        };
+        if (auto result = checkImageRegion(source, {ImageAspectBits::Color, sourceMipmap, sourceLayer, 1}, {}, extent,
+                                           operation); !result)
             return result;
-        return checkImageRegion(destination, {ImageAspectBits::Color, destinationMipmap, destinationLayer, 1}, {}, extent, operation);
+        return checkImageRegion(destination, {ImageAspectBits::Color, destinationMipmap, destinationLayer, 1}, {},
+                                extent, operation);
     }
 
     auto RenderingDeviceDriver::commandClearColorImage(
@@ -1161,7 +1579,8 @@ namespace Vixen {
     ) -> std::expected<void, CommandError> {
         constexpr std::string_view operation = "commandClearColorImage";
         (void)color;
-        if (auto result = checkRecording(commandBuffer, operation, QueueFamilyBits::Graphics | QueueFamilyBits::Compute, RenderingScope::Outside); !result)
+        if (auto result = checkRecording(commandBuffer, operation, QueueFamilyBits::Graphics | QueueFamilyBits::Compute,
+                                         RenderingScope::Outside); !result)
             return result;
         if (!isTransferLayout(imageLayout, false))
             return invalidArgument(operation, "image layout does not support clearing");
@@ -1180,7 +1599,8 @@ namespace Vixen {
         const std::vector<BufferImageCopyRegion>& regions
     ) -> std::expected<void, CommandError> {
         constexpr std::string_view operation = "commandCopyBufferToImage";
-        if (auto result = checkRecording(commandBuffer, operation, QueueFamilyBits::Transfer, RenderingScope::Outside); !result)
+        if (auto result = checkRecording(commandBuffer, operation, QueueFamilyBits::Transfer, RenderingScope::Outside);
+            !result)
             return result;
         if (buffer == nullptr || image == nullptr)
             return invalidArgument(operation, "buffer or image is null");
@@ -1191,7 +1611,8 @@ namespace Vixen {
         for (const auto& region : regions) {
             if (region.bufferOffset >= buffer->getSize())
                 return invalidArgument(operation, "copy buffer offset is outside the buffer");
-            if (auto result = checkImageRegion(image, region.imageSubresourceLayers, region.imageOffset, region.imageRegionSize, operation); !result)
+            if (auto result = checkImageRegion(image, region.imageSubresourceLayers, region.imageOffset,
+                                               region.imageRegionSize, operation); !result)
                 return result;
         }
         return {};
@@ -1205,7 +1626,8 @@ namespace Vixen {
         const std::vector<BufferImageCopyRegion>& regions
     ) -> std::expected<void, CommandError> {
         constexpr std::string_view operation = "commandCopyImageToBuffer";
-        if (auto result = checkRecording(commandBuffer, operation, QueueFamilyBits::Transfer, RenderingScope::Outside); !result)
+        if (auto result = checkRecording(commandBuffer, operation, QueueFamilyBits::Transfer, RenderingScope::Outside);
+            !result)
             return result;
         if (buffer == nullptr || image == nullptr)
             return invalidArgument(operation, "buffer or image is null");
@@ -1216,7 +1638,8 @@ namespace Vixen {
         for (const auto& region : regions) {
             if (region.bufferOffset >= buffer->getSize())
                 return invalidArgument(operation, "copy buffer offset is outside the buffer");
-            if (auto result = checkImageRegion(image, region.imageSubresourceLayers, region.imageOffset, region.imageRegionSize, operation); !result)
+            if (auto result = checkImageRegion(image, region.imageSubresourceLayers, region.imageOffset,
+                                               region.imageRegionSize, operation); !result)
                 return result;
         }
         return {};
@@ -1246,10 +1669,12 @@ namespace Vixen {
             return invalidArgument("resetCommandPool", "command pool is null");
         for (const auto& state : pool->commandSubmissions)
             if (state->load() == CommandBuffer::State::Pending)
-                return commandError(CommandErrorCode::InvalidState, "resetCommandPool", "a native submission using the pool is still pending");
+                return commandError(CommandErrorCode::InvalidState, "resetCommandPool",
+                                    "a native submission using the pool is still pending");
         for (const auto* commandBuffer : pool->commandBuffers)
             if (commandBuffer->getState() == CommandBuffer::State::Pending)
-                return commandError(CommandErrorCode::InvalidState, "resetCommandPool", "a command buffer allocated from the pool is still pending");
+                return commandError(CommandErrorCode::InvalidState, "resetCommandPool",
+                                    "a command buffer allocated from the pool is still pending");
         return {};
     }
 
@@ -1274,10 +1699,13 @@ namespace Vixen {
             if (commandBuffer == nullptr)
                 return invalidArgument(operation, "command buffer is null");
             if (commandBuffer->getState() != CommandBuffer::State::Executable)
-                return commandError(CommandErrorCode::InvalidState, operation, "every submitted command buffer must be Executable");
+                return commandError(CommandErrorCode::InvalidState, operation,
+                                    "every submitted command buffer must be Executable");
             if (commandBuffer->pool == nullptr || commandBuffer->pool->type != CommandBufferType::Primary)
-                return invalidArgument(operation, "only primary command buffers from a live pool can be submitted directly");
-            if (std::find(commandBuffers.begin(), commandBuffers.begin() + i, commandBuffer) != commandBuffers.begin() + i)
+                return invalidArgument(
+                    operation, "only primary command buffers from a live pool can be submitted directly");
+            if (std::find(commandBuffers.begin(), commandBuffers.begin() + i, commandBuffer) != commandBuffers.begin() +
+                i)
                 return invalidArgument(operation, "the same command buffer occurs more than once in the submission");
         }
         for (auto* semaphore : waitSemaphores)

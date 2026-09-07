@@ -4180,6 +4180,150 @@ namespace Vixen {
         };
     }
 
+    auto VulkanRenderingDeviceDriver::commandDraw(
+        CommandBuffer* commandBuffer,
+        const uint32_t vertexCount,
+        const uint32_t instanceCount,
+        const uint32_t firstVertex,
+        const uint32_t firstInstance
+    ) -> std::expected<void, CommandError> {
+        if (auto result = RenderingDeviceDriver::commandDraw(
+            commandBuffer,
+            vertexCount,
+            instanceCount,
+            firstVertex,
+            firstInstance
+        ); !result)
+            return result;
+
+        const auto vkCommandBuffer = dynamic_cast<VulkanCommandBuffer*>(commandBuffer);
+        if (vkCommandBuffer == nullptr)
+            return std::unexpected{
+                CommandError{
+                    .code = CommandErrorCode::InvalidArgument,
+                    .message = "Command buffer belongs to a different backend"
+                }
+            };
+
+        if (dynamic_cast<const VulkanGraphicsPipeline*>(commandBuffer->boundGraphicsPipeline) == nullptr)
+            return std::unexpected{
+                CommandError{
+                    .code = CommandErrorCode::InvalidState,
+                    .message = "commandDraw: the bound graphics pipeline belongs to a different backend"
+                }
+            };
+
+        vkCmdDraw(
+            vkCommandBuffer->commandBuffer,
+            vertexCount,
+            instanceCount,
+            firstVertex,
+            firstInstance
+        );
+
+        return {};
+    }
+
+    auto VulkanRenderingDeviceDriver::commandDrawIndexed(
+        CommandBuffer* commandBuffer,
+        const uint32_t indexCount,
+        const uint32_t instanceCount,
+        const uint32_t firstIndex,
+        const int32_t vertexOffset,
+        const uint32_t firstInstance
+    ) -> std::expected<void, CommandError> {
+        if (auto result = RenderingDeviceDriver::commandDrawIndexed(
+            commandBuffer,
+            indexCount,
+            instanceCount,
+            firstIndex,
+            vertexOffset,
+            firstInstance
+        ); !result)
+            return result;
+
+        const auto vkCommandBuffer = dynamic_cast<VulkanCommandBuffer*>(commandBuffer);
+        if (vkCommandBuffer == nullptr)
+            return std::unexpected{
+                CommandError{
+                    .code = CommandErrorCode::InvalidArgument,
+                    .message = "Command buffer belongs to a different backend"
+                }
+            };
+
+        if (dynamic_cast<const VulkanGraphicsPipeline*>(commandBuffer->boundGraphicsPipeline) == nullptr)
+            return std::unexpected{
+                CommandError{
+                    .code = CommandErrorCode::InvalidState,
+                    .message = "commandDrawIndexed: the bound graphics pipeline belongs to a different backend"
+                }
+            };
+
+        vkCmdDrawIndexed(
+            vkCommandBuffer->commandBuffer,
+            indexCount,
+            instanceCount,
+            firstIndex,
+            vertexOffset,
+            firstInstance
+        );
+
+        return {};
+    }
+
+    auto VulkanRenderingDeviceDriver::commandDispatch(
+        CommandBuffer* commandBuffer,
+        const uint32_t groupCountX,
+        const uint32_t groupCountY,
+        const uint32_t groupCountZ
+    ) -> std::expected<void, CommandError> {
+        if (auto result = RenderingDeviceDriver::commandDispatch(
+            commandBuffer,
+            groupCountX,
+            groupCountY,
+            groupCountZ
+        ); !result)
+            return result;
+
+        const auto vkCommandBuffer = dynamic_cast<VulkanCommandBuffer*>(commandBuffer);
+        if (vkCommandBuffer == nullptr)
+            return std::unexpected{
+                CommandError{
+                    .code = CommandErrorCode::InvalidArgument,
+                    .message = "Command buffer belongs to a different backend"
+                }
+            };
+
+        if (dynamic_cast<const VulkanComputePipeline*>(commandBuffer->boundComputePipeline) == nullptr)
+            return std::unexpected{
+                CommandError{
+                    .code = CommandErrorCode::InvalidState,
+                    .message = "commandDispatch: the bound compute pipeline belongs to a different backend"
+                }
+            };
+
+        const std::array groupCounts{groupCountX, groupCountY, groupCountZ};
+        for (size_t axis = 0; axis < groupCounts.size(); ++axis)
+            if (groupCounts[axis] > physicalDeviceProperties.limits.maxComputeWorkGroupCount[axis])
+                return std::unexpected{
+                    CommandError{
+                        .code = CommandErrorCode::InvalidArgument,
+                        .message = std::format("commandDispatch: groupCount{} ({}) exceeds the device limit ({})",
+                                               "XYZ"[axis], groupCounts[axis],
+                                               physicalDeviceProperties.limits.maxComputeWorkGroupCount[axis])
+                    }
+                };
+
+        vkCmdDispatch(
+            vkCommandBuffer->commandBuffer,
+            groupCountX,
+            groupCountY,
+            groupCountZ
+        );
+
+        return {};
+    }
+
     auto VulkanRenderingDeviceDriver::commandPipelineBarrier(
         CommandBuffer* commandBuffer,
         const PipelineStageFlags sourceStages,

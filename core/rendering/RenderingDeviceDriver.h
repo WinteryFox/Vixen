@@ -3,6 +3,7 @@
 #include <cstddef>
 #include <cstdint>
 #include <expected>
+#include <optional>
 #include <string>
 #include <string_view>
 #include <vector>
@@ -81,6 +82,20 @@ namespace Vixen {
             std::string_view operation,
             QueueFamilyFlags allowedQueues = {},
             RenderingScope scope = RenderingScope::Any
+        ) -> std::expected<void, CommandError>;
+
+        static auto checkGraphicsDrawState(
+            const CommandBuffer* commandBuffer,
+            std::string_view operation
+        ) -> std::expected<void, CommandError>;
+
+        static auto checkVertexBindings(
+            const CommandBuffer* commandBuffer,
+            std::string_view operation,
+            uint32_t count,
+            uint32_t instanceCount,
+            std::optional<uint32_t> firstVertex,
+            uint32_t firstInstance
         ) -> std::expected<void, CommandError>;
 
     protected:
@@ -281,6 +296,30 @@ namespace Vixen {
             const Buffer* buffer,
             IndexFormat format,
             uint64_t offset
+        ) -> std::expected<void, CommandError> = 0;
+
+        [[nodiscard]] virtual auto commandDraw(
+            CommandBuffer* commandBuffer,
+            uint32_t vertexCount,
+            uint32_t instanceCount,
+            uint32_t firstVertex,
+            uint32_t firstInstance
+        ) -> std::expected<void, CommandError> = 0;
+
+        [[nodiscard]] virtual auto commandDrawIndexed(
+            CommandBuffer* commandBuffer,
+            uint32_t indexCount,
+            uint32_t instanceCount,
+            uint32_t firstIndex,
+            int32_t vertexOffset,
+            uint32_t firstInstance
+        ) -> std::expected<void, CommandError> = 0;
+
+        [[nodiscard]] virtual auto commandDispatch(
+            CommandBuffer* commandBuffer,
+            uint32_t groupCountX,
+            uint32_t groupCountY,
+            uint32_t groupCountZ
         ) -> std::expected<void, CommandError> = 0;
 
         [[nodiscard]] virtual auto commandPipelineBarrier(
