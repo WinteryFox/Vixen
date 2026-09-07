@@ -3,7 +3,7 @@
 #include "FrameGraphPassResources.h"
 
 namespace Vixen {
-    struct CommandBuffer;
+    class CommandBuffer;
     class RenderingDeviceDriver;
 
     /**

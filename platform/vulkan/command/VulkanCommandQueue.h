@@ -6,12 +6,14 @@
 #include <volk.h>
 
 #include "core/command/CommandQueue.h"
+#include "core/command/CommandBuffer.h"
 
 namespace Vixen {
     class Swapchain;
     class Fence;
 
     struct VulkanCommandQueue final : CommandQueue {
+        std::vector<std::shared_ptr<std::atomic<CommandBuffer::State>>> commandSubmissions;
         std::vector<VkSemaphore> imageSemaphores{};
         std::vector<Swapchain*> imageSemaphoresSwapchains{};
         std::vector<uint32_t> pendingSemaphoresForExecute{};

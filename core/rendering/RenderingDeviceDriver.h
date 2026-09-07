@@ -4,8 +4,10 @@
 #include <cstdint>
 #include <expected>
 #include <string>
+#include <string_view>
 #include <vector>
 
+#include "command/CommandError.h"
 #include "core/synchronization/BufferBarrier.h"
 #include "core/synchronization/ImageBarrier.h"
 #include "core/memory/MemoryAllocationType.h"
@@ -43,8 +45,8 @@ namespace Vixen {
     struct ComputePipeline;
     struct GraphicsPipeline;
     struct PipelineLayoutDescription;
-    struct Pipeline;
-    struct PipelineLayout;
+    class Pipeline;
+    class PipelineLayout;
     struct ShaderReflectionError;
     struct BufferImageCopyRegion;
     struct ImageSubresourceRange;
@@ -58,7 +60,7 @@ namespace Vixen {
     struct SamplerState;
     struct Image;
     class Buffer;
-    struct CommandBuffer;
+    class CommandBuffer;
     struct CommandPool;
     enum class CommandBufferType;
     struct Semaphore;
@@ -72,6 +74,15 @@ namespace Vixen {
     struct Framebuffer;
 
     class RenderingDeviceDriver {
+        enum class RenderingScope { Any, Outside, Inside };
+
+        static auto checkRecording(
+            const CommandBuffer* commandBuffer,
+            std::string_view operation,
+            QueueFamilyFlags allowedQueues = {},
+            RenderingScope scope = RenderingScope::Any
+        ) -> std::expected<void, CommandError>;
+
     protected:
         static auto reflectShader(
             const std::vector<ShaderStageData>& stages,
@@ -123,7 +134,7 @@ namespace Vixen {
 
         virtual auto resetCommandPool(
             CommandPool* pool
-        ) -> std::expected<void, Error> = 0;
+        ) -> std::expected<void, CommandError> = 0;
 
         virtual void destroyCommandPool(
             CommandPool* pool
@@ -131,15 +142,15 @@ namespace Vixen {
 
         virtual auto createCommandBuffer(
             CommandPool* pool
-        ) -> std::expected<CommandBuffer*, Error> = 0;
+        ) -> std::expected<CommandBuffer*, ResourceCreationError> = 0;
 
-        virtual auto beginCommandBuffer(
+        [[nodiscard]] virtual auto beginCommandBuffer(
             CommandBuffer* commandBuffer
-        ) -> std::expected<void, Error> = 0;
+        ) -> std::expected<void, CommandError> = 0;
 
-        virtual void endCommandBuffer(
+        [[nodiscard]] virtual auto endCommandBuffer(
             CommandBuffer* commandBuffer
-        ) = 0;
+        ) -> std::expected<void, CommandError> = 0;
 
         virtual auto createBuffer(
             uint64_t size,
@@ -167,7 +178,7 @@ namespace Vixen {
             const std::vector<Semaphore*>& signalSemaphores,
             Fence* fence,
             const std::vector<Swapchain*>& swapchains
-        ) -> std::expected<void, Error> = 0;
+        ) -> std::expected<void, CommandError> = 0;
 
         virtual void destroyCommandQueue(
             CommandQueue* commandQueue
@@ -235,77 +246,76 @@ namespace Vixen {
 
         virtual void destroyPipeline(Pipeline* pipeline) = 0;
 
-        virtual void commandBeginRenderPass(
+        [[nodiscard]] virtual auto commandBeginRenderPass(
             CommandBuffer* commandBuffer,
             const RenderingInfo& renderingInfo
-        ) = 0;
+        ) -> std::expected<void, CommandError> = 0;
 
-        virtual void commandEndRenderPass(
+        [[nodiscard]] virtual auto commandEndRenderPass(
             CommandBuffer* commandBuffer
-        ) = 0;
+        ) -> std::expected<void, CommandError> = 0;
 
-        virtual void commandSetViewport(
+        [[nodiscard]] virtual auto commandSetViewport(
             CommandBuffer* commandBuffer,
             const std::vector<glm::uvec2>& viewports
-        ) = 0;
+        ) -> std::expected<void, CommandError> = 0;
 
-        virtual void commandSetScissor(
+        [[nodiscard]] virtual auto commandSetScissor(
             CommandBuffer* commandBuffer,
             const std::vector<glm::uvec2>& scissors
-        ) = 0;
+        ) -> std::expected<void, CommandError> = 0;
 
-        virtual void commandSetBlendConstants(
+        [[nodiscard]] virtual auto commandSetBlendConstants(
             CommandBuffer* commandBuffer,
             glm::vec4 blendConstants
-        ) = 0;
+        ) -> std::expected<void, CommandError> = 0;
 
-        virtual void commandBindVertexBuffers(
-            const CommandBuffer* commandBuffer,
-            uint32_t count,
-            const std::vector<Buffer*>& buffers,
+        [[nodiscard]] virtual auto commandBindVertexBuffers(
+            CommandBuffer* commandBuffer,
+            const std::vector<const Buffer*>& buffers,
             const std::vector<uint64_t>& offsets
-        ) = 0;
+        ) -> std::expected<void, CommandError> = 0;
 
-        virtual void commandBindIndexBuffers(
-            const CommandBuffer* commandBuffer,
-            Buffer* buffer,
+        [[nodiscard]] virtual auto commandBindIndexBuffers(
+            CommandBuffer* commandBuffer,
+            const Buffer* buffer,
             IndexFormat format,
             uint64_t offset
-        ) = 0;
+        ) -> std::expected<void, CommandError> = 0;
 
-        virtual void commandPipelineBarrier(
+        [[nodiscard]] virtual auto commandPipelineBarrier(
             CommandBuffer* commandBuffer,
             PipelineStageFlags sourceStages,
             PipelineStageFlags destinationStages,
             const std::vector<MemoryBarrier>& memoryBarriers,
             const std::vector<BufferBarrier>& bufferBarriers,
             const std::vector<ImageBarrier>& imageBarriers
-        ) = 0;
+        ) -> std::expected<void, CommandError> = 0;
 
-        virtual void commandClearBuffer(
+        [[nodiscard]] virtual auto commandClearBuffer(
             CommandBuffer* commandBuffer,
             Buffer* buffer,
             uint64_t offset,
             uint64_t size
-        ) = 0;
+        ) -> std::expected<void, CommandError> = 0;
 
-        virtual void commandCopyBuffer(
+        [[nodiscard]] virtual auto commandCopyBuffer(
             CommandBuffer* commandBuffer,
             Buffer* source,
             Buffer* destination,
             const std::vector<BufferCopyRegion>& regions
-        ) = 0;
+        ) -> std::expected<void, CommandError> = 0;
 
-        virtual void commandCopyImage(
+        [[nodiscard]] virtual auto commandCopyImage(
             CommandBuffer* commandBuffer,
             Image* source,
             ImageLayout sourceLayout,
             Image* destination,
             ImageLayout destinationLayout,
             const std::vector<ImageCopyRegion>& regions
-        ) = 0;
+        ) -> std::expected<void, CommandError> = 0;
 
-        virtual void commandResolveImage(
+        [[nodiscard]] virtual auto commandResolveImage(
             CommandBuffer* commandBuffer,
             Image* source,
             ImageLayout sourceLayout,
@@ -315,41 +325,41 @@ namespace Vixen {
             ImageLayout destinationLayout,
             uint32_t destinationLayer,
             uint32_t destinationMipmap
-        ) = 0;
+        ) -> std::expected<void, CommandError> = 0;
 
-        virtual void commandClearColorImage(
+        [[nodiscard]] virtual auto commandClearColorImage(
             CommandBuffer* commandBuffer,
             Image* image,
             ImageLayout imageLayout,
             const glm::vec4& color,
             const ImageSubresourceRange& subresource
-        ) = 0;
+        ) -> std::expected<void, CommandError> = 0;
 
-        virtual void commandCopyBufferToImage(
+        [[nodiscard]] virtual auto commandCopyBufferToImage(
             CommandBuffer* commandBuffer,
             Buffer* buffer,
             Image* image,
             ImageLayout layout,
             const std::vector<BufferImageCopyRegion>& regions
-        ) = 0;
+        ) -> std::expected<void, CommandError> = 0;
 
-        virtual void commandCopyImageToBuffer(
+        [[nodiscard]] virtual auto commandCopyImageToBuffer(
             CommandBuffer* commandBuffer,
             Image* image,
             ImageLayout layout,
             Buffer* buffer,
             const std::vector<BufferImageCopyRegion>& regions
-        ) = 0;
+        ) -> std::expected<void, CommandError> = 0;
 
-        virtual void commandBeginLabel(
+        [[nodiscard]] virtual auto commandBeginLabel(
             CommandBuffer* commandBuffer,
             const std::string& label,
             const glm::vec4& color
-        ) = 0;
+        ) -> std::expected<void, CommandError> = 0;
 
-        virtual void commandEndLabel(
+        [[nodiscard]] virtual auto commandEndLabel(
             CommandBuffer* commandBuffer
-        ) = 0;
+        ) -> std::expected<void, CommandError> = 0;
 
         [[nodiscard]] virtual auto getImageUsageSupportedByFormat(
             ImageDataFormat format,

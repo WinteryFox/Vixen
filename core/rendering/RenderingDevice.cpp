@@ -963,7 +963,8 @@ namespace Vixen {
     }
 
     void RenderingDevice::endFrame() {
-        renderingDeviceDriver->endCommandBuffer(frames[frameIndex].commandBuffer);
+        if (auto result = renderingDeviceDriver->endCommandBuffer(frames[frameIndex].commandBuffer); !result)
+            throw std::runtime_error(result.error().message);
     }
 
     void RenderingDevice::executeChainedCommands(
@@ -1106,7 +1107,8 @@ namespace Vixen {
         }
         framesDrawn = frames.size();
 
-        renderingDeviceDriver->beginCommandBuffer(frames[0].commandBuffer);
+        if (auto result = renderingDeviceDriver->beginCommandBuffer(frames[0].commandBuffer); !result)
+            throw std::runtime_error(result.error().message);
     }
 
     RenderingDevice::~RenderingDevice() {

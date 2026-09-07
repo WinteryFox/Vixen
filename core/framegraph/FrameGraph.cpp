@@ -242,6 +242,18 @@ namespace Vixen {
             };
 
         const auto driver = device.getRenderingDeviceDriver();
+        auto recordingError = [](CommandError error, std::optional<uint32_t> passIndex = std::nullopt,
+                                 std::optional<std::string> passName = std::nullopt) {
+            FrameGraphExecutionError failure{
+                .code = FrameGraphExecutionErrorCode::CommandRecordingFailed,
+                .message = std::format("Frame-graph command recording failed: {}", error.message),
+                .passIndex = passIndex,
+                .passName = std::move(passName),
+                .commandBufferMustBeDiscarded = true,
+                .commandError = std::move(error)
+            };
+            return std::unexpected{std::move(failure)};
+        };
 
         for (const auto& record : executionPlan.passes) {
             const uint32_t passIndex = record.passIndex;
@@ -264,24 +276,27 @@ namespace Vixen {
 
             const bool shouldUseRenderPass = record.renderingInfo.has_value();
 
-            driver->commandBeginLabel(commandBuffer, pass.getName(), record.debugLabelColor);
+            if (auto result = driver->commandBeginLabel(commandBuffer, pass.getName(), record.debugLabelColor); !result)
+                return recordingError(std::move(result).error(), passIndex, pass.getName());
 
             auto labelGuard = std::experimental::scope_exit([
                 &driver,
                 commandBuffer
             ] {
-                driver->commandEndLabel(commandBuffer);
+                (void)driver->commandEndLabel(commandBuffer); // Best-effort cleanup; the recording is discarded on failure.
             });
 
-            emitBarrierBatches(*driver, commandBuffer, barrierPlan.beforePass[passIndex]);
+            if (auto result = emitBarrierBatches(*driver, commandBuffer, barrierPlan.beforePass[passIndex]); !result)
+                return recordingError(std::move(result).error(), passIndex, pass.getName());
 
             auto endRendering = [&driver, commandBuffer] {
-                driver->commandEndRenderPass(commandBuffer);
+                (void)driver->commandEndRenderPass(commandBuffer); // Best-effort cleanup on an already failed recording.
             };
             using RenderingGuard = std::experimental::scope_exit<decltype(endRendering)>;
             std::optional<RenderingGuard> renderingGuard;
             if (shouldUseRenderPass) {
-                driver->commandBeginRenderPass(commandBuffer, *record.renderingInfo);
+                if (auto result = driver->commandBeginRenderPass(commandBuffer, *record.renderingInfo); !result)
+                    return recordingError(std::move(result).error(), passIndex, pass.getName());
                 renderingGuard.emplace(endRendering);
             }
 
@@ -303,9 +318,19 @@ namespace Vixen {
                     }
                 };
             }
+
+            if (renderingGuard) {
+                renderingGuard->release();
+                if (auto result = driver->commandEndRenderPass(commandBuffer); !result)
+                    return recordingError(std::move(result).error(), passIndex, pass.getName());
+            }
+            labelGuard.release();
+            if (auto result = driver->commandEndLabel(commandBuffer); !result)
+                return recordingError(std::move(result).error(), passIndex, pass.getName());
         }
 
-        emitBarrierBatches(*driver, commandBuffer, barrierPlan.finalBatches);
+        if (auto result = emitBarrierBatches(*driver, commandBuffer, barrierPlan.finalBatches); !result)
+            return recordingError(std::move(result).error());
 
         return {};
     }

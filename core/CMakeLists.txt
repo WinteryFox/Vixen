@@ -4,6 +4,7 @@ add_library(
         ${IMGUI_SOURCES}
         application/Application.cpp
         buffer/Buffer.cpp
+        command/CommandBuffer.cpp
         display/DisplayServer.cpp
         framegraph/BarrierBatch.cpp
         framegraph/FrameGraph.cpp
@@ -40,6 +41,7 @@ target_sources(
         command/Fence.h
         command/QueueFamilyFlags.h
         command/Semaphore.h
+        command/CommandError.h
         display/DisplayServer.h
         display/Monitor.h
         display/VSyncMode.h

@@ -65,13 +65,13 @@ namespace Vixen {
         batches.clear();
     }
 
-    void emitBarrierBatches(
+    auto emitBarrierBatches(
         RenderingDeviceDriver& driver,
         CommandBuffer* commandBuffer,
         const std::span<const BarrierBatch> batches
-    ) {
-        for (const auto& batch : batches)
-            driver.commandPipelineBarrier(
+    ) -> std::expected<void, CommandError> {
+        for (const auto& batch : batches) {
+            auto result = driver.commandPipelineBarrier(
                 commandBuffer,
                 batch.sourceStages,
                 batch.destinationStages,
@@ -79,5 +79,10 @@ namespace Vixen {
                 batch.bufferBarriers,
                 batch.imageBarriers
             );
+            if (!result)
+                return result;
+        }
+
+        return {};
     }
 }

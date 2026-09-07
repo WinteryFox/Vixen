@@ -141,7 +141,7 @@ namespace Vixen {
 
         auto resetCommandPool(
             CommandPool* pool
-        ) -> std::expected<void, Error> override;
+        ) -> std::expected<void, CommandError> override;
 
         void destroyCommandPool(
             CommandPool* pool
@@ -149,15 +149,15 @@ namespace Vixen {
 
         auto createCommandBuffer(
             CommandPool* pool
-        ) -> std::expected<CommandBuffer*, Error> override;
+        ) -> std::expected<CommandBuffer*, ResourceCreationError> override;
 
-        auto beginCommandBuffer(
+        [[nodiscard]] auto beginCommandBuffer(
             CommandBuffer* commandBuffer
-        ) -> std::expected<void, Error> override;
+        ) -> std::expected<void, CommandError> override;
 
-        void endCommandBuffer(
+        [[nodiscard]] auto endCommandBuffer(
             CommandBuffer* commandBuffer
-        ) override;
+        ) -> std::expected<void, CommandError> override;
 
         auto createCommandQueue(
             uint32_t queueFamilyIndex
@@ -170,7 +170,7 @@ namespace Vixen {
             const std::vector<Semaphore*>& signalSemaphores,
             Fence* fence,
             const std::vector<Swapchain*>& swapchains
-        ) -> std::expected<void, Error> override;
+        ) -> std::expected<void, CommandError> override;
 
         void destroyCommandQueue(
             CommandQueue* commandQueue
@@ -248,77 +248,76 @@ namespace Vixen {
             const BufferImageCopyRegion& region
         );
 
-        void commandBeginRenderPass(
+        [[nodiscard]] auto commandBeginRenderPass(
             CommandBuffer* commandBuffer,
             const RenderingInfo& renderingInfo
-        ) override;
+        ) -> std::expected<void, CommandError> override;
 
-        void commandEndRenderPass(
+        [[nodiscard]] auto commandEndRenderPass(
             CommandBuffer* commandBuffer
-        ) override;
+        ) -> std::expected<void, CommandError> override;
 
-        void commandSetViewport(
+        [[nodiscard]] auto commandSetViewport(
             CommandBuffer* commandBuffer,
             const std::vector<glm::uvec2>& viewports
-        ) override;
+        ) -> std::expected<void, CommandError> override;
 
-        void commandSetScissor(
+        [[nodiscard]] auto commandSetScissor(
             CommandBuffer* commandBuffer,
             const std::vector<glm::uvec2>& scissors
-        ) override;
+        ) -> std::expected<void, CommandError> override;
 
-        void commandSetBlendConstants(
+        [[nodiscard]] auto commandSetBlendConstants(
             CommandBuffer* commandBuffer,
             glm::vec4 blendConstants
-        ) override;
+        ) -> std::expected<void, CommandError> override;
 
-        void commandBindVertexBuffers(
-            const CommandBuffer* commandBuffer,
-            uint32_t count,
-            const std::vector<Buffer*>& buffers,
+        [[nodiscard]] auto commandBindVertexBuffers(
+            CommandBuffer* commandBuffer,
+            const std::vector<const Buffer*>& buffers,
             const std::vector<uint64_t>& offsets
-        ) override;
+        ) -> std::expected<void, CommandError> override;
 
-        void commandBindIndexBuffers(
-            const CommandBuffer* commandBuffer,
-            Buffer* buffer,
+        [[nodiscard]] auto commandBindIndexBuffers(
+            CommandBuffer* commandBuffer,
+            const Buffer* buffer,
             IndexFormat format,
             uint64_t offset
-        ) override;
+        ) -> std::expected<void, CommandError> override;
 
-        void commandPipelineBarrier(
+        [[nodiscard]] auto commandPipelineBarrier(
             CommandBuffer* commandBuffer,
             PipelineStageFlags sourceStages,
             PipelineStageFlags destinationStages,
             const std::vector<MemoryBarrier>& memoryBarriers,
             const std::vector<BufferBarrier>& bufferBarriers,
             const std::vector<ImageBarrier>& imageBarriers
-        ) override;
+        ) -> std::expected<void, CommandError> override;
 
-        void commandClearBuffer(
+        [[nodiscard]] auto commandClearBuffer(
             CommandBuffer* commandBuffer,
             Buffer* buffer,
             uint64_t offset,
             uint64_t size
-        ) override;
+        ) -> std::expected<void, CommandError> override;
 
-        void commandCopyBuffer(
+        [[nodiscard]] auto commandCopyBuffer(
             CommandBuffer* commandBuffer,
             Buffer* source,
             Buffer* destination,
             const std::vector<BufferCopyRegion>& regions
-        ) override;
+        ) -> std::expected<void, CommandError> override;
 
-        void commandCopyImage(
+        [[nodiscard]] auto commandCopyImage(
             CommandBuffer* commandBuffer,
             Image* source,
             ImageLayout sourceLayout,
             Image* destination,
             ImageLayout destinationLayout,
             const std::vector<ImageCopyRegion>& regions
-        ) override;
+        ) -> std::expected<void, CommandError> override;
 
-        void commandResolveImage(
+        [[nodiscard]] auto commandResolveImage(
             CommandBuffer* commandBuffer,
             Image* source,
             ImageLayout sourceLayout,
@@ -328,41 +327,41 @@ namespace Vixen {
             ImageLayout destinationLayout,
             uint32_t destinationLayer,
             uint32_t destinationMipmap
-        ) override;
+        ) -> std::expected<void, CommandError> override;
 
-        void commandClearColorImage(
+        [[nodiscard]] auto commandClearColorImage(
             CommandBuffer* commandBuffer,
             Image* image,
             ImageLayout imageLayout,
             const glm::vec4& color,
             const ImageSubresourceRange& subresource
-        ) override;
+        ) -> std::expected<void, CommandError> override;
 
-        void commandCopyBufferToImage(
+        [[nodiscard]] auto commandCopyBufferToImage(
             CommandBuffer* commandBuffer,
             Buffer* buffer,
             Image* image,
             ImageLayout layout,
             const std::vector<BufferImageCopyRegion>& regions
-        ) override;
+        ) -> std::expected<void, CommandError> override;
 
-        void commandCopyImageToBuffer(
+        [[nodiscard]] auto commandCopyImageToBuffer(
             CommandBuffer* commandBuffer,
             Image* image,
             ImageLayout layout,
             Buffer* buffer,
             const std::vector<BufferImageCopyRegion>& regions
-        ) override;
+        ) -> std::expected<void, CommandError> override;
 
-        void commandBeginLabel(
+        [[nodiscard]] auto commandBeginLabel(
             CommandBuffer* commandBuffer,
             const std::string& label,
             const glm::vec4& color
-        ) override;
+        ) -> std::expected<void, CommandError> override;
 
-        void commandEndLabel(
+        [[nodiscard]] auto commandEndLabel(
             CommandBuffer* commandBuffer
-        ) override;
+        ) -> std::expected<void, CommandError> override;
 
         [[nodiscard]] auto getImageUsageSupportedByFormat(
             ImageDataFormat format,

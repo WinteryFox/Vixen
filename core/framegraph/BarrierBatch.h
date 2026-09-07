@@ -1,16 +1,18 @@
 #pragma once
 
 #include <span>
+#include <expected>
 #include <vector>
 
 #include "Resource.h"
+#include "core/command/CommandError.h"
 #include "core/synchronization/BufferBarrier.h"
 #include "core/synchronization/ImageBarrier.h"
 #include "core/synchronization/MemoryBarrier.h"
 
 namespace Vixen {
     class RenderingDeviceDriver;
-    struct CommandBuffer;
+    class CommandBuffer;
 
     struct BarrierBatch {
         PipelineStageFlags sourceStages;
@@ -54,9 +56,9 @@ namespace Vixen {
         void clear() noexcept;
     };
 
-    void emitBarrierBatches(
+    [[nodiscard]] auto emitBarrierBatches(
         RenderingDeviceDriver& driver,
         CommandBuffer* commandBuffer,
         std::span<const BarrierBatch> batches
-    );
+    ) -> std::expected<void, CommandError>;
 }

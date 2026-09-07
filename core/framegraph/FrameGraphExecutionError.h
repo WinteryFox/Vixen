@@ -4,12 +4,14 @@
 #include <exception>
 #include <optional>
 #include <string>
+#include "core/command/CommandError.h"
 
 namespace Vixen {
     enum class FrameGraphExecutionErrorCode {
         MovedFromGraph,
         InvalidCommandBuffer,
-        CallbackFailed
+        CallbackFailed,
+        CommandRecordingFailed
     };
 
     struct FrameGraphExecutionError {
@@ -21,5 +23,6 @@ namespace Vixen {
 
         std::exception_ptr cause = nullptr;
         bool commandBufferMustBeDiscarded = false;
+        std::optional<CommandError> commandError = std::nullopt;
     };
 }
