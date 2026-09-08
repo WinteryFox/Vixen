@@ -1065,7 +1065,7 @@ namespace Vixen {
             }
 
             constexpr uint64_t mebibyte = 1024 * 1024;
-            score += std::min(deviceOption.deviceLocalMemory / mebibyte, 100'000ull);
+            score += std::min(static_cast<unsigned long long>(deviceOption.deviceLocalMemory / mebibyte), 100'000ull);
             score += deviceOption.hasDedicatedComputeQueue ? 25'000 : 0;
             score += deviceOption.hasDedicatedTransferQueue ? 25'000 : 0;
 

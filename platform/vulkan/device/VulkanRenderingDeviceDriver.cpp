@@ -432,7 +432,11 @@ namespace Vixen {
             .vkGetPhysicalDeviceMemoryProperties2KHR = vkGetPhysicalDeviceMemoryProperties2,
             .vkGetDeviceBufferMemoryRequirements = vkGetDeviceBufferMemoryRequirements,
             .vkGetDeviceImageMemoryRequirements = vkGetDeviceImageMemoryRequirements,
+            #ifdef _WIN32
             .vkGetMemoryWin32HandleKHR = vkGetMemoryWin32HandleKHR,
+            #else
+            .vkGetMemoryWin32HandleKHR = nullptr,
+            #endif
             .vkGetPhysicalDeviceProperties2KHR = vkGetPhysicalDeviceProperties2KHR
         };
 

@@ -146,6 +146,8 @@ target_compile_definitions(
         ENGINE_VERSION="${ENGINE_VERSION_MAJOR}.${ENGINE_VERSION_MINOR}.${ENGINE_VERSION_PATCH}.$<IF:$<CONFIG:Release>,stable,dev>"
 )
 
+target_compile_definitions(VixenCore PUBLIC GLFW_INCLUDE_NONE)
+
 if (ENABLE_VULKAN)
     target_compile_definitions(VixenCore PRIVATE VULKAN_ENABLED)
 endif ()
