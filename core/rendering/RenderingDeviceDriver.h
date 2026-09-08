@@ -306,7 +306,7 @@ namespace Vixen {
         [[nodiscard]] virtual auto commandBindComputePipeline(
             CommandBuffer* commandBuffer,
             const ComputePipeline* pipeline
-        ) -> std::expected<void, CommandError> ;
+        ) -> std::expected<void, CommandError> = 0;
 
         [[nodiscard]] virtual auto commandDraw(
             CommandBuffer* commandBuffer,
