@@ -21,8 +21,8 @@ namespace Vixen {
         sideEffecting(sideEffecting),
         usesExternallySynchronizedResources(usesExternallySynchronizedResources) {}
 
-    void RenderPass::execute(RenderPassContext& context) {
-        executeCallback(context);
+    auto RenderPass::execute(RenderPassContext& context) -> RenderPassCallbackResult {
+        return executeCallback(context);
     }
 
     const std::string& RenderPass::getName() const noexcept {

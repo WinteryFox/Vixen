@@ -1,6 +1,7 @@
 #pragma once
 
 #include <cstdint>
+#include <expected>
 #include <functional>
 #include <limits>
 #include <optional>
@@ -9,12 +10,15 @@
 #include <type_traits>
 #include <unordered_set>
 #include <utility>
+#include <variant>
 #include <vector>
 
+#include "FrameGraphResourceAccessError.h"
 #include "core/rendering/ClearValue.h"
 #include "core/rendering/LoadAction.h"
 #include "Node.h"
 #include "RenderPassType.h"
+#include "command/CommandError.h"
 #include "core/rendering/StoreAction.h"
 #include "glm/vec4.hpp"
 
@@ -33,7 +37,18 @@ namespace Vixen {
 
     class RenderPass {
     public:
-        using ExecuteCallback = std::move_only_function<void(RenderPassContext&)>;
+        struct RenderPassCallbackFailure {
+            std::string message;
+        };
+
+        using RenderPassCallbackError = std::variant<
+            CommandError,
+            FrameGraphResourceAccessError,
+            RenderPassCallbackFailure
+        >;
+
+        using RenderPassCallbackResult = std::expected<void, RenderPassCallbackError>;
+        using ExecuteCallback = std::move_only_function<RenderPassCallbackResult(RenderPassContext&)>;
 
     private:
         std::string name;
@@ -77,7 +92,7 @@ namespace Vixen {
 
         ~RenderPass() = default;
 
-        void execute(RenderPassContext& context);
+        [[nodiscard]] auto execute(RenderPassContext& context) -> RenderPassCallbackResult;
 
         [[nodiscard]] const std::string& getName() const noexcept;
 
@@ -495,15 +510,36 @@ namespace Vixen {
                     "(const PassData&, RenderPassContext&)"
                 );
 
+                using ExecuteResult = std::invoke_result_t<
+                    StoredExecute&,
+                    const StoredData&,
+                    RenderPassContext&
+                >;
+                static_assert(
+                    std::is_void_v<ExecuteResult> ||
+                    std::is_same_v<ExecuteResult, RenderPassCallbackResult>,
+                    "Execute callback must return void or "
+                    "RenderPass::RenderPassCallbackResult"
+                );
+
                 auto callback = [
                         data = StoredData(std::forward<Data>(data)),
                         execute = StoredExecute(std::forward<Execute>(execute))
-                    ](RenderPassContext& context) mutable {
-                    std::invoke(
-                        execute,
-                        std::as_const(data),
-                        context
-                    );
+                    ](RenderPassContext& context) mutable -> RenderPassCallbackResult {
+                    if constexpr (std::is_void_v<ExecuteResult>) {
+                        std::invoke(
+                            execute,
+                            std::as_const(data),
+                            context
+                        );
+                        return {};
+                    } else {
+                        return std::invoke(
+                            execute,
+                            std::as_const(data),
+                            context
+                        );
+                    }
                 };
 
                 return {

@@ -283,14 +283,14 @@ namespace Vixen {
                 &driver,
                 commandBuffer
             ] {
-                (void)driver->commandEndLabel(commandBuffer); // Best-effort cleanup; the recording is discarded on failure.
+                (void)driver->commandEndLabel(commandBuffer);
             });
 
             if (auto result = emitBarrierBatches(*driver, commandBuffer, barrierPlan.beforePass[passIndex]); !result)
                 return recordingError(std::move(result).error(), passIndex, pass.getName());
 
             auto endRendering = [&driver, commandBuffer] {
-                (void)driver->commandEndRenderPass(commandBuffer); // Best-effort cleanup on an already failed recording.
+                (void)driver->commandEndRenderPass(commandBuffer);
             };
             using RenderingGuard = std::experimental::scope_exit<decltype(endRendering)>;
             std::optional<RenderingGuard> renderingGuard;
@@ -301,7 +301,56 @@ namespace Vixen {
             }
 
             try {
-                pass.execute(context);
+                if (RenderPass::RenderPassCallbackResult result = pass.execute(context);
+                    !result) {
+                    return std::visit(
+                        [
+                            passIndex,
+                            passName = pass.getName()
+                        ]<typename Result>(
+                            Result&& typedResult
+                        ) -> std::expected<void, FrameGraphExecutionError> {
+                            using Error = std::remove_cvref_t<Result>;
+
+                            FrameGraphExecutionError failure{
+                                .code = FrameGraphExecutionErrorCode::CallbackFailed,
+                                .message = {},
+                                .passIndex = passIndex,
+                                .passName = passName,
+                                .commandBufferMustBeDiscarded = true
+                            };
+
+                            if constexpr (std::is_same_v<Error, CommandError>) {
+                                failure.message = std::format(
+                                    "Frame-graph pass '{}' with index {} returned a command error: {}",
+                                    passName,
+                                    passIndex,
+                                    typedResult.message
+                                );
+                                failure.commandError = std::forward<Result>(typedResult);
+                            } else if constexpr (std::is_same_v<Error, FrameGraphResourceAccessError>) {
+                                failure.message = std::format(
+                                    "Frame-graph pass '{}' with index {} returned a resource-access error: {}",
+                                    passName,
+                                    passIndex,
+                                    typedResult.message
+                                );
+                                failure.resourceAccessError = std::forward<Result>(typedResult);
+                            } else {
+                                static_assert(std::is_same_v<Error, RenderPass::RenderPassCallbackFailure>);
+                                failure.message = std::format(
+                                    "Frame-graph pass '{}' with index {} reported callback failure: {}",
+                                    passName,
+                                    passIndex,
+                                    typedResult.message
+                                );
+                            }
+
+                            return std::unexpected{std::move(failure)};
+                        },
+                        std::move(result).error()
+                    );
+                }
             } catch (...) {
                 return std::unexpected{
                     FrameGraphExecutionError{
@@ -3321,8 +3370,8 @@ namespace Vixen {
             return std::unexpected{std::move(plan).error()};
 
         if (auto result = validateDeviceLimits(
-                device.getRenderingDeviceDriver()->getMaxColorAttachments()
-            ); !result)
+            device.getRenderingDeviceDriver()->getMaxColorAttachments()
+        ); !result)
             return std::unexpected{std::move(result).error()};
 
         auto localStorage = allocateResources(device);

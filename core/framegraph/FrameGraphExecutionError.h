@@ -5,6 +5,7 @@
 #include <optional>
 #include <string>
 #include "core/command/CommandError.h"
+#include "FrameGraphResourceAccessError.h"
 
 namespace Vixen {
     enum class FrameGraphExecutionErrorCode {
@@ -24,5 +25,6 @@ namespace Vixen {
         std::exception_ptr cause = nullptr;
         bool commandBufferMustBeDiscarded = false;
         std::optional<CommandError> commandError = std::nullopt;
+        std::optional<FrameGraphResourceAccessError> resourceAccessError = std::nullopt;
     };
 }

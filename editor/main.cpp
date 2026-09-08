@@ -163,14 +163,63 @@ int main() {
                         }
                     );
                 },
-                [pipeline = triangle->pipeline](const PassData& data, const RenderPassContext& context) {
-                    const auto image = require(
-                        context.resources.writeImage(data.color, ImageUsageBits::ColorAttachment));
-                    const std::vector<glm::uvec2> extent{{image->format.width, image->format.height}};
-                    require(context.driver.commandBindGraphicsPipeline(context.commandBuffer, pipeline));
-                    require(context.driver.commandSetViewport(context.commandBuffer, extent));
-                    require(context.driver.commandSetScissor(context.commandBuffer, extent));
-                    require(context.driver.commandDraw(context.commandBuffer, 3, 1, 0, 0));
+                [pipeline = triangle->pipeline](
+                    const PassData& data,
+                    const RenderPassContext& context
+                ) -> RenderPass::RenderPassCallbackResult {
+                    auto image = context.resources.writeImage(
+                        data.color,
+                        ImageUsageBits::ColorAttachment
+                    );
+                    if (!image)
+                        return std::unexpected{
+                            RenderPass::RenderPassCallbackError{std::move(image).error()}
+                        };
+
+                    const std::vector<glm::uvec2> extent{
+                        {
+                            (*image)->format.width,
+                            (*image)->format.height
+                        }
+                    };
+
+                    auto bind = context.driver.commandBindGraphicsPipeline(
+                        context.commandBuffer,
+                        pipeline
+                    );
+                    if (!bind)
+                        return std::unexpected{
+                            RenderPass::RenderPassCallbackError{std::move(bind).error()}
+                        };
+
+                    if (auto result = context.driver.commandSetViewport(
+                            context.commandBuffer,
+                            extent
+                        ); !result)
+                        return std::unexpected{
+                            RenderPass::RenderPassCallbackError{std::move(result).error()}
+                        };
+
+                    if (auto result = context.driver.commandSetScissor(
+                            context.commandBuffer,
+                            extent
+                        ); !result)
+                        return std::unexpected{
+                            RenderPass::RenderPassCallbackError{std::move(result).error()}
+                        };
+
+                    if (auto result = context.driver.commandDraw(
+                            context.commandBuffer,
+                            3,
+                            1,
+                            0,
+                            0
+                        ); !result)
+                        return std::unexpected{
+                            RenderPass::RenderPassCallbackError{std::move(result).error()}
+                        };
+
+                    return {};
                 }
             );
 
