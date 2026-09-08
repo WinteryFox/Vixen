@@ -3386,7 +3386,7 @@ namespace Vixen {
             .pDynamicStates = dynamicStates.data()
         };
 
-        const VkPipelineViewportStateCreateInfo viewportState{
+        constexpr VkPipelineViewportStateCreateInfo viewportState{
             .sType = VK_STRUCTURE_TYPE_PIPELINE_VIEWPORT_STATE_CREATE_INFO,
             .pNext = nullptr,
             .flags = 0,
@@ -3488,21 +3488,24 @@ namespace Vixen {
             return std::unexpected{std::move(error)};
         }
 
+        auto pipelineCleanup = std::experimental::scope_exit([&] noexcept {
+            vkDestroyPipeline(device, pipeline, nullptr);
+        });
+
         auto graphicsPipeline = new(std::nothrow) VulkanGraphicsPipeline{
             *vkLayout,
             state,
             pipeline
         };
-        if (graphicsPipeline == nullptr) {
-            vkDestroyPipeline(device, pipeline, nullptr);
-
+        if (graphicsPipeline == nullptr)
             return std::unexpected{
                 ResourceCreationError{
                     .code = ResourceCreationErrorCode::OutOfHostMemory,
                     .message = "Failed to allocate a graphics-pipeline wrapper"
                 }
             };
-        }
+
+        pipelineCleanup.release();
 
         return graphicsPipeline;
     } catch (const std::bad_alloc&) {
@@ -3600,10 +3603,12 @@ namespace Vixen {
             return std::unexpected{std::move(error)};
         }
 
+        auto pipelineCleanup = std::experimental::scope_exit([&] noexcept {
+            vkDestroyPipeline(device, pipeline, nullptr);
+        });
+
         auto computePipeline = new(std::nothrow) VulkanComputePipeline{*vkLayout, pipeline};
         if (computePipeline == nullptr) {
-            vkDestroyPipeline(device, pipeline, nullptr);
-
             return std::unexpected{
                 ResourceCreationError{
                     .code = ResourceCreationErrorCode::OutOfHostMemory,
@@ -3611,6 +3616,8 @@ namespace Vixen {
                 }
             };
         }
+
+        pipelineCleanup.release();
 
         return computePipeline;
     } catch (const std::bad_alloc&) {
@@ -3806,9 +3813,9 @@ namespace Vixen {
                                       ? std::optional(renderingInfo.depthStencilAttachment->image->format.format)
                                       : std::nullopt,
             .isDepthReadOnly = depthStencilReadOnly &&
-                hasDepthAspect(renderingInfo.depthStencilAttachment->image->format.format),
+            hasDepthAspect(renderingInfo.depthStencilAttachment->image->format.format),
             .isStencilReadOnly = depthStencilReadOnly &&
-                hasStencilAspect(renderingInfo.depthStencilAttachment->image->format.format),
+            hasStencilAspect(renderingInfo.depthStencilAttachment->image->format.format),
             .samples = !renderingInfo.colorAttachments.empty()
                            ? renderingInfo.colorAttachments.front().image->format.samples
                            : (renderingInfo.depthStencilAttachment
