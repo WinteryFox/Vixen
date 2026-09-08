@@ -38,6 +38,9 @@ namespace Vixen {
 
             std::optional<ImageDataFormat> depthStencilFormat = std::nullopt;
 
+            bool isDepthReadOnly = false;
+            bool isStencilReadOnly = false;
+
             ImageSamples samples = ImageSamples::One;
         };
 

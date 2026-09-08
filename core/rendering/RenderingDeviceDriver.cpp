@@ -1164,7 +1164,7 @@ namespace Vixen {
     auto RenderingDeviceDriver::commandBindComputePipeline(
         CommandBuffer* commandBuffer,
         const ComputePipeline* pipeline
-        ) -> std::expected<void, CommandError> {
+    ) -> std::expected<void, CommandError> {
         if (auto result = checkRecording(
             commandBuffer,
             "commandBindComputePipeline",
@@ -1236,6 +1236,37 @@ namespace Vixen {
                 operation,
                 "graphics pipeline sample count does not match the active rendering attachments"
             );
+
+        const auto& depthStencil = pipeline.depthStencil;
+        if (rendering.isDepthReadOnly &&
+            depthStencil.isDepthTestEnabled &&
+            depthStencil.isDepthWriteEnabled)
+            return commandError(
+                CommandErrorCode::InvalidState,
+                operation,
+                "the bound graphics pipeline enables depth writes, but the active depth attachment is read-only; "
+                "disable depth writes or use a writable attachment layout"
+            );
+
+        if (rendering.isStencilReadOnly &&
+            depthStencil.isStencilTestEnabled) {
+            const auto writesStencil = [](const StencilOperatorState& face) {
+                return face.writeMask != 0 &&
+                (face.failOperator != StencilOperator::Keep ||
+                    face.passOperator != StencilOperator::Keep ||
+                    face.depthFailOperator != StencilOperator::Keep);
+            };
+
+            if (writesStencil(depthStencil.front) ||
+                writesStencil(depthStencil.back))
+                return commandError(
+                    CommandErrorCode::InvalidState,
+                    operation,
+                    "the bound graphics pipeline enables stencil writes, but the active stencil attachment is read-only; "
+                    "disable stencil testing, use Keep operations or a zero write mask for each face, "
+                    "or use a writable attachment layout"
+                );
+        }
 
         for (const auto state : {
                  DynamicStateBits::Viewport,

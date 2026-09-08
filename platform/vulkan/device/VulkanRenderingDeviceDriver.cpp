@@ -3797,11 +3797,18 @@ namespace Vixen {
         for (const auto& attachment : renderingInfo.colorAttachments)
             formats.push_back(attachment.image->format.format);
 
+        const bool depthStencilReadOnly = renderingInfo.depthStencilAttachment &&
+            renderingInfo.depthStencilAttachment->layout == ImageLayout::DepthStencilReadOnlyOptimal;
+
         CommandBuffer::RenderingState renderingState{
             .colorFormats = std::move(formats),
             .depthStencilFormat = renderingInfo.depthStencilAttachment.has_value()
                                       ? std::optional(renderingInfo.depthStencilAttachment->image->format.format)
                                       : std::nullopt,
+            .isDepthReadOnly = depthStencilReadOnly &&
+                hasDepthAspect(renderingInfo.depthStencilAttachment->image->format.format),
+            .isStencilReadOnly = depthStencilReadOnly &&
+                hasStencilAspect(renderingInfo.depthStencilAttachment->image->format.format),
             .samples = !renderingInfo.colorAttachments.empty()
                            ? renderingInfo.colorAttachments.front().image->format.samples
                            : (renderingInfo.depthStencilAttachment
