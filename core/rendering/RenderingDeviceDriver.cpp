@@ -6,6 +6,9 @@
 #include <limits>
 #include <optional>
 #include <ranges>
+#include <string>
+#include <string_view>
+#include <utility>
 
 #ifdef DEBUG_ENABLED
 #include <GlslangToSpv.h>
@@ -780,6 +783,23 @@ namespace Vixen {
             return commandError(CommandErrorCode::InvalidArgument, operation, detail);
         }
 
+        std::string describeAttachmentFormat(const std::optional<ImageDataFormat> format) {
+            return format ? std::format("ImageDataFormat({})", std::to_underlying(*format)) : "none";
+        }
+
+        std::string describeSampleCount(const ImageSamples samples) {
+            switch (samples) {
+                case ImageSamples::One: return "1";
+                case ImageSamples::Two: return "2";
+                case ImageSamples::Four: return "4";
+                case ImageSamples::Eight: return "8";
+                case ImageSamples::Sixteen: return "16";
+                case ImageSamples::ThirtyTwo: return "32";
+                case ImageSamples::SixtyFour: return "64";
+            }
+            return std::format("unrecognized ImageSamples({})", std::to_underlying(samples));
+        }
+
         bool validRange(uint64_t offset, uint64_t size, uint64_t capacity) {
             return size != 0 && offset < capacity && size <= capacity - offset;
         }
@@ -1157,12 +1177,7 @@ namespace Vixen {
             return result;
 
         if (pipeline == nullptr)
-            return std::unexpected{
-                CommandError{
-                    .code = CommandErrorCode::InvalidArgument,
-                    .message = "Pipeline is null"
-                }
-            };
+            return invalidArgument("commandBindGraphicsPipeline", "pipeline is null");
 
         return {};
     }
@@ -1180,12 +1195,7 @@ namespace Vixen {
             return result;
 
         if (pipeline == nullptr)
-            return std::unexpected{
-                CommandError{
-                    .code = CommandErrorCode::InvalidArgument,
-                    .message = "Pipeline is null"
-                }
-            };
+            return invalidArgument("commandBindComputePipeline", "pipeline is null");
 
         return {};
     }
@@ -1228,8 +1238,10 @@ namespace Vixen {
                     CommandErrorCode::InvalidState,
                     operation,
                     std::format(
-                        "graphics pipeline color format at attachment {} does not match the active rendering scope",
-                        index
+                        "color attachment {} format mismatch: pipeline expects {}, active rendering uses {}",
+                        index,
+                        describeAttachmentFormat(pipeline.colorFormats[index]),
+                        describeAttachmentFormat(rendering.colorFormats[index])
                     )
                 );
 
@@ -1237,7 +1249,11 @@ namespace Vixen {
             return commandError(
                 CommandErrorCode::InvalidState,
                 operation,
-                "graphics pipeline depth/stencil format does not match the active rendering scope"
+                std::format(
+                    "depth/stencil attachment format mismatch: pipeline expects {}, active rendering uses {}",
+                    describeAttachmentFormat(pipeline.depthStencilFormat),
+                    describeAttachmentFormat(rendering.depthStencilFormat)
+                )
             );
 
         if ((!rendering.colorFormats.empty() ||
@@ -1246,7 +1262,11 @@ namespace Vixen {
             return commandError(
                 CommandErrorCode::InvalidState,
                 operation,
-                "graphics pipeline sample count does not match the active rendering attachments"
+                std::format(
+                    "attachment sample-count mismatch: pipeline expects {}, active rendering uses {}",
+                    describeSampleCount(pipeline.multisampling.samples),
+                    describeSampleCount(rendering.samples)
+                )
             );
 
         const auto& depthStencil = pipeline.depthStencil;
@@ -1343,8 +1363,8 @@ namespace Vixen {
         const std::optional<uint32_t> firstVertex,
         const uint32_t firstInstance
     ) -> std::expected<void, CommandError> {
-        const auto& pipeline = commandBuffer->boundGraphicsPipeline->state;
-        for (const auto& attribute : pipeline.vertexAttributes) {
+        const auto& requirements = commandBuffer->boundGraphicsPipeline->vertexValidationRequirements;
+        for (const auto& attribute : requirements) {
             if (attribute.binding >= commandBuffer->vertexBindings.size() ||
                 commandBuffer->vertexBindings[attribute.binding].buffer == nullptr)
                 return commandError(
@@ -1368,9 +1388,8 @@ namespace Vixen {
                     )
                 );
 
-            const auto binding = std::ranges::find(pipeline.vertexBindings, attribute.binding,
-                                                   &VertexBindingDescription::binding);
-            if (binding == pipeline.vertexBindings.end())
+            const auto& binding = attribute.bindingDescription;
+            if (!binding)
                 return commandError(
                     CommandErrorCode::InvalidState,
                     operation,
@@ -1389,7 +1408,7 @@ namespace Vixen {
                                              ? static_cast<uint64_t>(firstInstance) + instanceCount - 1
                                              : (firstVertex ? static_cast<uint64_t>(*firstVertex) + count - 1 : 0);
             const uint64_t available = bound.buffer->getSize() - bound.offset;
-            const uint64_t attributeEnd = static_cast<uint64_t>(attribute.offset) + getTexelSize(attribute.format);
+            const uint64_t attributeEnd = attribute.attributeEnd;
 
             if (attributeEnd > available ||
                 (knownElement &&

@@ -3939,7 +3939,7 @@ namespace Vixen {
         return std::unexpected{
             CommandError{
                 .code = CommandErrorCode::InvalidArgument,
-                .message = error.what()
+                .message = std::format("commandSetViewport: {}", error.what())
             }
         };
     }
@@ -4003,7 +4003,7 @@ namespace Vixen {
         return std::unexpected{
             CommandError{
                 .code = CommandErrorCode::InvalidArgument,
-                .message = error.what()
+                .message = std::format("commandSetScissor: {}", error.what())
             }
         };
     }
@@ -4045,7 +4045,12 @@ namespace Vixen {
             }
         };
     } catch (const std::invalid_argument& error) {
-        return std::unexpected{CommandError{CommandErrorCode::InvalidArgument, error.what()}};
+        return std::unexpected{
+            CommandError{
+                .code = CommandErrorCode::InvalidArgument,
+                .message = std::format("commandSetBlendConstants: {}", error.what())
+            }
+        };
     }
 
     auto VulkanRenderingDeviceDriver::commandBindVertexBuffers(
@@ -4068,7 +4073,7 @@ namespace Vixen {
             return std::unexpected{
                 CommandError{
                     .code = CommandErrorCode::InvalidArgument,
-                    .message = "Command buffer belongs to a different backend"
+                    .message = "commandBindVertexBuffers: command buffer belongs to a different backend"
                 }
             };
 
@@ -4081,7 +4086,7 @@ namespace Vixen {
                     CommandError{
                         .code = CommandErrorCode::InvalidArgument,
                         .message = std::format(
-                            "Buffer at index {} belongs to a different backend",
+                            "commandBindVertexBuffers: buffer at binding {} belongs to a different backend",
                             i
                         )
                     }
@@ -4117,7 +4122,7 @@ namespace Vixen {
         return std::unexpected{
             CommandError{
                 .code = CommandErrorCode::InvalidArgument,
-                .message = error.what()
+                .message = std::format("commandBindVertexBuffers: {}", error.what())
             }
         };
     }
@@ -4151,7 +4156,7 @@ namespace Vixen {
             return std::unexpected{
                 CommandError{
                     .code = CommandErrorCode::InvalidArgument,
-                    .message = "Command buffer belongs to a different backend"
+                    .message = "commandBindIndexBuffers: command buffer belongs to a different backend"
                 }
             };
 
@@ -4160,7 +4165,7 @@ namespace Vixen {
             return std::unexpected{
                 CommandError{
                     .code = CommandErrorCode::InvalidArgument,
-                    .message = "Buffer belongs to a different backend"
+                    .message = "commandBindIndexBuffers: buffer belongs to a different backend"
                 }
             };
 
@@ -4189,7 +4194,7 @@ namespace Vixen {
         return std::unexpected{
             CommandError{
                 .code = CommandErrorCode::InvalidArgument,
-                .message = error.what()
+                .message = std::format("commandBindIndexBuffers: {}", error.what())
             }
         };
     }
@@ -4209,7 +4214,7 @@ namespace Vixen {
             return std::unexpected{
                 CommandError{
                     .code = CommandErrorCode::InvalidArgument,
-                    .message = "Command buffer belongs to a different backend"
+                    .message = "commandBindGraphicsPipeline: command buffer belongs to a different backend"
                 }
             };
 
@@ -4218,7 +4223,7 @@ namespace Vixen {
             return std::unexpected{
                 CommandError{
                     .code = CommandErrorCode::InvalidArgument,
-                    .message = "Pipeline belongs to a different backend"
+                    .message = "commandBindGraphicsPipeline: pipeline belongs to a different backend"
                 }
             };
 
@@ -4249,7 +4254,7 @@ namespace Vixen {
             return std::unexpected{
                 CommandError{
                     .code = CommandErrorCode::InvalidArgument,
-                    .message = "Command buffer belongs to a different backend"
+                    .message = "commandBindComputePipeline: command buffer belongs to a different backend"
                 }
             };
 
@@ -4258,7 +4263,7 @@ namespace Vixen {
             return std::unexpected{
                 CommandError{
                     .code = CommandErrorCode::InvalidArgument,
-                    .message = "Pipeline belongs to a different backend"
+                    .message = "commandBindComputePipeline: pipeline belongs to a different backend"
                 }
             };
 
@@ -4295,7 +4300,7 @@ namespace Vixen {
             return std::unexpected{
                 CommandError{
                     .code = CommandErrorCode::InvalidArgument,
-                    .message = "Command buffer belongs to a different backend"
+                    .message = "commandDraw: command buffer belongs to a different backend"
                 }
             };
 
@@ -4341,7 +4346,7 @@ namespace Vixen {
             return std::unexpected{
                 CommandError{
                     .code = CommandErrorCode::InvalidArgument,
-                    .message = "Command buffer belongs to a different backend"
+                    .message = "commandDrawIndexed: command buffer belongs to a different backend"
                 }
             };
 
@@ -4384,7 +4389,7 @@ namespace Vixen {
             return std::unexpected{
                 CommandError{
                     .code = CommandErrorCode::InvalidArgument,
-                    .message = "Command buffer belongs to a different backend"
+                    .message = "commandDispatch: command buffer belongs to a different backend"
                 }
             };
 
