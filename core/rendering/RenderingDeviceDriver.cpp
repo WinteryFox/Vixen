@@ -1144,6 +1144,40 @@ namespace Vixen {
         return {};
     }
 
+    auto RenderingDeviceDriver::commandBindGraphicsPipeline(
+        CommandBuffer* commandBuffer,
+        const GraphicsPipeline* pipeline
+    ) -> std::expected<void, CommandError> {
+        if (auto result = checkRecording(
+            commandBuffer,
+            "commandBindGraphicsPipeline",
+            QueueFamilyBits::Graphics,
+            RenderingScope::Inside
+        ); !result)
+            return result;
+
+        (void)pipeline;
+
+        return {};
+    }
+
+    auto RenderingDeviceDriver::commandBindComputePipeline(
+        CommandBuffer* commandBuffer,
+        const ComputePipeline* pipeline
+        ) -> std::expected<void, CommandError> {
+        if (auto result = checkRecording(
+            commandBuffer,
+            "commandBindComputePipeline",
+            QueueFamilyBits::Compute,
+            RenderingScope::Inside
+        ); !result)
+            return result;
+
+        (void)pipeline;
+
+        return {};
+    }
+
     auto RenderingDeviceDriver::checkGraphicsDrawState(
         const CommandBuffer* commandBuffer,
         const std::string_view operation

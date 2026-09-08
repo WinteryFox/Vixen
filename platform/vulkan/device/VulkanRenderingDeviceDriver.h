@@ -285,6 +285,16 @@ namespace Vixen {
             uint64_t offset
         ) -> std::expected<void, CommandError> override;
 
+        [[nodiscard]] auto commandBindGraphicsPipeline(
+            CommandBuffer* commandBuffer,
+            const GraphicsPipeline* pipeline
+        ) -> std::expected<void, CommandError> override;
+
+        [[nodiscard]] auto commandBindComputePipeline(
+            CommandBuffer* commandBuffer,
+            const ComputePipeline* pipeline
+        ) -> std::expected<void, CommandError> override;
+
         [[nodiscard]] auto commandDraw(
             CommandBuffer* commandBuffer,
             uint32_t vertexCount,
