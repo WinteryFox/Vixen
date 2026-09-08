@@ -1156,7 +1156,13 @@ namespace Vixen {
         ); !result)
             return result;
 
-        (void)pipeline;
+        if (pipeline == nullptr)
+            return std::unexpected{
+                CommandError{
+                    .code = CommandErrorCode::InvalidArgument,
+                    .message = "Pipeline is null"
+                }
+            };
 
         return {};
     }
@@ -1173,7 +1179,13 @@ namespace Vixen {
         ); !result)
             return result;
 
-        (void)pipeline;
+        if (pipeline == nullptr)
+            return std::unexpected{
+                CommandError{
+                    .code = CommandErrorCode::InvalidArgument,
+                    .message = "Pipeline is null"
+                }
+            };
 
         return {};
     }
