@@ -3,6 +3,11 @@ add_executable(
         main.cpp
 )
 vixen_configure_target(VixenEditor)
+target_compile_definitions(
+        VixenEditor
+        PRIVATE
+        VIXEN_EDITOR_SHADER_DIR="${CMAKE_CURRENT_SOURCE_DIR}/resources/shaders"
+)
 target_link_libraries(
         VixenEditor
         PUBLIC

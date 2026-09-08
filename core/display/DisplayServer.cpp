@@ -139,11 +139,23 @@ namespace Vixen {
         return glfwWindowShouldClose(window->window) == GLFW_TRUE;
     }
 
-    void DisplayServer::update(Window* window) {
+    void DisplayServer::update(
+        Window* window,
+        const std::function<void(RenderingDevice&, Framebuffer&)>& draw
+    ) {
         glfwPollEvents();
 
-        if (!renderingDevice->prepareScreenForDrawing(window))
+        int width, height;
+        glfwGetFramebufferSize(window->window, &width, &height);
+        if (width == 0 || height == 0)
+            return;
+
+        const auto framebuffer = renderingDevice->prepareScreenForDrawing(window);
+        if (!framebuffer)
             throw CantCreateError("Failed to prepare screen for drawing.");
+
+        if (draw)
+            draw(*renderingDevice, **framebuffer);
 
         renderingDevice->swapBuffers(true);
     }

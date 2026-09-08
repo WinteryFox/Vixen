@@ -19,6 +19,7 @@
 #include "core/error/CantCreateError.h"
 #include "core/error/Macros.h"
 #include "core/error/SwapchainError.h"
+#include "core/framegraph/FrameGraph.h"
 #include "pipeline/GraphicsPipelineDescription.h"
 #include "pipeline/PipelineLayout.h"
 #include "shader/Shader.h"
@@ -941,11 +942,15 @@ namespace Vixen {
             release(*renderingDeviceDriver);
     }
 
-    void RenderingDevice::flushAndWaitForFrames() {
+    void RenderingDevice::flushAndWaitForFrames(bool beginNextFrame) {
         waitForFrames();
         endFrame();
         executeFrame(false);
-        beginFrame(false);
+
+        if (beginNextFrame)
+            beginFrame(false);
+        else
+            waitForFrame(frameIndex);
     }
 
     void RenderingDevice::beginFrame(
@@ -963,15 +968,16 @@ namespace Vixen {
     }
 
     void RenderingDevice::endFrame() {
-        if (auto result = renderingDeviceDriver->endCommandBuffer(frames[frameIndex].commandBuffer); !result)
+        if (auto result = renderingDeviceDriver->endCommandBuffer(frames[frameIndex].commandBuffer);
+            !result)
             throw std::runtime_error(result.error().message);
     }
 
-    void RenderingDevice::executeChainedCommands(
+    auto RenderingDevice::executeChainedCommands(
         const bool present,
         Fence* drawFence,
         Semaphore* drawSemaphoreToSignal
-    ) {
+    ) -> std::expected<void, Error> {
         if (!renderingDeviceDriver->executeCommandQueueAndPresent(
             graphicsQueue,
             frames[frameIndex].waitSemaphores,
@@ -986,9 +992,11 @@ namespace Vixen {
                 ? frames[frameIndex].swapchainsToPresent
                 : std::vector<Swapchain*>{}
         ))
-            throw std::runtime_error("Failed to execute chained commands");
+            return std::unexpected{Error::InitializationFailed};
 
         frames[frameIndex].waitSemaphores.clear();
+
+        return {};
     }
 
     void RenderingDevice::executeFrame(
@@ -1113,7 +1121,7 @@ namespace Vixen {
 
     RenderingDevice::~RenderingDevice() {
         if (!frames.empty())
-            flushAndWaitForFrames();
+            flushAndWaitForFrames(false);
 
         for (const auto& frame : frames) {
             renderingDeviceDriver->destroyCommandPool(frame.commandPool);
@@ -1155,6 +1163,16 @@ namespace Vixen {
 
     void RenderingDevice::sync() {
         beginFrame(true);
+    }
+
+    auto RenderingDevice::executeFrameGraph(FrameGraph& graph) -> std::expected<void, FrameGraphExecutionError> {
+        auto result = graph.execute(frames[frameIndex].commandBuffer);
+        if (!result && result.error().commandBufferMustBeDiscarded) {
+            // Do not let shutdown or a later swapBuffers submit a partial graph.
+            frames[frameIndex].swapchainsToPresent.clear();
+            beginFrame(false);
+        }
+        return result;
     }
 
     void RenderingDevice::deferRelease(DeferredRelease release) {
@@ -1221,7 +1239,7 @@ namespace Vixen {
 
         auto framebuffer = renderingDeviceDriver->acquireSwapchainFramebuffer(graphicsQueue, swapchain);
         if (!framebuffer && framebuffer.error() == SwapchainError::ResizeRequired) {
-            flushAndWaitForFrames();
+            flushAndWaitForFrames(true);
 
             if (!renderingDeviceDriver->resizeSwapchain(graphicsQueue, swapchain, frames.size()))
                 return std::unexpected(Error::InitializationFailed);
@@ -1244,7 +1262,7 @@ namespace Vixen {
         if (pair == swapchains.end())
             throw std::invalid_argument("Window does not have an associated swapchain");
 
-        flushAndWaitForFrames();
+        flushAndWaitForFrames(true);
 
         renderingDeviceDriver->destroySwapchain(pair->second);
         swapchains.erase(window);

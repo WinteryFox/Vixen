@@ -1,6 +1,7 @@
 #pragma once
 
 #include <expected>
+#include <functional>
 #include <map>
 #include <string>
 #include <vector>
@@ -19,6 +20,7 @@ struct GLFWwindow;
 namespace Vixen {
     class RenderingContextDriver;
     class RenderingDevice;
+    struct Framebuffer;
     struct Window;
 
     class DisplayServer final {
@@ -76,7 +78,10 @@ namespace Vixen {
          * Polls window events and processes them.
          * @return Returns true if the framebuffer size has been resized, false if not.
          */
-        void update(Window* window);
+        void update(
+            Window* window,
+            const std::function<void(RenderingDevice&, Framebuffer&)>& draw = {}
+        );
 
         /**
          * Sets the visibility of the window.

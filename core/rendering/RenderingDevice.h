@@ -12,10 +12,12 @@
 #include "core/buffer/BufferUsage.h"
 #include "core/error/Error.h"
 #include "core/error/ResourceCreationError.h"
+#include "core/framegraph/FrameGraphExecutionError.h"
 #include "core/image/ImageFormat.h"
 #include "core/image/ImageView.h"
 
 namespace Vixen {
+    class FrameGraph;
     struct ComputePipelineDescription;
     class PipelineLayout;
     struct PipelineLayoutDescription;
@@ -55,7 +57,7 @@ namespace Vixen {
 
         void drainDeferredReleases(Frame& frame);
 
-        void flushAndWaitForFrames();
+        void flushAndWaitForFrames(bool beginNextFrame);
 
         void beginFrame(
             bool presented
@@ -63,11 +65,11 @@ namespace Vixen {
 
         void endFrame();
 
-        void executeChainedCommands(
+        auto executeChainedCommands(
             bool present,
             Fence* drawFence,
             Semaphore* drawSemaphoreToSignal
-        );
+        ) -> std::expected<void, Error>;
 
         void executeFrame(
             bool present
@@ -94,6 +96,8 @@ namespace Vixen {
         void submit();
 
         void sync();
+
+        [[nodiscard]] auto executeFrameGraph(FrameGraph& graph) -> std::expected<void, FrameGraphExecutionError>;
 
         void deferRelease(DeferredRelease release);
 
