@@ -4223,8 +4223,10 @@ namespace Vixen {
         CommandBuffer* commandBuffer,
         const ComputePipeline* pipeline
     ) {
-        if (auto result = RenderingDeviceDriver::commandBindComputePipeline(commandBuffer, pipeline);
-            !result)
+        if (auto result = RenderingDeviceDriver::commandBindComputePipeline(
+            commandBuffer,
+            pipeline
+        ); !result)
             return result;
 
         const auto vkCommandBuffer = dynamic_cast<VulkanCommandBuffer*>(commandBuffer);

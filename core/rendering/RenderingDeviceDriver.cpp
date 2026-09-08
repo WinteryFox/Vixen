@@ -1169,7 +1169,7 @@ namespace Vixen {
             commandBuffer,
             "commandBindComputePipeline",
             QueueFamilyBits::Compute,
-            RenderingScope::Inside
+            RenderingScope::Outside
         ); !result)
             return result;
 
