@@ -1152,7 +1152,7 @@ namespace Vixen {
             commandBuffer,
             "commandBindGraphicsPipeline",
             QueueFamilyBits::Graphics,
-            RenderingScope::Inside
+            RenderingScope::Any
         ); !result)
             return result;
 
@@ -1175,7 +1175,7 @@ namespace Vixen {
             commandBuffer,
             "commandBindComputePipeline",
             QueueFamilyBits::Compute,
-            RenderingScope::Outside
+            RenderingScope::Any
         ); !result)
             return result;
 
