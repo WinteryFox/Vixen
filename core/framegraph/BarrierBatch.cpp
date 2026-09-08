@@ -1,6 +1,7 @@
 #include "BarrierBatch.h"
 
 #include <utility>
+#include <spdlog/spdlog.h>
 
 #include "core/rendering/RenderingDeviceDriver.h"
 
@@ -70,7 +71,18 @@ namespace Vixen {
         CommandBuffer* commandBuffer,
         const std::span<const BarrierBatch> batches
     ) -> std::expected<void, CommandError> {
+        if (!batches.empty())
+            spdlog::trace("Emitting {} frame-graph barrier batch(es)", batches.size());
+
         for (const auto& batch : batches) {
+            spdlog::trace(
+                "Emitting frame-graph barrier batch (stages {:#x} -> {:#x}, memory {}, buffers {}, images {})",
+                batch.sourceStages.value(),
+                batch.destinationStages.value(),
+                batch.memoryBarriers.size(),
+                batch.bufferBarriers.size(),
+                batch.imageBarriers.size()
+            );
             auto result = driver.commandPipelineBarrier(
                 commandBuffer,
                 batch.sourceStages,

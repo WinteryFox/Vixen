@@ -73,6 +73,8 @@ namespace Vixen {
         if (stages.empty())
             return fail(ShaderReflectionErrorCode::NoShaderStages, "Shader contains no stages");
 
+        spdlog::trace("Reflecting {} SPIR-V shader stage(s)", stages.size());
+
         ShaderStageFlags suppliedStages{};
         bool hasCompute = false;
         bool hasGraphics = false;
@@ -682,6 +684,13 @@ namespace Vixen {
             }
         );
 
+        spdlog::trace(
+            "Shader reflection completed (stage mask {:#x}, {} descriptor binding(s), {} push-constant byte(s))",
+            shader->stages.value(),
+            shader->uniformSets.size(),
+            shader->pushConstantSize
+        );
+
         return {};
     }
 
@@ -690,6 +699,13 @@ namespace Vixen {
         const std::string& source,
         ShaderLanguage language
     ) {
+        spdlog::trace(
+            "Compiling shader source to SPIR-V (stage {}, language {}, {} source byte(s))",
+            static_cast<uint32_t>(stage),
+            static_cast<uint32_t>(language),
+            source.size()
+        );
+
         EShLanguage glslangLanguage;
         switch (stage) {
             case ShaderStageBits::Vertex:
@@ -770,7 +786,7 @@ namespace Vixen {
         #ifdef DEBUG_ENABLED
         std::stringstream stream;
         spv::Disassemble(stream, binary);
-        spdlog::debug(
+        spdlog::trace(
             "Passed in GLSL source string:\n{}\n\nDisassembled SPIR-V:\n{}",
             std::string_view(source.begin(), source.end()),
             stream.str()
@@ -780,6 +796,8 @@ namespace Vixen {
 
         std::vector<std::byte> result{binary.size() * sizeof(uint32_t)};
         memcpy(result.data(), binary.data(), binary.size() * sizeof(uint32_t));
+
+        spdlog::trace("Compiled shader stage to {} SPIR-V byte(s)", result.size());
 
         return result;
     }

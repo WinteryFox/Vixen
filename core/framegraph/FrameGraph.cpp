@@ -12,6 +12,7 @@
 #include <unordered_set>
 #include <utility>
 #include <experimental/scope>
+#include <spdlog/spdlog.h>
 
 #include "core/rendering/AttachmentInfo.h"
 #include "FrameGraphError.h"
@@ -210,7 +211,14 @@ namespace Vixen {
         storage(std::move(storage)),
         renderPasses(std::move(renderPasses)),
         executionPlan(std::move(executionPlan)),
-        valid(true) {}
+        valid(true) {
+        spdlog::debug(
+            "Created compiled frame graph with {} resource(s), {} pass(es), and {} final barrier batch(es)",
+            this->nodes.size(),
+            this->executionPlan.passes.size(),
+            this->barrierPlan.finalBatches.size()
+        );
+    }
 
     FrameGraph::FrameGraph(FrameGraph&& other) noexcept
         : device(other.device),
@@ -240,6 +248,12 @@ namespace Vixen {
                     .message = "Given command buffer is a null pointer",
                 }
             };
+
+        spdlog::trace(
+            "Executing frame graph with {} pass(es) and {} resource(s)",
+            executionPlan.passes.size(),
+            nodes.size()
+        );
 
         const auto driver = device.getRenderingDeviceDriver();
         auto recordingError = [](CommandError error, std::optional<uint32_t> passIndex = std::nullopt,
@@ -275,6 +289,15 @@ namespace Vixen {
             };
 
             const bool shouldUseRenderPass = record.renderingInfo.has_value();
+
+            spdlog::trace(
+                "Beginning frame-graph pass '{}' (index {}, type {}, {} permission(s), {} pre-pass barrier batch(es))",
+                pass.getName(),
+                passIndex,
+                static_cast<uint32_t>(pass.getType()),
+                record.permissions.size(),
+                barrierPlan.beforePass[passIndex].size()
+            );
 
             if (auto result = driver->commandBeginLabel(commandBuffer, pass.getName(), record.debugLabelColor); !result)
                 return recordingError(std::move(result).error(), passIndex, pass.getName());
@@ -376,11 +399,15 @@ namespace Vixen {
             labelGuard.release();
             if (auto result = driver->commandEndLabel(commandBuffer); !result)
                 return recordingError(std::move(result).error(), passIndex, pass.getName());
+
+            spdlog::trace("Completed frame-graph pass '{}' (index {})", pass.getName(), passIndex);
         }
 
+        spdlog::trace("Emitting {} final frame-graph barrier batch(es)", barrierPlan.finalBatches.size());
         if (auto result = emitBarrierBatches(*driver, commandBuffer, barrierPlan.finalBatches); !result)
             return recordingError(std::move(result).error());
 
+        spdlog::trace("Frame-graph execution recording completed");
         return {};
     }
 
@@ -3050,6 +3077,14 @@ namespace Vixen {
             throw;
         }
 
+        spdlog::trace(
+            "Declared frame-graph resource '{}' at index {} (type {}, lifetime {})",
+            nodes.back().name,
+            index,
+            static_cast<uint32_t>(type),
+            static_cast<uint32_t>(lifetime)
+        );
+
         return ResourceId{
             .index = index,
             .version = 0
@@ -3058,38 +3093,62 @@ namespace Vixen {
 
     auto FrameGraph::Builder::compile() const -> std::expected<DependencyPlan, FrameGraphError> {
         const auto nodeCount = nodes.size();
+        const auto passCount = renderPasses.size();
+
+        spdlog::debug(
+            "Compiling frame graph with {} declared resource(s) and {} declared pass(es)",
+            nodeCount,
+            passCount
+        );
 
         DependencyPlan plan{};
         plan.resources.reserve(nodeCount);
 
+        spdlog::trace("Frame-graph compile phase: validate and initialize resources");
         if (auto result = validateAndInitializeResources(plan); !result)
             return std::unexpected{std::move(result).error()};
 
-        const auto passCount = renderPasses.size();
         plan.passes.resize(passCount);
         plan.executionOrder.reserve(passCount);
 
         std::vector<uint32_t> declaredVersions(nodeCount, 0);
+        spdlog::trace("Frame-graph compile phase: record pass resource usages");
         if (auto result = recordPassUsages(plan, declaredVersions); !result)
             return std::unexpected{std::move(result).error()};
 
+        spdlog::trace("Frame-graph compile phase: validate pass stages");
         if (auto result = validatePassStages(); !result)
             return std::unexpected{std::move(result).error()};
 
+        spdlog::trace("Frame-graph compile phase: validate attachments");
         if (auto result = validateAttachments(plan); !result)
             return std::unexpected{std::move(result).error()};
 
+        spdlog::trace("Frame-graph compile phase: validate resource version table");
         if (auto result = validateVersionTable(plan, declaredVersions); !result)
             return std::unexpected{std::move(result).error()};
 
+        spdlog::trace("Frame-graph compile phase: build dependency edges");
         if (auto result = buildDependencyEdges(plan); !result)
             return std::unexpected{std::move(result).error()};
 
+        spdlog::trace("Frame-graph compile phase: topologically sort passes");
         if (auto result = buildExecutionOrder(plan); !result)
             return std::unexpected{std::move(result).error()};
 
+        spdlog::trace("Frame-graph compile phase: plan resource transitions");
         if (auto result = buildTransitionPlan(plan); !result)
             return std::unexpected{std::move(result).error()};
+
+        std::size_t transitionCount = plan.transitions.finalTransitions.size();
+        for (const auto& transitions : plan.transitions.beforePass)
+            transitionCount += transitions.size();
+
+        spdlog::debug(
+            "Frame-graph compilation completed with {} scheduled pass(es) and {} planned transition(s)",
+            plan.executionOrder.size(),
+            transitionCount
+        );
 
         return plan;
     }
@@ -3099,8 +3158,18 @@ namespace Vixen {
     ) const -> std::expected<FrameGraphResourceStorage, FrameGraphError> {
         FrameGraphResourceStorage localStorage{device, std::span(nodes)};
 
+        spdlog::trace("Allocating or importing {} frame-graph resource(s)", nodes.size());
+
         for (size_t resourceIndex = 0; resourceIndex < nodes.size(); resourceIndex++) {
             const auto& resource = nodes[resourceIndex];
+
+            spdlog::trace(
+                "Resolving frame-graph resource '{}' (index {}, type {}, lifetime {})",
+                resource.name,
+                resourceIndex,
+                static_cast<uint32_t>(resource.type),
+                static_cast<uint32_t>(resource.lifetime)
+            );
 
             switch (resource.lifetime) {
                 case ResourceLifetime::Transient:
@@ -3245,6 +3314,8 @@ namespace Vixen {
             }
         }
 
+        spdlog::debug("Resolved storage for {} frame-graph resource(s)", localStorage.size());
+
         return localStorage;
     }
 
@@ -3364,6 +3435,7 @@ namespace Vixen {
     auto FrameGraph::Builder::build(
         RenderingDevice& device
     ) && -> std::expected<FrameGraph, FrameGraphError> {
+        spdlog::debug("Building frame graph");
         auto plan = compile();
 
         if (!plan)
@@ -3374,9 +3446,13 @@ namespace Vixen {
         ); !result)
             return std::unexpected{std::move(result).error()};
 
+        spdlog::trace("Frame-graph build phase: device-limit validation completed");
+
         auto localStorage = allocateResources(device);
         if (!localStorage)
             return std::unexpected{std::move(localStorage).error()};
+
+        spdlog::trace("Frame-graph build phase: resource allocation completed");
 
         auto resolvedPlan = resolveTransitionPlan(
             localStorage->getResources(),
@@ -3385,8 +3461,12 @@ namespace Vixen {
         if (!resolvedPlan)
             return std::unexpected{std::move(resolvedPlan).error()};
 
+        spdlog::trace("Frame-graph build phase: transition resolution completed");
+
         if (auto result = validateExecutionPlan(*plan, *resolvedPlan, *localStorage); !result)
             return std::unexpected{std::move(result).error()};
+
+        spdlog::trace("Frame-graph build phase: execution-plan validation completed");
 
         auto execPlan = buildExecutionPlan(
             *plan,
@@ -3396,6 +3476,8 @@ namespace Vixen {
         );
         if (!execPlan)
             return std::unexpected{std::move(execPlan).error()};
+
+        spdlog::debug("Frame-graph build completed with {} executable pass(es)", execPlan->passes.size());
 
         return FrameGraph{
             device,

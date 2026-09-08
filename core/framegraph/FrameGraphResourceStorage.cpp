@@ -2,6 +2,7 @@
 
 #include <stdexcept>
 #include <utility>
+#include <spdlog/spdlog.h>
 
 #include "Node.h"
 #include "ResourceSlot.h"
@@ -44,6 +45,8 @@ namespace Vixen {
                 .object = std::monostate{},
                 .ownership = Ownership::Empty
             });
+
+        spdlog::trace("Initialized {} empty frame-graph resource slot(s)", slots.size());
     }
 
     FrameGraphResourceStorage::FrameGraphResourceStorage(
@@ -65,6 +68,7 @@ namespace Vixen {
 
         slots[index].object = image;
         slots[index].ownership = Ownership::Owned;
+        spdlog::trace("Stored owned frame-graph image in resource slot {}", index);
     }
 
     void FrameGraphResourceStorage::setOwned(const std::size_t index, Buffer* buffer) {
@@ -77,6 +81,7 @@ namespace Vixen {
 
         slots[index].object = buffer;
         slots[index].ownership = Ownership::Owned;
+        spdlog::trace("Stored owned frame-graph buffer in resource slot {}", index);
     }
 
     void FrameGraphResourceStorage::setImported(const std::size_t index, Image* image) {
@@ -89,6 +94,7 @@ namespace Vixen {
 
         slots[index].object = image;
         slots[index].ownership = Ownership::Imported;
+        spdlog::trace("Stored imported frame-graph image in resource slot {}", index);
     }
 
     void FrameGraphResourceStorage::setImported(const std::size_t index, Buffer* buffer) {
@@ -101,12 +107,16 @@ namespace Vixen {
 
         slots[index].object = buffer;
         slots[index].ownership = Ownership::Imported;
+        spdlog::trace("Stored imported frame-graph buffer in resource slot {}", index);
     }
 
     void FrameGraphResourceStorage::reset() {
+        std::size_t deferredOwnedResources = 0;
         for (std::size_t i = slots.size(); i-- > 0;) {
             if (slots[i].ownership != Ownership::Owned)
                 continue;
+
+            ++deferredOwnedResources;
 
             if (const auto image = std::get_if<Image*>(&slots[i].object))
                 device.deferDestroy(*image);
@@ -114,6 +124,13 @@ namespace Vixen {
             else if (const auto buffer = std::get_if<Buffer*>(&slots[i].object))
                 device.deferDestroy(*buffer);
         }
+
+        if (!slots.empty())
+            spdlog::trace(
+                "Resetting {} frame-graph resource slot(s); deferred destruction of {} owned resource(s)",
+                slots.size(),
+                deferredOwnedResources
+            );
 
         slots.clear();
     }

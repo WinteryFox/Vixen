@@ -924,8 +924,10 @@ namespace Vixen {
         if (!frames[frameIndex].fenceSignaled)
             return;
 
+        spdlog::trace("Waiting for rendering frame {} fence", frameIndex);
         renderingDeviceDriver->waitOnFence(frames[frameIndex].fence).value();
         frames[frameIndex].fenceSignaled = false;
+        spdlog::trace("Rendering frame {} fence completed", frameIndex);
     }
 
     void RenderingDevice::waitForFrames() {
@@ -938,11 +940,15 @@ namespace Vixen {
 
         frame.deferredReleases.clear();
 
+        if (!releases.empty())
+            spdlog::trace("Draining {} deferred rendering-resource release(s)", releases.size());
+
         for (auto& release : releases)
             release(*renderingDeviceDriver);
     }
 
     void RenderingDevice::flushAndWaitForFrames(bool beginNextFrame) {
+        spdlog::debug("Flushing rendering work across {} frame(s)", frames.size());
         waitForFrames();
         endFrame();
         executeFrame(false);
@@ -956,6 +962,7 @@ namespace Vixen {
     void RenderingDevice::beginFrame(
         const bool presented
     ) {
+        spdlog::trace("Beginning rendering frame {} (following presentation: {})", frameIndex, presented);
         waitForFrame(frameIndex);
 
         if (!renderingDeviceDriver->resetCommandPool(frames[frameIndex].commandPool))
@@ -965,9 +972,12 @@ namespace Vixen {
 
         if (!renderingDeviceDriver->beginCommandBuffer(frames[frameIndex].commandBuffer))
             throw std::runtime_error("Failed to begin command buffer");
+
+        spdlog::trace("Rendering frame {} command buffer is recording", frameIndex);
     }
 
     void RenderingDevice::endFrame() {
+        spdlog::trace("Ending rendering frame {} command buffer", frameIndex);
         if (auto result = renderingDeviceDriver->endCommandBuffer(frames[frameIndex].commandBuffer);
             !result)
             throw std::runtime_error(result.error().message);
@@ -978,6 +988,14 @@ namespace Vixen {
         Fence* drawFence,
         Semaphore* drawSemaphoreToSignal
     ) -> std::expected<void, Error> {
+        spdlog::trace(
+            "Submitting frame {} command chain (wait semaphores: {}, signal semaphore: {}, swapchains: {})",
+            frameIndex,
+            frames[frameIndex].waitSemaphores.size(),
+            drawSemaphoreToSignal != nullptr,
+            present ? frames[frameIndex].swapchainsToPresent.size() : 0
+        );
+
         if (!renderingDeviceDriver->executeCommandQueueAndPresent(
             graphicsQueue,
             frames[frameIndex].waitSemaphores,
@@ -996,6 +1014,8 @@ namespace Vixen {
 
         frames[frameIndex].waitSemaphores.clear();
 
+        spdlog::trace("Submitted frame {} command chain", frameIndex);
+
         return {};
     }
 
@@ -1003,6 +1023,8 @@ namespace Vixen {
         const bool present
     ) {
         const bool canPresent = present && !frames[frameIndex].swapchainsToPresent.empty();
+
+        spdlog::trace("Executing rendering frame {} (present: {})", frameIndex, canPresent);
 
         executeChainedCommands(canPresent, frames[frameIndex].fence, nullptr);
         frames[frameIndex].fenceSignaled = true;
@@ -1081,6 +1103,13 @@ namespace Vixen {
         uint32_t frameCount = 2;
 
         device = devices[deviceIndex];
+        spdlog::info(
+            "Selected rendering device '{}' (index {}, score {}, {} MiB device-local memory)",
+            device.name,
+            deviceIndex,
+            bestDeviceScore,
+            device.deviceLocalMemory / (1024 * 1024)
+        );
         renderingDeviceDriver = renderingContext->createRenderingDeviceDriver(deviceIndex, frameCount);
 
         graphicsQueueFamily = renderingDeviceDriver->getQueueFamily(
@@ -1091,6 +1120,12 @@ namespace Vixen {
 
         transferQueueFamily = renderingDeviceDriver->getQueueFamily(QueueFamilyBits::Transfer, nullptr).value();
         transferQueue = renderingDeviceDriver->createCommandQueue(transferQueueFamily).value();
+
+        spdlog::debug(
+            "Created rendering queues (graphics/compute family {}, transfer family {})",
+            graphicsQueueFamily,
+            transferQueueFamily
+        );
 
         frames.reserve(frameCount);
         for (uint32_t i = 0; i < frameCount; i++) {
@@ -1115,11 +1150,14 @@ namespace Vixen {
         }
         framesDrawn = frames.size();
 
+        spdlog::debug("Initialized {} frames in flight", frames.size());
+
         if (auto result = renderingDeviceDriver->beginCommandBuffer(frames[0].commandBuffer); !result)
             throw std::runtime_error(result.error().message);
     }
 
     RenderingDevice::~RenderingDevice() {
+        spdlog::debug("Shutting down rendering device");
         if (!frames.empty())
             flushAndWaitForFrames(false);
 
@@ -1143,31 +1181,42 @@ namespace Vixen {
             renderingDeviceDriver->destroyCommandQueue(graphicsQueue);
 
         renderingContextDriver->destroyRenderingDeviceDriver(renderingDeviceDriver);
+        spdlog::debug("Rendering device shutdown completed");
     }
 
     void RenderingDevice::swapBuffers(
         const bool present
     ) {
+        const uint32_t completedFrame = frameIndex;
         endFrame();
         executeFrame(present);
 
         frameIndex = (frameIndex + 1) % frames.size();
 
+        spdlog::trace("Advanced rendering frame {} -> {}", completedFrame, frameIndex);
+
         beginFrame(present);
     }
 
     void RenderingDevice::submit() {
+        spdlog::trace("Submitting rendering frame {} without presentation", frameIndex);
         endFrame();
         executeFrame(false);
     }
 
     void RenderingDevice::sync() {
+        spdlog::trace("Resuming recording for rendering frame {}", frameIndex);
         beginFrame(true);
     }
 
     auto RenderingDevice::executeFrameGraph(FrameGraph& graph) -> std::expected<void, FrameGraphExecutionError> {
+        spdlog::trace("Recording frame graph into rendering frame {}", frameIndex);
         auto result = graph.execute(frames[frameIndex].commandBuffer);
         if (!result && result.error().commandBufferMustBeDiscarded) {
+            spdlog::debug(
+                "Discarding rendering frame {} command buffer after frame-graph execution failure",
+                frameIndex
+            );
             // Do not let shutdown or a later swapBuffers submit a partial graph.
             frames[frameIndex].swapchainsToPresent.clear();
             beginFrame(false);
@@ -1176,8 +1225,14 @@ namespace Vixen {
     }
 
     void RenderingDevice::deferRelease(DeferredRelease release) {
-        if (release)
+        if (release) {
             frames[frameIndex].deferredReleases.push_back(std::move(release));
+            spdlog::trace(
+                "Queued deferred release on frame {} ({} pending)",
+                frameIndex,
+                frames[frameIndex].deferredReleases.size()
+            );
+        }
     }
 
     void RenderingDevice::deferDestroy(Image* image) {
@@ -1201,6 +1256,7 @@ namespace Vixen {
     auto RenderingDevice::createScreen(
         Window* window
     ) -> std::expected<Swapchain*, Error> {
+        spdlog::debug("Creating rendering screen");
         const auto& surface = renderingContextDriver->getSurfaceFromWindow(window);
         if (surface == nullptr)
             return std::unexpected(Error::InitializationFailed);
@@ -1213,6 +1269,8 @@ namespace Vixen {
             return std::unexpected(Error::InitializationFailed);
 
         swapchains[window] = swapchain.value();
+
+        spdlog::debug("Created rendering screen ({} active screen(s))", swapchains.size());
 
         return swapchain;
     }
@@ -1239,6 +1297,7 @@ namespace Vixen {
 
         auto framebuffer = renderingDeviceDriver->acquireSwapchainFramebuffer(graphicsQueue, swapchain);
         if (!framebuffer && framebuffer.error() == SwapchainError::ResizeRequired) {
+            spdlog::debug("Recreating swapchain before framebuffer acquisition");
             flushAndWaitForFrames(true);
 
             if (!renderingDeviceDriver->resizeSwapchain(graphicsQueue, swapchain, frames.size()))
@@ -1251,6 +1310,12 @@ namespace Vixen {
             return std::unexpected(Error::InitializationFailed);
 
         frames[frameIndex].swapchainsToPresent.push_back(swapchain);
+
+        spdlog::trace(
+            "Acquired screen framebuffer for frame {} ({} swapchain(s) pending presentation)",
+            frameIndex,
+            frames[frameIndex].swapchainsToPresent.size()
+        );
 
         return framebuffer.value();
     }
@@ -1266,6 +1331,7 @@ namespace Vixen {
 
         renderingDeviceDriver->destroySwapchain(pair->second);
         swapchains.erase(window);
+        spdlog::debug("Destroyed rendering screen ({} active screen(s))", swapchains.size());
     }
 
     auto RenderingDevice::createBuffer(
@@ -1358,6 +1424,13 @@ namespace Vixen {
                     .message = "The rendering backend reported successful buffer creation but returned a null buffer"
                 }
             };
+
+        spdlog::trace(
+            "Created buffer ({} bytes, usage {:#x}, memory type {})",
+            size,
+            usage.value(),
+            static_cast<uint32_t>(memoryType)
+        );
 
         return *buffer;
     }
@@ -1682,6 +1755,17 @@ namespace Vixen {
                 }
             };
 
+        spdlog::trace(
+            "Created image {}x{}x{} (layers {}, mip levels {}, samples {}, usage {:#x})",
+            format.width,
+            format.height,
+            format.depth,
+            format.layerCount,
+            format.mipmapCount,
+            static_cast<uint32_t>(format.samples),
+            format.usage.value()
+        );
+
         return *image;
     }
 
@@ -1706,6 +1790,12 @@ namespace Vixen {
                     "The rendering backend reported successful pipeline layout creation but returned a null pointer"
                 }
             };
+
+        spdlog::trace(
+            "Created pipeline layout with {} descriptor set(s) and {} push-constant range(s)",
+            description.descriptorSets.size(),
+            description.pushConstantRanges.size()
+        );
 
         return *layout;
     } catch (const std::bad_alloc&) {
@@ -2047,6 +2137,14 @@ namespace Vixen {
                 }
             };
 
+        spdlog::trace(
+            "Created graphics pipeline (shader stage mask {:#x}, {} vertex binding(s), {} vertex attribute(s), {} color attachment(s))",
+            description.shader->getStageFlags().value(),
+            description.state.vertexBindings.size(),
+            description.state.vertexAttributes.size(),
+            description.state.colorFormats.size()
+        );
+
         return *pipeline;
     } catch (const std::bad_alloc&) {
         return std::unexpected{
@@ -2099,6 +2197,11 @@ namespace Vixen {
                     .message = "The rendering backend reported successful pipeline creation but returned a null pointer"
                 }
             };
+
+        spdlog::trace(
+            "Created compute pipeline with {} reflected descriptor binding(s)",
+            description.shader->getUniformSets().size()
+        );
 
         return *pipeline;
     } catch (const std::bad_alloc&) {

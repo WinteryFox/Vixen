@@ -5,6 +5,7 @@
 #include <string>
 #include <type_traits>
 #include <utility>
+#include <spdlog/spdlog.h>
 
 #include "FrameGraphError.h"
 #include "Node.h"
@@ -147,6 +148,15 @@ namespace Vixen {
             return std::unexpected{std::move(error)};
         }
 
+        spdlog::trace(
+            "Pass '{}' resolved image resource {} version {} (usage {}, access {})",
+            passName,
+            handle.id.index,
+            handle.id.version,
+            static_cast<uint32_t>(usage),
+            static_cast<uint32_t>(access)
+        );
+
         return *image;
     }
 
@@ -233,6 +243,17 @@ namespace Vixen {
 
             return std::unexpected{std::move(error)};
         }
+
+        spdlog::trace(
+            "Pass '{}' resolved buffer resource {} version {} (usage {}, access {}, offset {}, size {})",
+            passName,
+            handle.id.index,
+            handle.id.version,
+            static_cast<uint32_t>(usage),
+            static_cast<uint32_t>(access),
+            offset,
+            size.value_or(bufferSize - offset)
+        );
 
         return *buffer;
     }

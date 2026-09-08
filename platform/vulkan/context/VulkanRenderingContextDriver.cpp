@@ -11,6 +11,7 @@
 #include "core/display/Window.h"
 #include "core/error/CantCreateError.h"
 #include "core/error/Macros.h"
+#include <spdlog/spdlog.h>
 
 namespace Vixen {
     void VulkanRenderingContextDriver::initializeVulkanVersion() {
@@ -32,6 +33,13 @@ namespace Vixen {
 
         if (instanceApiVersion < VK_API_VERSION_1_3)
             error<CantCreateError>("Vulkan loader/runtime does not support Vulkan 1.3.");
+
+        spdlog::debug(
+            "Using Vulkan loader API version {}.{}.{}",
+            VK_API_VERSION_MAJOR(instanceApiVersion),
+            VK_API_VERSION_MINOR(instanceApiVersion),
+            VK_API_VERSION_PATCH(instanceApiVersion)
+        );
     }
 
     void VulkanRenderingContextDriver::initializeInstanceExtensions() {
@@ -101,6 +109,8 @@ namespace Vixen {
                 spdlog::debug("Optional extension {} was not found.", extensionName);
             }
         }
+
+        spdlog::debug("Enabled {} Vulkan instance extension(s)", enabledInstanceExtensions.size());
     }
 
     void VulkanRenderingContextDriver::initializeInstance(
@@ -194,6 +204,11 @@ namespace Vixen {
             );
 
         volkLoadInstance(instance);
+        spdlog::debug(
+            "Created Vulkan instance with {} extension(s) and {} layer(s)",
+            enabledInstanceExtensions.size(),
+            enabledLayerNames.size()
+        );
     }
 
     void VulkanRenderingContextDriver::initializeDevices() {
@@ -350,8 +365,24 @@ namespace Vixen {
                 .hasDedicatedTransferQueue = hasDedicatedTransferQueue
             };
 
+            spdlog::debug(
+                "Accepted Vulkan device '{}' (API {}.{}.{}, {} MiB device-local memory, {} queue families)",
+                record.properties.deviceName,
+                VK_API_VERSION_MAJOR(record.properties.apiVersion),
+                VK_API_VERSION_MINOR(record.properties.apiVersion),
+                VK_API_VERSION_PATCH(record.properties.apiVersion),
+                deviceLocalMemory / (1024 * 1024),
+                record.queueFamilies.size()
+            );
+
             physicalDevices.push_back(std::move(record));
         }
+
+        spdlog::debug(
+            "Vulkan device discovery completed: {} compatible device(s) from {} enumerated device(s)",
+            physicalDevices.size(),
+            availableDevices.size()
+        );
     }
 
     VulkanRenderingContextDriver::VulkanRenderingContextDriver(
@@ -380,9 +411,12 @@ namespace Vixen {
         initializeInstance(applicationName, applicationVersion);
 
         initializeDevices();
+
+        spdlog::debug("Vulkan rendering context initialization completed");
     }
 
     VulkanRenderingContextDriver::~VulkanRenderingContextDriver() {
+        spdlog::debug("Destroying Vulkan rendering context");
         vkDestroyInstance(instance, nullptr);
     }
 
@@ -484,12 +518,16 @@ namespace Vixen {
     auto VulkanRenderingContextDriver::createSurface(
         Window* window
     ) -> std::expected<Surface*, Error> {
+        spdlog::trace("Creating Vulkan window surface");
+
         VkSurfaceKHR surface = VK_NULL_HANDLE;
         if (glfwCreateWindowSurface(instance, window->window, nullptr, &surface) != VK_SUCCESS)
             return std::unexpected(Error::InitializationFailed);
 
         const auto o = new VulkanSurface();
         o->surface = surface;
+
+        spdlog::debug("Created Vulkan window surface");
 
         return o;
     }
@@ -503,6 +541,7 @@ namespace Vixen {
     }
 
     void VulkanRenderingContextDriver::setSurfaceSize(Surface* surface, uint32_t width, uint32_t height) {
+        spdlog::trace("Marking Vulkan surface for resize to {}x{}", width, height);
         surface->resolution = {
             width,
             height
@@ -511,6 +550,7 @@ namespace Vixen {
     }
 
     void VulkanRenderingContextDriver::setSurfaceVSyncMode(Surface* surface, VSyncMode vsyncMode) {
+        spdlog::trace("Marking Vulkan surface for VSync mode {}", static_cast<uint32_t>(vsyncMode));
         surface->vsyncMode = vsyncMode;
         surface->isResizeRequired = true;
     }
@@ -522,6 +562,7 @@ namespace Vixen {
     void VulkanRenderingContextDriver::destroySurface(
         Surface* surface
     ) {
+        spdlog::trace("Destroying Vulkan window surface");
         const auto vkSurface = dynamic_cast<VulkanSurface*>(surface);
         vkDestroySurfaceKHR(instance, vkSurface->surface, nullptr);
         delete vkSurface;

@@ -105,6 +105,7 @@ namespace {
 
 int main() {
     try {
+        spdlog::set_level(spdlog::level::trace);
         DisplayServer display(
             "Vixen " ENGINE_VERSION,
             {ENGINE_VERSION_MAJOR, ENGINE_VERSION_MINOR, ENGINE_VERSION_PATCH},

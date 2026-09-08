@@ -7,6 +7,7 @@
 #include "core/error/CantCreateError.h"
 #include "core/error/Macros.h"
 #include "platform/vulkan/presentation/VulkanSurface.h"
+#include <spdlog/spdlog.h>
 
 #ifdef VULKAN_ENABLED
 #include "platform/vulkan/context/VulkanRenderingContextDriver.h"
@@ -28,6 +29,16 @@ namespace Vixen {
         const WindowFlags flags,
         const glm::uvec2 resolution
     ) -> std::expected<Window*, Error> {
+        spdlog::trace(
+            "Creating window '{}' at {}x{} (mode {}, VSync {}, flags {:#x})",
+            title,
+            resolution.x,
+            resolution.y,
+            static_cast<uint32_t>(mode),
+            static_cast<uint32_t>(vsync),
+            flags.value()
+        );
+
         glfwWindowHint(GLFW_CLIENT_API, GLFW_NO_API);
         glfwWindowHint(GLFW_VISIBLE, GLFW_TRUE);
         glfwWindowHint(GLFW_RESIZABLE, flags.contains(WindowBits::Resizable) ? GLFW_TRUE : GLFW_FALSE);
@@ -56,6 +67,8 @@ namespace Vixen {
 
         windows[handle] = window;
 
+        spdlog::debug("Created window '{}' at {}x{}", title, resolution.x, resolution.y);
+
         return window;
     }
 
@@ -72,6 +85,13 @@ namespace Vixen {
         const WindowFlags flags,
         const glm::uvec2 resolution
     ) : driver(driver) {
+        spdlog::debug(
+            "Initializing display server with rendering driver {} and main-window resolution {}x{}",
+            static_cast<uint32_t>(driver),
+            resolution.x,
+            resolution.y
+        );
+
         if (glfwInit() != GLFW_TRUE)
             error<CantCreateError>("Failed to initialize GLFW.\n"
                 "glfwInit failed.");
@@ -109,9 +129,13 @@ namespace Vixen {
         renderingDevice = new RenderingDevice(renderingContextDriver, mainWindow);
         if (const auto swapchain = renderingDevice->createScreen(mainWindow); !swapchain)
             throw CantCreateError("Failed to create rendering device screen");
+
+        spdlog::debug("Display server initialization completed");
     }
 
     DisplayServer::~DisplayServer() {
+        spdlog::debug("Shutting down display server ({} tracked window(s))", windows.size());
+
         if (mainWindow) {
             if (renderingDevice)
                 renderingDevice->destroyScreen(mainWindow);
@@ -128,6 +152,8 @@ namespace Vixen {
 
         delete renderingDevice;
         delete renderingContextDriver;
+
+        spdlog::debug("Display server shutdown completed");
     }
 
     Window* DisplayServer::getMainWindow() const {
@@ -146,8 +172,12 @@ namespace Vixen {
 
         int width, height;
         glfwGetFramebufferSize(window->window, &width, &height);
-        if (width == 0 || height == 0)
+        if (width == 0 || height == 0) {
+            spdlog::trace("Skipping display update while the framebuffer extent is {}x{}", width, height);
             return;
+        }
+
+        spdlog::trace("Updating display frame at {}x{}", width, height);
 
         const auto framebuffer = renderingDevice->prepareScreenForDrawing(window);
         if (!framebuffer)
@@ -160,6 +190,8 @@ namespace Vixen {
     }
 
     void DisplayServer::setVisible(const Window* window, bool visible) {
+        spdlog::trace("Setting window visibility to {}", visible);
+
         if (visible)
             glfwShowWindow(window->window);
         else
@@ -232,6 +264,8 @@ namespace Vixen {
     }
 
     void DisplayServer::setWindowedMode(Window* window, const WindowMode mode) {
+        spdlog::debug("Changing window mode to {}", static_cast<uint32_t>(mode));
+
         int width;
         int height;
         glfwGetWindowSize(window->window, &width, &height);
@@ -280,6 +314,8 @@ namespace Vixen {
     }
 
     void DisplayServer::setVSyncMode(Window* window, const VSyncMode mode) const {
+        spdlog::debug("Changing window VSync mode to {}", static_cast<uint32_t>(mode));
+
         renderingContextDriver->setWindowVSyncMode(window, mode);
 
         if (driver == RenderingDriver::OpenGL) {

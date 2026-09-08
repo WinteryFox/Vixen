@@ -10,6 +10,7 @@
 #include "core/rendering/RenderingDevice.h"
 #include "core/error/Macros.h"
 #include "platform/vulkan/context/VulkanRenderingContextDriver.h"
+#include <spdlog/spdlog.h>
 
 namespace Vixen {
     Application::Application(
@@ -29,6 +30,16 @@ namespace Vixen {
         spdlog::set_level(spdlog::level::trace);
 #endif
 
+        spdlog::debug(
+            "Starting {} {}.{}.{} with rendering driver {} (working directory: '{}')",
+            applicationTitle,
+            static_cast<int>(applicationVersion.x),
+            static_cast<int>(applicationVersion.y),
+            static_cast<int>(applicationVersion.z),
+            static_cast<uint32_t>(renderingDriver),
+            this->workingDirectory
+        );
+
         displayServer = std::make_unique<DisplayServer>(
             applicationTitle,
             applicationVersion,
@@ -45,8 +56,12 @@ namespace Vixen {
     void Application::run() const {
         const auto mainWindow = displayServer->getMainWindow();
 
+        spdlog::debug("Entering the application event loop");
+
         while (!displayServer->shouldClose(mainWindow)) {
             displayServer->update(mainWindow);
         }
+
+        spdlog::debug("Leaving the application event loop");
     }
 }

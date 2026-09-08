@@ -13,6 +13,7 @@
 #include <string_view>
 #include <tuple>
 #include <vk_mem_alloc.h>
+#include <spdlog/spdlog.h>
 #include "platform/vulkan/Vulkan.h"
 
 #include "core/rendering/AttachmentInfo.h"
@@ -739,9 +740,17 @@ namespace Vixen {
 
         if (!initializeDevice())
             error<CantCreateError>("Failed to create virtual device.");
+
+        spdlog::debug(
+            "Initialized Vulkan device '{}' with {} queue family/families and {} frame(s) in flight",
+            physicalDeviceProperties.deviceName,
+            queueFamilyProperties.size(),
+            frameCount
+        );
     }
 
     VulkanRenderingDeviceDriver::~VulkanRenderingDeviceDriver() {
+        spdlog::debug("Destroying Vulkan device '{}'", physicalDeviceProperties.deviceName);
         vmaDestroyAllocator(allocator);
 
         vkDestroyDevice(device, nullptr);
@@ -797,6 +806,12 @@ namespace Vixen {
         swapchain->format = format;
         swapchain->colorSpace = colorSpace;
 
+        spdlog::debug(
+            "Created Vulkan swapchain wrapper with format {} and color space {}",
+            static_cast<uint32_t>(format),
+            static_cast<uint32_t>(colorSpace)
+        );
+
         return swapchain;
     }
 
@@ -822,6 +837,12 @@ namespace Vixen {
 
         vkSwapchain->graphicsQueueFamily = vkGraphicsQueue->queueFamily;
         vkSwapchain->presentQueueFamily = presentQueueFamily.value();
+        spdlog::debug(
+            "Recreating Vulkan swapchain with {} requested image(s) (graphics family {}, present family {})",
+            imageCount,
+            vkSwapchain->graphicsQueueFamily,
+            vkSwapchain->presentQueueFamily
+        );
         releaseSwapchain(vkSwapchain);
 
         VkSurfaceCapabilitiesKHR surfaceCapabilities;
@@ -1078,6 +1099,13 @@ namespace Vixen {
 
         renderingContext->setSurfaceNeedsResize(surface, false);
 
+        spdlog::debug(
+            "Created Vulkan swapchain at {}x{} with {} image(s)",
+            extent.width,
+            extent.height,
+            vkSwapchain->framebuffers.size()
+        );
+
         return {};
     }
 
@@ -1142,6 +1170,11 @@ namespace Vixen {
 
         const auto framebuffer = vkSwapchain->framebuffers[vkSwapchain->imageIndex];
         framebuffer->swapchainAcquired = true;
+        spdlog::trace(
+            "Acquired Vulkan swapchain image {} using image semaphore {}",
+            vkSwapchain->imageIndex,
+            semaphoreIndex
+        );
         return framebuffer;
     }
 
@@ -1151,6 +1184,7 @@ namespace Vixen {
         DEBUG_ASSERT(swapchain != nullptr);
 
         const auto vkSwapchain = dynamic_cast<VulkanSwapchain*>(swapchain);
+        spdlog::debug("Destroying Vulkan swapchain with {} image(s)", vkSwapchain->framebuffers.size());
         releaseSwapchain(vkSwapchain);
         delete vkSwapchain;
     }
@@ -1193,6 +1227,13 @@ namespace Vixen {
         if (pickedQueueFamilyIndex == std::numeric_limits<uint32_t>::max())
             return std::unexpected(Error::InitializationFailed);
 
+        spdlog::trace(
+            "Selected Vulkan queue family {} for requested capabilities {:#x}{}",
+            pickedQueueFamilyIndex,
+            queueFamilyFlags.value(),
+            surface != nullptr ? " with presentation support" : ""
+        );
+
         return pickedQueueFamilyIndex;
     }
 
@@ -1209,6 +1250,7 @@ namespace Vixen {
 
         const auto fence = new VulkanFence();
         fence->fence = o;
+        spdlog::trace("Created Vulkan fence");
         return fence;
     }
 
@@ -1216,6 +1258,8 @@ namespace Vixen {
         Fence* fence
     ) -> std::expected<void, Error> {
         const auto vkFence = dynamic_cast<VulkanFence*>(fence);
+
+        spdlog::trace("Waiting on Vulkan fence with {} tracked command submission(s)", vkFence->commandSubmissions.size());
 
         if (vkWaitForFences(device, 1, &vkFence->fence, VK_TRUE, std::numeric_limits<uint64_t>::max()) != VK_SUCCESS)
             return std::unexpected(Error::InitializationFailed);
@@ -1247,6 +1291,8 @@ namespace Vixen {
             vkFence->queueSignaledFrom = nullptr;
         }
 
+        spdlog::trace("Vulkan fence wait and reset completed");
+
         return {};
     }
 
@@ -1254,6 +1300,7 @@ namespace Vixen {
         Fence* fence
     ) {
         const auto o = dynamic_cast<VulkanFence*>(fence);
+        spdlog::trace("Destroying Vulkan fence");
         vkDestroyFence(device, o->fence, nullptr);
         delete o;
     }
@@ -1277,6 +1324,7 @@ namespace Vixen {
 
         const auto semaphore = new VulkanSemaphore();
         semaphore->semaphore = o;
+        spdlog::trace("Created Vulkan timeline semaphore");
         return semaphore;
     }
 
@@ -1284,6 +1332,7 @@ namespace Vixen {
         Semaphore* semaphore
     ) {
         const auto o = dynamic_cast<VulkanSemaphore*>(semaphore);
+        spdlog::trace("Destroying Vulkan timeline semaphore");
         vkDestroySemaphore(device, o->semaphore, nullptr);
         delete o;
     }
@@ -1307,6 +1356,11 @@ namespace Vixen {
         commandPool->pool = o;
         commandPool->type = type;
         commandPool->queueFamily = queueFamily;
+        spdlog::trace(
+            "Created Vulkan command pool for queue family {} (buffer type {})",
+            queueFamily,
+            static_cast<uint32_t>(type)
+        );
         return commandPool;
     }
 
@@ -1324,6 +1378,7 @@ namespace Vixen {
         for (auto* commandBuffer : pool->commandBuffers)
             commandBuffer->resetRecordingState();
         pool->commandSubmissions.clear();
+        spdlog::trace("Reset Vulkan command pool containing {} command buffer(s)", pool->commandBuffers.size());
         return {};
     }
 
@@ -1331,6 +1386,7 @@ namespace Vixen {
         CommandPool* pool
     ) {
         const auto* o = dynamic_cast<VulkanCommandPool*>(pool);
+        spdlog::trace("Destroying Vulkan command pool containing {} command buffer(s)", pool->commandBuffers.size());
         vkDestroyCommandPool(device, o->pool, nullptr);
         delete o;
     }
@@ -1384,6 +1440,12 @@ namespace Vixen {
         );
 
         guard.release();
+
+        spdlog::trace(
+            "Allocated Vulkan command buffer from queue family {} with capability mask {:#x}",
+            p->queueFamily,
+            o->queueCapabilities.value()
+        );
 
         return o;
     } catch (const std::bad_alloc&) {
@@ -1443,6 +1505,8 @@ namespace Vixen {
         commandBuffer->resetRecordingState();
         commandBuffer->state = CommandBuffer::State::Recording;
 
+        spdlog::trace("Began Vulkan command-buffer recording");
+
         return {};
     } catch (const std::bad_alloc&) {
         return std::unexpected{
@@ -1482,6 +1546,8 @@ namespace Vixen {
 
         commandBuffer->state = CommandBuffer::State::Executable;
 
+        spdlog::trace("Ended Vulkan command-buffer recording; buffer is executable");
+
         return {};
     } catch (const std::bad_alloc&) {
         return std::unexpected{
@@ -1511,6 +1577,13 @@ namespace Vixen {
         commandQueue->queueFamily = queueFamilyIndex;
         commandQueue->queueIndex = pickedQueueFamilyIndex;
         queueFamily[pickedQueueFamilyIndex].virtualCount++;
+
+        spdlog::debug(
+            "Created logical command queue on Vulkan family {}, queue {} ({} logical user(s))",
+            queueFamilyIndex,
+            pickedQueueFamilyIndex,
+            queueFamily[pickedQueueFamilyIndex].virtualCount
+        );
 
         return commandQueue;
     }
@@ -1543,6 +1616,16 @@ namespace Vixen {
                     .message = "executeCommandQueueAndPresent: submission or presentation operation failed"
                 }
             };
+
+        spdlog::trace(
+            "Submitting Vulkan queue family {}, queue {} (waits {}, command buffers {}, signals {}, swapchains {})",
+            vkCommandQueue->queueFamily,
+            vkCommandQueue->queueIndex,
+            waitSemaphores.size(),
+            commandBuffers.size(),
+            signalSemaphores.size(),
+            swapchains.size()
+        );
 
         for (const auto swapchain : swapchains) {
             const auto vkSwapchain = dynamic_cast<VulkanSwapchain*>(swapchain);
@@ -2192,6 +2275,8 @@ namespace Vixen {
                 };
         }
 
+        spdlog::trace("Vulkan queue submission/presentation completed");
+
         return {};
     } catch (const std::bad_alloc&) {
         return std::unexpected{
@@ -2206,6 +2291,12 @@ namespace Vixen {
         CommandQueue* commandQueue
     ) {
         const auto vkCommandQueue = dynamic_cast<VulkanCommandQueue*>(commandQueue);
+
+        spdlog::debug(
+            "Destroying logical command queue on Vulkan family {}, queue {}",
+            vkCommandQueue->queueFamily,
+            vkCommandQueue->queueIndex
+        );
 
         if (vkQueueWaitIdle(queueFamilies[vkCommandQueue->queueFamily][vkCommandQueue->queueIndex].queue) == VK_SUCCESS)
             for (const auto& state : vkCommandQueue->commandSubmissions)
@@ -2314,6 +2405,13 @@ namespace Vixen {
         buffer->buffer = vkBuffer;
         buffer->allocation = allocation;
 
+        spdlog::trace(
+            "Allocated Vulkan buffer ({} bytes, native usage {:#x}, memory type {})",
+            size,
+            static_cast<uint32_t>(bufferCreateInfo.usage),
+            static_cast<uint32_t>(memoryType)
+        );
+
         return buffer;
     }
 
@@ -2321,6 +2419,7 @@ namespace Vixen {
         Buffer* buffer
     ) {
         const auto o = dynamic_cast<VulkanBuffer*>(buffer);
+        spdlog::trace("Destroying Vulkan buffer ({} bytes)", o->getSize());
         vmaDestroyBuffer(allocator, o->buffer, o->allocation);
         delete o;
     }
@@ -2560,6 +2659,15 @@ namespace Vixen {
         image->image = vkImage;
         image->imageView = imageView;
         image->allocation = allocation;
+        spdlog::trace(
+            "Allocated Vulkan image {}x{}x{} (layers {}, mip levels {}, native usage {:#x})",
+            format.width,
+            format.height,
+            format.depth,
+            format.layerCount,
+            format.mipmapCount,
+            static_cast<uint32_t>(imageCreateInfo.usage)
+        );
         return image;
     }
 
@@ -2567,6 +2675,14 @@ namespace Vixen {
         Image* image
     ) {
         const auto o = dynamic_cast<VulkanImage*>(image);
+        spdlog::trace(
+            "Destroying Vulkan image {}x{}x{} (layers {}, mip levels {})",
+            o->format.width,
+            o->format.height,
+            o->format.depth,
+            o->format.layerCount,
+            o->format.mipmapCount
+        );
         std::byte* data;
         vmaMapMemory(allocator, o->allocation, std::bit_cast<void**>(&data));
         return data;
@@ -2621,6 +2737,13 @@ namespace Vixen {
         const auto o = new VulkanSampler{};
         o->state = state;
         o->sampler = sampler;
+        spdlog::trace(
+            "Created Vulkan sampler (anisotropy {}, comparison {}, LOD [{}, {}])",
+            state.useAnisotropy,
+            state.enableCompare,
+            state.minLod,
+            state.maxLod
+        );
         return o;
     }
 
@@ -2628,6 +2751,7 @@ namespace Vixen {
         Sampler* sampler
     ) {
         const auto o = dynamic_cast<VulkanSampler*>(sampler);
+        spdlog::trace("Destroying Vulkan sampler");
         vkDestroySampler(device, o->sampler, nullptr);
         delete o;
     }
@@ -2636,6 +2760,7 @@ namespace Vixen {
         const std::string& name,
         const std::vector<ShaderStageData>& stages
     ) {
+        spdlog::debug("Creating Vulkan shader '{}' from {} SPIR-V stage(s)", name, stages.size());
         const auto o = new VulkanShader();
         auto shaderCleanup = std::experimental::scope_exit([&] noexcept {
             for (const auto& shaderModule : o->shaderModules)
@@ -2896,6 +3021,13 @@ namespace Vixen {
         }
 
         shaderCleanup.release();
+        spdlog::debug(
+            "Created Vulkan shader '{}' with {} module(s), {} descriptor binding(s), and {} push-constant byte(s)",
+            name,
+            o->shaderModules.size(),
+            o->getUniformSets().size(),
+            o->getPushConstantSize()
+        );
         return o;
     }
 
@@ -2903,6 +3035,7 @@ namespace Vixen {
         Shader* shader
     ) {
         const auto o = dynamic_cast<VulkanShader*>(shader);
+        spdlog::trace("Destroying {} native module(s) for shader '{}'", o->shaderModules.size(), o->name);
         for (const auto& shaderModule : o->shaderModules)
             vkDestroyShaderModule(device, shaderModule.module, nullptr);
         o->shaderModules.clear();
@@ -2912,6 +3045,8 @@ namespace Vixen {
         Shader* shader
     ) {
         const auto o = dynamic_cast<VulkanShader*>(shader);
+
+        spdlog::debug("Destroying Vulkan shader '{}'", o->name);
 
         destroyShaderModules(o);
 
@@ -3132,6 +3267,12 @@ namespace Vixen {
         pipelineLayoutCleanup.release();
         descriptorSetLayoutCleanup.release();
 
+        spdlog::trace(
+            "Created Vulkan pipeline layout with {} native descriptor-set layout(s) and {} push-constant range(s)",
+            pipelineLayout->descriptorSetLayouts.size(),
+            description.pushConstantRanges.size()
+        );
+
         return pipelineLayout;
     } catch (const std::bad_alloc&) {
         return std::unexpected{
@@ -3144,6 +3285,11 @@ namespace Vixen {
 
     void VulkanRenderingDeviceDriver::destroyPipelineLayout(PipelineLayout* pipelineLayout) {
         const auto o = dynamic_cast<VulkanPipelineLayout*>(pipelineLayout);
+
+        spdlog::trace(
+            "Destroying Vulkan pipeline layout with {} descriptor-set layout(s)",
+            o->descriptorSetLayouts.size()
+        );
 
         for (const auto& descriptorSetLayout : o->descriptorSetLayouts)
             vkDestroyDescriptorSetLayout(device, descriptorSetLayout, nullptr);
@@ -3525,6 +3671,12 @@ namespace Vixen {
 
         pipelineCleanup.release();
 
+        spdlog::trace(
+            "Created native Vulkan graphics pipeline with {} shader stage(s) and {} color attachment(s)",
+            shaderStages.size(),
+            state.colorFormats.size()
+        );
+
         return graphicsPipeline;
     } catch (const std::bad_alloc&) {
         return std::unexpected{
@@ -3633,6 +3785,8 @@ namespace Vixen {
 
         pipelineCleanup.release();
 
+        spdlog::trace("Created native Vulkan compute pipeline with entry point '{}'", computeStage.entryPoint);
+
         return computePipeline;
     } catch (const std::bad_alloc&) {
         return std::unexpected{
@@ -3645,8 +3799,10 @@ namespace Vixen {
 
     void VulkanRenderingDeviceDriver::destroyPipeline(Pipeline* pipeline) {
         if (const auto graphics = dynamic_cast<VulkanGraphicsPipeline*>(pipeline)) {
+            spdlog::trace("Destroying native Vulkan graphics pipeline");
             vkDestroyPipeline(device, graphics->pipeline, nullptr);
         } else if (const auto compute = dynamic_cast<VulkanComputePipeline*>(pipeline)) {
+            spdlog::trace("Destroying native Vulkan compute pipeline");
             vkDestroyPipeline(device, compute->pipeline, nullptr);
         } else {
             DEBUG_ASSERT(false);
@@ -3840,6 +3996,15 @@ namespace Vixen {
         vkCmdBeginRendering(vkCommandBuffer->commandBuffer, &vkRenderingInfo);
         commandBuffer->renderingState = std::move(renderingState);
 
+        spdlog::trace(
+            "Recorded vkCmdBeginRendering for {}x{}, {} layer(s), {} color attachment(s), depth/stencil {}",
+            renderingInfo.extent.x,
+            renderingInfo.extent.y,
+            renderingInfo.layerCount,
+            renderingInfo.colorAttachments.size(),
+            renderingInfo.depthStencilAttachment.has_value()
+        );
+
         return {};
     } catch (const std::bad_alloc&) {
         return std::unexpected{
@@ -3872,6 +4037,8 @@ namespace Vixen {
 
         vkCmdEndRendering(dynamic_cast<VulkanCommandBuffer*>(commandBuffer)->commandBuffer);
         commandBuffer->renderingState.reset();
+
+        spdlog::trace("Recorded vkCmdEndRendering");
 
         return {};
     } catch (const std::bad_alloc&) {
@@ -3941,6 +4108,8 @@ namespace Vixen {
 
         commandBuffer->dynamicStates |= DynamicStateBits::Viewport;
 
+        spdlog::trace("Recorded {} Vulkan viewport(s)", viewports.size());
+
         return {};
     } catch (const std::bad_alloc&) {
         return std::unexpected{
@@ -4005,6 +4174,8 @@ namespace Vixen {
 
         commandBuffer->dynamicStates |= DynamicStateBits::Scissor;
 
+        spdlog::trace("Recorded {} Vulkan scissor rectangle(s)", scissors.size());
+
         return {};
     } catch (const std::bad_alloc&) {
         return std::unexpected{
@@ -4049,6 +4220,14 @@ namespace Vixen {
         );
 
         commandBuffer->dynamicStates |= DynamicStateBits::BlendConstants;
+
+        spdlog::trace(
+            "Recorded Vulkan blend constants [{}, {}, {}, {}]",
+            blendConstants.r,
+            blendConstants.g,
+            blendConstants.b,
+            blendConstants.a
+        );
 
         return {};
     } catch (const std::bad_alloc&) {
@@ -4124,6 +4303,8 @@ namespace Vixen {
 
         commandBuffer->vertexBindings.swap(bindings);
 
+        spdlog::trace("Recorded binding of {} Vulkan vertex buffer(s)", buffers.size());
+
         return {};
     } catch (const std::bad_alloc&) {
         return std::unexpected{
@@ -4196,6 +4377,12 @@ namespace Vixen {
             .format = format
         };
 
+        spdlog::trace(
+            "Recorded Vulkan index-buffer binding (format {}, offset {})",
+            static_cast<uint32_t>(format),
+            offset
+        );
+
         return {};
     } catch (const std::bad_alloc&) {
         return std::unexpected{
@@ -4250,6 +4437,8 @@ namespace Vixen {
         vkCommandBuffer->boundGraphicsPipeline = vkPipeline;
         vkCommandBuffer->dynamicStates = vkCommandBuffer->dynamicStates & vkPipeline->state.dynamicStates;
 
+        spdlog::trace("Recorded Vulkan graphics-pipeline binding");
+
         return {};
     }
 
@@ -4290,6 +4479,8 @@ namespace Vixen {
         // Compute bindings do not disturb graphics bindings or their dynamic state.
         vkCommandBuffer->boundComputePipeline = vkPipeline;
 
+        spdlog::trace("Recorded Vulkan compute-pipeline binding");
+
         return {};
     }
 
@@ -4328,6 +4519,14 @@ namespace Vixen {
 
         vkCmdDraw(
             vkCommandBuffer->commandBuffer,
+            vertexCount,
+            instanceCount,
+            firstVertex,
+            firstInstance
+        );
+
+        spdlog::trace(
+            "Recorded Vulkan draw (vertices {}, instances {}, first vertex {}, first instance {})",
             vertexCount,
             instanceCount,
             firstVertex,
@@ -4374,6 +4573,15 @@ namespace Vixen {
 
         vkCmdDrawIndexed(
             vkCommandBuffer->commandBuffer,
+            indexCount,
+            instanceCount,
+            firstIndex,
+            vertexOffset,
+            firstInstance
+        );
+
+        spdlog::trace(
+            "Recorded Vulkan indexed draw (indices {}, instances {}, first index {}, vertex offset {}, first instance {})",
             indexCount,
             instanceCount,
             firstIndex,
@@ -4429,6 +4637,13 @@ namespace Vixen {
 
         vkCmdDispatch(
             vkCommandBuffer->commandBuffer,
+            groupCountX,
+            groupCountY,
+            groupCountZ
+        );
+
+        spdlog::trace(
+            "Recorded Vulkan compute dispatch ({}x{}x{} workgroups)",
             groupCountX,
             groupCountY,
             groupCountZ
@@ -4564,6 +4779,15 @@ namespace Vixen {
             &dependencyInfo
         );
 
+        spdlog::trace(
+            "Recorded Vulkan pipeline barrier (stages {:#x} -> {:#x}, memory {}, buffers {}, images {})",
+            sourceStages.value(),
+            destinationStages.value(),
+            memoryBarriers.size(),
+            bufferBarriers.size(),
+            imageBarriers.size()
+        );
+
         return {};
     } catch (const std::bad_alloc&) {
         return std::unexpected{
@@ -4611,6 +4835,8 @@ namespace Vixen {
             size,
             0
         );
+
+        spdlog::trace("Recorded Vulkan buffer clear (offset {}, size {})", offset, size);
 
         return {};
     } catch (const std::bad_alloc&) {
@@ -4679,6 +4905,8 @@ namespace Vixen {
             vkRegions.size(),
             vkRegions.data()
         );
+
+        spdlog::trace("Recorded Vulkan buffer copy with {} region(s)", regions.size());
 
         return {};
     } catch (const std::bad_alloc&) {
@@ -4765,6 +4993,13 @@ namespace Vixen {
             requireVkConversion(toVkImageLayout(destinationLayout)),
             vkRegions.size(),
             vkRegions.data()
+        );
+
+        spdlog::trace(
+            "Recorded Vulkan image copy with {} region(s) (layouts {} -> {})",
+            regions.size(),
+            static_cast<uint32_t>(sourceLayout),
+            static_cast<uint32_t>(destinationLayout)
         );
 
         return {};
@@ -4861,6 +5096,14 @@ namespace Vixen {
             &region
         );
 
+        spdlog::trace(
+            "Recorded Vulkan image resolve (source layer/mip {}/{}, destination layer/mip {}/{})",
+            sourceLayer,
+            sourceMipmap,
+            destinationLayer,
+            destinationMipmap
+        );
+
         return {};
     } catch (const std::bad_alloc&) {
         return std::unexpected{
@@ -4928,6 +5171,15 @@ namespace Vixen {
             &vkSubresource
         );
 
+        spdlog::trace(
+            "Recorded Vulkan color-image clear (layout {}, mip range {}+{}, layer range {}+{})",
+            static_cast<uint32_t>(imageLayout),
+            subresource.baseMipmap,
+            subresource.mipmapCount,
+            subresource.baseLayer,
+            subresource.layerCount
+        );
+
         return {};
     } catch (const std::bad_alloc&) {
         return std::unexpected{
@@ -4991,6 +5243,12 @@ namespace Vixen {
             vkRegions.data()
         );
 
+        spdlog::trace(
+            "Recorded Vulkan buffer-to-image copy with {} region(s) in layout {}",
+            regions.size(),
+            static_cast<uint32_t>(layout)
+        );
+
         return {};
     } catch (const std::bad_alloc&) {
         return std::unexpected{
@@ -5049,6 +5307,12 @@ namespace Vixen {
             vkRegions.data()
         );
 
+        spdlog::trace(
+            "Recorded Vulkan image-to-buffer copy with {} region(s) from layout {}",
+            regions.size(),
+            static_cast<uint32_t>(layout)
+        );
+
         return {};
     } catch (const std::bad_alloc&) {
         return std::unexpected{
@@ -5094,6 +5358,8 @@ namespace Vixen {
                 &info
             );
 
+        spdlog::trace("Began Vulkan debug label '{}'", label);
+
         return {};
     } catch (const std::bad_alloc&) {
         return std::unexpected{
@@ -5126,6 +5392,8 @@ namespace Vixen {
 
         if (vkCmdEndDebugUtilsLabelEXT)
             vkCmdEndDebugUtilsLabelEXT(dynamic_cast<VulkanCommandBuffer*>(commandBuffer)->commandBuffer);
+
+        spdlog::trace("Ended Vulkan debug label");
 
         return {};
     } catch (const std::bad_alloc&) {
