@@ -17,6 +17,7 @@ namespace Vixen {
         ShaderStageFlags pushConstantStages{};
         std::vector<ShaderUniform> uniformSets;
         ShaderStageFlags stages{};
+        ShaderStageFlags inputAttachmentStages{};
 
     protected:
         Shader() = default;
@@ -45,6 +46,10 @@ namespace Vixen {
 
         [[nodiscard]] ShaderStageFlags getStageFlags() const noexcept {
             return stages;
+        }
+
+        [[nodiscard]] ShaderStageFlags getInputAttachmentStages() const noexcept {
+            return inputAttachmentStages;
         }
     };
 }

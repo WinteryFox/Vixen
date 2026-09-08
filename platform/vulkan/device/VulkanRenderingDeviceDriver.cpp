@@ -3151,25 +3151,38 @@ namespace Vixen {
     auto VulkanRenderingDeviceDriver::createGraphicsPipeline(
         const GraphicsPipelineDescription& description
     ) -> std::expected<GraphicsPipeline*, ResourceCreationError> try {
+        if (auto result = RenderingDeviceDriver::createGraphicsPipeline(description);
+            !result)
+            return result;
+
         const auto vkLayout = dynamic_cast<const VulkanPipelineLayout*>(description.layout);
-        if (!description.layout || !vkLayout)
+        if (!vkLayout)
             return std::unexpected{
                 ResourceCreationError{
                     .code = ResourceCreationErrorCode::InvalidDescription,
-                    .message = description.layout == nullptr
-                                   ? "Graphics pipeline description does not specify a pipeline layout"
-                                   : "Graphics pipeline layout belongs to an incompatible rendering backend"
+                    .message = "Graphics pipeline layout belongs to an incompatible rendering backend"
                 }
             };
 
         const auto shader = dynamic_cast<const VulkanShader*>(description.shader);
-        if (!description.shader || !shader)
+        if (!shader)
             return std::unexpected{
                 ResourceCreationError{
                     .code = ResourceCreationErrorCode::InvalidDescription,
-                    .message = description.shader == nullptr
-                                   ? "Graphics pipeline description does not specify a shader"
-                                   : "Graphics pipeline shader belongs to an incompatible rendering backend"
+                    .message = "Graphics pipeline shader belongs to an incompatible rendering backend"
+                }
+            };
+
+        // This backend uses dynamic rendering without enabling dynamicRenderingLocalRead.
+        if (shader->getInputAttachmentStages().contains(ShaderStageBits::Fragment))
+            return std::unexpected{
+                ResourceCreationError{
+                    .code = ResourceCreationErrorCode::UnsupportedUsage,
+                    .message = std::format(
+                        "Cannot create graphics pipeline for shader '{}': its fragment stage declares "
+                        "the InputAttachment capability, but dynamicRenderingLocalRead is not enabled",
+                        shader->name
+                    )
                 }
             };
 
@@ -3520,6 +3533,10 @@ namespace Vixen {
     auto VulkanRenderingDeviceDriver::createComputePipeline(
         const ComputePipelineDescription& description
     ) -> std::expected<ComputePipeline*, ResourceCreationError> try {
+        if (auto result = RenderingDeviceDriver::createComputePipeline(description);
+            !result)
+            return result;
+
         const auto vkLayout = dynamic_cast<const VulkanPipelineLayout*>(description.layout);
         if (!description.layout || !vkLayout)
             return std::unexpected{
@@ -3539,14 +3556,6 @@ namespace Vixen {
                     .message = description.shader == nullptr
                                    ? "Compute pipeline creation requires a shader"
                                    : "Compute pipeline shader belongs to an incompatible rendering backend"
-                }
-            };
-
-        if (shader->getStageFlags() != ShaderStageFlags{ShaderStageBits::Compute})
-            return std::unexpected{
-                ResourceCreationError{
-                    .code = ResourceCreationErrorCode::InvalidDescription,
-                    .message = "Compute pipeline shader must contain exactly one compute stage and no graphics stages"
                 }
             };
 
@@ -3571,7 +3580,7 @@ namespace Vixen {
             .pSpecializationInfo = nullptr
         };
 
-        VkComputePipelineCreateInfo info{
+        const VkComputePipelineCreateInfo info{
             .sType = VK_STRUCTURE_TYPE_COMPUTE_PIPELINE_CREATE_INFO,
             .pNext = nullptr,
             .flags = 0,

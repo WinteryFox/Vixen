@@ -36,6 +36,7 @@
 #include "core/shader/Shader.h"
 #include "core/shader/ShaderUniform.h"
 #include "core/shader/ShaderUniformType.h"
+#include "pipeline/GraphicsPipelineDescription.h"
 
 namespace Vixen {
     auto RenderingDeviceDriver::reflectShader(
@@ -203,16 +204,22 @@ namespace Vixen {
                     switch (stage) {
                         case ShaderStageBits::Vertex:
                             return spv::ExecutionModelVertex;
+
                         case ShaderStageBits::Fragment:
                             return spv::ExecutionModelFragment;
+
                         case ShaderStageBits::TesselationControl:
                             return spv::ExecutionModelTessellationControl;
+
                         case ShaderStageBits::TesselationEvaluation:
                             return spv::ExecutionModelTessellationEvaluation;
+
                         case ShaderStageBits::Compute:
                             return spv::ExecutionModelGLCompute;
+
                         case ShaderStageBits::Geometry:
                             return spv::ExecutionModelGeometry;
+
                         default:
                             return std::nullopt;
                     }
@@ -263,8 +270,8 @@ namespace Vixen {
                         entryPoint,
                         std::nullopt,
                         std::nullopt,
-                        static_cast<uint64_t>(*expectedExecutionModel),
-                        static_cast<uint64_t>(namedEntryPoint->execution_model)
+                        *expectedExecutionModel,
+                        namedEntryPoint->execution_model
                     );
                 }
 
@@ -651,6 +658,10 @@ namespace Vixen {
                         unsupportedResource->name
                     );
 
+                // Declared capabilities can remain even when no matching resource is reflected.
+                if (std::ranges::contains(compiler.get_declared_capabilities(), spv::CapabilityInputAttachment))
+                    shader->inputAttachmentStages |= stage;
+
                 shader->stages |= stage;
             } catch (const spirv_cross::CompilerError& exception) {
                 return fail(
@@ -666,6 +677,7 @@ namespace Vixen {
             [](const ShaderUniform& left, const ShaderUniform& right) {
                 if (left.set != right.set)
                     return left.set < right.set;
+
                 return left.binding < right.binding;
             }
         );
@@ -891,6 +903,58 @@ namespace Vixen {
         constexpr std::string_view operation = "endCommandBuffer";
 
         return checkRecording(commandBuffer, operation, {}, RenderingScope::Outside);
+    }
+
+    auto RenderingDeviceDriver::createGraphicsPipeline(
+        const GraphicsPipelineDescription& description
+    ) -> std::expected<GraphicsPipeline*, ResourceCreationError> {
+        if (description.layout == nullptr)
+            return std::unexpected{
+                ResourceCreationError{
+                    .code = ResourceCreationErrorCode::InvalidDescription,
+                    .message = "Graphics pipeline description does not specify a pipeline layout"
+                }
+            };
+
+        if (description.shader == nullptr)
+            return std::unexpected{
+                ResourceCreationError{
+                    .code = ResourceCreationErrorCode::InvalidDescription,
+                    .message = "Graphics pipeline description does not specify a shader"
+                }
+            };
+
+        return {};
+    }
+
+    auto RenderingDeviceDriver::createComputePipeline(
+        const ComputePipelineDescription& description
+    ) -> std::expected<ComputePipeline*, ResourceCreationError> {
+        if (description.layout == nullptr)
+            return std::unexpected{
+                ResourceCreationError{
+                    .code = ResourceCreationErrorCode::InvalidDescription,
+                    .message = "Compute pipeline description does not specify a pipeline layout"
+                }
+            };
+
+        if (description.shader == nullptr)
+            return std::unexpected{
+                ResourceCreationError{
+                    .code = ResourceCreationErrorCode::InvalidDescription,
+                    .message = "Compute pipeline description does not specify a shader"
+                }
+            };
+
+        if (description.shader->getStageFlags() != ShaderStageFlags{ShaderStageBits::Compute})
+            return std::unexpected{
+                ResourceCreationError{
+                    .code = ResourceCreationErrorCode::InvalidDescription,
+                    .message = "Compute pipeline shader must contain exactly one compute stage and no graphics stages"
+                }
+            };
+
+        return {};
     }
 
     auto RenderingDeviceDriver::commandBeginRenderPass(
