@@ -4215,6 +4215,7 @@ namespace Vixen {
         );
 
         vkCommandBuffer->boundGraphicsPipeline = vkPipeline;
+        vkCommandBuffer->dynamicStates = vkCommandBuffer->dynamicStates & vkPipeline->state.dynamicStates;
 
         return {};
     }
@@ -4253,6 +4254,7 @@ namespace Vixen {
             vkPipeline->pipeline
         );
 
+        // Compute bindings do not disturb graphics bindings or their dynamic state.
         vkCommandBuffer->boundComputePipeline = vkPipeline;
 
         return {};

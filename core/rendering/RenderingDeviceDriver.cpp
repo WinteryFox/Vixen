@@ -1237,6 +1237,26 @@ namespace Vixen {
                 "graphics pipeline sample count does not match the active rendering attachments"
             );
 
+        for (const auto state : {
+                 DynamicStateBits::Viewport,
+                 DynamicStateBits::Scissor,
+                 DynamicStateBits::BlendConstants
+             })
+            if (commandBuffer->dynamicStates.contains(state) && !pipeline.dynamicStates.contains(state)) {
+                const auto stateName = state == DynamicStateBits::Viewport
+                                           ? "viewport"
+                                           : (state == DynamicStateBits::Scissor ? "scissor" : "blend constants");
+                return commandError(
+                    CommandErrorCode::InvalidState,
+                    operation,
+                    std::format(
+                        "dynamic state for {} was set after binding a pipeline that specifies it statically; "
+                        "rebind the graphics pipeline or bind one that declares this state dynamic before drawing",
+                        stateName
+                    )
+                );
+            }
+
         for (const auto state : {DynamicStateBits::Viewport, DynamicStateBits::Scissor})
             if (pipeline.dynamicStates.contains(state) && !commandBuffer->dynamicStates.contains(state))
                 return commandError(
