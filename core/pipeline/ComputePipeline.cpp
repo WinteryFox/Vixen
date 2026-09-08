@@ -2,6 +2,7 @@
 
 namespace Vixen {
     ComputePipeline::ComputePipeline(
-        const PipelineLayout& layout
-    ) : Pipeline(layout) {}
+        const PipelineLayout& layout,
+        const Shader& shader
+    ) : Pipeline(layout, shader) {}
 }

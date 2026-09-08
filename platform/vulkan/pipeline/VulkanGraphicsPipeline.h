@@ -15,6 +15,7 @@ namespace Vixen {
     public:
         VulkanGraphicsPipeline(
             const VulkanPipelineLayout& layout,
+            const Shader& shader,
             GraphicsPipelineState state,
             VkPipeline pipeline
         );

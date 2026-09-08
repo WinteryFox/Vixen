@@ -28,8 +28,9 @@ namespace Vixen {
 
     GraphicsPipeline::GraphicsPipeline(
         const PipelineLayout& layout,
+        const Shader& shader,
         GraphicsPipelineState state
-    ) : Pipeline(layout),
+    ) : Pipeline(layout, shader),
         state(std::move(state)),
         vertexValidationRequirements(buildVertexValidationRequirements(this->state)) {}
 }

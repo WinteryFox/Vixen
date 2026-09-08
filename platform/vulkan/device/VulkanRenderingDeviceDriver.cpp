@@ -3507,6 +3507,7 @@ namespace Vixen {
 
         auto graphicsPipeline = new(std::nothrow) VulkanGraphicsPipeline{
             *vkLayout,
+            *shader,
             state,
             pipeline
         };
@@ -3616,7 +3617,7 @@ namespace Vixen {
             vkDestroyPipeline(device, pipeline, nullptr);
         });
 
-        auto computePipeline = new(std::nothrow) VulkanComputePipeline{*vkLayout, pipeline};
+        auto computePipeline = new(std::nothrow) VulkanComputePipeline{*vkLayout, *shader, pipeline};
         if (computePipeline == nullptr) {
             return std::unexpected{
                 ResourceCreationError{

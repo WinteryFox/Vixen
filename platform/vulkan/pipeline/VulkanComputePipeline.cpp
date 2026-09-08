@@ -5,7 +5,8 @@
 namespace Vixen {
     VulkanComputePipeline::VulkanComputePipeline(
         const VulkanPipelineLayout& layout,
+        const Shader& shader,
         const VkPipeline pipeline
-    ) : ComputePipeline(layout),
+    ) : ComputePipeline(layout, shader),
         pipeline(pipeline) {}
 }

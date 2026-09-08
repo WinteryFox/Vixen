@@ -5,6 +5,6 @@
 namespace Vixen {
     class ComputePipeline : public Pipeline {
     protected:
-        explicit ComputePipeline(const PipelineLayout& layout);
+        ComputePipeline(const PipelineLayout& layout, const Shader& shader);
     };
 }

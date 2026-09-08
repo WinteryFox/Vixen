@@ -29,6 +29,7 @@ namespace Vixen {
     protected:
         GraphicsPipeline(
             const PipelineLayout& layout,
+            const Shader& shader,
             GraphicsPipelineState state
         );
     };
