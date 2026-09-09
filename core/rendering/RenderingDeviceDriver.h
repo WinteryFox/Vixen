@@ -4,6 +4,7 @@
 #include <cstdint>
 #include <expected>
 #include <optional>
+#include <span>
 #include <string>
 #include <string_view>
 #include <vector>
@@ -26,22 +27,6 @@
 #include "pipeline/ComputePipelineDescription.h"
 
 namespace Vixen {
-    struct DescriptorCountLimits {
-        uint32_t samplers;
-        uint32_t uniformBuffers;
-        uint32_t storageBuffers;
-        uint32_t sampledImages;
-        uint32_t storageImages;
-        uint32_t inputAttachments;
-    };
-
-    struct PipelineLayoutLimits {
-        uint32_t maxBoundDescriptorSets;
-        DescriptorCountLimits maxDescriptors;
-        DescriptorCountLimits maxPerStageDescriptors;
-        uint32_t maxPerStageResources;
-    };
-
     struct GraphicsPipelineDescription;
     struct ComputePipeline;
     struct GraphicsPipeline;
@@ -74,8 +59,28 @@ namespace Vixen {
     struct CommandQueue;
     struct Framebuffer;
 
+    struct DescriptorCountLimits {
+        uint32_t samplers;
+        uint32_t uniformBuffers;
+        uint32_t storageBuffers;
+        uint32_t sampledImages;
+        uint32_t storageImages;
+        uint32_t inputAttachments;
+    };
+
+    struct PipelineLayoutLimits {
+        uint32_t maxBoundDescriptorSets;
+        DescriptorCountLimits maxDescriptors;
+        DescriptorCountLimits maxPerStageDescriptors;
+        uint32_t maxPerStageResources;
+    };
+
     class RenderingDeviceDriver {
-        enum class RenderingScope { Any, Outside, Inside };
+        enum class RenderingScope {
+            Any,
+            Outside,
+            Inside
+        };
 
         [[nodiscard]] auto validatePipelineLayoutDescription(
             const PipelineLayoutDescription& description
@@ -110,7 +115,18 @@ namespace Vixen {
             uint32_t firstInstance
         ) -> std::expected<void, CommandError>;
 
+        static auto checkPushConstantRequirements(
+            const CommandBuffer* commandBuffer,
+            const Pipeline* pipeline,
+            std::string_view operation
+        ) -> std::expected<void, CommandError>;
+
     protected:
+        [[nodiscard]] static bool arePushConstantRangesCompatible(
+            const PipelineLayout& left,
+            const PipelineLayout& right
+        ) noexcept;
+
         static auto reflectShader(
             const std::vector<ShaderStageData>& stages,
             Shader* shader
@@ -308,6 +324,14 @@ namespace Vixen {
             const Buffer* buffer,
             IndexFormat format,
             uint64_t offset
+        ) -> std::expected<void, CommandError> = 0;
+
+        [[nodiscard]] virtual auto commandPushConstants(
+            CommandBuffer* commandBuffer,
+            const PipelineLayout* pipelineLayout,
+            ShaderStageFlags stages,
+            uint32_t offset,
+            std::span<const std::byte> data
         ) -> std::expected<void, CommandError> = 0;
 
         [[nodiscard]] virtual auto commandBindGraphicsPipeline(

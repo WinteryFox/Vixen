@@ -1,6 +1,7 @@
 #include "RenderingDeviceDriver.h"
 
 #include <algorithm>
+#include <array>
 #include <cstring>
 #include <format>
 #include <limits>
@@ -26,7 +27,9 @@
 #include "buffer/BufferImageCopyRegion.h"
 #include "image/Image.h"
 #include "image/ImageCopyRegion.h"
+#include "pipeline/ComputePipeline.h"
 #include "pipeline/GraphicsPipeline.h"
+#include "pipeline/PipelineLayout.h"
 #include "rendering/AttachmentInfo.h"
 #include "core/error/CantCreateError.h"
 #include "core/error/Macros.h"
@@ -811,6 +814,38 @@ namespace Vixen {
             return commandError(CommandErrorCode::InvalidArgument, operation, detail);
         }
 
+        constexpr std::array shaderStageOrder{
+            ShaderStageBits::Vertex,
+            ShaderStageBits::Fragment,
+            ShaderStageBits::TesselationControl,
+            ShaderStageBits::TesselationEvaluation,
+            ShaderStageBits::Compute,
+            ShaderStageBits::Geometry
+        };
+
+        constexpr ShaderStageFlags graphicsShaderStages =
+            ShaderStageBits::Vertex |
+            ShaderStageBits::Fragment |
+            ShaderStageBits::TesselationControl |
+            ShaderStageBits::TesselationEvaluation |
+            ShaderStageBits::Geometry;
+
+        constexpr ShaderStageFlags recognizedShaderStages =
+            graphicsShaderStages | ShaderStageBits::Compute;
+
+        constexpr std::string_view shaderStageName(const ShaderStageBits stage) noexcept {
+            switch (stage) {
+                case ShaderStageBits::Vertex: return "vertex";
+                case ShaderStageBits::Fragment: return "fragment";
+                case ShaderStageBits::TesselationControl: return "tessellation-control";
+                case ShaderStageBits::TesselationEvaluation: return "tessellation-evaluation";
+                case ShaderStageBits::Compute: return "compute";
+                case ShaderStageBits::Geometry: return "geometry";
+            }
+
+            return "unrecognized";
+        }
+
         std::string describeAttachmentFormat(const std::optional<ImageDataFormat> format) {
             return format ? std::format("ImageDataFormat({})", std::to_underlying(*format)) : "none";
         }
@@ -1219,6 +1254,224 @@ namespace Vixen {
         return {};
     }
 
+    auto RenderingDeviceDriver::commandPushConstants(
+        CommandBuffer* commandBuffer,
+        const PipelineLayout* pipelineLayout,
+        const ShaderStageFlags stages,
+        const uint32_t offset,
+        const std::span<const std::byte> data
+    ) -> std::expected<void, CommandError> {
+        constexpr std::string_view operation = "commandPushConstants";
+        if (auto result = checkRecording(
+            commandBuffer,
+            operation,
+            QueueFamilyBits::Graphics | QueueFamilyBits::Compute,
+            RenderingScope::Any
+        ); !result)
+            return result;
+
+        if (pipelineLayout == nullptr)
+            return invalidArgument(operation, "pipeline layout is null");
+
+        if (stages.empty())
+            return invalidArgument(operation, "shader-stage mask is empty");
+
+        const uint32_t unrecognizedStages = stages.value() & ~recognizedShaderStages.value();
+        if (unrecognizedStages != 0)
+            return invalidArgument(
+                operation,
+                std::format("shader-stage mask contains unrecognized bits 0x{:X}", unrecognizedStages)
+            );
+
+        if (!(stages & graphicsShaderStages).empty() &&
+            !commandBuffer->queueCapabilities.contains(QueueFamilyBits::Graphics))
+            return commandError(
+                CommandErrorCode::InvalidState,
+                operation,
+                "graphics shader stages require a graphics-capable command buffer"
+            );
+
+        if (stages.contains(ShaderStageBits::Compute) &&
+            !commandBuffer->queueCapabilities.contains(QueueFamilyBits::Compute))
+            return commandError(
+                CommandErrorCode::InvalidState,
+                operation,
+                "the compute shader stage requires a compute-capable command buffer"
+            );
+
+        if (data.empty())
+            return invalidArgument(operation, "data must contain at least one byte");
+
+        if (offset % 4 != 0)
+            return invalidArgument(
+                operation,
+                std::format("offset {} is not aligned to four bytes", offset)
+            );
+
+        if (data.size() % 4 != 0)
+            return invalidArgument(
+                operation,
+                std::format("data size {} is not a multiple of four bytes", data.size())
+            );
+
+        if (data.size() > std::numeric_limits<uint32_t>::max())
+            return invalidArgument(operation, "data size is not representable as uint32_t");
+
+        const uint64_t end = static_cast<uint64_t>(offset) + data.size();
+        if (end > std::numeric_limits<uint32_t>::max())
+            return invalidArgument(
+                operation,
+                std::format("byte range [{}, {}) exceeds the uint32_t addressable range", offset, end)
+            );
+
+        const auto& ranges = pipelineLayout->getDescription().pushConstantRanges;
+        for (size_t rangeIndex = 0; rangeIndex < ranges.size(); ++rangeIndex) {
+            const auto& range = ranges[rangeIndex];
+            const uint64_t rangeEnd = static_cast<uint64_t>(range.offset) + range.size;
+            if (offset >= rangeEnd || end <= range.offset)
+                continue;
+
+            const uint32_t omittedStages = range.stages.value() & ~stages.value();
+            if (omittedStages != 0)
+                return invalidArgument(
+                    operation,
+                    std::format(
+                        "byte range [{}, {}) overlaps pipeline-layout push-constant range {} "
+                        "[{},{}) but omits its shader-stage bits 0x{:X}",
+                        offset,
+                        end,
+                        rangeIndex,
+                        range.offset,
+                        rangeEnd,
+                        omittedStages
+                    )
+                );
+        }
+
+        for (const auto stage : shaderStageOrder) {
+            if (!stages.contains(stage))
+                continue;
+
+            const auto containingRange = std::ranges::find_if(
+                ranges,
+                [stage, offset, end](const PushConstantRange& range) {
+                    return range.stages.contains(stage) &&
+                        offset >= range.offset &&
+                        end <= static_cast<uint64_t>(range.offset) + range.size;
+                }
+            );
+            if (containingRange == ranges.end())
+                return invalidArgument(
+                    operation,
+                    std::format(
+                        "pipeline layout has no {}-stage push-constant range containing byte range [{}, {})",
+                        shaderStageName(stage),
+                        offset,
+                        end
+                    )
+                );
+        }
+
+        return {};
+    }
+
+    bool RenderingDeviceDriver::arePushConstantRangesCompatible(
+        const PipelineLayout& left,
+        const PipelineLayout& right
+    ) noexcept {
+        const auto& leftRanges = left.getDescription().pushConstantRanges;
+        const auto& rightRanges = right.getDescription().pushConstantRanges;
+        if (leftRanges.size() != rightRanges.size())
+            return false;
+
+        return std::ranges::all_of(
+            leftRanges,
+            [&rightRanges](const PushConstantRange& leftRange) {
+                return std::ranges::any_of(
+                    rightRanges,
+                    [&leftRange](const PushConstantRange& rightRange) {
+                        return leftRange.stages == rightRange.stages &&
+                            leftRange.offset == rightRange.offset &&
+                            leftRange.size == rightRange.size;
+                    }
+                );
+            }
+        );
+    }
+
+    auto RenderingDeviceDriver::checkPushConstantRequirements(
+        const CommandBuffer* commandBuffer,
+        const Pipeline* pipeline,
+        const std::string_view operation
+    ) -> std::expected<void, CommandError> {
+        const auto& requirement = pipeline->shaderRequirements.pushConstants;
+        if (!requirement)
+            return {};
+
+        const auto& pipelineLayout = pipeline->getLayout();
+        for (size_t stageIndex = 0; stageIndex < shaderStageOrder.size(); ++stageIndex) {
+            const auto stage = shaderStageOrder[stageIndex];
+            if (!requirement->stages.contains(stage))
+                continue;
+
+            const auto& state = commandBuffer->pushConstantStates[stageIndex];
+            if (state.layout != nullptr &&
+                !arePushConstantRangesCompatible(*state.layout, pipelineLayout))
+                return commandError(
+                    CommandErrorCode::InvalidState,
+                    operation,
+                    std::format(
+                        "the most recent {}-stage push constants were recorded with a pipeline layout "
+                        "whose push-constant ranges are incompatible with the bound pipeline layout",
+                        shaderStageName(stage)
+                    )
+                );
+
+            const uint64_t requiredEnd = static_cast<uint64_t>(requirement->offset) + requirement->size;
+            if (state.layout == nullptr)
+                return commandError(
+                    CommandErrorCode::InvalidState,
+                    operation,
+                    std::format(
+                        "the bound pipeline requires {}-stage push constants in byte range [{}, {}), "
+                        "but no values have been recorded for that stage",
+                        shaderStageName(stage),
+                        requirement->offset,
+                        requiredEnd
+                    )
+                );
+
+            uint64_t initializedThrough = requirement->offset;
+            for (const auto& range : state.initializedRanges) {
+                const uint64_t rangeEnd = static_cast<uint64_t>(range.offset) + range.size;
+                if (rangeEnd <= initializedThrough)
+                    continue;
+                if (range.offset > initializedThrough)
+                    break;
+
+                initializedThrough = rangeEnd;
+                if (initializedThrough >= requiredEnd)
+                    break;
+            }
+
+            if (initializedThrough < requiredEnd)
+                return commandError(
+                    CommandErrorCode::InvalidState,
+                    operation,
+                    std::format(
+                        "the bound pipeline requires {}-stage push constants in byte range [{}, {}), "
+                        "but byte {} has not been initialized",
+                        shaderStageName(stage),
+                        requirement->offset,
+                        requiredEnd,
+                        initializedThrough
+                    )
+                );
+        }
+
+        return {};
+    }
+
     auto RenderingDeviceDriver::commandBindGraphicsPipeline(
         CommandBuffer* commandBuffer,
         const GraphicsPipeline* pipeline
@@ -1273,6 +1526,13 @@ namespace Vixen {
                 operation,
                 "no graphics pipeline is bound"
             );
+
+        if (auto result = checkPushConstantRequirements(
+            commandBuffer,
+            commandBuffer->boundGraphicsPipeline,
+            operation
+        ); !result)
+            return result;
 
         const auto& pipeline = commandBuffer->boundGraphicsPipeline->state;
         const auto& rendering = *commandBuffer->renderingState;
@@ -1567,6 +1827,13 @@ namespace Vixen {
 
         if (commandBuffer->boundComputePipeline == nullptr)
             return commandError(CommandErrorCode::InvalidState, "commandDispatch", "no compute pipeline is bound");
+
+        if (auto result = checkPushConstantRequirements(
+            commandBuffer,
+            commandBuffer->boundComputePipeline,
+            "commandDispatch"
+        ); !result)
+            return result;
 
         (void)groupCountX;
         (void)groupCountY;

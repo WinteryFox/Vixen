@@ -1,5 +1,6 @@
 #pragma once
 
+#include <array>
 #include <cstdint>
 #include <atomic>
 #include <memory>
@@ -15,6 +16,7 @@
 namespace Vixen {
     class GraphicsPipeline;
     class ComputePipeline;
+    class PipelineLayout;
     class Buffer;
     struct CommandPool;
 
@@ -55,6 +57,16 @@ namespace Vixen {
             IndexFormat format = IndexFormat::UnsignedInt16;
         };
 
+        struct PushConstantByteRange {
+            uint32_t offset = 0;
+            uint32_t size = 0;
+        };
+
+        struct PushConstantStageState {
+            const PipelineLayout* layout = nullptr;
+            std::vector<PushConstantByteRange> initializedRanges{};
+        };
+
         QueueFamilyFlags queueCapabilities{};
 
         DynamicStateFlags dynamicStates{};
@@ -80,6 +92,9 @@ namespace Vixen {
         std::vector<VertexBufferBinding> vertexBindings{};
 
         std::optional<IndexBufferBinding> indexBinding{};
+
+        // Indexed in ShaderStageBits declaration order.
+        std::array<PushConstantStageState, 6> pushConstantStates{};
 
     protected:
         explicit CommandBuffer(

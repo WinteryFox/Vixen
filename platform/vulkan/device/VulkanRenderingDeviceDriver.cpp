@@ -4460,6 +4460,117 @@ namespace Vixen {
         };
     }
 
+    auto VulkanRenderingDeviceDriver::commandPushConstants(
+        CommandBuffer* commandBuffer,
+        const PipelineLayout* pipelineLayout,
+        const ShaderStageFlags stages,
+        const uint32_t offset,
+        const std::span<const std::byte> data
+    ) -> std::expected<void, CommandError> try {
+        if (auto result = RenderingDeviceDriver::commandPushConstants(
+            commandBuffer,
+            pipelineLayout,
+            stages,
+            offset,
+            data
+        ); !result)
+            return result;
+
+        auto vkCommandBuffer = dynamic_cast<VulkanCommandBuffer*>(commandBuffer);
+        if (vkCommandBuffer == nullptr)
+            return std::unexpected{
+                CommandError{
+                    .code = CommandErrorCode::InvalidArgument,
+                    .message = "commandPushConstants: command buffer belongs to a different backend"
+                }
+            };
+
+        const auto vkPipelineLayout = dynamic_cast<const VulkanPipelineLayout*>(pipelineLayout);
+        if (vkPipelineLayout == nullptr)
+            return std::unexpected{
+                CommandError{
+                    .code = CommandErrorCode::InvalidArgument,
+                    .message = "commandPushConstants: pipeline layout belongs to a different backend"
+                }
+            };
+
+        auto pushConstantStates = vkCommandBuffer->pushConstantStates;
+        constexpr std::array shaderStageOrder{
+            ShaderStageBits::Vertex,
+            ShaderStageBits::Fragment,
+            ShaderStageBits::TesselationControl,
+            ShaderStageBits::TesselationEvaluation,
+            ShaderStageBits::Compute,
+            ShaderStageBits::Geometry
+        };
+
+        for (size_t stageIndex = 0; stageIndex < shaderStageOrder.size(); ++stageIndex) {
+            if (!stages.contains(shaderStageOrder[stageIndex]))
+                continue;
+
+            auto& state = pushConstantStates[stageIndex];
+            if (state.layout != nullptr &&
+                !arePushConstantRangesCompatible(*state.layout, *pipelineLayout))
+                state.initializedRanges.clear();
+
+            state.layout = pipelineLayout;
+            state.initializedRanges.push_back({
+                .offset = offset,
+                .size = static_cast<uint32_t>(data.size())
+            });
+            std::ranges::sort(
+                state.initializedRanges,
+                {},
+                &CommandBuffer::PushConstantByteRange::offset
+            );
+
+            size_t mergedCount = 0;
+            for (const auto range : state.initializedRanges) {
+                if (mergedCount == 0) {
+                    state.initializedRanges[mergedCount++] = range;
+                    continue;
+                }
+
+                auto& previous = state.initializedRanges[mergedCount - 1];
+                const uint64_t previousEnd = static_cast<uint64_t>(previous.offset) + previous.size;
+                const uint64_t rangeEnd = static_cast<uint64_t>(range.offset) + range.size;
+                if (range.offset <= previousEnd) {
+                    previous.size = static_cast<uint32_t>(std::max(previousEnd, rangeEnd) - previous.offset);
+                } else {
+                    state.initializedRanges[mergedCount++] = range;
+                }
+            }
+            state.initializedRanges.resize(mergedCount);
+        }
+
+        spdlog::trace(
+            "Recording Vulkan push constants (stage mask {:#x}, byte range [{}, {}))",
+            stages.value(),
+            offset,
+            static_cast<uint64_t>(offset) + data.size()
+        );
+
+        vkCmdPushConstants(
+            vkCommandBuffer->commandBuffer,
+            vkPipelineLayout->layout,
+            toVkShaderStageFlags(stages),
+            offset,
+            static_cast<uint32_t>(data.size()),
+            data.data()
+        );
+
+        vkCommandBuffer->pushConstantStates.swap(pushConstantStates);
+
+        return {};
+    } catch (const std::bad_alloc&) {
+        return std::unexpected{
+            CommandError{
+                .code = CommandErrorCode::OutOfHostMemory,
+                .message = "commandPushConstants: host allocation failed while updating command-buffer bookkeeping"
+            }
+        };
+    }
+
     auto VulkanRenderingDeviceDriver::commandBindGraphicsPipeline(
         CommandBuffer* commandBuffer,
         const GraphicsPipeline* pipeline

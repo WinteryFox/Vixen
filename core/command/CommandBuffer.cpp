@@ -25,6 +25,11 @@ namespace Vixen {
         boundComputePipeline = nullptr;
         vertexBindings.clear();
         indexBinding.reset();
+
+        for (auto& pushConstantState : pushConstantStates) {
+            pushConstantState.layout = nullptr;
+            pushConstantState.initializedRanges.clear();
+        }
     }
 
     CommandPool::~CommandPool() {
