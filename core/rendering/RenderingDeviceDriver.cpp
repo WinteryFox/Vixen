@@ -921,24 +921,20 @@ namespace Vixen {
         return checkRecording(commandBuffer, operation, {}, RenderingScope::Outside);
     }
 
+    auto RenderingDeviceDriver::createPipelineLayout(
+        const PipelineLayoutDescription& description
+    ) -> std::expected<PipelineLayout*, ResourceCreationError> {
+        if (auto validation = validatePipelineLayoutDescription(description); !validation)
+            return std::unexpected{std::move(validation).error()};
+
+        return {};
+    }
+
     auto RenderingDeviceDriver::createGraphicsPipeline(
         const GraphicsPipelineDescription& description
     ) -> std::expected<GraphicsPipeline*, ResourceCreationError> {
-        if (description.layout == nullptr)
-            return std::unexpected{
-                ResourceCreationError{
-                    .code = ResourceCreationErrorCode::InvalidDescription,
-                    .message = "Graphics pipeline description does not specify a pipeline layout"
-                }
-            };
-
-        if (description.shader == nullptr)
-            return std::unexpected{
-                ResourceCreationError{
-                    .code = ResourceCreationErrorCode::InvalidDescription,
-                    .message = "Graphics pipeline description does not specify a shader"
-                }
-            };
+        if (auto validation = validateGraphicsPipelineDescription(description); !validation)
+            return std::unexpected{std::move(validation).error()};
 
         return {};
     }
@@ -946,29 +942,8 @@ namespace Vixen {
     auto RenderingDeviceDriver::createComputePipeline(
         const ComputePipelineDescription& description
     ) -> std::expected<ComputePipeline*, ResourceCreationError> {
-        if (description.layout == nullptr)
-            return std::unexpected{
-                ResourceCreationError{
-                    .code = ResourceCreationErrorCode::InvalidDescription,
-                    .message = "Compute pipeline description does not specify a pipeline layout"
-                }
-            };
-
-        if (description.shader == nullptr)
-            return std::unexpected{
-                ResourceCreationError{
-                    .code = ResourceCreationErrorCode::InvalidDescription,
-                    .message = "Compute pipeline description does not specify a shader"
-                }
-            };
-
-        if (description.shader->getStageFlags() != ShaderStageFlags{ShaderStageBits::Compute})
-            return std::unexpected{
-                ResourceCreationError{
-                    .code = ResourceCreationErrorCode::InvalidDescription,
-                    .message = "Compute pipeline shader must contain exactly one compute stage and no graphics stages"
-                }
-            };
+        if (auto validation = validateComputePipelineDescription(description); !validation)
+            return std::unexpected{std::move(validation).error()};
 
         return {};
     }

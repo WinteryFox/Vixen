@@ -77,6 +77,18 @@ namespace Vixen {
     class RenderingDeviceDriver {
         enum class RenderingScope { Any, Outside, Inside };
 
+        [[nodiscard]] auto validatePipelineLayoutDescription(
+            const PipelineLayoutDescription& description
+        ) const -> std::expected<void, ResourceCreationError>;
+
+        [[nodiscard]] auto validateGraphicsPipelineDescription(
+            const GraphicsPipelineDescription& description
+        ) const -> std::expected<void, ResourceCreationError>;
+
+        [[nodiscard]] auto validateComputePipelineDescription(
+            const ComputePipelineDescription& description
+        ) const -> std::expected<void, ResourceCreationError>;
+
         static auto checkRecording(
             const CommandBuffer* commandBuffer,
             std::string_view operation,

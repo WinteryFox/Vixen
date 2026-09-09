@@ -1259,7 +1259,8 @@ namespace Vixen {
     ) -> std::expected<void, Error> {
         const auto vkFence = dynamic_cast<VulkanFence*>(fence);
 
-        spdlog::trace("Waiting on Vulkan fence with {} tracked command submission(s)", vkFence->commandSubmissions.size());
+        spdlog::trace("Waiting on Vulkan fence with {} tracked command submission(s)",
+                      vkFence->commandSubmissions.size());
 
         if (vkWaitForFences(device, 1, &vkFence->fence, VK_TRUE, std::numeric_limits<uint64_t>::max()) != VK_SUCCESS)
             return std::unexpected(Error::InitializationFailed);
@@ -3056,6 +3057,9 @@ namespace Vixen {
     auto VulkanRenderingDeviceDriver::createPipelineLayout(
         const PipelineLayoutDescription& description
     ) -> std::expected<PipelineLayout*, ResourceCreationError> try {
+        if (auto result = RenderingDeviceDriver::createPipelineLayout(description); !result)
+            return result;
+
         for (size_t rangeIndex = 0; rangeIndex < description.pushConstantRanges.size(); ++rangeIndex) {
             const auto& range = description.pushConstantRanges[rangeIndex];
             const auto context = std::format("Push-constant range {}", rangeIndex);
@@ -3305,6 +3309,64 @@ namespace Vixen {
             !result)
             return result;
 
+        const auto& state = description.state;
+        if (state.rasterization.isDepthClampEnabled)
+            return std::unexpected{
+                ResourceCreationError{
+                    .code = ResourceCreationErrorCode::UnsupportedUsage,
+                    .message = "Depth clamping is not enabled by the Vulkan backend"
+                }
+            };
+
+        if (state.rasterization.polygonMode != PolygonMode::Fill)
+            return std::unexpected{
+                ResourceCreationError{
+                    .code = ResourceCreationErrorCode::UnsupportedUsage,
+                    .message = "Non-solid polygon modes are not enabled by the Vulkan backend"
+                }
+            };
+
+        if (state.rasterization.depthBiasClamp != 0.0f)
+            return std::unexpected{
+                ResourceCreationError{
+                    .code = ResourceCreationErrorCode::UnsupportedUsage,
+                    .message = "Depth-bias clamping is not enabled by the Vulkan backend"
+                }
+            };
+
+        if (state.rasterization.lineWidth != 1.0f)
+            return std::unexpected{
+                ResourceCreationError{
+                    .code = ResourceCreationErrorCode::UnsupportedUsage,
+                    .message = "Wide lines are not enabled by the Vulkan backend",
+                    .details = {std::format("Requested line width: {}", state.rasterization.lineWidth)}
+                }
+            };
+
+        if (state.multisampling.isSampleShadingEnabled)
+            return std::unexpected{
+                ResourceCreationError{
+                    .code = ResourceCreationErrorCode::UnsupportedUsage,
+                    .message = "Sample-rate shading is not enabled by the Vulkan backend"
+                }
+            };
+
+        if (state.multisampling.isAlphaToOneEnabled)
+            return std::unexpected{
+                ResourceCreationError{
+                    .code = ResourceCreationErrorCode::UnsupportedUsage,
+                    .message = "Alpha-to-one multisampling is not enabled by the Vulkan backend"
+                }
+            };
+
+        if (state.depthStencil.isDepthBoundsTestEnabled)
+            return std::unexpected{
+                ResourceCreationError{
+                    .code = ResourceCreationErrorCode::UnsupportedUsage,
+                    .message = "Depth-bounds testing is not enabled by the Vulkan backend"
+                }
+            };
+
         const auto vkLayout = dynamic_cast<const VulkanPipelineLayout*>(description.layout);
         if (!vkLayout)
             return std::unexpected{
@@ -3394,8 +3456,6 @@ namespace Vixen {
                     .message = "Graphics pipeline shader has no live vertex shader module"
                 }
             };
-
-        const auto& state = description.state;
 
         std::vector<VkVertexInputBindingDescription> vertexBindings{};
         vertexBindings.reserve(state.vertexBindings.size());
