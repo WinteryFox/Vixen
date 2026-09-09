@@ -10,9 +10,7 @@
 #include <string_view>
 #include <utility>
 
-#ifdef DEBUG_ENABLED
-#include <GlslangToSpv.h>
-#endif
+#include "GlslangToSpv.h"
 
 #include <disassemble.h>
 #include <spirv_cross.hpp>
