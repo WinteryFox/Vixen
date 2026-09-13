@@ -13,6 +13,8 @@ add_library(
         framegraph/FrameGraphResourceStorage.cpp
         framegraph/RenderPass.cpp
         framegraph/ResourceStateMapping.cpp
+        rendering/DescriptorPool.cpp
+        rendering/DescriptorSet.cpp
         rendering/RenderingContextDriver.cpp
         rendering/RenderingDevice.cpp
         rendering/RenderingDeviceDriver.cpp
@@ -51,6 +53,7 @@ target_sources(
         display/WindowMode.h
         display/WindowMouseMode.h
         error/CantCreateError.h
+        error/DescriptorError.h
         error/Error.h
         error/Macros.h
         error/ResourceCreationError.h
@@ -97,6 +100,8 @@ target_sources(
         rendering/AttachmentInfo.h
         rendering/ColorComponent.h
         rendering/ClearValue.h
+        rendering/DescriptorPool.h
+        rendering/DescriptorSet.h
         rendering/DriverDevice.h
         rendering/Frame.h
         rendering/Framebuffer.h

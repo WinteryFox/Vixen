@@ -6,6 +6,7 @@
 #include <array>
 #include <format>
 #include <experimental/scope>
+#include <limits>
 #include <map>
 #include <new>
 #include <ranges>
@@ -38,6 +39,8 @@
 #include "pipeline/VulkanGraphicsPipeline.h"
 #include "pipeline/VulkanPipelineLayout.h"
 #include "platform/vulkan/shader/VulkanShader.h"
+#include "rendering/DescriptorSet.h"
+#include "rendering/VulkanDescriptorPool.h"
 
 namespace Vixen {
     namespace {
@@ -50,6 +53,39 @@ namespace Vixen {
             return {
                 code,
                 std::format("{} failed with {} ({})", operation, string_VkResult(result), static_cast<int32_t>(result))
+            };
+        }
+
+        auto makeDescriptorError(
+            const VkResult result,
+            const std::string_view operation
+        ) -> DescriptorError {
+            auto code = DescriptorErrorCode::NativeOperationFailed;
+            if (result == VK_ERROR_OUT_OF_HOST_MEMORY)
+                code = DescriptorErrorCode::OutOfHostMemory;
+            else if (result == VK_ERROR_OUT_OF_DEVICE_MEMORY)
+                code = DescriptorErrorCode::OutOfDeviceMemory;
+            else if (result == VK_ERROR_OUT_OF_POOL_MEMORY ||
+                result == VK_ERROR_FRAGMENTED_POOL ||
+                result == VK_ERROR_TOO_MANY_OBJECTS)
+                code = DescriptorErrorCode::PoolExhausted;
+
+            const auto resultName = std::string{string_VkResult(result)};
+
+            return DescriptorError{
+                .code = code,
+                .message = std::format(
+                    "{} failed with {} ({})",
+                    operation,
+                    resultName,
+                    static_cast<int32_t>(result)
+                ),
+                .nativeError = NativeDescriptorError{
+                    .backend = "Vulkan",
+                    .operation = std::string{operation},
+                    .code = static_cast<int64_t>(result),
+                    .name = resultName
+                }
             };
         }
 
@@ -3870,6 +3906,278 @@ namespace Vixen {
         }
 
         delete pipeline;
+    }
+
+    auto VulkanRenderingDeviceDriver::createDescriptorPool()
+        -> std::expected<DescriptorPool*, ResourceCreationError> try {
+        return new VulkanDescriptorPool();
+    } catch (const std::bad_alloc&) {
+        return std::unexpected{
+            ResourceCreationError{
+                .code = ResourceCreationErrorCode::OutOfHostMemory,
+                .message = "createDescriptorPool: failed to allocate descriptor-pool state"
+            }
+        };
+    }
+
+    auto VulkanRenderingDeviceDriver::allocateDescriptorSet(
+        DescriptorPool* pool,
+        const PipelineLayout* layout,
+        const uint32_t set
+    ) -> std::expected<DescriptorSet, DescriptorError> try {
+        constexpr std::string_view operation = "allocateDescriptorSet";
+
+        if (const auto result = RenderingDeviceDriver::allocateDescriptorSet(pool, layout, set);
+            !result)
+            return result;
+
+        auto* vkPool = dynamic_cast<VulkanDescriptorPool*>(pool);
+        if (vkPool == nullptr)
+            return std::unexpected{
+                DescriptorError{
+                    .code = DescriptorErrorCode::InvalidArgument,
+                    .message = std::format("{}: descriptor pool belongs to a different backend", operation),
+                    .set = set
+                }
+            };
+
+        const auto* vkLayout = dynamic_cast<const VulkanPipelineLayout*>(layout);
+        if (vkLayout == nullptr)
+            return std::unexpected{
+                DescriptorError{
+                    .code = DescriptorErrorCode::IncompatibleLayout,
+                    .message = std::format("{}: pipeline layout belongs to a different backend", operation),
+                    .set = set
+                }
+            };
+
+        const auto& setDescriptions = layout->getDescription().descriptorSets;
+        const auto setDescription = std::ranges::find(
+            setDescriptions,
+            set,
+            &DescriptorSetLayoutDescription::set
+        );
+        if (setDescription == setDescriptions.end() ||
+            set >= vkLayout->descriptorSetLayouts.size())
+            return std::unexpected{
+                DescriptorError{
+                    .code = DescriptorErrorCode::IncompatibleLayout,
+                    .message = std::format(
+                        "{}: descriptor set {} has no corresponding native Vulkan set layout",
+                        operation,
+                        set
+                    ),
+                    .set = set
+                }
+            };
+
+        DescriptorSetRecord record{
+            .pipelineLayout = layout,
+            .layout = *setDescription,
+            .set = set,
+            .bindings = {}
+        };
+        record.bindings.reserve(setDescription->bindings.size());
+        for (const auto& binding : setDescription->bindings) {
+            const bool immutableSamplerBinding =
+                binding.type == ShaderUniformType::Sampler &&
+                binding.immutableSamplers.size() == binding.count;
+            record.bindings.push_back(DescriptorBindingState{
+                .binding = binding.binding,
+                .type = binding.type,
+                .elements = std::vector(
+                    binding.count,
+                    DescriptorElementState{.initialized = immutableSamplerBinding}
+                )
+            });
+        }
+
+        std::map<VkDescriptorType, uint64_t> requiredDescriptors;
+        for (const auto& binding : setDescription->bindings) {
+            auto type = toVkDescriptorType(binding.type);
+            if (!type)
+                return std::unexpected{
+                    DescriptorError{
+                        .code = DescriptorErrorCode::UnsupportedUsage,
+                        .message = std::format(
+                            "{}: descriptor set {} binding {} uses an unsupported descriptor type",
+                            operation,
+                            set,
+                            binding.binding
+                        ),
+                        .set = set,
+                        .binding = binding.binding
+                    }
+                };
+
+            auto& count = requiredDescriptors[*type];
+            count += binding.count;
+            if (count > std::numeric_limits<uint32_t>::max())
+                return std::unexpected{
+                    DescriptorError{
+                        .code = DescriptorErrorCode::PoolExhausted,
+                        .message = std::format(
+                            "{}: descriptor count for set {} exceeds uint32_t",
+                            operation,
+                            set
+                        ),
+                        .set = set
+                    }
+                };
+        }
+
+        std::vector<VkDescriptorPoolSize> poolSizes;
+        poolSizes.reserve(requiredDescriptors.size());
+        for (const auto [type, required] : requiredDescriptors)
+            poolSizes.push_back(VkDescriptorPoolSize{
+                .type = type,
+                .descriptorCount = static_cast<uint32_t>(std::max<uint64_t>(required, 64))
+            });
+
+        pool->allocations.reserve(pool->allocations.size() + 1);
+        vkPool->nativeSets.reserve(vkPool->nativeSets.size() + 1);
+
+        auto createNextBlock = [&]() -> std::expected<uint32_t, DescriptorError> {
+            vkPool->blocks.reserve(vkPool->blocks.size() + 1);
+
+            const VkDescriptorPoolCreateInfo poolInfo{
+                .sType = VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO,
+                .pNext = nullptr,
+                .flags = 0,
+                .maxSets = 64,
+                .poolSizeCount = static_cast<uint32_t>(poolSizes.size()),
+                .pPoolSizes = poolSizes.empty() ? nullptr : poolSizes.data()
+            };
+
+            VkDescriptorPool block = VK_NULL_HANDLE;
+            const auto result = vkCreateDescriptorPool(device, &poolInfo, nullptr, &block);
+            if (result != VK_SUCCESS)
+                return std::unexpected{makeDescriptorError(result, "vkCreateDescriptorPool")};
+
+            auto cleanup = std::experimental::scope_exit([&] {
+                vkDestroyDescriptorPool(device, block, nullptr);
+            });
+
+            const auto index = static_cast<uint32_t>(vkPool->blocks.size());
+            vkPool->blocks.push_back(VulkanDescriptorPoolBlock{
+                .pool = block,
+                .exhausted = false
+            });
+            cleanup.release();
+            return index;
+        };
+
+        const VkDescriptorSetLayout nativeSetLayout = vkLayout->descriptorSetLayouts[set];
+        for (;;) {
+            while (vkPool->currentBlockIndex < vkPool->blocks.size() &&
+                vkPool->blocks[vkPool->currentBlockIndex].exhausted)
+                ++vkPool->currentBlockIndex;
+
+            if (vkPool->currentBlockIndex == vkPool->blocks.size()) {
+                auto block = createNextBlock();
+                if (!block)
+                    return std::unexpected{std::move(block).error()};
+                vkPool->currentBlockIndex = *block;
+            }
+
+            auto& block = vkPool->blocks[vkPool->currentBlockIndex];
+            VkDescriptorSet descriptorSet = VK_NULL_HANDLE;
+            const VkDescriptorSetAllocateInfo allocateInfo{
+                .sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO,
+                .pNext = nullptr,
+                .descriptorPool = block.pool,
+                .descriptorSetCount = 1,
+                .pSetLayouts = &nativeSetLayout
+            };
+
+            const auto result = vkAllocateDescriptorSets(device, &allocateInfo, &descriptorSet);
+            if (result == VK_ERROR_OUT_OF_POOL_MEMORY ||
+                result == VK_ERROR_FRAGMENTED_POOL) {
+                block.exhausted = true;
+                ++vkPool->currentBlockIndex;
+                continue;
+            }
+
+            if (result != VK_SUCCESS)
+                return std::unexpected{makeDescriptorError(result, "vkAllocateDescriptorSets")};
+
+            const auto allocationIndex = static_cast<uint32_t>(pool->allocations.size());
+            pool->allocations.push_back(std::move(record));
+            vkPool->nativeSets.push_back(descriptorSet);
+
+            return makeDescriptorSet(*pool, allocationIndex);
+        }
+    } catch (const std::bad_alloc&) {
+        return std::unexpected{
+            DescriptorError{
+                .code = DescriptorErrorCode::OutOfHostMemory,
+                .message = "allocateDescriptorSet: failed to allocate temporary host storage",
+                .set = set
+            }
+        };
+    }
+
+    auto VulkanRenderingDeviceDriver::resetDescriptorPool(
+        DescriptorPool* pool
+    ) -> std::expected<void, DescriptorError> {
+        constexpr std::string_view operation = "resetDescriptorPool";
+
+        if (const auto result = RenderingDeviceDriver::resetDescriptorPool(pool); !result)
+            return result;
+
+        auto* vkPool = dynamic_cast<VulkanDescriptorPool*>(pool);
+        if (vkPool == nullptr)
+            return std::unexpected{
+                DescriptorError{
+                    .code = DescriptorErrorCode::InvalidArgument,
+                    .message = std::format("{}: descriptor pool belongs to a different backend", operation)
+                }
+            };
+
+        if (pool->lifetime->generation == std::numeric_limits<uint64_t>::max()) {
+            pool->poisoned = true;
+            return std::unexpected{
+                DescriptorError{
+                    .code = DescriptorErrorCode::InvalidPoolState,
+                    .message = std::format("{}: descriptor-pool generation counter is exhausted", operation)
+                }
+            };
+        }
+
+        ++pool->lifetime->generation;
+        pool->allocations.clear();
+        vkPool->nativeSets.clear();
+        vkPool->currentBlockIndex = 0;
+
+        for (auto& block : vkPool->blocks) {
+            const auto result = vkResetDescriptorPool(device, block.pool, 0);
+            if (result != VK_SUCCESS) {
+                pool->poisoned = true;
+                auto error = makeDescriptorError(result, "vkResetDescriptorPool");
+                error.message += "; the descriptor pool must be destroyed and recreated";
+                return std::unexpected{std::move(error)};
+            }
+
+            block.exhausted = false;
+        }
+
+        return {};
+    }
+
+    void VulkanRenderingDeviceDriver::destroyDescriptorPool(DescriptorPool* pool) {
+        if (pool == nullptr)
+            return;
+
+        auto* vkPool = dynamic_cast<VulkanDescriptorPool*>(pool);
+        if (vkPool == nullptr) {
+            DEBUG_ASSERT(false);
+            return;
+        }
+
+        for (const auto block : vkPool->blocks)
+            vkDestroyDescriptorPool(device, block.pool, nullptr);
+
+        delete vkPool;
     }
 
     VkImageSubresourceLayers VulkanRenderingDeviceDriver::_imageSubresourceLayers(

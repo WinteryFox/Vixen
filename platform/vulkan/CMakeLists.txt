@@ -29,6 +29,7 @@ target_sources(
         device/VulkanRenderingDeviceDriver.h
         image/VulkanImage.h
         image/VulkanSampler.h
+        rendering/VulkanDescriptorPool.h
         presentation/VulkanFramebuffer.h
         presentation/VulkanSurface.h
         presentation/VulkanSwapchain.h

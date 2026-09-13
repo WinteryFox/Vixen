@@ -11,6 +11,7 @@
 #include "DeviceFeatureSupport.h"
 #include "core/rendering/RenderingDeviceDriver.h"
 #include "core/image/ImageSamples.h"
+#include "error/DescriptorError.h"
 
 typedef struct VmaAllocator_T* VmaAllocator;
 
@@ -239,6 +240,20 @@ namespace Vixen {
         ) -> std::expected<ComputePipeline*, ResourceCreationError> override;
 
         void destroyPipeline(Pipeline* pipeline) override;
+
+        auto createDescriptorPool() -> std::expected<DescriptorPool*, ResourceCreationError> override;
+
+        auto allocateDescriptorSet(
+            DescriptorPool* pool,
+            const PipelineLayout* layout,
+            uint32_t set
+        ) -> std::expected<DescriptorSet, DescriptorError> override;
+
+        auto resetDescriptorPool(
+            DescriptorPool* pool
+        ) -> std::expected<void, DescriptorError> override;
+
+        void destroyDescriptorPool(DescriptorPool* pool) override;
 
         static VkImageSubresourceLayers _imageSubresourceLayers(
             const ImageSubresourceLayers& layers

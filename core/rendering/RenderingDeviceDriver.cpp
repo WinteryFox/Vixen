@@ -31,6 +31,8 @@
 #include "pipeline/GraphicsPipeline.h"
 #include "pipeline/PipelineLayout.h"
 #include "rendering/AttachmentInfo.h"
+#include "rendering/DescriptorPool.h"
+#include "rendering/DescriptorSet.h"
 #include "core/error/CantCreateError.h"
 #include "core/error/Macros.h"
 #include "core/error/Shader.h"
@@ -979,6 +981,106 @@ namespace Vixen {
     ) -> std::expected<ComputePipeline*, ResourceCreationError> {
         if (auto validation = validateComputePipelineDescription(description); !validation)
             return std::unexpected{std::move(validation).error()};
+
+        return {};
+    }
+
+    DescriptorSet RenderingDeviceDriver::makeDescriptorSet(
+        DescriptorPool& pool,
+        const uint32_t allocationIndex
+    ) noexcept {
+        return DescriptorSet{
+            pool.lifetime,
+            allocationIndex,
+            pool.lifetime->generation
+        };
+    }
+
+    auto RenderingDeviceDriver::allocateDescriptorSet(
+        DescriptorPool* pool,
+        const PipelineLayout* layout,
+        const uint32_t set
+    ) -> std::expected<DescriptorSet, DescriptorError> {
+        constexpr std::string_view operation = "allocateDescriptorSet";
+
+        if (pool == nullptr)
+            return std::unexpected{
+                DescriptorError{
+                    .code = DescriptorErrorCode::InvalidArgument,
+                    .message = std::format("{}: descriptor pool is null", operation)
+                }
+            };
+
+        if (layout == nullptr)
+            return std::unexpected{
+                DescriptorError{
+                    .code = DescriptorErrorCode::InvalidArgument,
+                    .message = std::format("{}: pipeline layout is null", operation),
+                    .set = set
+                }
+            };
+
+        if (pool->poisoned)
+            return std::unexpected{
+                DescriptorError{
+                    .code = DescriptorErrorCode::InvalidPoolState,
+                    .message = std::format(
+                        "{}: descriptor pool cannot be reused after a failed native reset; destroy and recreate it",
+                        operation
+                    ),
+                    .set = set
+                }
+            };
+
+        if (pool->allocations.size() >= std::numeric_limits<uint32_t>::max())
+            return std::unexpected{
+                DescriptorError{
+                    .code = DescriptorErrorCode::PoolExhausted,
+                    .message = std::format("{}: descriptor-set allocation index exceeds uint32_t", operation),
+                    .set = set
+                }
+            };
+
+        const auto& sets = layout->getDescription().descriptorSets;
+        if (std::ranges::find(sets, set, &DescriptorSetLayoutDescription::set) == sets.end())
+            return std::unexpected{
+                DescriptorError{
+                    .code = DescriptorErrorCode::SetNotFound,
+                    .message = std::format(
+                        "{}: pipeline layout does not declare descriptor set {}",
+                        operation,
+                        set
+                    ),
+                    .set = set
+                }
+            };
+
+        return DescriptorSet{};
+    }
+
+    auto RenderingDeviceDriver::resetDescriptorPool(
+        DescriptorPool* pool
+    ) -> std::expected<void, DescriptorError> {
+        constexpr std::string_view operation = "resetDescriptorPool";
+
+        if (pool == nullptr)
+            return std::unexpected{
+                DescriptorError{
+                    .code = DescriptorErrorCode::InvalidArgument,
+                    .message = std::format("{}: descriptor pool is null", operation)
+                }
+            };
+
+        if (pool->poisoned)
+            return std::unexpected{
+                DescriptorError{
+                    .code = DescriptorErrorCode::InvalidPoolState,
+                    .message = std::format(
+                        "{}: descriptor pool cannot be reset after a failed native reset; destroy and recreate it",
+                        operation
+                    )
+                }
+            };
 
         return {};
     }

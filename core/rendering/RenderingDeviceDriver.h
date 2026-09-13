@@ -24,7 +24,10 @@
 #include "core/image/ImageView.h"
 #include "core/image/SamplerState.h"
 #include "core/shader/ShaderStageData.h"
+#include "error/DescriptorError.h"
 #include "pipeline/ComputePipelineDescription.h"
+#include "rendering/DescriptorPool.h"
+#include "rendering/DescriptorSet.h"
 
 namespace Vixen {
     struct GraphicsPipelineDescription;
@@ -131,6 +134,11 @@ namespace Vixen {
             const std::vector<ShaderStageData>& stages,
             Shader* shader
         ) -> std::expected<void, ShaderReflectionError>;
+
+        [[nodiscard]] static DescriptorSet makeDescriptorSet(
+            DescriptorPool& pool,
+            uint32_t allocationIndex
+        ) noexcept;
 
     public:
         virtual ~RenderingDeviceDriver() = default;
@@ -288,6 +296,20 @@ namespace Vixen {
         ) -> std::expected<ComputePipeline*, ResourceCreationError> = 0;
 
         virtual void destroyPipeline(Pipeline* pipeline) = 0;
+
+        virtual auto createDescriptorPool() -> std::expected<DescriptorPool*, ResourceCreationError> = 0;
+
+        virtual auto allocateDescriptorSet(
+            DescriptorPool* pool,
+            const PipelineLayout* layout,
+            uint32_t set
+        ) -> std::expected<DescriptorSet, DescriptorError> = 0;
+
+        virtual auto resetDescriptorPool(
+            DescriptorPool* pool
+        ) -> std::expected<void, DescriptorError> = 0;
+
+        virtual void destroyDescriptorPool(DescriptorPool* pool) = 0;
 
         [[nodiscard]] virtual auto commandBeginRenderPass(
             CommandBuffer* commandBuffer,
